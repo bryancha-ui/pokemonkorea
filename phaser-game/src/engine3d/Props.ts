@@ -1093,6 +1093,81 @@ export function makeWater(width: number, depth: number): { mesh: THREE.Mesh; upd
   };
 }
 
+/**
+ * A stylized passenger/car ferry — the overnight 남해 연락선. Built from toon
+ * primitives so it renders anywhere without an asset file. The bow points toward
+ * +Z; the model sits with its waterline at y≈0 (hull below, deck above) so it can
+ * be dropped straight onto a sea plane. `length` runs along Z, `beam` along X.
+ */
+export function makeFerry(length = 9, beam = 3.2): THREE.Group {
+  const g = new THREE.Group();
+  const hullH = beam * 0.5;
+  const halfL = length / 2;
+
+  // ── Hull ── dark navy body, most of it below the waterline.
+  const hull = new THREE.Mesh(new THREE.BoxGeometry(beam, hullH, length * 0.82), toonMat(0x1b3b5f));
+  hull.position.set(0, -hullH * 0.28, -length * 0.04);
+  g.add(hull);
+  // Red boot-topping stripe along the waterline.
+  const stripe = new THREE.Mesh(new THREE.BoxGeometry(beam + 0.04, hullH * 0.16, length * 0.82), toonMat(0xb5352f));
+  stripe.position.set(0, hullH * 0.02, -length * 0.04);
+  g.add(stripe);
+  // Bow wedge — a 4-sided prism narrowing to a point at the bow (+Z).
+  const bow = new THREE.Mesh(new THREE.CylinderGeometry(0.001, hullH * 0.9, beam, 4), toonMat(0x1b3b5f));
+  bow.rotation.z = Math.PI / 2;              // point along ±X → then aim down +Z
+  bow.rotation.y = Math.PI / 2;
+  bow.scale.set(1, length * 0.16, 1);
+  bow.position.set(0, -hullH * 0.2, halfL * 0.82);
+  g.add(bow);
+
+  // ── Main deck ── pale planked platform on top of the hull.
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(beam * 0.98, 0.18, length * 0.86), toonMat(0xd8c39a));
+  deck.position.set(0, hullH * 0.22, -length * 0.02);
+  g.add(deck);
+
+  // ── Superstructure ── two white cabin tiers set back from the bow.
+  const tier1 = new THREE.Mesh(new THREE.BoxGeometry(beam * 0.8, hullH * 0.7, length * 0.5), toonMat(0xf2f0ea));
+  tier1.position.set(0, hullH * 0.22 + hullH * 0.35, -length * 0.12);
+  g.add(tier1);
+  const tier2 = new THREE.Mesh(new THREE.BoxGeometry(beam * 0.6, hullH * 0.55, length * 0.34), toonMat(0xf6f5f0));
+  tier2.position.set(0, hullH * 0.22 + hullH * 0.7 + hullH * 0.27, -length * 0.14);
+  g.add(tier2);
+  // Bridge windows — blue bands wrapping each tier.
+  for (const [y, w, z] of [
+    [hullH * 0.22 + hullH * 0.35, beam * 0.82, length * 0.5],
+    [hullH * 0.22 + hullH * 0.7 + hullH * 0.27, beam * 0.62, length * 0.34],
+  ] as const) {
+    const band = new THREE.Mesh(new THREE.BoxGeometry(w, hullH * 0.16, z), toonMat(0x2f6fa8));
+    band.position.set(0, y + hullH * 0.08, -length * 0.13);
+    g.add(band);
+  }
+
+  // ── Funnel ── red stack with a black cap, set aft (−Z).
+  const funnel = new THREE.Mesh(new THREE.CylinderGeometry(beam * 0.16, beam * 0.19, hullH * 0.75, 12), toonMat(0xc23a30));
+  funnel.position.set(0, hullH * 0.22 + hullH * 0.7 + hullH * 0.55, -length * 0.22);
+  g.add(funnel);
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(beam * 0.18, beam * 0.18, hullH * 0.12, 12), toonMat(0x1c1c22));
+  cap.position.set(0, funnel.position.y + hullH * 0.4, funnel.position.z);
+  g.add(cap);
+
+  // ── Rails ── thin posts + a top rail down both deck edges.
+  const railMat = toonMat(0xece7db);
+  const deckY = hullH * 0.22 + 0.09;
+  for (const sx of [-1, 1]) {
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.04, length * 0.8), railMat);
+    rail.position.set(sx * beam * 0.47, deckY + 0.34, -length * 0.02);
+    g.add(rail);
+    for (let i = -4; i <= 4; i++) {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.34, 0.05), railMat);
+      post.position.set(sx * beam * 0.47, deckY + 0.17, i * (length * 0.8 / 9) - length * 0.02);
+      g.add(post);
+    }
+  }
+
+  g.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
+  return g;
+}
+
 // ── Merged wall/cliff blocks (vertex-colored) ───────────────────────────────
 export class WallBuilder {
   private pos: number[] = [];

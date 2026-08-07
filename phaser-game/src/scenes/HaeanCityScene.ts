@@ -308,7 +308,7 @@ export class HaeanCityScene extends Phaser.Scene {
             "Sail out to the Jeju vents now?",
           ], () => {
             this.dialog.showChoice(
-              () => this.cameras.main.fadeOut(500, 0, 0, 0, () => this.scene.start('FerryScene')),
+              () => this.cameras.main.fadeOut(500, 0, 0, 0, () => this.scene.start('FerryDepartScene')),
               () => { this.cutsceneActive = false; },
             );
           });

@@ -9,12 +9,12 @@ import { playBgm } from '../systems/Music';
 import { EncounterEntry, pickEncounter, randomLevel } from '../data/CustomPokemon';
 
 // ── Tiles ───────────────────────────────────────────────────────────────────
-const T = { SEA: 0, DECK: 1, RAIL: 2, CABIN: 3, CARGO: 4, STORMGRASS: 5, GANGWAY: 6 } as const;
+const T = { SEA: 0, DECK: 1, RAIL: 2, CABIN: 3, CARGO: 4, STORMGRASS: 5, GANGWAY: 6, HATCH: 7 } as const;
 type Tile = typeof T[keyof typeof T];
 const TILE = 32, COLS = 20, ROWS = 34;
 const COLORS: Record<Tile, number> = {
   [T.SEA]: 0x1d4e74, [T.DECK]: 0xb98a52, [T.RAIL]: 0x7a5a32, [T.CABIN]: 0xd8d2c4,
-  [T.CARGO]: 0x9a7a4a, [T.STORMGRASS]: 0x9b7448, [T.GANGWAY]: 0xc9b98f,
+  [T.CARGO]: 0x9a7a4a, [T.STORMGRASS]: 0x9b7448, [T.GANGWAY]: 0xc9b98f, [T.HATCH]: 0x5a5f66,
 };
 const SOLID = new Set<Tile>([T.SEA, T.RAIL, T.CABIN, T.CARGO]);
 const ENCOUNTER = new Set<Tile>([T.STORMGRASS]);
@@ -43,6 +43,7 @@ function buildMap(): Tile[][] {
   // Stern cabin (superstructure) with a doorway
   fill(27, 31, 6, 14, T.CABIN);
   fill(27, 31, 9, 11, T.DECK);   // walkable corridor through the cabin (gangway → open deck)
+  m[28][10] = T.HATCH;           // deck hatch → below-deck passageway (rooms + corridor)
   // Cargo crates (obstacles) mid-deck
   for (const [r, c] of [[20,6],[20,13],[24,9],[18,9]] as [number,number][]) m[r][c] = T.CARGO;
   // Forward open deck — the storm-blown chaos zone
@@ -131,10 +132,10 @@ export class FerryScene extends Phaser.Scene {
       this.time.delayedCall(650, () => {
         this.cutsceneActive = true;
         this.dialog.show([
-          "🌅 Old Dosik waves from the dock. \"Tell the old Grandmother an old man from Haean still leaves rice cakes out for her.\"",
-          "🌊 The overnight ferry pulls out as the sun sinks into the western sea.",
+          "🌊 Haean is a dark line on the water behind you now; the sun sinks into the western sea.",
+          "Rival: Old Dosik said to tell the Grandmother an old man from Haean still leaves rice cakes out for her.",
           "Rival: I've never actually left the mainland before. Now we're sailing through the dark to stop a doomsday weapon.",
-          "Rival: I wouldn't trade it. For the record. (Spar the deck trainers, then talk to the deckhand at the cargo.)",
+          "Rival: I wouldn't trade it. For the record. (Explore the deck — and the hatch leads below to the cabins. Spar the trainers, then talk to the deckhand at the cargo.)",
         ], () => { this.cutsceneActive = false; playBgm(this, 'ferrynight'); });   // dusk departure → calm night
       });
     } else {
@@ -153,6 +154,7 @@ export class FerryScene extends Phaser.Scene {
       if (t === T.RAIL) { g.fillStyle(0x5a4222); g.fillRect(c*TILE+2, r*TILE+2, TILE-4, TILE-4); g.fillStyle(0xcaa874); g.fillRect(c*TILE+4, r*TILE+4, TILE-8, 4); }
       if (t === T.CABIN) { g.fillStyle(0x88ccff, 0.6); g.fillRect(c*TILE+6, r*TILE+8, TILE-12, 10); }
       if (t === T.CARGO) { g.fillStyle(0x6a4a28); g.fillRect(c*TILE+3, r*TILE+3, TILE-6, TILE-6); g.lineStyle(2, 0x3a2a18); g.strokeRect(c*TILE+3, r*TILE+3, TILE-6, TILE-6); }
+      if (t === T.HATCH) { g.fillStyle(0x3a3f46); g.fillRect(c*TILE+4, r*TILE+4, TILE-8, TILE-8); g.lineStyle(2, 0x22262c); g.strokeRect(c*TILE+4, r*TILE+4, TILE-8, TILE-8); g.fillStyle(0x14171b); g.fillRect(c*TILE+8, r*TILE+8, TILE-16, TILE-16); g.fillStyle(0xcaa25a); g.fillCircle(c*TILE+16, r*TILE+16, 3); }
       if (t === T.STORMGRASS) {
         // Wet, wind-lashed planks: the tile remains a wild-encounter zone but
         // no longer depicts reeds/grass on the deck.
@@ -173,6 +175,9 @@ export class FerryScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(5);
     this.add.text(10 * TILE, 33 * TILE, tr('↓ Disembark — Haean City'), {
       fontSize: '10px', color: '#fff', backgroundColor: '#1a4a6a99', padding: { x: 4, y: 2 },
+    }).setOrigin(0.5).setDepth(5);
+    this.add.text(10 * TILE + 16, 28 * TILE - 12, tr('↓ Below Deck'), {
+      fontSize: '9px', color: '#fff', backgroundColor: '#2a2f3699', padding: { x: 3, y: 1 },
     }).setOrigin(0.5).setDepth(5);
   }
 
@@ -267,7 +272,19 @@ export class FerryScene extends Phaser.Scene {
     this.checkTrainers();
     this.checkMira();
     this.checkRigging();
+    this.checkHatch();
     this.checkExits();
+  }
+
+  // Step onto the stern hatch → descend to the below-deck passageway and cabins.
+  private checkHatch() {
+    if (this.cutsceneActive || this.spawnGuard) return;
+    if (Math.hypot(this.px - this.spawnPx, this.py - this.spawnPy) < 1.4 * TILE) return;
+    const col = Math.floor(this.px / TILE), row = Math.floor(this.py / TILE);
+    if (this.map[row]?.[col] !== T.HATCH) return;
+    this.cutsceneActive = true;
+    this.registry.set('shipSpawnCol', 15); this.registry.set('shipSpawnRow', 6);
+    this.cameras.main.fadeOut(400, 0, 0, 0, () => this.scene.start('FerryCorridorScene'));
   }
   private collides(x: number, y: number): boolean {
     const hw = 6;

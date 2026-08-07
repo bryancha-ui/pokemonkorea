@@ -10,6 +10,24 @@ const PROCEDURAL: Record<string, () => THREE.Object3D> = {
   '94': makeGengar,   // Fog-Wraith Gengar (안개 팬텀) — Fogbound Manor boss
 };
 
+// Lightweight hero/boss GLBs (~4–5 MB each) that are allowed even on mobile,
+// where `allowsHeavy3DAssets()` would otherwise fall the whole roster back to the
+// 2D relief. These species only appear in scripted, one-at-a-time boss battles —
+// well inside the mobile 2-model cache — so the WebGL budget stays safe while the
+// story's marquee custom Pokémon still get their true 3D form. Keyed by species
+// key (see the Pokédex / CustomBattle keys), normalized.
+const MOBILE_ALLOWED = new Set<string>([
+  'snoqueen',    // 스노퀸 — Ice/Fairy frost sovereign
+  'pipetiger',   // 염흥왕 — the flame king (evolves from 염태자)
+  'yeomtaeja',   // 염태자 — the flame prince
+]);
+
+/** True when `key`'s GLB may load on the current device: heavy assets are gated
+ *  off on mobile except for the small hero allowlist. */
+function modelAllowedHere(key: string): boolean {
+  return allowsHeavy3DAssets() || MOBILE_ALLOWED.has(key);
+}
+
 // ── Generated 3D model registry ─────────────────────────────────────────────
 // True 3D creature models (generated from the game's own artwork) are listed in
 // `public/assets/models3d/manifest.json`. Two entry forms are supported:
@@ -91,7 +109,7 @@ export function primeManifest(): void {
 export function hasModel(key: string): boolean {
   const k = normalizeKey(key);
   if (PROCEDURAL[k]) return true;   // code-built models are cheap — allowed on mobile too
-  return allowsHeavy3DAssets() && !!manifest && manifest.has(k);
+  return !!manifest && manifest.has(k) && modelAllowedHere(k);
 }
 
 /** The model's baked Y-orientation fix (manifest rotY) in radians, or 0. Callers
@@ -123,7 +141,7 @@ export function getModel(key: string): LoadedModel | null {
     modelUse.set(k, ++useClock);
     return cloneNormalized(loaded);
   }
-  if (!allowsHeavy3DAssets() || !manifest || !manifest.has(k)) return null;
+  if (!manifest || !manifest.has(k) || !modelAllowedHere(k)) return null;
   const spec = manifest.get(k)!;
   const entry = models.get(k);
   if (entry === 'loading' || entry === 'failed') return null;
