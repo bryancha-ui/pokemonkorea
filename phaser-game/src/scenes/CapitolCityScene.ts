@@ -310,6 +310,8 @@ export class CapitolCityScene extends Phaser.Scene {
   /** Keep tall capital landmarks visible while allowing the camera to fade any
    *  structure that moves between the player and the view. */
   public clearSight3D = true;
+  /** Disable procedural props (rocks) to keep paths clear */
+  public propPlots: import('./engine3d/TerrainBuilder').PropPlot[] = [];
   /** The painted street trees (가로수) grow as real 3D trees, not flat ground art. */
   public treeTileIds3D = [C.TREE];
   /** The capital's streets are rebuilt as real 3D infrastructure: asphalt with
@@ -319,22 +321,6 @@ export class CapitolCityScene extends Phaser.Scene {
     sidewalk: [C.SIDEWALK, C.PLAZA] as number[],
     bridge: [C.BRIDGE] as number[],
   };
-  /** Procedural 3D monuments complete the civic spaces between named GLBs. */
-  public propPlots = [
-    { x: 22.5, y: 80, kind: 'arch' as const, scale: 1.35 },
-    { x: 47.5, y: 16, kind: 'arch' as const, scale: 1.15 },
-    { x: 31.5, y: 55, kind: 'obelisk' as const, scale: 1.25 },
-    { x: 39.5, y: 55, kind: 'statue' as const, scale: 1.15 },
-    { x: 55.5, y: 55, kind: 'statue' as const, scale: 1.05 },
-    ...[20, 28, 46, 58, 74].flatMap(row => [46, 51].map(x => (
-      { x, y: row, kind: 'lantern' as const, scale: 0.9 }
-    ))),
-    ...[72, 76, 80].flatMap(row => [20, 27].map(x => (
-      { x, y: row, kind: 'streetlamp' as const, scale: 0.95 }
-    ))),
-    ...([[44, 63], [48, 64], [55, 63], [59, 65], [3, 75], [18, 75]] as [number, number][])
-      .map(([x, y]) => ({ x, y, kind: 'cherry' as const, scale: 0.95 })),
-  ];
   // Edge exits stay locked until the player has released all movement keys once
   // after arriving. A key held through the transition can't bounce us back out,
   // but a fresh, deliberate press toward the boundary returns immediately.
