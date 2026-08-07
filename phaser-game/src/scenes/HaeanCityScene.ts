@@ -149,27 +149,23 @@ export class HaeanCityScene extends Phaser.Scene {
     this.add.text(2 * TILE, 12.5 * TILE, tr('← Coastal Road'), {
       fontSize: '9px', color: '#fff', backgroundColor: '#2a6a8a99', padding: { x: 3, y: 2 },
     }).setOrigin(0, 0.5).setDepth(5);
-    if (this.registry.get('chapter7Done')) {
-      this.add.text((COLS - 0.5) * TILE, 12.5 * TILE, tr('Ancient Forest →'), {
-        fontSize: '9px', color: '#fff', backgroundColor: '#2a6a2a99', padding: { x: 3, y: 2 },
-      }).setOrigin(1, 0.5).setDepth(5);
-    }
+    this.add.text((COLS - 0.5) * TILE, 12.5 * TILE, tr('Ancient Forest →'), {
+      fontSize: '9px', color: '#fff', backgroundColor: '#2a6a2a99', padding: { x: 3, y: 2 },
+    }).setOrigin(1, 0.5).setDepth(5);
   }
 
   private drawNPCs() {
-    // Rival (at the market) — only during the Haean chapter; he leaves once Chapter 7
-    // (the return to Sudo City after the Tidekeeper Badge) is complete.
-    if (!this.registry.get('chapter7Done')) {
-      const r = this.add.graphics().setDepth(8);
-      r.setPosition(this.rivalCol * TILE + 16, this.rivalRow * TILE + 16);
-      r.fillStyle(0x000000, 0.2); r.fillEllipse(0, 13, 16, 5);
-      r.fillStyle(0x2255cc); r.fillRect(-7, -8, 14, 11); r.fillRect(-11, -7, 5, 8); r.fillRect(6, -7, 5, 8);
-      r.fillStyle(0xffcc99); r.fillRect(-6, -20, 12, 11); r.fillStyle(0x221100); r.fillRect(-6, -20, 12, 5);
-      r.fillStyle(0x000000); r.fillRect(-3, -15, 2, 2); r.fillRect(1, -15, 2, 2);
-      markRivalPortrait(r, this.registry);
-      this.add.text(this.rivalCol * TILE + 16, this.rivalRow * TILE - 10, speakerName('Rival'), {
-        fontSize: '8px', color: '#88ccff', backgroundColor: '#00000099', padding: { x: 3, y: 1 },
-      }).setOrigin(0.5).setDepth(9);
+    // Rival (at the market) — always present in Haean City
+    const r = this.add.graphics().setDepth(8);
+    r.setPosition(this.rivalCol * TILE + 16, this.rivalRow * TILE + 16);
+    r.fillStyle(0x000000, 0.2); r.fillEllipse(0, 13, 16, 5);
+    r.fillStyle(0x2255cc); r.fillRect(-7, -8, 14, 11); r.fillRect(-11, -7, 5, 8); r.fillRect(6, -7, 5, 8);
+    r.fillStyle(0xffcc99); r.fillRect(-6, -20, 12, 11); r.fillStyle(0x221100); r.fillRect(-6, -20, 12, 5);
+    r.fillStyle(0x000000); r.fillRect(-3, -15, 2, 2); r.fillRect(1, -15, 2, 2);
+    markRivalPortrait(r, this.registry);
+    this.add.text(this.rivalCol * TILE + 16, this.rivalRow * TILE - 10, speakerName('Rival'), {
+      fontSize: '8px', color: '#88ccff', backgroundColor: '#00000099', padding: { x: 3, y: 1 },
+    }).setOrigin(0.5).setDepth(9);
     }
     // Old Fisherman Dosik (on the dock)
     const d = this.add.graphics().setDepth(8);
@@ -285,7 +281,7 @@ export class HaeanCityScene extends Phaser.Scene {
     // otherwise it would eat the keypress meant for entering a building.
     const rx = this.rivalCol * TILE + 16, ry = this.rivalRow * TILE + 16;
     const dx0 = this.dosikCol * TILE + 16, dy0 = this.dosikRow * TILE + 16;
-    const nearRival = !this.registry.get('chapter7Done') && Math.hypot(this.px - rx, this.py - ry) < TILE * 1.6;
+    const nearRival = Math.hypot(this.px - rx, this.py - ry) < TILE * 1.6;
     const nearDosik = Math.hypot(this.px - dx0, this.py - dy0) < TILE * 1.6;
     if (!nearRival && !nearDosik) return;
     if (!Phaser.Input.Keyboard.JustDown(this.spaceKey)) return;
@@ -361,12 +357,8 @@ export class HaeanCityScene extends Phaser.Scene {
       });
       return;
     }
-    // East → Route 5 (Ancient Forest → Forest City), opens after Chapter 7.
+    // East → Route 5 (Ancient Forest → Forest City)
     if (this.px > (COLS - 1) * TILE) {
-      if (!this.registry.get('chapter7Done')) {
-        this.px = (COLS - 1.2) * TILE;
-        return;
-      }
       this.cutsceneActive = true;
       this.cameras.main.fadeOut(400, 0, 0, 0, () => {
         this.registry.set('route5ReturnX', 12 * 32 + 16); this.registry.set('route5ReturnY', 57 * 32 + 16);
