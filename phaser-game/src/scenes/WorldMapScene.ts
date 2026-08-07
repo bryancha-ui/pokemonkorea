@@ -228,6 +228,22 @@ export class WorldMapScene extends Phaser.Scene {
   onlyNamedBuildings = true;
   /** The painted forest/boundary trees grow as real 3D trees, not flat ground art. */
   treeTileIds3D = [T.TREE];
+  /** Waterfall City's streets get the same 3D treatment as the capital: paved
+   *  carriageways with centre lines and crossings at every painted intersection.
+   *  Its lanes are a single tile wide with authored ROAD_X junction tiles, and
+   *  it has no pavement tile — so grass/sand/park beside a road becomes a verge
+   *  that carries lamps, benches and shop signs without a raised kerb. */
+  cityTiles3D = {
+    road: [T.ROAD_H, T.ROAD_V, T.ROAD_X] as number[],
+    sidewalk: [] as number[],
+    bridge: [T.BRIDGE] as number[],
+    junction: [T.ROAD_X] as number[],
+    verge: [T.GRASS, T.SAND, T.PARK, T.FLOWER] as number[],
+    water: [T.WATER] as number[],
+    // A waterfall resort, not a metropolis: cobbled lanes with no traffic paint,
+    // wooden lanterns, flower beds and planted riverbanks.
+    style: 'scenic' as const,
+  };
   /** The city's namesake waterfall at the head of the river (col 15) as a 3D
    *  cascading water curtain. */
   propPlots = [{ x: 15, y: 6, kind: 'waterfall' as const, len: 3 }];

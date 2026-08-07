@@ -17,10 +17,26 @@ import { toonMat, toonRamp } from './Props';
 export interface CityTileSpec {
   /** tile ids that are drivable road */
   road: number[];
-  /** tile ids that are walkable pavement (sidewalk, plaza) */
+  /** tile ids that are walkable pavement (sidewalk, plaza) — raised slabs */
   sidewalk: number[];
   /** optional: bridge tiles treated as road */
   bridge?: number[];
+  /** Tiles the scene explicitly paints as intersections. Towns whose streets
+   *  are a single tile wide can't be analysed by run length, so an authored
+   *  list gives exact crossings. */
+  junction?: number[];
+  /** Soft ground beside a road (grass verge, sand) — no paving slab is built,
+   *  but lamps, benches and signs may stand here. Lets villages without a
+   *  pavement tile still get proper street dressing. */
+  verge?: number[];
+  /** Water tiles — their banks get reeds, boulders and lily pads in scenic style. */
+  water?: number[];
+  /**
+   * 'urban'  — asphalt, lane markings, crossings, steel lamps, traffic signals.
+   * 'scenic' — a resort town: cobbled stone lanes with no traffic paint, wooden
+   *            lanterns, flower beds and planted riverbanks.
+   */
+  style?: 'urban' | 'scenic';
 }
 
 export interface CityDetailResult {
@@ -96,6 +112,39 @@ function pavingTexture(): THREE.CanvasTexture {
   return t;
 }
 
+function cobbleTexture(): THREE.CanvasTexture {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const ctx = c.getContext('2d')!;
+  ctx.fillStyle = '#9c8f7a';
+  ctx.fillRect(0, 0, 128, 128);
+  // rounded setts in offset courses, warm stone tones
+  const tones = ['#b3a58c', '#a89a80', '#c0b298', '#9d9078'];
+  for (let row = 0; row < 8; row++) {
+    const off = (row % 2) * 8;
+    for (let col = -1; col < 9; col++) {
+      const x = col * 16 + off, y = row * 16;
+      ctx.fillStyle = tones[(row * 3 + col + 8) % tones.length];
+      ctx.beginPath();
+      const r = 5;
+      ctx.moveTo(x + r, y + 1);
+      ctx.arcTo(x + 15, y + 1, x + 15, y + 15, r);
+      ctx.arcTo(x + 15, y + 15, x + 1, y + 15, r);
+      ctx.arcTo(x + 1, y + 15, x + 1, y + 1, r);
+      ctx.arcTo(x + 1, y + 1, x + 15, y + 1, r);
+      ctx.fill();
+    }
+  }
+  for (let i = 0; i < 700; i++) {
+    ctx.fillStyle = `rgba(90,84,72,${0.04 + Math.random() * 0.07})`;
+    ctx.fillRect(Math.random() * 128, Math.random() * 128, 2, 2);
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
+}
+
 // ── Road markings (drawn once onto a big overlay canvas) ─────────────────────
 
 /**
@@ -110,6 +159,7 @@ function pavingTexture(): THREE.CanvasTexture {
 function markingsTexture(
   cols: number, rows: number,
   isRoad: (x: number, y: number) => boolean,
+  isNamedJunction: ((x: number, y: number) => boolean) | null = null,
 ): THREE.CanvasTexture {
   const PXT = 16;                              // canvas px per tile
   const c = document.createElement('canvas');
@@ -142,8 +192,12 @@ function markingsTexture(
     }
   }
   const CORRIDOR = 7;                          // a real street runs at least this far
+  // Prefer the scene's own intersection tiles when it paints them: a one-tile
+  // village street has no run-length signature to infer a junction from.
   const isJunction = (x: number, y: number) =>
-    isRoad(x, y) && hRun[y * cols + x] >= CORRIDOR && vRun[y * cols + x] >= CORRIDOR;
+    isNamedJunction
+      ? isNamedJunction(x, y)
+      : isRoad(x, y) && hRun[y * cols + x] >= CORRIDOR && vRun[y * cols + x] >= CORRIDOR;
 
   // ── centre + edge lines along each corridor ──
   const dash = (x1: number, y1: number, x2: number, y2: number) => {
@@ -170,8 +224,10 @@ function markingsTexture(
       if (vertical && !isJunction(x, y)) {
         const mid = (x + e) / 2;
         dash(mid * sx, y * sy, mid * sx, (y + 1) * sy);
-        solid((x + 0.28) * sx, y * sy, (x + 0.28) * sx, (y + 1) * sy);
-        solid((e - 0.28) * sx, y * sy, (e - 0.28) * sx, (y + 1) * sy);
+        if (width >= 3) {                       // lane edges only on real avenues
+          solid((x + 0.28) * sx, y * sy, (x + 0.28) * sx, (y + 1) * sy);
+          solid((e - 0.28) * sx, y * sy, (e - 0.28) * sx, (y + 1) * sy);
+        }
       }
       x = e;
     }
@@ -187,8 +243,10 @@ function markingsTexture(
       if (horizontal && !isJunction(x, y)) {
         const mid = (y + e) / 2;
         dash(x * sx, mid * sy, (x + 1) * sx, mid * sy);
-        solid(x * sx, (y + 0.28) * sy, (x + 1) * sx, (y + 0.28) * sy);
-        solid(x * sx, (e - 0.28) * sy, (x + 1) * sx, (e - 0.28) * sy);
+        if (height >= 3) {
+          solid(x * sx, (y + 0.28) * sy, (x + 1) * sx, (y + 0.28) * sy);
+          solid(x * sx, (e - 0.28) * sy, (x + 1) * sx, (e - 0.28) * sy);
+        }
       }
       y = e;
     }
@@ -321,6 +379,61 @@ function makeShopSign(color: number): THREE.Group {
   return g;
 }
 
+/** A wooden lantern post — the scenic-town counterpart to a steel lamp. */
+function makeLanternPost(): THREE.Group {
+  const g = new THREE.Group();
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.075, 2.0, 6), toonMat(0x6b4a2e));
+  post.position.y = 1.0;
+  const cap = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.2, 6), toonMat(0x4a3524));
+  cap.position.y = 2.22;
+  const box = new THREE.Mesh(
+    new THREE.BoxGeometry(0.24, 0.28, 0.24),
+    new THREE.MeshBasicMaterial({ color: 0xffe6a8 }),
+  );
+  box.position.y = 2.0;
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(0.27, 0.05, 0.27), toonMat(0x4a3524));
+  frame.position.y = 1.85;
+  g.add(post, cap, box, frame);
+  return g;
+}
+
+/** A low flower bed for verges and plaza corners. */
+function makeFlowerBed(): THREE.Group {
+  const g = new THREE.Group();
+  const rim = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.16, 0.6), toonMat(0x8f8577));
+  rim.position.y = 0.08;
+  const soil = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.06, 0.48), toonMat(0x4a3a2a));
+  soil.position.y = 0.17;
+  g.add(rim, soil);
+  const petals = [0xff7fae, 0xffd75e, 0xf2f2f2, 0xb07ae8];
+  for (let i = 0; i < 7; i++) {
+    const b = new THREE.Mesh(new THREE.SphereGeometry(0.075, 6, 5), toonMat(petals[i % petals.length]));
+    b.position.set(-0.3 + (i % 4) * 0.2, 0.24, -0.12 + Math.floor(i / 4) * 0.22);
+    g.add(b);
+  }
+  return g;
+}
+
+/** Reeds for a riverbank. */
+function makeReeds(): THREE.Group {
+  const g = new THREE.Group();
+  for (let i = 0; i < 7; i++) {
+    const h = 0.5 + Math.random() * 0.45;
+    const blade = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.022, h, 4), toonMat(0x4f8f46));
+    blade.position.set((Math.random() - 0.5) * 0.45, h / 2, (Math.random() - 0.5) * 0.45);
+    blade.rotation.z = (Math.random() - 0.5) * 0.32;
+    g.add(blade);
+  }
+  return g;
+}
+
+/** A mossy boulder for river edges. */
+function makeRiverRock(): THREE.Mesh {
+  const geo = new THREE.IcosahedronGeometry(0.3, 0);
+  geo.scale(1.3, 0.8, 1.1);
+  return new THREE.Mesh(geo, toonMat(0x8b8377));
+}
+
 // ── Main builder ─────────────────────────────────────────────────────────────
 
 export function buildCityDetail(
@@ -333,16 +446,23 @@ export function buildCityDetail(
   const cols = tileMap[0]?.length ?? 0;
   const rnd = mulberry(opts.seed ?? 90210);
 
+  const scenic = spec.style === 'scenic';
   const at = (x: number, y: number): number =>
     (x < 0 || y < 0 || x >= cols || y >= rows) ? -1 : tileMap[y][x];
   const isRoad = (x: number, y: number) =>
     isIn(spec.road, at(x, y)) || isIn(spec.bridge, at(x, y));
   const isWalk = (x: number, y: number) => isIn(spec.sidewalk, at(x, y));
+  const isVerge = (x: number, y: number) => isIn(spec.verge, at(x, y));
+  const isFootable = (x: number, y: number) => isWalk(x, y) || isVerge(x, y);
+  const namedJunction = spec.junction?.length
+    ? (x: number, y: number) => isIn(spec.junction, at(x, y))
+    : null;
 
   // ── 1. Road surface (one merged plane grid) ──
-  const asphalt = asphaltTexture();
-  asphalt.repeat.set(cols * 0.55, rows * 0.55);
-  const roadMat = new THREE.MeshLambertMaterial({ map: asphalt });
+  // Scenic towns are paved in cobbled stone; cities in asphalt.
+  const surface = scenic ? cobbleTexture() : asphaltTexture();
+  surface.repeat.set(cols * (scenic ? 0.9 : 0.55), rows * (scenic ? 0.9 : 0.55));
+  const roadMat = new THREE.MeshLambertMaterial({ map: surface });
   const roadPos: number[] = [], roadUv: number[] = [], roadIdx: number[] = [];
   let rq = 0;
   for (let y = 0; y < rows; y++) {
@@ -367,16 +487,20 @@ export function buildCityDetail(
     const road = new THREE.Mesh(geo, roadMat);
     group.add(road);
 
-    const marks = markingsTexture(cols, rows, isRoad);
-    const markMat = new THREE.MeshBasicMaterial({
-      map: marks, transparent: true, depthWrite: false,
-      polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
-    });
-    const markGeo = geo.clone();
-    markGeo.translate(0, 0.004, 0);
-    const markMesh = new THREE.Mesh(markGeo, markMat);
-    markMesh.renderOrder = 2;
-    group.add(markMesh);
+    // Traffic paint belongs to a metropolis — a resort town's stone lanes are
+    // left clean, which is what makes them read as scenery instead of highway.
+    const marks = scenic ? null : markingsTexture(cols, rows, isRoad, namedJunction);
+    if (marks) {
+      const markMat = new THREE.MeshBasicMaterial({
+        map: marks, transparent: true, depthWrite: false,
+        polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
+      });
+      const markGeo = geo.clone();
+      markGeo.translate(0, 0.004, 0);
+      const markMesh = new THREE.Mesh(markGeo, markMat);
+      markMesh.renderOrder = 2;
+      group.add(markMesh);
+    }
   }
 
   // ── 2. Sidewalks: raised slab + curb faces ──
@@ -433,7 +557,7 @@ export function buildCityDetail(
   const slots: Slot[] = [];
   for (let y = 1; y < rows - 1; y++) {
     for (let x = 1; x < cols - 1; x++) {
-      if (!isWalk(x, y)) continue;
+      if (!isFootable(x, y)) continue;
       // face the adjacent road
       let yaw = 0, road = false;
       if (isRoad(x, y + 1)) { yaw = 0; road = true; }
@@ -449,17 +573,18 @@ export function buildCityDetail(
 
   const place = (node: THREE.Object3D, s: Slot, inset: number) => {
     const o = node.clone(true);
-    o.position.set(s.x - Math.sin(s.yaw) * inset, WALK_TOP, s.z - Math.cos(s.yaw) * inset);
+    const groundY = isWalk(Math.floor(s.x), Math.floor(s.z)) ? WALK_TOP : 0.02;
+    o.position.set(s.x - Math.sin(s.yaw) * inset, groundY, s.z - Math.cos(s.yaw) * inset);
     o.rotation.y = s.yaw;
     o.traverse(n => { n.userData.sharedGeo = true; n.userData.sharedMat = true; });
     group.add(o);
   };
 
-  const lamp = makeLampPost();
-  const signal = makeTrafficSignal();
+  const lamp = scenic ? makeLanternPost() : makeLampPost();
+  const signal = scenic ? makeLanternPost() : makeTrafficSignal();
   const bench = makeBench();
-  const planter = makePlanter();
-  const hydrant = makeHydrant();
+  const planter = scenic ? makeFlowerBed() : makePlanter();
+  const hydrant = scenic ? makeFlowerBed() : makeHydrant();
 
   let sinceLamp = 99, sinceProp = 3;
   for (const s of slots) {
@@ -483,12 +608,12 @@ export function buildCityDetail(
     // find a frontage tile: an edge of the plot adjacent to a sidewalk
     const cand: { x: number; z: number; yaw: number }[] = [];
     for (let x = p.x; x < p.x + p.w; x++) {
-      if (isWalk(x, p.y + p.h)) cand.push({ x: x + 0.5, z: p.y + p.h, yaw: 0 });
-      if (isWalk(x, p.y - 1)) cand.push({ x: x + 0.5, z: p.y, yaw: Math.PI });
+      if (isFootable(x, p.y + p.h)) cand.push({ x: x + 0.5, z: p.y + p.h, yaw: 0 });
+      if (isFootable(x, p.y - 1)) cand.push({ x: x + 0.5, z: p.y, yaw: Math.PI });
     }
     for (let y = p.y; y < p.y + p.h; y++) {
-      if (isWalk(p.x + p.w, y)) cand.push({ x: p.x + p.w, z: y + 0.5, yaw: -Math.PI / 2 });
-      if (isWalk(p.x - 1, y)) cand.push({ x: p.x, z: y + 0.5, yaw: Math.PI / 2 });
+      if (isFootable(p.x + p.w, y)) cand.push({ x: p.x + p.w, z: y + 0.5, yaw: -Math.PI / 2 });
+      if (isFootable(p.x - 1, y)) cand.push({ x: p.x, z: y + 0.5, yaw: Math.PI / 2 });
     }
     if (!cand.length) continue;
     const pick = cand[Math.floor(rnd() * cand.length)];
@@ -497,6 +622,49 @@ export function buildCityDetail(
     sign.rotation.y = pick.yaw;
     sign.traverse(n => { n.userData.sharedGeo = true; n.userData.sharedMat = true; });
     group.add(sign);
+  }
+
+  // ── 5. Riverbanks (scenic style) ──
+  // Every ground tile that touches water gets planted: reeds at the waterline,
+  // mossy boulders on the shoulder and the odd blossom clump. This is what
+  // turns a painted blue strip into a river running through a resort town.
+  if (scenic && spec.water?.length) {
+    const isWater = (x: number, y: number) => isIn(spec.water, at(x, y));
+    const reeds = makeReeds();
+    const rock = makeRiverRock();
+    const bed = makeFlowerBed();
+    for (let y = 1; y < rows - 1; y++) {
+      for (let x = 1; x < cols - 1; x++) {
+        if (isWater(x, y) || isRoad(x, y)) continue;
+        // which side is the water on?
+        let wx = 0, wz = 0;
+        if (isWater(x + 1, y)) wx = 1; else if (isWater(x - 1, y)) wx = -1;
+        if (isWater(x, y + 1)) wz = 1; else if (isWater(x, y - 1)) wz = -1;
+        if (!wx && !wz) continue;
+        const cx = x + 0.5 + wx * 0.32, cz = y + 0.5 + wz * 0.32;
+        const r = rnd();
+        if (r > 0.55) {
+          const o = reeds.clone(true);
+          o.position.set(cx, 0.02, cz);
+          o.rotation.y = rnd() * Math.PI;
+          o.traverse(n => { n.userData.sharedGeo = true; n.userData.sharedMat = true; });
+          group.add(o);
+        } else if (r > 0.3) {
+          const o = rock.clone();
+          o.position.set(cx, 0.1, cz);
+          o.rotation.y = rnd() * Math.PI;
+          o.scale.setScalar(0.7 + rnd() * 0.7);
+          o.userData.sharedGeo = true; o.userData.sharedMat = true;
+          group.add(o);
+        } else if (r > 0.22) {
+          const o = bed.clone(true);
+          o.position.set(x + 0.5, 0.02, y + 0.5);
+          o.rotation.y = rnd() * Math.PI;
+          o.traverse(n => { n.userData.sharedGeo = true; n.userData.sharedMat = true; });
+          group.add(o);
+        }
+      }
+    }
   }
 
   return {
