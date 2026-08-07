@@ -278,6 +278,7 @@ export class OverworldMirror {
       flatTerrain3D?: boolean;
       treeTileIds3D?: number[];
       mountainTileIds3D?: number[];
+      cityTiles3D?: import('./CityDetail3D').CityTileSpec;
     };
     const known = sc.buildingPlots ?? [];
     const useFreeCityBuildings = sc.freeBuildings ?? (
@@ -298,6 +299,7 @@ export class OverworldMirror {
       sc.flatTerrain3D ?? false,
       sc.treeTileIds3D ?? [],
       sc.mountainTileIds3D ?? [],
+      sc.cityTiles3D ?? null,
     );
     this.terrain = t;
     this.groundTex = ((t.group.children[0] as THREE.Mesh).material as THREE.MeshToonMaterial).map as THREE.CanvasTexture;

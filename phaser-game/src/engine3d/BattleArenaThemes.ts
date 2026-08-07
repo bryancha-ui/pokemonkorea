@@ -43,6 +43,11 @@ const NORTHERN_THEMES: Record<string, BattleArenaTheme> = {
   'north-cheolgang': { family: 'northern', motif: 'fortress', floor: 0x363a40, floorAlt: 0x444950, wall: 0x111317, trim: 0x69717c, accent: 0xced4de },
   'north-baekho':    { family: 'northern', motif: 'tiger',    floor: 0x40364c, floorAlt: 0x4c405b, wall: 0x18131e, trim: 0x6b537d, accent: 0xd8b0ff },
   'north-taewang':   { family: 'northern', motif: 'throne',   floor: 0x343238, floorAlt: 0x423f45, wall: 0x111114, trim: 0x756324, accent: 0xffd54a },
+  // 어사대장 Supreme Gwang, the final Chief in Gwanmunseong (관문성) — the northern
+  // capital of grey-granite towers and ceremonial avenues. Pale granite floor and
+  // walls with a ceremonial gold trim (the great bronze figure of the plaza), so
+  // his battle reads as the disciplined stone capital rather than an open meadow.
+  'eosa-pyeongseong': { family: 'northern', motif: 'fortress', floor: 0x4a4b50, floorAlt: 0x585a62, wall: 0x191b20, trim: 0x7b818b, accent: 0xd9b64a },
 };
 
 const GYM_KEY: Record<string, string> = {

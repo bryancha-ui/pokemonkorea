@@ -317,6 +317,14 @@ export function isSpeakerLabelText(value: unknown): value is string {
 // localize the embedded name so every battle reads in Korean.
 const P = (s: string) => pokeNameEn(s);
 const S = (s: string) => speakerName(s);
+// Battle-message helpers: localize an embedded stat name, ability name or type.
+const STAT_KR: Record<string, string> = {
+  'Attack': '공격', 'Defense': '방어', 'Sp. Atk': '특수공격', 'Sp. Def': '특수방어',
+  'Speed': '스피드', 'Accuracy': '명중률', 'Evasion': '회피율',
+};
+const ST = (s: string) => STAT_KR[s] ?? s;
+const AB = (s: string) => KO_ABILITIES[s.trim().replace(/[-_]+/g, ' ').toLowerCase()] ?? s;
+const TY = (s: string) => KO_TYPES[s.toLowerCase()] ?? s;
 const BATTLE_PATTERNS: Array<[RegExp, (m: RegExpMatchArray) => string]> = [
   [/^What will (.+) do\?$/, m => `${P(m[1])}는 무엇을 할까?`],
   [/^(.+) fainted!$/,       m => `${P(m[1])}은 쓰러졌다!`],
@@ -350,6 +358,54 @@ const BATTLE_PATTERNS: Array<[RegExp, (m: RegExpMatchArray) => string]> = [
   [/^(.+)'s Hydration cured its status condition!$/, m => `${P(m[1])}의 촉촉바디 특성으로 상태이상이 나았다!`],
   [/^(.+)'s Shed Skin cured its status condition!$/, m => `${P(m[1])}의 탈피 특성으로 상태이상이 나았다!`],
   [/^(.+)'s Natural Cure healed its status condition!$/, m => `${P(m[1])}의 자연회복 특성으로 상태이상이 나았다!`],
+  // ── Stat-stage changes ──
+  [/^(.+)'s (Attack|Defense|Sp\. Atk|Sp\. Def|Speed|Accuracy|Evasion) rose drastically!$/, m => `${P(m[1])}의 ${ST(m[2])}(이)가 매우 크게 올랐다!`],
+  [/^(.+)'s (Attack|Defense|Sp\. Atk|Sp\. Def|Speed|Accuracy|Evasion) rose sharply!$/, m => `${P(m[1])}의 ${ST(m[2])}(이)가 크게 올랐다!`],
+  [/^(.+)'s (Attack|Defense|Sp\. Atk|Sp\. Def|Speed|Accuracy|Evasion) rose!$/, m => `${P(m[1])}의 ${ST(m[2])}(이)가 올랐다!`],
+  [/^(.+)'s (Attack|Defense|Sp\. Atk|Sp\. Def|Speed|Accuracy|Evasion) harshly fell!$/, m => `${P(m[1])}의 ${ST(m[2])}(이)가 크게 떨어졌다!`],
+  [/^(.+)'s (Attack|Defense|Sp\. Atk|Sp\. Def|Speed|Accuracy|Evasion) fell!$/, m => `${P(m[1])}의 ${ST(m[2])}(이)가 떨어졌다!`],
+  [/^(.+)'s (.+) won't go any higher!$/, m => `${P(m[1])}의 ${ST(m[2])}(은)는 더 이상 오르지 않는다!`],
+  [/^(.+)'s (.+) won't go any lower!$/, m => `${P(m[1])}의 ${ST(m[2])}(은)는 더 이상 내려가지 않는다!`],
+  [/^(.+)'s lowered stats returned to normal!$/, m => `${P(m[1])}의 떨어진 능력이 원래대로 돌아왔다!`],
+  // ── Ability-inflicted status ──
+  [/^(.+) was paralyzed by (.+)!$/, m => `${P(m[1])}은 ${AB(m[2])}(으)로 마비되었다!`],
+  [/^(.+) was burned by (.+)!$/, m => `${P(m[1])}은 ${AB(m[2])}(으)로 화상을 입었다!`],
+  [/^(.+) was poisoned by (.+)!$/, m => `${P(m[1])}은 ${AB(m[2])}(으)로 독에 걸렸다!`],
+  [/^(.+) was afflicted by (.+)!$/, m => `${P(m[1])}은 ${AB(m[2])}(으)로 상태이상에 걸렸다!`],
+  [/^(.+) was captivated by (.+)!$/, m => `${P(m[1])}은 ${AB(m[2])}(으)로 헤롱헤롱해졌다!`],
+  // ── Weather / entry / stat abilities ──
+  [/^(.+)'s Drizzle made it rain!$/, m => `${P(m[1])}의 잔비 특성으로 비가 내리기 시작했다!`],
+  [/^(.+)'s Drought intensified the sunlight!$/, m => `${P(m[1])}의 가뭄 특성으로 햇살이 강해졌다!`],
+  [/^(.+)'s Sand Stream whipped up a sandstorm!$/, m => `${P(m[1])}의 모래날림 특성으로 모래바람이 일었다!`],
+  [/^(.+)'s Snow Warning summoned snow!$/, m => `${P(m[1])}의 눈퍼뜨리기 특성으로 눈이 내리기 시작했다!`],
+  [/^(.+)'s Inner Focus prevented Intimidate!$/, m => `${P(m[1])}의 정신력 특성으로 위협을 막았다!`],
+  [/^(.+)'s Ancient Activation boosted its strongest stat!$/, m => `${P(m[1])}의 고대의 태동으로 가장 높은 능력이 강해졌다!`],
+  [/^(.+)'s Stonegaze lowered (.+)'s Speed!$/, m => `${P(m[1])}의 돌응시로 ${P(m[2])}의 스피드가 떨어졌다!`],
+  [/^(.+)'s (.+) lowered (.+)'s Attack!$/, m => `${P(m[1])}의 ${AB(m[2])} 특성으로 ${P(m[3])}의 공격이 떨어졌다!`],
+  // ── Move / ability effects ──
+  [/^(.+)'s attack missed!$/, m => `${P(m[1])}의 공격은 빗나갔다!`],
+  [/^(.+) began charging power!$/, m => `${P(m[1])}은 힘을 모으기 시작했다!`],
+  [/^(.+) flew up high!$/, m => `${P(m[1])}은 하늘 높이 날아올랐다!`],
+  [/^(.+) vanished from sight!$/, m => `${P(m[1])}은 모습을 감췄다!`],
+  [/^(.+) restored (\d+) HP!$/, m => `${P(m[1])}은 HP를 ${m[2]} 회복했다!`],
+  [/^(.+)'s HP is already full!$/, m => `${P(m[1])}의 HP는 이미 가득 찼다!`],
+  [/^(.+) absorbed (\d+) HP!$/, m => `${P(m[1])}은 HP를 ${m[2]} 흡수했다!`],
+  [/^(.+) flinched from Stench!$/, m => `${P(m[1])}은 악취 특성에 풀이 죽었다!`],
+  [/^(.+) endured the hit with Sturdy!$/, m => `${P(m[1])}은 옹골참 특성으로 공격을 버텨냈다!`],
+  [/^(.+) is immune through Levitate!$/, m => `${P(m[1])}은 부유 특성으로 공격을 받지 않았다!`],
+  [/^(.+)'s Flash Fire absorbed the flames!$/, m => `${P(m[1])}의 타오르는불꽃 특성이 불꽃을 흡수했다!`],
+  [/^(.+)'s Lightning Rod nullified the attack and raised Sp\. Atk!$/, m => `${P(m[1])}의 피뢰침 특성이 공격을 무효화하고 특수공격을 올렸다!`],
+  [/^(.+)'s Volt Absorb restored (\d+) HP!$/, m => `${P(m[1])}의 축전 특성으로 HP를 ${m[2]} 회복했다!`],
+  [/^(.+)'s Water Absorb restored (\d+) HP!$/, m => `${P(m[1])}의 저수 특성으로 HP를 ${m[2]} 회복했다!`],
+  [/^(.+)'s Water Compaction sharply raised Defense!$/, m => `${P(m[1])}의 꾸덕꾸덕굳기 특성으로 방어가 크게 올랐다!`],
+  [/^(.+)'s (.+) raised Attack!$/, m => `${P(m[1])}의 ${AB(m[2])} 특성으로 공격이 올랐다!`],
+  [/^(.+)'s (.+) powered up the move!$/, m => `${P(m[1])}의 ${AB(m[2])} 특성으로 기술이 강해졌다!`],
+  [/^(.+)'s Pixilate turned the move into Fairy type!$/, m => `${P(m[1])}의 페어리스킨 특성으로 기술이 페어리타입이 되었다!`],
+  [/^(.+)'s Protean changed it to (.+) type!$/, m => `${P(m[1])}의 변환자재 특성으로 ${TY(m[2])}타입이 되었다!`],
+  [/^(.+) changed to (.+) type!$/, m => `${P(m[1])}은 ${TY(m[2])}타입이 되었다!`],
+  [/^(.+)'s Cursed Body disabled (.+)!$/, m => `${P(m[1])}의 저주받은바디 특성이 ${KO_STRINGS[m[2]] ?? m[2]}(을)를 사슬묶기했다!`],
+  [/^(.+)'s Dancer copied (.+)!$/, m => `${P(m[1])}의 발놀림 특성이 ${KO_STRINGS[m[2]] ?? m[2]}(을)를 따라했다!`],
+  [/^(.+)'s Overcoat blocked the powder!$/, m => `${P(m[1])}의 폭풍대비 특성으로 가루를 막았다!`],
   // Evolution
   [/^What\? (.+) is evolving!$/,                       m => `어라? ${P(m[1])}의 모습이...!`],
   [/^Congratulations! Your ([\s\S]+?)\nevolved into (.+)!$/, m => `축하해! ${P(m[1])}가\n${P(m[2])}(으)로 진화했다!`],

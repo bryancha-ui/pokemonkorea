@@ -34,6 +34,7 @@ export interface EosaCity {
   landmarks?: EosaLandmark[]; // extra decorative structures (docks, lighthouse, monuments…)
   buildingModels?: string[];  // named 3D models to cycle for this city's generic building landmarks (else free CC0 assets) — e.g. Binghagwan reuses the snowy Seorae models
   sideExit?: { col: number; scene: string; label: string; icon?: string; road?: boolean };   // a path down the south edge to another map (beach, mine…)
+  gateExit?: { col: number; scene: string; label: string };   // a walk-through gateway in the NORTH wall (2-tile opening at `col`) — e.g. Haesol's gate up to Gwanmunseong
   accessRoads?: EosaAccessRoad[]; // authored spurs from the main street to remote landmarks
   prev?: Exit; next?: Exit;   // south / north neighbours on the circuit
 }
@@ -219,6 +220,7 @@ export abstract class EosaCityScene extends Phaser.Scene {
     this.carveSidePath();
     this.applyLandmarkSolids();
     this.carveAccessRoads();
+    this.carveGate();
     this.drawMap();
     this.drawLandmarks();
     this.drawWhirlpools();
@@ -226,6 +228,7 @@ export abstract class EosaCityScene extends Phaser.Scene {
     this.drawNpcs();
     this.drawSideSign();
     this.drawAccessRoadSigns();
+    this.drawGate();
     this.spawnThreat();
     this.createPlayer();
     this.cameras.main.setBounds(0, 0, this.cols * TILE, this.rows * TILE);
@@ -570,6 +573,37 @@ export abstract class EosaCityScene extends Phaser.Scene {
     }
   }
 
+  /** Cut a 2-tile walkable gateway straight through the top wall: a paved passage
+   *  flanked by solid rampart posts, so the player simply walks NORTH through the
+   *  opening (off the top edge) to the next scene — no solid gate building to bump
+   *  into, no SPACE prompt. Reads as an obvious road leading out of the city. */
+  private carveGate() {
+    const ge = this.cfg.gateExit; if (!ge) return;
+    for (let r = 0; r < 11; r++)
+      for (let c = ge.col; c <= ge.col + 1; c++)
+        if (r >= 0 && r < this.rows && c >= 0 && c < this.cols) this.map[r][c] = T.ROAD;
+    for (let r = 0; r < 3; r++)
+      for (const c of [ge.col - 1, ge.col + 2])
+        if (r >= 0 && r < this.rows && c >= 0 && c < this.cols) this.map[r][c] = T.BUILDING;
+  }
+
+  /** A stone gatehouse drawn over the top-wall opening (posts, lintel, barred
+   *  passage, banners) so the gateway reads as a real gate, with a sign above. */
+  private drawGate() {
+    const ge = this.cfg.gateExit; if (!ge) return;
+    const x = ge.col * TILE, w = 2 * TILE, h = 3 * TILE;
+    const g = this.add.graphics().setDepth(6);
+    g.fillStyle(0x3a3640); g.fillRect(x - 14, 0, w + 28, h);            // gatehouse mass
+    g.fillStyle(0x4a4a52); g.fillRect(x - 14, 0, 14, h); g.fillRect(x + w, 0, 14, h);   // posts
+    g.fillStyle(0x5a5a64); g.fillRect(x - 16, 0, w + 32, 12);           // lintel
+    g.fillStyle(0x1a1a1f); g.fillRect(x + 1, 10, w - 2, h - 10);        // dark passage
+    g.fillStyle(0x8a7a3a); for (let i = 0; i < 3; i++) g.fillRect(x + 6 + i * ((w - 12) / 3), 14, 3, h - 18);  // portcullis bars
+    for (const bx of [x - 11, x + w + 1]) { g.fillStyle(0x2a2440); g.fillRect(bx, 14, 8, 26); g.fillStyle(0xffd24a); g.fillRect(bx, 14, 8, 4); }  // banners
+    this.add.text(x + w / 2, h + 6, tr(ge.label), {
+      fontSize: '9px', color: '#ffe9c0', backgroundColor: '#182238dd', padding: { x: 5, y: 2 },
+    }).setOrigin(0.5).setDepth(7);
+  }
+
   /** Fill solid landmark footprints into the map so the player can't walk through them. */
   private applyLandmarkSolids() {
     for (const lm of this.cfg.landmarks ?? []) {
@@ -771,6 +805,13 @@ export abstract class EosaCityScene extends Phaser.Scene {
     if (this.cutsceneActive || this.spawnGuard) return;
     const cfg = this.cfg;
     const nearCentre = this.px > 12 * TILE && this.px < 16 * TILE;
+    // Walk north through the top-wall gateway → its scene (e.g. Gwanmunseong checkpoint).
+    const ge = cfg.gateExit;
+    if (ge && this.py < 1.2 * TILE && this.px > ge.col * TILE && this.px < (ge.col + 2) * TILE) {
+      this.cutsceneActive = true;
+      this.cameras.main.fadeOut(400, 0, 0, 0, () => this.scene.start(ge.scene));
+      return;
+    }
     const be = cfg.sideExit;
     // A single side entrance: walk down the marked side path and off the south edge.
     if (be && this.py > (this.rows - 1) * TILE && this.px > (be.col - 1.5) * TILE && this.px < (be.col + 1.5) * TILE) {

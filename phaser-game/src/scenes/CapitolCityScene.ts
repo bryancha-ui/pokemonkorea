@@ -312,6 +312,13 @@ export class CapitolCityScene extends Phaser.Scene {
   public clearSight3D = true;
   /** The painted street trees (가로수) grow as real 3D trees, not flat ground art. */
   public treeTileIds3D = [C.TREE];
+  /** The capital's streets are rebuilt as real 3D infrastructure: asphalt with
+   *  lane markings and crossings, kerbed pavements, lamps, signals and signage. */
+  public cityTiles3D = {
+    road: [C.ROAD] as number[],
+    sidewalk: [C.SIDEWALK, C.PLAZA] as number[],
+    bridge: [C.BRIDGE] as number[],
+  };
   /** Procedural 3D monuments complete the civic spaces between named GLBs. */
   public propPlots = [
     { x: 22.5, y: 80, kind: 'arch' as const, scale: 1.35 },

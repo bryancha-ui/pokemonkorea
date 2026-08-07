@@ -468,6 +468,98 @@ export function makeHanokPalace(width: number, depth: number): THREE.Group {
 }
 
 /**
+ * A grand northern-capital palace — a wide granite hall raised on a stone woldae,
+ * a full front colonnade under a gold cornice, flanking corner towers, and a
+ * crowning central pavilion topped with a gold spire. Built entirely from toon
+ * primitives (no GLB) so its full majesty renders on every device instead of the
+ * flat grey box a disabled/absent landmark GLB falls back to. Front faces +Z;
+ * feet at y=0; sized to fill a `width`×`depth` plot.
+ */
+export function makeGrandPalace(width: number, depth: number): THREE.Group {
+  const g = new THREE.Group();
+  const GRANITE = 0x6c6f77, GRANITE_DK = 0x53565e, STONE = 0x9297a2, STONE_DK = 0x777b84;
+  const ROOF = 0x2e323b, ROOF_HI = 0x3b404a, GOLD = 0xd8b44a, DOOR = 0x181209, NAVY = 0x24314d;
+  const bodyD = Math.max(2.6, depth * 0.82);
+  const frontZ = bodyD / 2;
+  const bodyH = Math.max(4.5, Math.min(6.6, width * 0.26));
+  const mesh = (w: number, h: number, d: number, color: number, x: number, y: number, z: number) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), toonMat(color));
+    m.position.set(x, y, z); g.add(m); return m;
+  };
+
+  // ── Woldae (raised stone platform) + apron, with a balustrade and grand stair ──
+  mesh(width + 1.8, 0.34, depth + 1.6, STONE_DK, 0, 0.17, 0);
+  const platH = 0.8;
+  mesh(width + 0.9, platH, depth + 0.9, STONE, 0, 0.34 + platH / 2, 0);
+  const platTop = 0.34 + platH;
+  for (let i = 0; i <= 12; i++) mesh(0.16, 0.5, 0.16, STONE_DK, -width / 2 + (width * i) / 12, platTop + 0.25, frontZ + 0.55);
+  for (let s = 0; s < 4; s++) { const h = platTop * (1 - s / 4); mesh(width * 0.34, h, 0.5, s % 2 ? STONE_DK : STONE, 0, h / 2, frontZ + 0.55 + s * 0.5); }
+
+  // ── Main granite hall with an inset facade ──
+  mesh(width * 0.92, bodyH, bodyD, GRANITE, 0, platTop + bodyH / 2, 0);
+  mesh(width * 0.7, bodyH * 0.84, 0.2, GRANITE_DK, 0, platTop + bodyH * 0.5, frontZ + 0.02);
+
+  // ── Full front colonnade (fluted columns with bases + capitals) ──
+  const nCol = 11;
+  for (let i = 0; i < nCol; i++) {
+    const cx = -width * 0.44 + width * 0.88 * (i / (nCol - 1));
+    const col = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.3, bodyH * 0.9, 12), toonMat(STONE));
+    col.position.set(cx, platTop + bodyH * 0.45 + 0.1, frontZ + 0.14); g.add(col);
+    mesh(0.76, 0.24, 0.5, STONE_DK, cx, platTop + 0.12, frontZ + 0.14);
+    mesh(0.76, 0.26, 0.5, STONE_DK, cx, platTop + bodyH * 0.9, frontZ + 0.14);
+  }
+  // Entablature beam + gold cornice crowning the columns.
+  mesh(width * 0.94, 0.5, bodyD + 0.4, GRANITE_DK, 0, platTop + bodyH + 0.05, 0);
+  mesh(width * 0.97, 0.16, bodyD + 0.55, GOLD, 0, platTop + bodyH + 0.33, 0);
+
+  // ── Wide low hip roof over the hall ──
+  const roofBase = platTop + bodyH + 0.42;
+  g.add(hipRoof(width * 1.0, bodyD + 1.3, 1.4, roofBase, ROOF));
+
+  // ── Flanking corner towers (grand wide silhouette) ──
+  for (const sx of [-1, 1]) {
+    const tx = sx * width * 0.42, tw = Math.max(1.4, width * 0.1), tH = bodyH * 1.28;
+    mesh(tw, tH, bodyD * 0.72, GRANITE, tx, platTop + tH / 2, 0);
+    mesh(tw + 0.3, 0.14, bodyD * 0.72 + 0.3, GOLD, tx, platTop + tH, 0);
+    g.add(hipRoof(tw + 1.0, bodyD * 0.72 + 0.8, 1.0, platTop + tH, ROOF_HI));
+    const fin = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.7, 6), toonMat(GOLD));
+    fin.position.set(tx, platTop + tH + 1.15, 0); g.add(fin);
+  }
+
+  // ── Crowning central pavilion + grand gold spire ──
+  const pavW = width * 0.34, pavD = bodyD * 0.82, pavH = bodyH * 0.62;
+  const pavBase = roofBase + 0.9;
+  mesh(pavW, pavH, pavD, GRANITE, 0, pavBase + pavH / 2, 0);
+  mesh(pavW * 0.8, pavH * 0.5, 0.16, NAVY, 0, pavBase + pavH * 0.55, pavD / 2 + 0.02);
+  g.add(hipRoof(pavW + 1.6, pavD + 1.2, 1.5, pavBase + pavH, ROOF_HI));
+  const spireBase = pavBase + pavH + 1.5;
+  mesh(0.5, 0.5, 0.5, GOLD, 0, spireBase + 0.1, 0);
+  const spire = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.28, 1.6, 8), toonMat(GOLD));
+  spire.position.set(0, spireBase + 1.0, 0); g.add(spire);
+  const orb = new THREE.Mesh(new THREE.SphereGeometry(0.24, 12, 10), toonMat(GOLD));
+  orb.position.set(0, spireBase + 1.95, 0); g.add(orb);
+
+  // ── Grand central doorway (gold frame + studded doors) + banners + signboard ──
+  const doorH = Math.min(2.6, bodyH * 0.6), doorW = 2.0;
+  mesh(doorW + 0.4, doorH + 0.4, 0.16, GOLD, 0, platTop + (doorH + 0.4) / 2, frontZ + 0.16);
+  mesh(doorW, doorH, 0.2, DOOR, 0, platTop + doorH / 2, frontZ + 0.22);
+  const studMat = toonMat(GOLD);
+  for (let yy = 0; yy < 5; yy++) for (const sx of [-0.5, 0.5]) {
+    const s = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.06, 10), studMat);
+    s.rotation.x = Math.PI / 2; s.position.set(sx, platTop + 0.4 + yy * (doorH - 0.6) / 4, frontZ + 0.33); g.add(s);
+  }
+  for (const sx of [-1, 1]) {
+    const bx = sx * doorW * 1.15;
+    mesh(0.5, doorH * 1.1, 0.1, NAVY, bx, platTop + doorH * 0.6, frontZ + 0.2);
+    mesh(0.5, 0.24, 0.12, GOLD, bx, platTop + doorH * 1.12, frontZ + 0.22);
+  }
+  mesh(3.2, 0.8, 0.16, GOLD, 0, platTop + doorH + 0.6, frontZ + 0.2);
+  mesh(2.9, 0.56, 0.1, 0x1b120a, 0, platTop + doorH + 0.6, frontZ + 0.29);
+
+  return g;
+}
+
+/**
  * A coastal palm tree — a gently leaning tan trunk with segment rings and a crown
  * of drooping green fronds (with a couple of coconuts). Toon-styled, feet at y=0.
  * Suits seaside cities like Parangpo. Vary `seed` so a row of palms isn't identical.

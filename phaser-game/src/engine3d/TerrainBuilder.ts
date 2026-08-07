@@ -2,9 +2,10 @@ import * as THREE from 'three';
 import {
   InstancedProp, WallBuilder, makeBronzeStatue, makeFlowers, makeGrandObelisk,
   makeCherryTree, makeGrassTufts, makeIceStatue, makeMineCart, makePineTree, makePines, makePot, makeRailTrack,
-  makeRocks, makeHanokPalace, makeMountainRange, makeNosdanHQ, makePalmTree, makePokemonCenter, makePokeMart, makeStall, makeStoneLantern, makeStoreFixture, makeStreetlamp, makeTrees, makeTriumphalArch, makeWater, makeWaterfall, toonRamp,
+  makeRocks, makeGrandPalace, makeHanokPalace, makeMountainRange, makeNosdanHQ, makePalmTree, makePokemonCenter, makePokeMart, makeStall, makeStoneLantern, makeStoreFixture, makeStreetlamp, makeTrees, makeTriumphalArch, makeWater, makeWaterfall, toonRamp,
   type StoreFixtureKind,
 } from './Props';
+import { buildCityDetail, CityTileSpec } from './CityDetail3D';
 
 /** A decorative procedural prop the scene pins to an exact tile. */
 export interface PropPlot {
@@ -334,6 +335,10 @@ export function buildTerrain(
   // Tile ids the scene paints as 2D mountains — auto-covered by 3D mountain-range
   // models (their painted art is erased), instead of flat blocky wall extrusions.
   mountainTileIds3D: number[] = [],
+  // Street-detail spec: when a city scene declares which tile ids are road and
+  // pavement, the entire street layer is rebuilt in 3D — asphalt with lane
+  // markings and crossings, kerbed sidewalks, lamps, signals, benches, signage.
+  cityTiles3D: CityTileSpec | null = null,
 ): TerrainResult {
   const group = new THREE.Group();
   const cols = Math.max(1, Math.round(worldW / PX));
@@ -1019,6 +1024,17 @@ export function buildTerrain(
       blockers.push({ node: holder, r: Math.max(b.w, b.d) / 2 + 0.6, fade: 0 });
       continue;
     }
+    // The northern capital's grand granite palace (Gwanmunseong) — a bespoke
+    // procedural landmark so it renders as a majestic hall on every device,
+    // never the flat grey box a disabled 'palace' GLB would fall back to.
+    if (b.model === 'grand-palace') {
+      const holder = new THREE.Group();
+      holder.position.set(b.x + b.w / 2, 0, b.z + b.d / 2);
+      holder.add(makeGrandPalace(b.w, b.d));
+      group.add(holder);
+      blockers.push({ node: holder, r: Math.max(b.w, b.d) / 2 + 0.6, fade: 0 });
+      continue;
+    }
     // A scenic 3D mountain range backdrop in place of flat painted 2D mountains.
     // No fade-blocker: it sits at the map edge, behind all gameplay.
     if (b.model === 'mountainrange') {
@@ -1139,6 +1155,33 @@ export function buildTerrain(
     blockers.push({ node: obj, r: Math.max(0.7, storeFixture ? Math.max(p.w ?? 1, p.d ?? 1) / 2 : (p.scale ?? 1)), fade: 0 });
   }
 
+  // ── AAA street layer ──
+  // Rebuild roads and pavements as real 3D surfaces. The painted versions are
+  // wiped from the ground decal first so nothing shows through the new meshes.
+  let cityDetail: { group: THREE.Group; update(t: number): void } | null = null;
+  if (!interior && cityTiles3D && tileMap && tileMap.length === rows && (tileMap[0]?.length ?? 0) === cols) {
+    const gctx = ground.getContext('2d');
+    if (gctx) {
+      const streetIds = new Set<number>([
+        ...cityTiles3D.road, ...cityTiles3D.sidewalk, ...(cityTiles3D.bridge ?? []),
+      ]);
+      gctx.fillStyle = '#4a4a50';
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          if (!streetIds.has(tileMap[r][c])) continue;
+          gctx.fillRect(c * sx, r * sy, sx + 1, sy + 1);
+          cells[r * cols + c] = 'flat';        // never sprout foliage on a street
+        }
+      }
+      tex.needsUpdate = true;
+    }
+    cityDetail = buildCityDetail(tileMap, cityTiles3D, {
+      seed: sceneKey.length * 7919,
+      buildingPlots: knownPlots,
+    });
+    group.add(cityDetail.group);
+  }
+
   return {
     group, env, cols, rows,
     plots: buildings.map(b => ({ x: b.x, z: b.z, w: b.w, d: b.d })),
@@ -1147,6 +1190,7 @@ export function buildTerrain(
     update(t: number, playerPos?: { x: number; z: number } | null) {
       const dt = lastT < 0 ? 0 : Math.max(0, Math.min(0.5, t - lastT));
       lastT = t;
+      cityDetail?.update(t);
       for (const w of waters) w.update(t);
 
       // Rustle only the tufts around a moving player. Each contact produces a

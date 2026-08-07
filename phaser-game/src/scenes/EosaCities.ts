@@ -96,8 +96,11 @@ const WONSAN: EosaCity = {
     { col: 6,  row: 20, w: 3, h: 3, color: 0x2f6a3a, label: '🌲 Songdowon Pine Grove (송도원)',    kind: 'pavilion' },
     { col: 20, row: 21, w: 3, h: 2, color: 0x6a8ab0, label: '⛱ Beach Promenade (해안 산책로)',     kind: 'pavilion' },
     { col: 30, row: 17, w: 4, h: 3, color: 0x3a6a8a, label: '☕ 갈마 해변 카페 (Beach Café)', kind: 'building', solid: true, enter: 'NorthernBuildingScene', enterId: 'wonsan-cafe' },
-    { col: 36, row: 2,  w: 4, h: 4, color: 0x2a2440, label: '🛡 관문성 관문 (to Gwanmunseong)', kind: 'building', solid: true, enter: 'PyeongseongCheckpointScene' },
   ],
+  // The road to Gwanmunseong is a walk-through gateway in the NORTH wall (opening
+  // at cols 37–38): stroll north through it, off the top edge, to the capital
+  // checkpoint — no solid gate building blocking the way.
+  gateExit: { col: 37, scene: 'PyeongseongCheckpointScene', label: '🛡 관문성 관문 (Gwanmunseong)' },
   npcs: [
     { col: 9,  row: 13, color: 0xcc6a4a, label: 'Sunbather', lines: ['Sunbather: Kalma Beach in summer — nothing beats it! Well... maybe a cold drink at the café.'] },
     { col: 25, row: 14, color: 0xaa5533, label: 'Retired Boxer', lines: ['Retired Boxer: Chief Haegang trained me, back in the day.', 'Best his three disciples and he\'ll respect you. He respects nothing else.'] },
@@ -109,9 +112,6 @@ const WONSAN: EosaCity = {
   sideExit: { col: 34, scene: 'WonsanBeachScene', label: 'Kalma Beach', icon: '🏖' },
   // A dedicated two-tile avenue branches north from the main east-west road to
   // the Gwanmunseong gate, with a sign at the junction so it reads at a glance.
-  accessRoads: [
-    { fromCol: 37, fromRow: 6, toCol: 37, toRow: 9, width: 2, label: '🛡 관문성 관문 ↑' },
-  ],
   trainers: [
     { key: 'wonsan-disciple-1', name: 'Disciple Baekho', col: 5, row: 13, color: 0xcc7a3a, label: 'Disciple\n① Pier',
       line: 'Master Haegang sent you? Then you\'ll start with me — down here by the pier. Come on!',

@@ -78,14 +78,15 @@ export class PyeongyangCityScene extends Phaser.Scene {
   // This keeps the capital readable while retaining its skyline.
   public buildingPlots = [
     ...CITY_BUILDINGS.map(b => ({ x: b.x, y: b.y, w: b.w, h: b.h, model: b.model })),
-    { x: 8, y: 23, w: 16, h: 4, model: 'palace' },
+    { x: 8, y: 23, w: 16, h: 4, model: 'grand-palace' },
   ];
   public onlyNamedBuildings = true;
   public clearSight3D = true;
+  // View-blocking tall props removed (the grand obelisk and the avenue arch that
+  // rose in front of the player); only the low bronze statue and short plaza
+  // lanterns remain so the capital reads open and unobstructed.
   public propPlots = [
-    { x: 10, y: 15, kind: 'obelisk' as const, scale: 1.05 },
-    { x: 22, y: 15, kind: 'statue' as const, scale: 1.05 },
-    { x: 15.5, y: 7, kind: 'arch' as const, scale: 1.1 },
+    { x: 22, y: 15, kind: 'statue' as const, scale: 0.9 },
     ...[11, 20].flatMap(row => [12.5, 18.5].map(x => ({ x, y: row, kind: 'lantern' as const, scale: 0.9 }))),
   ];
   private playerG!: Phaser.GameObjects.Graphics;
@@ -210,14 +211,6 @@ export class PyeongyangCityScene extends Phaser.Scene {
       }).setOrigin(0.5).setDepth(5);
     }
 
-    // Central obelisk — a tall grey-granite monument crowned with a gold finial.
-    const sx = 10 * TILE + 16, sBase = 16 * TILE;
-    const g = this.add.graphics().setDepth(3);
-    g.fillStyle(0x50535c); g.fillTriangle(sx - 16, sBase, sx + 16, sBase, sx, sBase - 180);
-    g.fillStyle(0x3c3f47); g.fillRect(sx - 18, sBase, 36, 16);
-    g.fillStyle(0xd8b44a); g.fillTriangle(sx - 7, sBase - 180, sx + 7, sBase - 180, sx, sBase - 205);   // gold finial
-    this.add.text(sx, sBase + 24, tr('The Grand Obelisk'), { fontSize: '8px', color: '#fff', backgroundColor: '#00000099', padding: { x: 3, y: 1 } }).setOrigin(0.5).setDepth(4);
-
     // Bronze statue on the central plaza.
     const tx = 22 * TILE + 16, tBase = 16 * TILE;
     const s = this.add.graphics().setDepth(3);
@@ -226,15 +219,6 @@ export class PyeongyangCityScene extends Phaser.Scene {
     s.fillRect(tx - 10, tBase - 50, 20, 52); s.fillRect(tx - 24, tBase - 38, 14, 8); s.fillRect(tx + 10, tBase - 42, 16, 8);
     s.fillCircle(tx, tBase - 58, 10);
     this.add.text(tx, tBase + 28, tr('The Great Statue'), { fontSize: '8px', color: '#fff', backgroundColor: '#00000099', padding: { x: 3, y: 1 } }).setOrigin(0.5).setDepth(4);
-
-    // Heroic monument arch - northern landmark
-    const ax = 15.5 * TILE + 16, aBase = 8 * TILE;
-    const a = this.add.graphics().setDepth(3);
-    a.fillStyle(0x4a4d55); a.fillRect(ax - 40, aBase - 60, 80, 80);           // arch base
-    a.fillStyle(0x3a3d45); a.fillRect(ax - 30, aBase - 50, 60, 60);           // arch opening
-    a.fillStyle(0x2a2c34); a.fillRect(ax - 35, aBase - 55, 70, 70);           // arch inner
-    a.fillStyle(0xd8b44a); a.fillRect(ax - 3, aBase - 58, 6, 6);             // gold keystone
-    this.add.text(ax, aBase + 12, tr('Triumphal Arch'), { fontSize: '8px', color: '#ffe88a', backgroundColor: '#00000099', padding: { x: 3, y: 1 } }).setOrigin(0.5).setDepth(4);
 
     // Palace building - seat of government
     const px = 15.5 * TILE + 16, pBase = 26 * TILE;
@@ -493,16 +477,14 @@ function buildMap(): Tile[][] {
   fill(23, 27, 8, 24, T.WALL);
   m[26][15] = T.PAVE; m[26][16] = T.PAVE;
   
-  // Formal gardens along the avenue
-  fill(10, 14, 10, 14, T.GARDEN); fill(10, 14, 18, 22, T.GARDEN);
-  fill(18, 22, 10, 14, T.GARDEN); fill(18, 22, 18, 22, T.GARDEN);
-  // Fountains in the plaza
+  // Formal gardens removed — the plaza is left open paving so no foliage/trees
+  // rise to block the player's view. (Was T.GARDEN blocks along the avenue.)
+  fill(10, 14, 10, 14, T.PLAZA); fill(10, 14, 18, 22, T.PLAZA);
+  fill(18, 22, 10, 14, T.PLAZA); fill(18, 22, 18, 22, T.PLAZA);
+  // Fountains in the plaza (flat water — no height).
   m[14][15] = T.FOUNTAIN; m[14][17] = T.FOUNTAIN; m[17][16] = T.FOUNTAIN;
-  // Formal navy-and-gold banners on the building faces along the avenue.
-  for (const r of [5, 6, 7, 25, 26, 27]) { m[r][10] = T.BANNER; m[r][21] = T.BANNER; }
-  // Solid bases under the spire (col 10) and statue (col 22).
-  m[15][10] = T.MONU; m[16][22] = T.MONU;
-  // Arch base
-  m[7][15] = T.MONU; m[7][16] = T.MONU;
+  // (Removed: tall navy banners and the obelisk/arch monument bases that stood
+  //  in the open and blocked the view.) Only the low bronze statue base remains.
+  m[16][22] = T.MONU;
   return m;
 }

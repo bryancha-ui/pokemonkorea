@@ -82,4 +82,11 @@ export const KO_ABILITIES: Record<string, string> = {
   'volt absorb': '축전',
   'water absorb': '저수',
   'water compaction': '꾸덕꾸덕굳기',
+  drought: '가뭄',
+  'sand stream': '모래날림',
+  download: '다운로드',
+  moxie: '자기과신',
+  hustle: '의욕',
+  guts: '근성',
+  'speed boost': '가속',
 };
