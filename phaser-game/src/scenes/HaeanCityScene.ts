@@ -166,7 +166,6 @@ export class HaeanCityScene extends Phaser.Scene {
     this.add.text(this.rivalCol * TILE + 16, this.rivalRow * TILE - 10, speakerName('Rival'), {
       fontSize: '8px', color: '#88ccff', backgroundColor: '#00000099', padding: { x: 3, y: 1 },
     }).setOrigin(0.5).setDepth(9);
-    }
     // Old Fisherman Dosik (on the dock)
     const d = this.add.graphics().setDepth(8);
     d.setPosition(this.dosikCol * TILE + 16, this.dosikRow * TILE + 16);
