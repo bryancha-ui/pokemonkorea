@@ -50,6 +50,8 @@ export class ForestCityScene extends Phaser.Scene {
   private map!: Tile[][];
   public buildingPlots = BUILDINGS.map((b, i) => ({ x: b.x, y: b.y, w: b.w, h: b.h, model: ['pokecenter', 'templegym', 'mart'][i] }));
   public onlyNamedBuildings = true;
+  // Clear all automatic terrain generation (rocks, walls, foliage) to keep paths clear
+  public clearSight3D = true;
   private playerG!: Phaser.GameObjects.Graphics;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd!: Record<string, Phaser.Input.Keyboard.Key>;
