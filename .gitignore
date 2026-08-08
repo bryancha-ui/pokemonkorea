@@ -1,15 +1,12 @@
-# Large media files that should not be in git
-*.mp4
-*.wav
-*.m4a
+# Large media files that should not be in git (except game assets)
 *.mkv
 *.avi
 *.mov
 
-# Specific directories with large files
-ending_credits/
-hwanung_animation/
-nabihalmang_animation/
+# Specific directories with large files (but keep these for game testing)
+!ending_credits/
+!hwanung_animation/
+!nabihalmang_animation/
 
 # Build artifacts
 node_modules/
