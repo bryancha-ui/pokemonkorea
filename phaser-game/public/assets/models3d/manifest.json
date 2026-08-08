@@ -2,253 +2,147 @@
   "models": [
     {
       "key": "vipour",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/780ab653-1ca6-4719-a215-46d336f50207.glb",
       "scale": 0.6
     },
-    {
-      "key": "arctorodon",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/67f55a28-9a54-4a68-9ec3-c524b8468153.glb"
-    },
-    {
-      "key": "babymammoth",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/f5f056ce-a702-4a9f-b92b-4a8275b2c710.glb"
-    },
+    "arctorodon",
+    "babymammoth",
     {
       "key": "balchataek",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/d790f413-8a91-4643-9583-6d2ce32c8614.glb",
       "rotY": 90
     },
-    {
-      "key": "blazekunk",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/d1293e52-9988-4bc6-9b23-8cd4be079006.glb"
-    },
-    {
-      "key": "bonejoillion",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/50bf0943-396e-44c7-80dd-b46eab62eff4.glb"
-    },
+    "blazekunk",
+    "bonejoillion",
     {
       "key": "bookbug",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/6e42a122-3bc8-4795-9c23-6b9dd8e31f53.glb",
       "scale": 0.5,
       "rotY": 270
     },
-    {
-      "key": "bookmoth",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/a1440c01-fcf9-4078-9281-b91f33d0df40.glb"
-    },
+    "bookmoth",
     {
       "key": "cerrapin",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/4ec510a2-4a42-443a-814c-38b8741b0253.glb",
       "scale": 0.6
     },
-    {
-      "key": "foxgeist",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/7421f148-f69f-4fee-8f5c-ff7976736739.glb"
-    },
-    {
-      "key": "hwanwoong",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/019d6b7f-fbb9-4358-aa30-05ccd90eefe8.glb"
-    },
+    "foxgeist",
+    "hwanwoong",
     {
       "key": "daejangseung",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/81bf7402-1e72-427a-b909-6a32c16f6db0.glb",
       "rotY": 140
     },
-    {
-      "key": "nabihalmang",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/497d581d-abdd-4b04-8a62-6969daafbaf0.glb"
-    },
+    "nabihalmang",
     {
       "key": "ivelon",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/238256c0-641f-469b-886b-41d17837db5c.glb"
+      "rotY": 270,
+      "scale": 0.4
     },
     {
       "key": "kidstrel",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/8c4c33a3-76f4-47ee-9207-b594b6afb9f6.glb",
       "rotY": 270
     },
+    "frysm",
+    "munkain",
+    "onnurian",
+    "thanatoat",
+    "banderado",
+    "ampere",
     {
-      "key": "frysm",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/e1cd2b7a-16be-4e97-9c8f-ad29781c46c2.glb"
+      "key": "feldaconda"
     },
     {
-      "key": "munkain",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/b58813a1-d8b9-4715-97e0-f1f128539a38.glb"
+      "key": "onnurigrowlithe"
     },
     {
-      "key": "onnurian",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/c0227087-74eb-4923-ab0a-40310cfc1add.glb"
+      "key": "onnuriarcanine"
     },
     {
-      "key": "thanatoat",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/605732ca-e0d2-43ca-a471-651adb018759.glb"
+      "key": "onnurismoochum"
     },
     {
-      "key": "ampere",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/ae601974-ba4e-4e36-bf1e-dbe48dd761bb.glb"
+      "key": "corrpanda"
     },
     {
-      "key": "feldaconda",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/3e486265-332b-4365-8827-229beb44c74c.glb"
+      "key": "hallowknight"
     },
     {
-      "key": "onnurigrowlithe",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/61a17d1b-5c76-4542-a0a7-21c86d8bf835.glb"
+      "key": "moktakgwi"
     },
     {
-      "key": "onnuriarcanine",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/57864d8a-ee78-4928-8a38-9bf5111e9dd9.glb"
+      "key": "cheonjisin"
     },
     {
-      "key": "onnurismoochum",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/29f70c54-a308-439c-be72-7c0ff81acd9a.glb"
+      "key": "noeryong"
     },
     {
-      "key": "corrpanda",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/758a7b6f-bc34-4626-ba24-534cac2d9117.glb"
+      "key": "mugunga"
     },
     {
-      "key": "hallowknight",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/1c442beb-6a0a-4b14-a7f8-bc8e26818f92.glb"
+      "key": "mugungmama"
     },
     {
-      "key": "moktakgwi",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/e1b9a1d3-39ec-4244-b678-8a3b57378666.glb"
-    },
-    {
-      "key": "cheonjisin",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/e227da26-cb60-44c7-aa63-22ef2665f5da.glb"
-    },
-    {
-      "key": "noeryong",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/d5826fed-0313-4e87-b03a-6f5e87e98fa8.glb"
-    },
-    {
-      "key": "mugunga",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/46e26fb5-9df0-48af-829d-22c4d84feb96.glb"
-    },
-    {
-      "key": "mugungmama",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/ffc79fa4-0830-46ba-87a1-0dab6fd6a3f3.glb"
-    },
-    {
-      "key": "komodread",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/94cbb5d9-0153-4ebd-a69a-43b8faf584e1.glb"
+      "key": "komodread"
     },
     {
       "key": "aroryong",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/ef7773ac-a69a-416c-aa6f-8e636df2c1d1.glb",
       "scale": 0.6
     },
     {
       "key": "dracopaia",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/417a9249-59ab-427e-bff1-6c6cfbfddbe8.glb",
       "scale": 1.2
     },
     {
-      "key": "dracoelido",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/a1ae5fa1-e07d-4f44-b8fb-6dd4bae38566.glb"
+      "key": "dracoelido"
     },
     {
-      "key": "mperodactyl",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/169be166-a2fa-473c-b82e-fd72f4b88c50.glb"
+      "key": "mperodactyl"
     },
     {
       "key": "disguijar",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/51f7d9c6-fc86-4afa-b15f-9beb3c463f34.glb",
       "rotY": 90,
       "scale": 0.333333
     },
     {
-      "key": "prowlrock",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/7c911511-8a6e-4ffe-82eb-42609060746f.glb"
+      "key": "prowlrock"
     },
     {
-      "key": "prowlnox",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/25148d83-925c-4e32-b5b1-f6ffd9c8ae13.glb"
+      "key": "prowlnox"
     },
     {
       "key": "turtleship",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/75248ab4-252a-4ddd-aacb-5bc47ee1a654.glb",
       "scale": 0.79
     },
     {
       "key": "kingfisher",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/b178296c-5028-438b-9d90-eecf21b6c974.glb",
       "scale": 0.5
     },
     {
-      "key": "liondance",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/5f7b46d8-17c8-4e9c-819d-79d1ff5893ad.glb"
+      "key": "liondance"
     },
     {
-      "key": "halubang",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/67036ec2-46a4-4292-b61c-ffd88fe02642.glb"
+      "key": "halubang"
     },
     {
       "key": "tigerbabe",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/d5ae72f4-6d9f-401e-b8d4-0865ec83e07d.glb",
       "scale": 0.5
     },
     {
-      "key": "ghograss",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/e7569f80-fa30-4f6f-907f-b511c0a9f795.glb"
+      "key": "ghograss"
     },
     {
-      "key": "tokkigongju",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/338fb6e3-7742-4939-9bb6-80986dad0ae2.glb"
+      "key": "tokkigongju"
     },
     {
-      "key": "nabiguni",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/8ead3229-61dc-467f-b88e-f048355c01f0.glb"
+      "key": "nabiguni"
     },
-    {
-      "key": "bosongnun",
-      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3HAttAq5NLEY0hUhCEfsEIPpJwD/hf_20260806_231624_d2e9c705-6cc1-491b-9f7a-6b24edb03d59.glb"
-    },
-    {
-      "key": "camerghoost",
-      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3HAttAq5NLEY0hUhCEfsEIPpJwD/hf_20260806_231635_1a405365-dced-4239-8f5b-767446fcf3b9.glb"
-    },
-    {
-      "key": "hambillet",
-      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3HAttAq5NLEY0hUhCEfsEIPpJwD/hf_20260806_231641_50c67596-686e-46f9-ac9d-2abe58c04d09.glb"
-    },
-    {
-      "key": "kkaakdang",
-      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3HAttAq5NLEY0hUhCEfsEIPpJwD/hf_20260806_231649_523375fb-5a5d-41aa-8c55-cdf3a821cab2.glb"
-    },
-    {
-      "key": "luninari",
-      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3HAttAq5NLEY0hUhCEfsEIPpJwD/hf_20260806_231657_e35c0ca0-3bdf-47b4-aa1c-a00a88a4a368.glb"
-    },
-    {
-      "key": "samdumae",
-      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3HAttAq5NLEY0hUhCEfsEIPpJwD/hf_20260806_231705_6562f198-8b81-44aa-93de-9b6da129a8fd.glb"
-    },
-    {
-      "key": "silicutis",
-      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3HAttAq5NLEY0hUhCEfsEIPpJwD/hf_20260806_231714_a77b258c-1ee4-4b7b-ac10-a14e40e31f9e.glb"
-    },
-    {
-      "key": "snoqueen",
-      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3HAttAq5NLEY0hUhCEfsEIPpJwD/hf_20260806_231720_7962cc4d-1155-41e7-b61f-c84c00da4df4.glb"
-    },
-    {
-      "key": "supiryeong",
-      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3HAttAq5NLEY0hUhCEfsEIPpJwD/hf_20260806_231728_876d9b1b-ea5b-4d23-847c-79435b4e632e.glb"
-    },
-    {
-      "key": "unsilgami",
-      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3HAttAq5NLEY0hUhCEfsEIPpJwD/hf_20260806_231736_d8981944-1f9f-45fc-a446-71e018067843.glb"
-    },
-    {
-      "key": "pipetiger",
-      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3HAttAq5NLEY0hUhCEfsEIPpJwD/hf_20260806_231749_838020c4-8db8-465e-b3f3-e14cc6ea239c.glb"
-    },
-    {
-      "key": "yeomtaeja",
-      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3HAttAq5NLEY0hUhCEfsEIPpJwD/hf_20260806_231806_0e375263-679d-472b-816c-82024f6d15ca.glb"
-    }
+    "bosongnun",
+    "camerghoost",
+    "hambillet",
+    "kkaakdang",
+    "luninari",
+    "samdumae",
+    "silicutis",
+    "snoqueen",
+    "supiryeong",
+    "unsilgami",
+    "pipetiger",
+    "yeomtaeja"
   ]
 }
