@@ -9,6 +9,7 @@ import { DialogBox } from '../ui/DialogBox';
 import { SaveManager } from '../utils/SaveManager';
 import { maybeLaunchEvolution } from '../systems/EvolutionSystem';
 import { EncounterEntry, pickEncounter, randomLevel } from '../data/CustomPokemon';
+import type { PropPlot } from '../engine3d/TerrainBuilder';
 
 // ── Tiles ───────────────────────────────────────────────────────────────────
 const T = { GRASS: 0, PATH: 1, TALLGRASS: 2, CLIFF: 3, ROCK: 4, SEA: 5, SAND: 6, LANTERN: 7 } as const;
@@ -20,18 +21,21 @@ const COLORS: Record<Tile, number> = {
 };
 const SOLID = new Set<Tile>([T.CLIFF, T.ROCK, T.SEA, T.LANTERN]);
 const ENCOUNTER = new Set<Tile>([T.TALLGRASS]);
+const R6_ROCKS: Array<[number, number]> = [[8,5],[20,5],[40,6],[52,5],[14,16],[34,16],[48,16]];
+const R6_LANTERNS: Array<[number, number]> = Array.from({ length: 7 }, (_, i) => [6 + i * 8, 8] as [number, number])
+  .flatMap(([r]) => [[r, 8], [r, 15]] as Array<[number, number]>);
 
 // East-coast encounters lean Electric & Dragon (Korean 용 dragon mythology)
 const R6_ENCOUNTERS: EncounterEntry[] = [
-  { id: 'ssangdungori', weight: 14, minLevel: 39, maxLevel: 43, isCustom: true,  catchRate: 170 }, // Electric/Flying
-  { id: 'ureunggul',    weight: 14, minLevel: 39, maxLevel: 43, isCustom: true,  catchRate: 180 }, // Electric
-  { id: 'kingfisher',   weight: 12, minLevel: 39, maxLevel: 43, isCustom: true,  catchRate: 180 }, // Flying/Electric
-  { id: 'wildcat',      weight: 10, minLevel: 39, maxLevel: 43, isCustom: true,  catchRate: 170 }, // Grass/Electric
-  { id: 'aroryong',     weight: 10, minLevel: 39, maxLevel: 43, isCustom: true,  catchRate: 120 }, // Water/Dragon
-  { id: 'redheadagama', weight: 10, minLevel: 39, maxLevel: 43, isCustom: true,  catchRate: 130 }, // Fire/Dragon
-  { id: 179, weight: 12, minLevel: 39, maxLevel: 43, isCustom: false, catchRate: 200 }, // Mareep
-  { id: 81,  weight: 10, minLevel: 39, maxLevel: 43, isCustom: false, catchRate: 200 }, // Magnemite
-  { id: 147, weight: 6,  minLevel: 39, maxLevel: 43, isCustom: false, catchRate: 45  }, // Dratini (rare)
+  { id: 'ssangdungori', weight: 14, minLevel: 36, maxLevel: 40, isCustom: true,  catchRate: 170 }, // Electric/Flying
+  { id: 'ureunggul',    weight: 14, minLevel: 36, maxLevel: 40, isCustom: true,  catchRate: 180 }, // Electric
+  { id: 'kingfisher',   weight: 12, minLevel: 36, maxLevel: 40, isCustom: true,  catchRate: 180 }, // Flying/Electric
+  { id: 'wildcat',      weight: 10, minLevel: 36, maxLevel: 40, isCustom: true,  catchRate: 170 }, // Grass/Electric
+  { id: 'aroryong',     weight: 10, minLevel: 36, maxLevel: 40, isCustom: true,  catchRate: 120 }, // Water/Dragon
+  { id: 'redheadagama', weight: 10, minLevel: 36, maxLevel: 40, isCustom: true,  catchRate: 130 }, // Fire/Dragon
+  { id: 179, weight: 12, minLevel: 36, maxLevel: 40, isCustom: false, catchRate: 200 }, // Mareep
+  { id: 81,  weight: 10, minLevel: 36, maxLevel: 40, isCustom: false, catchRate: 200 }, // Magnemite
+  { id: 147, weight: 6,  minLevel: 36, maxLevel: 40, isCustom: false, catchRate: 45  }, // Dratini (rare)
 ];
 
 function buildMap(): Tile[][] {
@@ -45,9 +49,9 @@ function buildMap(): Tile[][] {
   fill(0, ROWS, 0, 4, T.CLIFF);
   fill(0, ROWS, 18, COLS, T.SEA);
   fill(0, ROWS, 16, 18, T.SAND);
-  for (const [r, c] of [[8,5],[20,5],[40,6],[52,5],[14,16],[34,16],[48,16]] as [number,number][]) m[r][c] = T.ROCK;
+  for (const [r, c] of R6_ROCKS) m[r][c] = T.ROCK;
   // Stone lanterns lining a coastal shrine path
-  for (let r = 6; r < ROWS - 2; r += 8) { m[r][8] = T.LANTERN; m[r][15] = T.LANTERN; }
+  for (const [r, c] of R6_LANTERNS) m[r][c] = T.LANTERN;
   // Tall-grass clearings
   fill(8, 14, 15, 16, T.TALLGRASS);
   fill(34, 42, 5, 9, T.TALLGRASS);
@@ -58,6 +62,16 @@ function buildMap(): Tile[][] {
 
 export class Route6Scene extends Phaser.Scene {
   public grassTileIds3D = [T.TALLGRASS];
+  public flatTileIds3D = [T.PATH, T.SAND, T.ROCK, T.LANTERN];
+  public noRocks3D = true;
+  public propPlots: PropPlot[] = [
+    ...R6_LANTERNS.map(([r, c]) => ({ x: c, y: r, kind: 'lantern' as const, scale: 1.18 })),
+    ...R6_ROCKS.map(([r, c], i) => ({ x: c, y: r, kind: 'rock' as const, scale: 0.9 + (i % 3) * 0.08, rot: i * 0.73 })),
+    ...([[3,6],[18,5],[28,6],[45,5],[57,6]] as Array<[number, number]>)
+      .map(([r, c], i) => ({ x: c, y: r, kind: 'tree' as const, scale: 1.1 + (i % 2) * 0.12, rot: i * 0.9 })),
+    ...([[4,7],[17,7],[27,16],[44,7],[56,16]] as Array<[number, number]>)
+      .map(([r, c], i) => ({ x: c, y: r, kind: 'flower' as const, scale: 0.9 + (i % 2) * 0.12, rot: i * 0.6 })),
+  ];
   private map!: Tile[][];
   private playerG!: Phaser.GameObjects.Graphics;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -81,13 +95,13 @@ export class Route6Scene extends Phaser.Scene {
     {
       key: 'r6-sora', name: 'Bird Keeper Sora', col: 8, row: 44, color: 0x44aacc, label: 'Bird\nKeeper',
       line: "My birds ride the sea wind off these cliffs. Catch them if you can!",
-      pokemon: JSON.stringify([{ id: 0, level: 42, custom: 'kingfisher' }, { id: 0, level: 43, custom: 'squirrel2' }]),
+      pokemon: JSON.stringify([{ id: 0, level: 40, custom: 'kingfisher' }, { id: 0, level: 41, custom: 'squirrel2' }]),
       expPool: 1100,
     },
     {
       key: 'r6-yunho', name: 'Dragon Tamer Yunho', col: 16, row: 12, color: 0x6633bb, label: 'Dragon\nTamer',
       line: "The old 용 dragons sleep beneath this coast. My partners carry their blood. Face them!",
-      pokemon: JSON.stringify([{ id: 0, level: 43, custom: 'aroryong' }, { id: 0, level: 44, custom: 'dracopaia' }]),
+      pokemon: JSON.stringify([{ id: 0, level: 40, custom: 'aroryong' }, { id: 0, level: 41, custom: 'dracopaia' }]),
       expPool: 1200,
     },
   ] as const;
@@ -300,9 +314,9 @@ export class Route6Scene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(20);
 
     this.dialog.show([
-      'Commander Ryeo stands at the shrine gate, silhouetted against the rising sun.',
-      "Commander Ryeo: You freed the Grandmother. You've cost us our backup plan.",
-      "Commander Ryeo: But Cheonji remains. I'll see you at the top — and I cannot guarantee your safety.",
+      'Commander Ryeo studies a weathered statue of the Grandmother at the shrine gate, silhouetted against the rising sun.',
+      "Commander Ryeo: So Dolmoe still remembers her. They say the Grandmother's wings can contain even a god's awakening.",
+      "Commander Ryeo: If she still lives, 노스단 will find her first. I'm heading north — stay out of our path.",
     ], () => {
       ryeo.setData('characterLookAt3D', null);
       let frame = 0;

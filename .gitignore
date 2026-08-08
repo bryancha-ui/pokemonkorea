@@ -1,34 +1,41 @@
-[Ll]ibrary/
-[Tt]emp/
-[Oo]bj/
-[Bb]uild/
-[Bb]uilds/
-[Ll]ogs/
-[Uu]ser[Ss]ettings/
-*.pidb
-*.suo
-*.user
-*.userosscache
-*.sln.docstates
-*.csproj
-*.sln
+# Large media files that should not be in git
+*.mp4
+*.wav
+*.m4a
+*.mkv
+*.avi
+*.mov
+
+# Specific directories with large files
+ending_credits/
+hwanung_animation/
+nabihalmang_animation/
+
+# Build artifacts
+node_modules/
+dist/
+build/
+*.log
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
 .DS_Store
+Thumbs.db
 
-# Phaser game
-phaser-game/node_modules/
-phaser-game/dist/
-phaser-game/.vite/
+# Unity/Editor files (keep Unity project files out of git)
+/Assets/
+/Library/
+/Logs/
+/UserSettings/
+/ProjectSettings/
+/Packages/
 
-# Claude internal
+# Other non-essential files
 .claude/
-
-# macOS
-.DS_Store
-
-# Local sprite backup (not needed for build/deploy)
-phaser-game/sprite_backup_orig/
-
-# Vendored 3D model binaries — large (~40MB each). The deploy loads them from
-# the Higgsfield CDN via manifest.json URLs; run scripts/fetch-models.mjs to
-# vendor them locally for offline play. Kept out of the repo to stay lean.
-phaser-game/public/assets/models3d/*.glb
+sprite_backup_orig/

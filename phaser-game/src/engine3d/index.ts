@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { BattleMirror } from './BattleMirror';
 import { CameraRig } from './CameraRig';
+import type { HatchEffectProfile3D } from './HatchEffect3D';
 import { primeManifest } from './GlbModels';
 import { OverworldMirror } from './OverworldMirror';
 import { primeProps } from './PropModels';
@@ -60,6 +61,19 @@ class Engine3D {
    *  while this exact scene is actively being mirrored in 3D. */
   isRendering(scene: Phaser.Scene): boolean {
     return this.enabled && this.mirrorApplied && !!this.mirror && this.mirrorScene === scene;
+  }
+
+  /** Start/stop the camera-relative nursery sequence without allocating a
+   * second WebGL renderer (important on iPhone and lower-memory Android). */
+  playHatch(scene: Phaser.Scene, profile: HatchEffectProfile3D): boolean {
+    if (!this.isRendering(scene) || !(this.mirror instanceof OverworldMirror)) return false;
+    return this.mirror.startHatchEffect(profile);
+  }
+
+  stopHatch(scene: Phaser.Scene): void {
+    if (this.mirrorScene === scene && this.mirror instanceof OverworldMirror) {
+      this.mirror.stopHatchEffect();
+    }
   }
 
   toggle(): void {
@@ -167,7 +181,8 @@ class Engine3D {
       // renders. Keep the 3D view up and frozen underneath the overlay;
       // destroying it here is what snapped gym battles back to 2D mid-fight.
       const held = this.mirrorScene;
-      if (this.mirror && this.stage && held && (held.scene.isPaused() || held.scene.isVisible())) {
+      const heldOptedOut = !!(held as unknown as { disable3D?: boolean } | null)?.disable3D;
+      if (this.mirror && this.stage && held && !heldOptedOut && (held.scene.isPaused() || held.scene.isVisible())) {
         if (!this.stage.isHealthy()) throw new Error('Three.js WebGL context was lost');
         this.mirror.update(Math.min(dt, 0.1));   // idle animations keep breathing
         if (!this.stage.render()) throw new Error('Three.js frame could not be rendered');

@@ -74,6 +74,9 @@ const btnBase =
 // that single click; a genuine second tap is a fresh pointerdown.
 let swallowClickUntil = 0;
 let swallowArmed = false;
+let deckGestureDown = false;
+let moveInputReady = true;
+let moveInputToken = 0;
 function armGhostClickSwallow(): void {
   swallowArmed = true;
   swallowClickUntil = performance.now() + 900;   // safety expiry if no click ever comes
@@ -86,6 +89,15 @@ if (typeof document !== 'undefined') {
     e.stopImmediatePropagation();
     e.preventDefault();
   }, true);   // capture: runs before any target's own click handler
+
+  // Track the physical contact separately from its command. FIGHT replaces its
+  // own layer on pointerdown, so the new move layer must wait for this release.
+  document.addEventListener('pointerup', () => { deckGestureDown = false; }, true);
+  document.addEventListener('pointercancel', () => { deckGestureDown = false; }, true);
+  if (typeof window !== 'undefined' && !('PointerEvent' in window)) {
+    document.addEventListener('touchend', () => { deckGestureDown = false; }, true);
+    document.addEventListener('touchcancel', () => { deckGestureDown = false; }, true);
+  }
 }
 
 function bindTap(el: HTMLElement, callback: () => void): void {
@@ -99,7 +111,10 @@ function bindTap(el: HTMLElement, callback: () => void): void {
     lastActivation = now;
     // Real (pointer/touch) tap → swallow its trailing ghost click. A bare `click`
     // (no-pointer fallback devices) IS the activation, so don't self-swallow.
-    if (e.type !== 'click') armGhostClickSwallow();
+    if (e.type !== 'click') {
+      deckGestureDown = true;
+      armGhostClickSwallow();
+    }
     callback();
   };
   el.addEventListener('pointerdown', activate);
@@ -107,6 +122,44 @@ function bindTap(el: HTMLElement, callback: () => void): void {
   if (!('PointerEvent' in window)) {
     el.addEventListener('touchstart', activate, { passive: false });
   }
+}
+
+/** Require a fresh tap after FIGHT opens the move layer. The original release
+ * and its synthesized click finish before this layer is armed. */
+function armMoveInputAfterCurrentGesture(): void {
+  if (!moveLayer) return;
+  const token = ++moveInputToken;
+  moveInputReady = !deckGestureDown;
+  moveLayer.style.pointerEvents = moveInputReady ? 'auto' : 'none';
+  if (moveInputReady || typeof document === 'undefined') return;
+
+  let finished = false;
+  let fallbackTimer = 0;
+  const cleanup = () => {
+    document.removeEventListener('pointerup', release, true);
+    document.removeEventListener('pointercancel', release, true);
+    document.removeEventListener('touchend', release, true);
+    document.removeEventListener('touchcancel', release, true);
+    if (fallbackTimer) window.clearTimeout(fallbackTimer);
+  };
+  const release = () => {
+    if (finished) return;
+    finished = true;
+    cleanup();
+    window.setTimeout(() => {
+      if (token !== moveInputToken || !moveLayer) return;
+      moveInputReady = true;
+      moveLayer.style.pointerEvents = 'auto';
+    }, 0);
+  };
+  document.addEventListener('pointerup', release, true);
+  document.addEventListener('pointercancel', release, true);
+  if (!('PointerEvent' in window)) {
+    document.addEventListener('touchend', release, true);
+    document.addEventListener('touchcancel', release, true);
+  }
+  // Click-only accessibility activation has no matching pointer release.
+  fallbackTimer = window.setTimeout(release, 350);
 }
 
 /** Button that holds a key down while pressed (run). */
@@ -640,7 +693,10 @@ export function deckShowMoves(moves: DeckMove[], onPick: (i: number) => void, on
     cell.innerHTML =
       `<div style="font-weight:800;font-size:clamp(13px,calc(var(--u)*0.85),22px);line-height:1.05;word-break:break-word;overflow-wrap:anywhere">${tr(m.data.name).toUpperCase()}</div>` +
       `<div style="font-size:clamp(9px,calc(var(--u)*0.55),14px);margin-top:clamp(2px,calc(var(--u)*0.2),8px)"><span style="color:${col}">${m.data.type.toUpperCase()}</span><span style="color:#cbd3e6"> · PP ${m.pp}/${m.data.pp}</span></div>`;
-    if (!dim) bindTap(cell, () => onPick(i));
+    if (!dim) bindTap(cell, () => {
+      if (!moveInputReady) return;
+      onPick(i);
+    });
     grid.append(cell);
   });
   const back = moveLayer.querySelector('[data-role="back"]') as HTMLElement;
@@ -648,18 +704,25 @@ export function deckShowMoves(moves: DeckMove[], onPick: (i: number) => void, on
   back.onclick = null;
   const replacement = back.cloneNode(true) as HTMLElement;
   back.replaceWith(replacement);
-  bindTap(replacement, onBack);
+  bindTap(replacement, () => {
+    if (!moveInputReady) return;
+    onBack();
+  });
 
   controlLayer.style.display = 'none';
   battleActionLayer.style.display = 'none';
   partyLeadLayer.style.display = 'none';
   moveLayer.style.display = 'flex';
+  armMoveInputAfterCurrentGesture();
   return true;
 }
 
 /** Hide the move bar and restore the movement/action controls. */
 export function deckHideMoves(): void {
   if (!mobile || !moveLayer || !controlLayer || !battleActionLayer || !partyLeadLayer) return;
+  moveInputToken++;
+  moveInputReady = false;
+  moveLayer.style.pointerEvents = 'none';
   moveLayer.style.display = 'none';
   if (battleActionLayer.style.display !== 'flex' && partyLeadLayer.style.display !== 'flex') {
     controlLayer.style.display = 'block';

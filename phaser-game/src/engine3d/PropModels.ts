@@ -152,7 +152,10 @@ export function releasePropGpuResources(): void {
 }
 
 function propAllowed(def: PropDef): boolean {
-  return allowsHeavy3DAssets() || !/^https?:/i.test(def.url ?? '');
+  // The authored dolmen is a repeated landmark rather than a disposable city
+  // decoration. Keep the existing GLB enabled on phones as well; getProp caches
+  // one normalized model and clones it for the remaining placements.
+  return allowsHeavy3DAssets() || def.id === 'dolmen' || !/^https?:/i.test(def.url ?? '');
 }
 
 function trimPropCache(except: string): void {

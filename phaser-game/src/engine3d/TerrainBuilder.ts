@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import {
   InstancedProp, WallBuilder, makeBronzeStatue, makeFlowers, makeGrandObelisk,
-  makeCherryTree, makeGrassTufts, makeIceStatue, makeMineCart, makePineTree, makePines, makePot, makeRailTrack,
-  makeRocks, makeGrandPalace, makeHanokPalace, makeMountainRange, makeNosdanHQ, makePalmTree, makePokemonCenter, makePokeMart, makeStall, makeStoneLantern, makeStoreFixture, makeStreetlamp, makeTrees, makeTriumphalArch, makeWater, makeWaterfall, toonRamp,
+  makeCherryTree, makeFlowerBed, makeForestTree, makeGlowPlants, makeGrassTufts, makeIceStatue, makeMineCart, makePineTree, makePines, makePot, makeRailTrack,
+  makeRocks, makeScenicRock, makeGrandPalace, makeHanokPalace, makeMountainRange, makeNosdanHQ, makePalmTree, makePokemonCenter, makePokeMart, makeStall, makeStoneLantern, makeStoreFixture, makeStreetlamp, makeTrees, makeTriumphalArch, makeWater, makeWaterfall, makeWoodBridge, toonRamp,
   type StoreFixtureKind,
 } from './Props';
 import { buildCityDetail, CityTileSpec } from './CityDetail3D';
@@ -10,7 +10,7 @@ import { buildCityDetail, CityTileSpec } from './CityDetail3D';
 /** A decorative procedural prop the scene pins to an exact tile. */
 export interface PropPlot {
   x: number; y: number;
-  kind: 'pine' | 'palm' | 'lantern' | 'icestatue' | 'rail' | 'obelisk' | 'statue' | 'arch' | 'pot' | 'streetlamp' | 'minecart' | 'cherry' | 'stall' | 'waterfall' | StoreFixtureKind;
+  kind: 'tree' | 'pine' | 'palm' | 'lantern' | 'rock' | 'flower' | 'glowplant' | 'woodbridge' | 'icestatue' | 'rail' | 'obelisk' | 'statue' | 'arch' | 'pot' | 'streetlamp' | 'minecart' | 'cherry' | 'stall' | 'waterfall' | StoreFixtureKind;
   scale?: number; rot?: number;
   len?: number;   // 'rail' span in tiles (laid along X, rotated by `rot`)
   w?: number; d?: number; color?: number; // authored interior-fixture footprint/theme
@@ -325,6 +325,9 @@ export function buildTerrain(
   // legacy behaviour was one tuft plus a 45% chance of a second.
   grassDensity3D = 1.45,
   grassTone3D = 0x49b23a,
+  // Tile ids that must stay flush with the ground even if their painted colour
+  // resembles rock or a low wall (e.g. wooden pond bridges and forest paths).
+  flatTileIds3D: number[] = [],
   // Fully flat: skip EVERY raised wall/rock volume and all foliage so a cramped
   // dark cave / puzzle room never buries the player behind extruded tiles. This
   // is stronger than clearSight3D (which Task-17 turned into low 3D mountains)
@@ -339,6 +342,10 @@ export function buildTerrain(
   // pavement, the entire street layer is rebuilt in 3D — asphalt with lane
   // markings and crossings, kerbed sidewalks, lamps, signals, benches, signage.
   cityTiles3D: CityTileSpec | null = null,
+  // Dense city artwork can share the same rough grey palette as natural stone.
+  // Disable only automatically inferred boulders while retaining buildings,
+  // authored props and collision.
+  noRocks3D = false,
 ): TerrainResult {
   const group = new THREE.Group();
   const cols = Math.max(1, Math.round(worldW / PX));
@@ -358,6 +365,7 @@ export function buildTerrain(
     emissiveMap: tex, emissiveIntensity: 0.14,
   });
   const plane = new THREE.Mesh(new THREE.PlaneGeometry(cols, rows), groundMat);
+  plane.name = 'generated-terrain-ground';
   plane.rotation.x = -Math.PI / 2;
   plane.position.set(cols / 2, 0, rows / 2);
   group.add(plane);
@@ -370,6 +378,7 @@ export function buildTerrain(
   skirtTex.repeat.set(Math.max(1, cols / 5), 1);
   const skirtMat = new THREE.MeshToonMaterial({ map: skirtTex, gradientMap: toonRamp() });
   const skirt = new THREE.Mesh(new THREE.BoxGeometry(cols, 0.46, rows), skirtMat);
+  skirt.name = 'generated-terrain-skirt';
   skirt.position.set(cols / 2, -0.25, rows / 2);
   group.add(skirt);
 
@@ -445,13 +454,15 @@ export function buildTerrain(
   if (tileMap) {
     const grassIds = new Set(grassTileIds3D);
     const treeIds = new Set(treeTileIds3D);
+    const flatIds = new Set(flatTileIds3D);
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         const i = r * cols + c;
         const tileId = tileMap[r]?.[c];
         // Scenes can publish their painted tree tiles so they grow real 3D trees
         // instead of being flattened to painted ground by the grass suppression below.
-        if (tileId !== undefined && treeIds.has(tileId)) cells[i] = snowy ? 'pine' : 'tree';
+        if (tileId !== undefined && flatIds.has(tileId)) cells[i] = 'flat';
+        else if (tileId !== undefined && treeIds.has(tileId)) cells[i] = snowy ? 'pine' : 'tree';
         else if (tileId !== undefined && grassIds.has(tileId)) cells[i] = 'grass';
         else if (cells[i] === 'grass') cells[i] = 'flat';
       }
@@ -463,7 +474,7 @@ export function buildTerrain(
   // per-cell color variance — while roads/grass/water paint flat. Contiguous
   // high-variance regions of walkable-classified cells become extruded
   // buildings: facade walls + the original painted footprint as the roof.
-  const buildings: { x: number; z: number; w: number; d: number; tint: number; model?: string }[] = [];
+  const buildings: { x: number; z: number; w: number; d: number; tint: number; model?: string; authored?: boolean }[] = [];
 
   // Authoritative plots first: scenes that know their building rectangles
   // (e.g. a LOCATIONS table) publish them via `scene.buildingPlots`, so
@@ -481,7 +492,7 @@ export function buildTerrain(
       }
       const tint = new THREE.Color(mr / n / 255, mg / n / 255, mb / n / 255)
         .lerp(new THREE.Color(0xffffff), 0.45).getHex();
-      buildings.push({ x: p.x, z: p.y, w: p.w, d: p.h, tint, model: p.model });
+      buildings.push({ x: p.x, z: p.y, w: p.w, d: p.h, tint, model: p.model, authored: true });
     }
   }
 
@@ -705,7 +716,10 @@ export function buildTerrain(
         // at the bottom edge and often spills a tile below and to the sides. Pad the
         // wipe in every direction so no "ghost entrance" of the old flat art peeks
         // out around the 3D building (Pokémon Centers were showing a second doorway).
-        const padTop = 2.2, padBottom = 1.2, padSide = 0.7;
+        const isDolmen = b.model === 'dolmen';
+        const padTop = isDolmen ? 0.18 : 2.2;
+        const padBottom = isDolmen ? 0.18 : 1.2;
+        const padSide = isDolmen ? 0.18 : 0.7;
         const x0 = Math.max(0, (b.x - padSide) * sx);
         const y0 = Math.max(0, (b.z - padTop) * sy);
         const w0 = (b.w + padSide * 2) * sx;
@@ -908,7 +922,7 @@ export function buildTerrain(
             }
           }
           const rough = cellVar[r * cols + c] > 300;
-          if (!interior && rough && rockNeighbors >= 4 && rnd() > 0.72) {
+          if (!noRocks3D && !interior && rough && rockNeighbors >= 4 && rnd() > 0.72) {
             const x = cx + (rnd() - 0.5) * 0.4;
             const z = cz + (rnd() - 0.5) * 0.4;
             const rot = rnd() * Math.PI * 2;
@@ -953,7 +967,7 @@ export function buildTerrain(
   // plots (deterministically chosen, fitted to the footprint); otherwise the
   // engine extrudes facade+roof volumes from the original painted art.
   const blockers: { node: THREE.Object3D; r: number; fade: number }[] = [];
-  const pendingProps: { group: THREE.Group; def: import('./PropModels').PropDef; b: typeof buildings[number]; h: number; wait: number; rot?: number }[] = [];
+  const pendingProps: { group: THREE.Group; fallback: THREE.Group; def: import('./PropModels').PropDef; b: typeof buildings[number]; h: number; wait: number; rot?: number }[] = [];
 
   /** Facade+roof volume built from the original painted art (always available). */
   const extrudeBuilding = (b: typeof buildings[number], into: THREE.Object3D, local = false) => {
@@ -1048,11 +1062,16 @@ export function buildTerrain(
     if (def) {
       const holder = new THREE.Group();
       holder.position.set(b.x + b.w / 2, 0, b.z + b.d / 2);
+      // Never expose an empty plot while a large GLB streams in. The local shell
+      // remains the failure fallback and is hidden when the model is ready.
+      const fallback = new THREE.Group();
+      extrudeBuilding(b, fallback, true);
+      holder.add(fallback);
       group.add(holder);
       const h = plotHeight(b.w, b.d);
       // Named landmark buildings face the street (door side toward +z / camera)
       // rather than a random hash rotation.
-      pendingProps.push({ group: holder, def, b, h, wait: 0, rot: 0 });
+      pendingProps.push({ group: holder, fallback, def, b, h, wait: 0, rot: 0 });
       blockers.push({ node: holder, r: Math.max(b.w, b.d) / 2 + 0.6, fade: 0 });
       continue;
     }
@@ -1078,8 +1097,19 @@ export function buildTerrain(
       blockers.push({ node: fallback, r: Math.max(b.w, b.d) / 2 + 0.6, fade: 0 });
       continue;
     }
-    // Scene wants only its named landmarks in 3D — the footprint's flat art was
-    // already erased above, so skipping it leaves clean ground, not a brick box.
+    // Explicit model-less plots are still real buildings. Named-only cities use
+    // these for procedural apartments/civic blocks; previously their painted
+    // footprint was erased and then skipped, leaving a permanent skyline hole.
+    if (b.authored) {
+      const bg = new THREE.Group();
+      bg.position.set(b.x + b.w / 2, 0, b.z + b.d / 2);
+      group.add(bg);
+      extrudeBuilding(b, bg, true);
+      blockers.push({ node: bg, r: Math.max(b.w, b.d) / 2 + 0.6, fade: 0 });
+      continue;
+    }
+    // Scene wants only its named landmarks in 3D — heuristic footprints are
+    // skipped, while authored plots above remain visible.
     if (onlyNamedBuildings) continue;
     // Towns without authored models can opt into free CC0 city buildings: pick
     // one deterministically per footprint (so it's varied but stable).
@@ -1091,7 +1121,10 @@ export function buildTerrain(
         group.add(holder);
         // Face every free city building the same way — facade toward the camera (+z)
         // like the named landmarks — instead of a random per-tile hash rotation.
-        pendingProps.push({ group: holder, def: fdef, b, h: plotHeight(b.w, b.d), wait: 0, rot: 0 });
+        const fallback = new THREE.Group();
+        extrudeBuilding(b, fallback, true);
+        holder.add(fallback);
+        pendingProps.push({ group: holder, fallback, def: fdef, b, h: plotHeight(b.w, b.d), wait: 0, rot: 0 });
         blockers.push({ node: holder, r: Math.max(b.w, b.d) / 2 + 0.6, fade: 0 });
         continue;
       }
@@ -1134,9 +1167,14 @@ export function buildTerrain(
   for (const p of propPlots) {
     const storeFixture = p.kind.startsWith('store-');
     const obj = storeFixture ? makeStoreFixture(p.kind as StoreFixtureKind, p.w ?? 1, p.d ?? 1, p.color)
+      : p.kind === 'tree' ? makeForestTree()
       : p.kind === 'pine' ? makePineTree()
       : p.kind === 'palm' ? makePalmTree(p.x * 7 + p.y * 13)
       : p.kind === 'lantern' ? makeStoneLantern()
+        : p.kind === 'rock' ? makeScenicRock()
+          : p.kind === 'flower' ? makeFlowerBed()
+            : p.kind === 'glowplant' ? makeGlowPlants()
+              : p.kind === 'woodbridge' ? makeWoodBridge(p.w ?? 2, p.d ?? 3)
         : p.kind === 'rail' ? makeRailTrack(p.len ?? 4)
           : p.kind === 'obelisk' ? makeGrandObelisk()
             : p.kind === 'statue' ? makeBronzeStatue()
@@ -1242,7 +1280,6 @@ export function buildTerrain(
           // back to the painted-art extrusion so the city is never empty.
           p.wait += dt;
           if (propFailed(p.def) || p.wait > 2.5) {
-            extrudeBuilding(p.b, p.group, true);
             pendingProps.splice(i, 1);
           }
           continue;
@@ -1259,6 +1296,7 @@ export function buildTerrain(
         );
         model.scale.multiplyScalar(fit);
         model.rotation.y = p.rot ?? ((p.b.x * 7 + p.b.z * 13) % 4) * (Math.PI / 2);
+        p.fallback.visible = false;
         p.group.add(model);
         pendingProps.splice(i, 1);
       }

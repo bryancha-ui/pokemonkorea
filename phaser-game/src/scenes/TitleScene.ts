@@ -5,6 +5,10 @@ import { STARTERS } from '../data/StarterData';
 import { playBgm, stopBgm } from '../systems/Music';
 import { t, getLang, setLang } from '../systems/i18n';
 import { fontScaleForScene } from '../systems/UiScale';
+import { preloadBattleFallbackSprites } from '../data/BattleFallbackSprites';
+
+const TITLE_BG_KEY = 'pokemon-string-opening';
+const TITLE_BG_URL = 'assets/title/pokemon-string-opening.png';
 
 export class TitleScene extends Phaser.Scene {
   private selected = 0;
@@ -26,10 +30,12 @@ export class TitleScene extends Phaser.Scene {
   constructor() { super('TitleScene'); }
 
   preload() {
+    if (!this.textures.exists(TITLE_BG_KEY)) this.load.image(TITLE_BG_KEY, TITLE_BG_URL);
     STARTERS.forEach(s => {
       if (!this.textures.exists(s.spriteKey))
         this.load.image(s.spriteKey, s.data.spriteUrl);
     });
+    preloadBattleFallbackSprites(this);
   }
 
   create() {
@@ -89,64 +95,54 @@ export class TitleScene extends Phaser.Scene {
     this.stars.forEach((s, i) => {
       s.alpha = 0.4 + Math.sin(Date.now() / 700 + i) * 0.35;
     });
-    // Gentle float on starter silhouettes
+    // Gentle float on starter silhouettes without accumulating positional drift.
     this.floatObjs.forEach((o, i) => {
       const img = o as Phaser.GameObjects.Image;
-      img.y += Math.sin(Date.now() / 1200 + i * 2.1) * 0.3;
+      const baseY = (img.getData('titleBaseY') as number | undefined) ?? img.y;
+      img.y = baseY + Math.sin(Date.now() / 1200 + i * 2.1) * 5;
     });
   }
 
   // ── Background ────────────────────────────────────────────────────────────
 
   private drawBackground() {
-    const g = this.add.graphics();
-
-    // Deep purple-midnight gradient (sky)
-    g.fillGradientStyle(0x0a000f, 0x0a000f, 0x220033, 0x220033, 1);
-    g.fillRect(0, 0, this.W, this.H);
-
-    // Ground silhouette — dark purple hills
-    g.fillStyle(0x110018, 1);
-    g.fillRect(0, this.H * 0.72, this.W, this.H * 0.28);
-
-    // Mountain silhouettes
-    const hills = [
-      [0, this.H * 0.72, 220, this.H * 0.48],
-      [180, this.H * 0.72, 500, this.H * 0.38],
-      [440, this.H * 0.72, 800, this.H * 0.42],
-      [720, this.H * 0.72, 1080, this.H * 0.36],
-      [1000, this.H * 0.72, 1280, this.H * 0.50],
-    ];
-    g.fillStyle(0x1a0028, 1);
-    for (const [lx, ly, rx, ty] of hills) {
-      const mx = (lx + rx) / 2;
-      g.fillTriangle(lx, ly, mx, ty, rx, ly);
+    if (this.textures.exists(TITLE_BG_KEY)) {
+      const backdrop = this.add.image(this.W / 2, this.H / 2, TITLE_BG_KEY)
+        .setDisplaySize(this.W, this.H)
+        .setDepth(-20);
+      this.tweens.add({
+        targets: backdrop, scaleX: backdrop.scaleX * 1.035, scaleY: backdrop.scaleY * 1.035,
+        duration: 14000, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+      });
+    } else {
+      // A safe dark plate if the generated background cannot be read.
+      this.add.rectangle(this.W / 2, this.H / 2, this.W, this.H, 0x08000f).setDepth(-20);
     }
 
-    // Purple moon glow
-    g.fillStyle(0xaa44ff, 0.10);
-    g.fillCircle(this.W * 0.78, this.H * 0.14, 110);
-    // Moon
-    g.fillStyle(0xeeddff, 1);
-    g.fillCircle(this.W * 0.78, this.H * 0.14, 44);
-    // Crescent cutout
-    g.fillStyle(0x1a0030, 1);
-    g.fillCircle(this.W * 0.78 - 18, this.H * 0.14 - 10, 38);
+    // Darken only the UI zones; the luminous mountain and string-energy focal
+    // point stay visible between the logo and the menu.
+    const shade = this.add.graphics().setDepth(-19);
+    shade.fillGradientStyle(0x040008, 0x040008, 0x040008, 0x040008, 0.48, 0.48, 0, 0);
+    shade.fillRect(0, 0, this.W, this.H * 0.42);
+    shade.fillGradientStyle(0x05000b, 0x05000b, 0x05000b, 0x05000b, 0, 0, 0.82, 0.82);
+    shade.fillRect(0, this.H * 0.48, this.W, this.H * 0.52);
 
-    // Subtle purple fog near ground
-    g.fillGradientStyle(0x330055, 0x330055, 0x330055, 0x330055, 0, 0, 0.25, 0.25);
-    g.fillRect(0, this.H * 0.62, this.W, this.H * 0.12);
+    // Thin cinematic letterbox edges give the splash a finished console-game frame.
+    shade.fillStyle(0x030006, 0.72);
+    shade.fillRect(0, 0, this.W, 8);
+    shade.fillRect(0, this.H - 8, this.W, 8);
   }
 
   // ── Stars ─────────────────────────────────────────────────────────────────
 
   private drawStars() {
-    for (let i = 0; i < 80; i++) {
+    for (let i = 0; i < 34; i++) {
       const x = Phaser.Math.Between(0, this.W);
-      const y = Phaser.Math.Between(0, this.H * 0.68);
-      const r = Math.random() < 0.12 ? 2.5 : Math.random() < 0.3 ? 1.5 : 1;
-      const col = Math.random() < 0.2 ? 0xddaaff : 0xffffff;
-      const s = this.add.arc(x, y, r, 0, 360, false, col, 0.8);
+      const y = Phaser.Math.Between(18, this.H * 0.55);
+      const r = Math.random() < 0.14 ? 2.2 : 1;
+      const col = Math.random() < 0.28 ? 0xdca8ff : 0xeaf2ff;
+      const s = this.add.arc(x, y, r, 0, 360, false, col, 0.62).setDepth(-10);
+      s.setBlendMode(Phaser.BlendModes.ADD);
       this.stars.push(s);
     }
   }
@@ -156,22 +152,27 @@ export class TitleScene extends Phaser.Scene {
   private drawStarters() {
     const keys = ['munkain', 'vipour', 'onnurian'];
     const xs   = [this.W * 0.12, this.W * 0.5, this.W * 0.88];
-    const ys   = [this.H * 0.60, this.H * 0.56, this.H * 0.60];
-    const size = 130;
+    const ys   = [this.H * 0.82, this.H * 0.86, this.H * 0.82];
+    const size = 142;
 
     keys.forEach((key, i) => {
       if (!this.textures.exists(key)) return;
-      const img = this.add.image(xs[i], ys[i], key).setDepth(1);
+      const glow = this.add.ellipse(xs[i], ys[i] + 26, size * 1.2, size * 0.54, 0x9a3ee8, 0.10)
+        .setDepth(0)
+        .setBlendMode(Phaser.BlendModes.ADD);
+      this.tweens.add({ targets: glow, alpha: { from: 0.05, to: 0.16 }, scaleX: 1.08, duration: 1700 + i * 230, yoyo: true, repeat: -1 });
+
+      const img = this.add.image(xs[i], ys[i], key).setDepth(1).setData('titleBaseY', ys[i]);
       const tex = this.textures.get(key).getSourceImage();
       const dim = Math.max((tex.width as number) || 1, (tex.height as number) || 1);
       img.setScale(size / dim)
-         .setAlpha(0.30)
-         .setTint(0x6600aa);
+         .setAlpha(0.20)
+         .setTint(0x7b36ad);
 
       // Subtle hover reveal
       img.setInteractive()
-         .on('pointerover',  () => this.tweens.add({ targets: img, alpha: 0.75, duration: 200 }))
-         .on('pointerout',   () => this.tweens.add({ targets: img, alpha: 0.30, duration: 200 }));
+         .on('pointerover',  () => this.tweens.add({ targets: img, alpha: 0.68, duration: 220 }))
+         .on('pointerout',   () => this.tweens.add({ targets: img, alpha: 0.20, duration: 260 }));
 
       this.floatObjs.push(img);
     });
@@ -182,50 +183,98 @@ export class TitleScene extends Phaser.Scene {
   private drawLogoArea() {
     const cx = this.W / 2;
 
+    // Angular black-violet crest: an original silhouette inspired by the
+    // reference's sharp energy rhythm, but built for the STRING identity.
+    const crest = this.add.graphics().setDepth(3);
+    const cy = this.H * 0.235;
+    const points = [
+      new Phaser.Geom.Point(cx - 352, cy - 42), new Phaser.Geom.Point(cx - 278, cy - 68),
+      new Phaser.Geom.Point(cx - 186, cy - 55), new Phaser.Geom.Point(cx - 122, cy - 78),
+      new Phaser.Geom.Point(cx - 38, cy - 62), new Phaser.Geom.Point(cx + 35, cy - 82),
+      new Phaser.Geom.Point(cx + 126, cy - 57), new Phaser.Geom.Point(cx + 224, cy - 70),
+      new Phaser.Geom.Point(cx + 354, cy - 32), new Phaser.Geom.Point(cx + 315, cy + 48),
+      new Phaser.Geom.Point(cx + 218, cy + 54), new Phaser.Geom.Point(cx + 160, cy + 78),
+      new Phaser.Geom.Point(cx + 62, cy + 58), new Phaser.Geom.Point(cx - 22, cy + 83),
+      new Phaser.Geom.Point(cx - 112, cy + 58), new Phaser.Geom.Point(cx - 205, cy + 72),
+      new Phaser.Geom.Point(cx - 300, cy + 48),
+    ];
+    crest.fillStyle(0x09000f, 0.91); crest.fillPoints(points, true);
+    crest.lineStyle(7, 0x1a0727, 1); crest.strokePoints(points, true);
+    crest.lineStyle(2, 0xa54cf0, 0.78); crest.strokePoints(points, true);
+
+    const logoGlow = this.add.ellipse(cx, cy, 720, 184, 0x8f28df, 0.12)
+      .setDepth(2)
+      .setBlendMode(Phaser.BlendModes.ADD);
+    this.tweens.add({ targets: logoGlow, alpha: { from: 0.08, to: 0.22 }, scaleX: 1.045, scaleY: 1.08, duration: 1850, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+
     // ── "P O K É M O N" header — small caps, letter-spaced ───────────────
-    this.add.text(cx, this.H * 0.13, 'P  O  K  É  M  O  N', {
-      fontSize:   '22px',
-      color:      '#ddbbff',
+    this.add.text(cx, this.H * 0.105, 'P  O  K  É  M  O  N', {
+      fontSize:   '19px',
+      color:      '#f4e8ff',
       fontFamily: 'Arial, sans-serif',
       letterSpacing: 4,
-    }).setOrigin(0.5).setDepth(5);
+      stroke: '#16051f', strokeThickness: 4,
+    }).setOrigin(0.5).setDepth(6);
 
     // ── Main Korean title ─────────────────────────────────────────────────
     // Layer 4 — darkest shadow
-    this.addLogoLayer(cx + 6, this.H * 0.26, '포켓몬스터', '80px', '#1a0030');
-    // Layer 3
-    this.addLogoLayer(cx + 4, this.H * 0.26 - 2, '포켓몬스터', '80px', '#330055');
-    // Layer 2
-    this.addLogoLayer(cx + 2, this.H * 0.26 - 4, '포켓몬스터', '80px', '#660099');
-    // Layer 1 — main purple
-    this.addLogoLayer(cx,     this.H * 0.26 - 6, '포켓몬스터', '80px', '#aa44ee',
-      { stroke: '#ffffff', strokeThickness: 3 });
+    this.addLogoLayer(cx + 8, this.H * 0.235 + 8, '포켓몬스터', '82px', '#07000d',
+      { stroke: '#07000d', strokeThickness: 15 });
+    this.addLogoLayer(cx + 3, this.H * 0.235 + 2, '포켓몬스터', '82px', '#4c087d',
+      { stroke: '#1a002b', strokeThickness: 10 });
+    this.addLogoLayer(cx, this.H * 0.235 - 3, '포켓몬스터', '82px', '#a83cf2',
+      { stroke: '#e7c6ff', strokeThickness: 3 });
 
     // ── English subtitle ──────────────────────────────────────────────────
     // Shadow layers
-    this.addLogoLayer(cx + 5, this.H * 0.40, 'STRING', '62px', '#1a0030');
-    this.addLogoLayer(cx + 3, this.H * 0.40 - 2, 'STRING', '62px', '#44006e');
-    // Main
-    this.addLogoLayer(cx,     this.H * 0.40 - 4, 'STRING', '62px', '#cc66ff',
-      { stroke: '#ffffff', strokeThickness: 2 });
+    const ribbon = this.add.graphics().setDepth(4);
+    const sy = this.H * 0.39;
+    ribbon.fillStyle(0x100018, 0.94);
+    ribbon.fillPoints([
+      new Phaser.Geom.Point(cx - 202, sy - 29), new Phaser.Geom.Point(cx + 236, sy - 29),
+      new Phaser.Geom.Point(cx + 268, sy), new Phaser.Geom.Point(cx + 220, sy + 30),
+      new Phaser.Geom.Point(cx - 232, sy + 30), new Phaser.Geom.Point(cx - 266, sy + 2),
+    ], true);
+    ribbon.lineStyle(3, 0x9b42df, 0.95); ribbon.strokePoints([
+      new Phaser.Geom.Point(cx - 202, sy - 29), new Phaser.Geom.Point(cx + 236, sy - 29),
+      new Phaser.Geom.Point(cx + 268, sy), new Phaser.Geom.Point(cx + 220, sy + 30),
+      new Phaser.Geom.Point(cx - 232, sy + 30), new Phaser.Geom.Point(cx - 266, sy + 2),
+    ], true);
+    this.addLogoLayer(cx + 4, sy + 5, 'S T R I N G', '51px', '#250039',
+      { stroke: '#08000d', strokeThickness: 8 });
+    this.addLogoLayer(cx, sy, 'S T R I N G', '51px', '#d685ff',
+      { stroke: '#f6eaff', strokeThickness: 2 });
 
     // ── Decorative line under title ───────────────────────────────────────
     const lineG = this.add.graphics().setDepth(5);
-    lineG.fillStyle(0xaa44ff, 0.6);
-    lineG.fillRect(cx - 220, this.H * 0.47, 440, 2);
-    lineG.fillStyle(0xffffff, 0.3);
-    lineG.fillRect(cx - 180, this.H * 0.47 + 3, 360, 1);
+    lineG.fillStyle(0xb95cff, 0.72);
+    lineG.fillRect(cx - 244, this.H * 0.455, 488, 2);
+    lineG.fillStyle(0xffffff, 0.42);
+    lineG.fillRect(cx - 190, this.H * 0.455 + 4, 380, 1);
 
     // ── Pokéball icon (top-left of title, like the reference) ─────────────
     const pbG = this.add.graphics().setDepth(5);
-    const pbx = cx - 250, pby = this.H * 0.26 - 6;
-    const pbr = 20;
+    const pbx = cx - 326, pby = this.H * 0.205;
+    const pbr = 18;
     pbG.fillStyle(0xee2222, 1); pbG.fillCircle(pbx, pby, pbr);
     pbG.fillStyle(0xffffff, 1); pbG.fillRect(pbx - pbr, pby, pbr * 2, pbr);
     pbG.lineStyle(3, 0x222222, 1); pbG.strokeCircle(pbx, pby, pbr);
     pbG.lineStyle(2, 0x222222, 1); pbG.lineBetween(pbx - pbr, pby, pbx + pbr, pby);
     pbG.fillStyle(0xffffff, 1); pbG.fillCircle(pbx, pby, 6);
     pbG.lineStyle(2, 0x222222, 1); pbG.strokeCircle(pbx, pby, 6);
+
+    // Original STRING emblem: a glowing four-point stitch/star inside a ring.
+    const mx = cx + 314, my = this.H * 0.385;
+    const mark = this.add.graphics().setPosition(mx, my).setDepth(7).setBlendMode(Phaser.BlendModes.ADD);
+    mark.lineStyle(3, 0xdba3ff, 0.95); mark.strokeCircle(0, 0, 27);
+    mark.fillStyle(0xf4ddff, 0.95);
+    mark.fillPoints([
+      new Phaser.Geom.Point(0, -32), new Phaser.Geom.Point(7, -7),
+      new Phaser.Geom.Point(32, 0), new Phaser.Geom.Point(7, 7),
+      new Phaser.Geom.Point(0, 32), new Phaser.Geom.Point(-7, 7),
+      new Phaser.Geom.Point(-32, 0), new Phaser.Geom.Point(-7, -7),
+    ], true);
+    this.tweens.add({ targets: mark, angle: 360, duration: 18000, repeat: -1 });
   }
 
   private addLogoLayer(
@@ -239,7 +288,7 @@ export class TitleScene extends Phaser.Scene {
       fontFamily: '"Arial Black", Impact, Arial, sans-serif',
       stroke:          extra?.stroke,
       strokeThickness: extra?.strokeThickness ?? 0,
-    }).setOrigin(0.5).setDepth(4);
+    }).setOrigin(0.5).setDepth(6);
   }
 
   // ── Menu ──────────────────────────────────────────────────────────────────
@@ -248,13 +297,19 @@ export class TitleScene extends Phaser.Scene {
     const cx = this.W / 2;
     const options = [t('▶  NEW GAME', '▶  새 게임'), t('▶  CONTINUE', '▶  이어하기')];
 
+    const panel = this.add.graphics().setDepth(5);
+    const panelY = this.H * 0.65;
+    panel.fillStyle(0x09000f, 0.78); panel.fillRoundedRect(cx - 205, panelY - 60, 410, 134, 18);
+    panel.lineStyle(2, 0x9b52cf, 0.72); panel.strokeRoundedRect(cx - 205, panelY - 60, 410, 134, 18);
+    panel.lineStyle(1, 0xf0d8ff, 0.26); panel.strokeRoundedRect(cx - 197, panelY - 52, 394, 118, 13);
+
     this.menuItems = options.map((label, i) => {
       const disabled = i === 1 && !this.hasSave;
-      const t = this.add.text(cx, this.H * 0.57 + i * 48, label, {
-        fontSize:   '24px',
-        color:      disabled ? '#553366' : '#ffffff',
+      const t = this.add.text(cx, panelY - 29 + i * 50, label, {
+        fontSize:   '23px',
+        color:      disabled ? '#624875' : '#ffffff',
         fontStyle:  'bold',
-        fontFamily: 'Arial, sans-serif',
+        fontFamily: '"Arial Black", Arial, sans-serif',
         stroke:     disabled ? undefined : '#330055',
         strokeThickness: disabled ? 0 : 3,
       }).setOrigin(0.5).setDepth(6);
@@ -288,15 +343,15 @@ export class TitleScene extends Phaser.Scene {
       ? `${name}  Lv.${level}  ·  ${SaveManager.formatDate(save.timestamp)}`
       : SaveManager.formatDate(save.timestamp);
 
-    this.add.text(this.W / 2, this.H * 0.69, t(`Save data: ${info}`, `저장 데이터: ${info}`), {
-      fontSize: '13px', color: '#9966cc',
+    this.add.text(this.W / 2, this.H * 0.785, t(`Save data: ${info}`, `저장 데이터: ${info}`), {
+      fontSize: '13px', color: '#d6b4eb', backgroundColor: '#08000baa', padding: { x: 10, y: 4 },
     }).setOrigin(0.5).setDepth(6);
   }
 
   /** If a backup exists (from a previous delete / New Game), offer to restore it. */
   private drawRestoreOption() {
     if (!SaveManager.hasBackup()) return;
-    const t = this.add.text(this.W / 2, this.H * 0.75, tr('↩  Restore previous save'), {
+    const t = this.add.text(this.W / 2, this.H * 0.84, tr('↩  Restore previous save'), {
       fontSize: '13px', color: '#88ccff', backgroundColor: '#00000055', padding: { x: 8, y: 4 },
     }).setOrigin(0.5).setDepth(6).setInteractive({ useHandCursor: true });
     t.on('pointerover', () => t.setColor('#ffffff'));

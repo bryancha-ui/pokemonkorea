@@ -12,6 +12,7 @@ import { Inventory } from '../systems/Items';
 import { maybeLaunchEvolution } from '../systems/EvolutionSystem';
 import { EncounterEntry, pickEncounter, randomLevel } from '../data/CustomPokemon';
 import { customForm } from '../data/CustomBattle';
+import { playNabihalmangEntranceVideo } from '../systems/NabihalmangEntranceVideo';
 
 // ── Tiles ───────────────────────────────────────────────────────────────────
 const T = { ROCK: 0, ASH: 1, TALLGRASS: 2, LAVA: 3, VENT: 4, SUMMIT: 5 } as const;
@@ -95,6 +96,7 @@ export class JejuVentScene extends Phaser.Scene {
   private steps = 0; private nextEnc = 10;
   private readonly SPEED = 120; private readonly RUN = 250;
   private nabiSceneShown = false;
+  private nabiEntranceVideoAction?: () => void;
 
   private readonly TRAINERS = [
     {
@@ -127,6 +129,7 @@ export class JejuVentScene extends Phaser.Scene {
 
   create() {
     this.cutsceneActive = false; this.walkFrame = 0; this.walkTimer = 0; this.steps = 0;
+    this.nabiEntranceVideoAction = undefined;
     this.input.keyboard?.resetKeys();
     const rx = this.registry.get('jejuVentReturnX') as number | undefined;
     const ry = this.registry.get('jejuVentReturnY') as number | undefined;
@@ -311,7 +314,9 @@ export class JejuVentScene extends Phaser.Scene {
   // ── Update ───────────────────────────────────────────────────────────────
   update(_: number, delta: number) {
     if (this.cutsceneActive) {
-      if (this.dialog.isInChoice()) {
+      if (this.nabiEntranceVideoAction) {
+        if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) this.nabiEntranceVideoAction();
+      } else if (this.dialog.isInChoice()) {
         if (Phaser.Input.Keyboard.JustDown(this.cursors.up)) this.dialog.navigateChoice(-1);
         if (Phaser.Input.Keyboard.JustDown(this.cursors.down)) this.dialog.navigateChoice(1);
         if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) this.dialog.confirmChoice();
@@ -403,19 +408,30 @@ export class JejuVentScene extends Phaser.Scene {
     }
 
     // ── After the 7th badge: the 노스단 confrontation + the capture. ─────────
-    const launch = () => {
+    const launchBattle = () => {
       PartySystem.healAll(this.registry);
       if (Inventory.count(this.registry, 'masterball') <= 0) Inventory.add(this.registry, 'masterball', 1);
-      this.playNabihalmangScene(() => {
-        this.registry.set('wildId', 'nabihalmang');
-        this.registry.set('wildLevel', 52);
-        this.registry.set('wildCustom', true);
-        this.registry.set('wildCatchRate', 3);
-        this.registry.set('wildReturnScene', 'JejuVentScene');
-        this.registry.set('jejuVentReturnX', 12 * TILE + 16);
-        this.registry.set('jejuVentReturnY', 10 * TILE + 16);
-        this.cameras.main.fadeOut(500, 0, 0, 0, () => this.scene.start('WildBattleScene'));
-      });
+      this.registry.set('wildId', 'nabihalmang');
+      this.registry.set('wildLevel', 52);
+      this.registry.set('wildCustom', true);
+      this.registry.set('wildCatchRate', 3);
+      this.registry.set('wildReturnScene', 'JejuVentScene');
+      this.registry.set('jejuVentReturnX', 12 * TILE + 16);
+      this.registry.set('jejuVentReturnY', 10 * TILE + 16);
+      this.cameras.main.fadeOut(500, 0, 0, 0, () => this.scene.start('WildBattleScene'));
+    };
+    const playAppearance = (afterAppearance: () => void) => {
+      const playInEngine = () => this.playNabihalmangScene(afterAppearance);
+      if (this.registry.get('nabiEntranceMovieSeen')) {
+        playInEngine();
+        return;
+      }
+      this.registry.set('nabiEntranceMovieSeen', true);
+      this.nabiEntranceVideoAction = playNabihalmangEntranceVideo(
+        this,
+        playInEngine,
+        () => { this.nabiEntranceVideoAction = undefined; },
+      );
     };
     if (!this.registry.get('jejuSummitSeen')) {
       this.registry.set('jejuSummitSeen', true);
@@ -425,14 +441,19 @@ export class JejuVentScene extends Phaser.Scene {
         "Commander Ryeo: Tighten the restraint field! Her wings can neutralize the Cheonji energy — secure her and the weapon completes itself even without the lake!",
         "노스단 Operative: Commander, her output is climbing—",
         "Commander Ryeo: Hold it. HOLD IT.",
-        "나비할망's metallic wings flare — and the restraint field SHATTERS. The 노스단 equipment overloads in a cascade of sparks; operatives are thrown back.",
-        "Commander Ryeo: ...Impossible. She was never going to be a battery. She's not a tool. We were wrong about what she was. (She orders a retreat.)",
-        "Prof. Song (comms): She's frightened, and testing you. The old texts say she binds only to a guardian she deems worthy of protecting the south.",
-        "Prof. Song: Your Master Ball — this is the moment Dosik meant. Weaken her first, then throw it.",
-        `${rivalTrainerName(this.registry)}: Go on. She's been waiting longer than either of us has been alive.`,
-      ], launch);
+      ], () => playAppearance(() => {
+        this.dialog.show([
+          "나비할망's metallic wings flare — and the restraint field SHATTERS. The 노스단 equipment overloads in a cascade of sparks; operatives are thrown back.",
+          "Commander Ryeo: ...Impossible. She was never going to be a battery. She's not a tool. We were wrong about what she was. (She orders a retreat.)",
+          "Prof. Song (comms): She's frightened, and testing you. The old texts say she binds only to a guardian she deems worthy of protecting the south.",
+          "Prof. Song: Your Master Ball — this is the moment Dosik meant. Weaken her first, then throw it.",
+          `${rivalTrainerName(this.registry)}: Go on. She's been waiting longer than either of us has been alive.`,
+        ], launchBattle);
+      }));
     } else {
-      this.dialog.show(["나비할망 still thrashes at the summit, testing you. Steady your team and try again."], launch);
+      this.dialog.show(["나비할망 still thrashes at the summit, testing you. Steady your team and try again."], () => {
+        playAppearance(launchBattle);
+      });
     }
   }
 

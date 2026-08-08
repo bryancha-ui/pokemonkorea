@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { tr, speakerName } from '../systems/i18n';
-import { playBgm } from '../systems/Music';
+import { playBgm, TRACKS } from '../systems/Music';
+import { ENDING_BGM_VOLUME, playEndingCreditsVideo } from '../systems/EndingCreditsVideo';
 import { DialogBox } from '../ui/DialogBox';
 import { SaveManager } from '../utils/SaveManager';
 import { PartySystem } from '../systems/PartySystem';
@@ -19,6 +20,7 @@ const PANTHEON = ['hwanwoong', 'nabihalmang', 'poongbaek', 'woosa', 'woonsa'];
 export class SudoLabScene extends Phaser.Scene {
   public interior3D = true;
   public clearSight3D = true;
+  public disable3D = false;
   private playerG!: Phaser.GameObjects.Graphics;
   private dialog!: DialogBox;
   private spaceKey!: Phaser.Input.Keyboard.Key;
@@ -27,6 +29,7 @@ export class SudoLabScene extends Phaser.Scene {
   private px = 0; private py = 0; private facing = 1; private walkFrame = 0; private walkTimer = 0;
   private busy = false;
   private ending = false;
+  private endingVideoAction?: () => void;
 
   constructor() { super('SudoLabScene'); }
 
@@ -39,10 +42,18 @@ export class SudoLabScene extends Phaser.Scene {
       const url = dexEntry(k)?.spriteUrl;
       if (url) this.load.image(k, url);
     }
+    // Decode only the small looping mix track here. The 195 MB movie itself is
+    // streamed on demand so entering the final Sudo scene never waits for the
+    // whole five-minute file to download, especially on mobile.
+    if (this.registry.get('finalePartyPending') && !this.cache.audio.exists('endingcredits')) {
+      this.load.audio('endingcredits', TRACKS.endingcredits);
+    }
   }
 
   create() {
-
+    this.disable3D = false;
+    this.ending = false;
+    this.endingVideoAction = undefined;
     playBgm(this, 'sudo');
     this.input.keyboard?.resetKeys();
     this.cameras.main.fadeIn(400);
@@ -93,7 +104,7 @@ export class SudoLabScene extends Phaser.Scene {
         'The Northern League throws a party in your honour — the whole city out in the streets, cheering the Champion who united north and south.',
         'Rival: I never thought anyone would beat Taewang. But it\'s you — so of course you did.',
         '📟 Then, mid-celebration, your Pokédex screams an alarm. Prof. Song\'s face drains of colour.',
-        'Prof. Song: It\'s 노스단. They\'re moving on the Onseong Mountains — RIGHT NOW — racing to reach 환웅 (Hwanwoong), the Sovereign Who Descended, before anyone can stop them.',
+        'Prof. Song: It\'s 노스단. They\'re moving on the Onseong Mountains — RIGHT NOW — racing to reach 환웅 (Hwanung), the Sovereign Who Descended, before anyone can stop them.',
         'Prof. Song: They\'ve sealed the whole range behind their lines. But there is another way in — the 고대 제단 (Ancient Altar) opens a hidden stair straight to the Sacred Peak.',
         'Rival: The party can wait. Go — we\'ll hold things here. Beat them to the top, Champion!',
         '🎉 The music fades behind you as you race for the Onseong Mountains...',
@@ -168,10 +179,10 @@ export class SudoLabScene extends Phaser.Scene {
     this.registry.set('trainerName', 'Rival');
     this.registry.set('trainerKey', 'rival-3');
     this.registry.set('trainerPokemon', JSON.stringify([
-      { id: 0, level: 32, custom: 'martbadger' },   // Dark/Steel (evolved)
-      { id: 0, level: 33, custom: 'squirrel2' },     // Soarrel — Normal/Flying (evolved)
-      { id: 0, level: 33, custom: 'tokkigongju' },   // Dark/Fairy ace support
-      { id: 0, level: 36, custom: rivalFinal },       // Starter FINAL evo (opposite type)
+      { id: 0, level: 35, custom: 'martbadger' },   // Dark/Steel (evolved)
+      { id: 0, level: 36, custom: 'squirrel2' },     // Soarrel — Normal/Flying (evolved)
+      { id: 0, level: 37, custom: 'tokkigongju' },   // Dark/Fairy ace support
+      { id: 0, level: 39, custom: rivalFinal },       // Starter FINAL evo (opposite type)
     ]));
     this.registry.set('trainerExpPool', 1500);
     this.registry.set('trainerReturnScene', 'SudoLabScene');
@@ -269,7 +280,10 @@ export class SudoLabScene extends Phaser.Scene {
 
   update(_t: number, dt: number) {
     if (this.ending) {
-      if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) this.endGame();
+      if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
+        if (this.endingVideoAction) this.endingVideoAction();
+        else this.endGame();
+      }
       return;
     }
     if (this.busy) {
@@ -300,49 +314,81 @@ export class SudoLabScene extends Phaser.Scene {
     this.playerG.setPosition(this.px, this.py);
   }
 
-  /** Scroll the ending credits over a starfield, then return to the title. */
+  /** Stream the authored ending movie and mix its original audio with the
+   * looping game credits theme, then return to the title. */
   private rollCredits() {
-    const W = this.scale.width, H = this.scale.height;
     this.cameras.main.fadeOut(1000, 0, 0, 0, () => {
-      this.children.removeAll();
+      // Free the complete laboratory display list and let Engine3D release its
+      // hidden world before decoding a 1080p movie on memory-constrained phones.
+      this.destroyDisplayList();
       this.ending = true;
-      playBgm(this, 'endingcredits');   // dedicated credits theme
+      this.disable3D = true;
+      playBgm(this, 'endingcredits');
+      const mixedBgm = this.registry.get('bgmSound') as (Phaser.Sound.BaseSound & {
+        setVolume?: (value: number) => unknown;
+      }) | undefined;
+      mixedBgm?.setVolume?.(ENDING_BGM_VOLUME);
       this.cameras.main.fadeIn(1000);
-      this.add.rectangle(W / 2, H / 2, W, H, 0x05070f, 1).setDepth(200);
-      const stars = this.add.graphics().setDepth(201);
-      for (let i = 0; i < 130; i++) { stars.fillStyle(0xffffff, Math.random() * 0.7 + 0.2); stars.fillCircle(Math.random() * W, Math.random() * H, Math.random() < 0.15 ? 2 : 1); }
+      this.endingVideoAction = playEndingCreditsVideo(
+        this,
+        () => this.endGame(),
+        () => {
+          this.endingVideoAction = undefined;
+          this.rollLegacyCredits();
+        },
+      );
+    });
+  }
 
-      // Parade the pantheon + the player's party drifting up through the starfield.
-      const showcase = [...PANTHEON, ...PartySystem.get(this.registry).map(e => e.spriteKey)]
-        .filter((k, i, a) => k && this.textures.exists(k) && a.indexOf(k) === i);
-      showcase.forEach((k, i) => {
-        const x = (W / (showcase.length + 1)) * (i + 1);
-        const img = this.add.image(x, H + 100 + Math.random() * H, k).setDepth(202).setAlpha(0.9);
-        const src = this.textures.get(k).getSourceImage();
-        img.setScale(120 / Math.max((src.width as number) || 1, (src.height as number) || 1));
-        this.tweens.add({ targets: img, y: -140, duration: 13000 + Math.random() * 9000, delay: i * 500, repeat: -1, ease: 'Linear' });
-        this.tweens.add({ targets: img, x: x + (Math.random() * 50 - 25), duration: 2600 + Math.random() * 1400, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
-        this.tweens.add({ targets: img, angle: Math.random() * 8 - 4, duration: 3200, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
-      });
+  /** Codec/network fallback retained so the true ending never soft-locks on a
+   * browser that cannot decode H.264. The mixed BGM continues underneath. */
+  private rollLegacyCredits() {
+    if (!this.ending) return;
+    const W = this.scale.width, H = this.scale.height;
+    this.destroyDisplayList();
+    this.add.rectangle(W / 2, H / 2, W, H, 0x05070f, 1).setDepth(200);
+    const stars = this.add.graphics().setDepth(201);
+    for (let i = 0; i < 130; i++) {
+      stars.fillStyle(0xffffff, Math.random() * 0.7 + 0.2);
+      stars.fillCircle(Math.random() * W, Math.random() * H, Math.random() < 0.15 ? 2 : 1);
+    }
 
-      const credits = [
-        '🌟  POKÉMON  KOREA  🌟', '', '', 'THE COMPLETE PANTHEON', '환웅 · 풍백 · 우사 · 운사 · 나비할망', '', '— TRUE END —', '', '',
-        'You crossed all of Onnuri —', 'south and north, sea and summit —', 'and united a broken peninsula', 'under a single Champion.', '', '',
-        'Thank you for playing.', '', '', 'Press SPACE to return to the title.',
-      ].join('\n');
-      const text = this.add.text(W / 2, H + 40, credits, {
-        fontSize: '20px', color: '#ffe88a', align: 'center', fontStyle: 'bold', stroke: '#000', strokeThickness: 4, lineSpacing: 12,
-      }).setOrigin(0.5, 0).setDepth(204);
-      this.tweens.add({
-        targets: text, y: -text.height - 40, duration: 20000, ease: 'Linear',
-        onComplete: () => this.time.delayedCall(800, () => this.endGame()),
-      });
+    const showcase = [...PANTHEON, ...PartySystem.get(this.registry).map(e => e.spriteKey)]
+      .filter((k, i, a) => k && this.textures.exists(k) && a.indexOf(k) === i);
+    showcase.forEach((k, i) => {
+      const x = (W / (showcase.length + 1)) * (i + 1);
+      const img = this.add.image(x, H + 100 + Math.random() * H, k).setDepth(202).setAlpha(0.9);
+      const src = this.textures.get(k).getSourceImage();
+      img.setScale(120 / Math.max((src.width as number) || 1, (src.height as number) || 1));
+      this.tweens.add({ targets: img, y: -140, duration: 13000 + Math.random() * 9000, delay: i * 500, repeat: -1, ease: 'Linear' });
+      this.tweens.add({ targets: img, x: x + (Math.random() * 50 - 25), duration: 2600 + Math.random() * 1400, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+      this.tweens.add({ targets: img, angle: Math.random() * 8 - 4, duration: 3200, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+    });
+
+    const credits = [
+      '🌟  POKÉMON  KOREA  🌟', '', '', 'THE COMPLETE PANTHEON', '환웅 · 풍백 · 우사 · 운사 · 나비할망', '', '— TRUE END —', '', '',
+      'You crossed all of Onnuri —', 'south and north, sea and summit —', 'and united a broken peninsula', 'under a single Champion.', '', '',
+      'Thank you for playing.', '', '', 'Press SPACE to return to the title.',
+    ].join('\n');
+    const text = this.add.text(W / 2, H + 40, credits, {
+      fontSize: '20px', color: '#ffe88a', align: 'center', fontStyle: 'bold', stroke: '#000', strokeThickness: 4, lineSpacing: 12,
+    }).setOrigin(0.5, 0).setDepth(204);
+    this.tweens.add({
+      targets: text, y: -text.height - 40, duration: 20000, ease: 'Linear',
+      onComplete: () => this.time.delayedCall(800, () => this.endGame()),
     });
   }
 
   private endGame() {
     if (!this.ending) return;
     this.ending = false;
+    this.endingVideoAction = undefined;
     this.cameras.main.fadeOut(1000, 0, 0, 0, () => this.scene.start('TitleScene'));
+  }
+
+  private destroyDisplayList(): void {
+    // DisplayList.removeAll(true) means "skip callbacks", not "destroy". Use a
+    // snapshot so textures/containers actually release before 1080p playback.
+    for (const child of [...this.children.list]) child.destroy();
   }
 }

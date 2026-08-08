@@ -7,11 +7,23 @@ import { recordLastCenter } from '../../systems/Blackout';
 export class PokemonCenterScene extends BaseInteriorScene {
   public interior3D = true;
   public clearSight3D = true;
+  // The GLB already contains its complete floor, walls and entrance. Do not
+  // raise the legacy tile-map perimeter into a second doorway around it; the
+  // 2D map remains authoritative for collision and pure-2D rendering.
+  public flatTerrain3D = true;
   public interiorModel3D = {
     id: 'pokemon-center-interior',
     url: 'assets/map3d/interiors/pokemon_center_scene.glb',
     // BaseInteriorScene gets one terrain tile of padding around its 16×13 room.
-    x: 1, z: 1, width: 16, maxDepth: 11,
+    // Row 12 begins at local z=13; pin the GLB's open south edge there so no
+    // empty strip remains between the model and the gameplay doorway.
+    x: 1, z: 1, width: 16, maxDepth: 11, entranceZ: 13,
+    // This GLB is the complete room, not a decorative overlay. Once it has
+    // loaded, remove the old generated 3D interior beneath it in one step.
+    replaceLegacyTerrain: true,
+    // A textureless light slab fills the camera area outside the open doorway;
+    // the old room image remains gone, but no black void can show behind it.
+    replacementGroundColor: 0xe8edf2,
   };
   protected bgmKey = 'center';
   constructor() { super({ key: 'PokemonCenterScene' }); }
@@ -83,7 +95,11 @@ export class PokemonCenterScene extends BaseInteriorScene {
     this.label('ℹ️', 1, 10, 14);
 
     // ── Door ──
-    this.drawRect(g, 7, 12, 2, 1, 0x886622, 0x664400);
+    // Keep the legacy tile marker for pure 2D mode, but exclude it from the 3D
+    // mirror. Baking it into the room map produced a second raised doorway on
+    // top of pokemon_center_scene.glb's authored entrance.
+    const legacyDoor = this.add.graphics().setDepth(1).setData('no3d', true);
+    this.drawRect(legacyDoor, 7, 12, 2, 1, 0x886622, 0x664400);
 
     // Walls
     this.addSolid(0, 0, this.COLS - 1, 0);
@@ -95,7 +111,10 @@ export class PokemonCenterScene extends BaseInteriorScene {
 
   protected setupNPCs() {
     // Nurse Joy (heals)
-    const nurse = this.createNPCGraphic(7, 1, 0xffffff, 0xff88aa, true, 0, 'center_nurse');
+    // Row 1 sits inside the authored GLB's rear wall after its entrance is
+    // aligned to the gameplay doorway. Row 2 is the actual staff side of the
+    // reception counter, keeping Joy fully visible without moving interaction.
+    const nurse = this.createNPCGraphic(7, 2, 0xffffff, 0xff88aa, true, 0, 'center_nurse');
     (nurse as NPC & { role?: string }).role = 'nurse';
     // Nurse Joy stands behind the two-tile-deep reception desk. Interact from
     // its customer side so the player never has to find a path behind it.
@@ -105,7 +124,9 @@ export class PokemonCenterScene extends BaseInteriorScene {
     nurse.interactRadius = 44;
     this.add.text(this.tile(7, 2).x + 16, this.tile(7, 2).y - 6, tr('Nurse Joy'),
       { fontSize: '10px', color: '#fff', backgroundColor: '#00000088', padding: { x: 3, y: 1 } }
-    ).setOrigin(0.5, 1).setDepth(16);
+    ).setOrigin(0.5, 1).setDepth(16)
+      .setData('characterLabel3D', true)
+      .setData('characterLabelTarget3D', nurse.graphic);
     this.npcs.push(nurse);
 
     // Mart Clerk (shop)
@@ -145,6 +166,7 @@ export class PokemonCenterScene extends BaseInteriorScene {
   }
 
   protected placePlayer() {
+    // Spawn half a tile inside the GLB entrance, with no empty approach segment.
     this.createPlayerGraphic(7, 11);
   }
 
@@ -193,6 +215,8 @@ export class PokemonCenterScene extends BaseInteriorScene {
 
   protected checkExit() {
     const { y } = this.tile(7, 12);
-    if (this.py > y + 20) this.exitToWorld();
+    // Transition immediately after crossing the GLB threshold. The old +20px
+    // delay made the player walk across a visible empty strip outside the model.
+    if (this.py > y + 4) this.exitToWorld();
   }
 }

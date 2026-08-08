@@ -4,6 +4,7 @@ import {
   BreedingSystem, type BreedingCandidate, type BreedingGender, type NurseryParent,
 } from '../systems/BreedingSystem';
 import { t } from '../systems/i18n';
+import { PartySystem } from '../systems/PartySystem';
 
 const PAGE_SIZE = 8;
 
@@ -111,14 +112,22 @@ export class NurseryManageScene extends Phaser.Scene {
     const x = 650, y = 95;
     this.content.add(this.add.rectangle(x + 285, y + 86, 570, 172, 0x12273a).setStrokeStyle(2, 0x386b8c));
     if (ready) {
+      const partyFull = PartySystem.isFull(this.registry);
       this.content.add(this.add.text(x + 80, y + 72, '🥚', { fontSize: '52px' }).setOrigin(0.5));
       this.content.add(this.add.text(x + 145, y + 35, t('An Egg was found!', '포켓몬의 알을 발견했습니다!'), { fontSize: '18px', color: '#ffe49a', fontStyle: 'bold' }));
-      this.content.add(this.add.text(x + 145, y + 66, t('Take it and hatch it by walking.', '알을 받은 뒤 걸어서 부화시키세요.'), { fontSize: '13px', color: '#b8cce0' }));
+      const guidance = carried
+        ? t('You are already carrying another Egg.', '이미 다른 알을 부화시키는 중입니다.')
+        : partyFull
+          ? t('Your party is full. Make at least one empty slot first.', '동료가 가득 찼습니다. 먼저 빈자리 한 칸을 만들어 주세요.')
+          : t('The Egg will occupy one party slot until it hatches.', '알은 부화할 때까지 동료 한 자리를 차지합니다.');
+      this.content.add(this.add.text(x + 145, y + 66, guidance,
+        { fontSize: '13px', color: carried || partyFull ? '#ff9c9c' : '#b8cce0' }));
       this.smallButton(t('RECEIVE EGG', '알 받기'), x + 385, y + 124, () => {
         const r = BreedingSystem.claimEgg(this.registry); this.message = r.message; this.render();
-      }, !carried);
+      }, !carried && !partyFull);
     } else if (carried) {
-      const pct = Math.floor((carried.totalSteps - carried.stepsRemaining) / carried.totalSteps * 100);
+      const total = Math.max(1, carried.totalSteps);
+      const pct = Phaser.Math.Clamp(Math.floor((total - carried.stepsRemaining) / total * 100), 0, 100);
       this.content.add(this.add.text(x + 75, y + 70, '🥚', { fontSize: '48px' }).setOrigin(0.5));
       this.content.add(this.add.text(x + 135, y + 30, t('Egg in incubation', '알을 부화시키는 중'), { fontSize: '18px', color: '#d8efff', fontStyle: 'bold' }));
       this.content.add(this.add.text(x + 135, y + 62, t(`${carried.stepsRemaining} steps remaining`, `부화까지 ${carried.stepsRemaining}걸음`), { fontSize: '14px', color: '#9ec4df' }));

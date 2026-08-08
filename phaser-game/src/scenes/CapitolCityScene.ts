@@ -9,6 +9,7 @@ import { SaveManager } from '../utils/SaveManager';
 import { maybeLaunchEvolution } from '../systems/EvolutionSystem';
 import { PartySystem } from '../systems/PartySystem';
 import { Inventory } from '../systems/Items';
+import { migrateLegacyCheonjiCapture } from '../systems/StoryMigrations';
 
 // ── City tile types ────────────────────────────────────────────────────────────
 const C = {
@@ -310,8 +311,10 @@ export class CapitolCityScene extends Phaser.Scene {
   /** Keep tall capital landmarks visible while allowing the camera to fade any
    *  structure that moves between the player and the view. */
   public clearSight3D = true;
-  /** Disable procedural props (rocks) to keep paths clear */
-  public propPlots: import('./engine3d/TerrainBuilder').PropPlot[] = [];
+  /** Disable authored props and colour-inferred boulders. The latter produced
+   *  two stray rocks directly behind the Ancient Palace. */
+  public propPlots: import('../engine3d/TerrainBuilder').PropPlot[] = [];
+  public noRocks3D = true;
   /** The painted street trees (가로수) grow as real 3D trees, not flat ground art. */
   public treeTileIds3D = [C.TREE];
   /** The capital's streets are rebuilt as real 3D infrastructure: asphalt with
@@ -336,6 +339,8 @@ export class CapitolCityScene extends Phaser.Scene {
   }
 
   create() {
+
+    migrateLegacyCheonjiCapture(this.registry);
 
     playBgm(this, 'sudo');
     this.cutsceneActive = false;
@@ -373,7 +378,7 @@ export class CapitolCityScene extends Phaser.Scene {
           'You have arrived at Capitol City!',
           'This vast capital holds the heart of the nation.',
           'Explore the city, visit the Capitol Tower,\nand challenge the Capitol Gym!',
-          'The Gym Leader Jin awaits at the northern gym.\nPrepare well — His shadow Pokémon are powerful.',
+          'The Gym Leader Jin awaits at the northern gym.\nPrepare well — her shadow Pokémon are powerful.',
         ], () => { this.cutsceneActive = false; });
       });
     } else if (this.registry.get('gymLeaderDefeated') && !this.registry.get('newsShown')) {
@@ -424,11 +429,9 @@ export class CapitolCityScene extends Phaser.Scene {
   private readonly SCHOLARS_GATE = { col: 6, row: 31 };
   private drawScholarsGate() {
     const x = this.SCHOLARS_GATE.col * TILE + 16, y = this.SCHOLARS_GATE.row * TILE + 16;
-    const g = this.add.graphics().setDepth(6);
-    g.fillStyle(0x000000, 0.2); g.fillEllipse(x, y + 14, 40, 8);
-    g.fillStyle(0x6a5a3a); g.fillRect(x - 22, y - 26, 6, 40); g.fillRect(x + 16, y - 26, 6, 40);
-    g.fillStyle(0x8a6a3a); g.fillRect(x - 28, y - 30, 56, 8);
-    g.fillStyle(0x4a3a20); g.fillRect(x - 26, y - 22, 52, 4);
+    // The old hand-drawn gate became two oversized brown cuboids when mirrored
+    // into 3D directly behind the Ancient Palace. Keep the destination marker,
+    // but remove that geometry so the palace rear court stays completely clear.
     this.add.text(x, y - 38, tr('⛩ Scholars\' Road'), {
       fontSize: '9px', color: '#ffe88a', backgroundColor: '#00000099', padding: { x: 3, y: 1 },
     }).setOrigin(0.5).setDepth(7);

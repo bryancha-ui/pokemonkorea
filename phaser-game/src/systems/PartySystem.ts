@@ -5,7 +5,7 @@ import { DISGUIJAR_DATA } from '../data/CustomPokemon';
 import { cachedPokemon } from '../data/PokeAPI';
 import type { PokemonData } from '../battle/Pokemon';
 import { genderForPokemon } from '../data/PokemonGender';
-import { dexEntry, dexKeyFor } from '../data/Pokedex';
+import { dexEntry, dexKeyFor, remasteredSpriteUrl } from '../data/Pokedex';
 
 export interface PartyBaseStats {
   hp: number;
@@ -52,6 +52,20 @@ export interface PartyEntry {
 }
 
 const KEY = 'party';
+const NURSERY_KEY = 'pokemonNursery';
+const MAX_PARTY_SLOTS = 6;
+
+/** Eggs are stored in the nursery state until they hatch, but occupy a real
+ * party slot for capacity purposes. Reading the small flag here avoids a
+ * PartySystem ↔ BreedingSystem import cycle. */
+function carriedEggOccupiesSlot(registry: Phaser.Data.DataManager): boolean {
+  const raw = registry.get(NURSERY_KEY) as string | { carriedEgg?: unknown } | undefined;
+  if (!raw) return false;
+  try {
+    const state = typeof raw === 'string' ? JSON.parse(raw) as { carriedEgg?: unknown } : raw;
+    return !!state.carriedEgg;
+  } catch { return false; }
+}
 
 /** Recompute maxHp for an entry from its form's base HP (matches Pokemon formula). */
 export function recomputeMaxHp(entry: PartyEntry): number {
@@ -91,6 +105,11 @@ function ensureAllBaseStats(entries: PartyEntry[]): boolean {
   let changed = false;
   for (const entry of entries) {
     changed = ensureBaseStats(entry) || changed;
+    const remastered = remasteredSpriteUrl(entry.spriteKey);
+    if (remastered && entry.spriteUrl !== remastered) {
+      entry.spriteUrl = remastered;
+      changed = true;
+    }
     // Old saves created starters with their entire authored four-move catalog
     // at level 5. Migrate only uncurated pre-level-7 local Pokémon; TM choices
     // already have battleMoves and are deliberately preserved.
@@ -162,18 +181,30 @@ export const PartySystem = {
     this.set(registry, [entry]);
   },
 
-  /** Add to party; if the party is full (6), store in the PC box instead.
+  /** Number of occupied slots, including a carried nursery Egg. */
+  occupiedSlots(registry: Phaser.Data.DataManager): number {
+    return this.get(registry).length + (carriedEggOccupiesSlot(registry) ? 1 : 0);
+  },
+
+  hasOpenSlot(registry: Phaser.Data.DataManager): boolean {
+    return this.occupiedSlots(registry) < MAX_PARTY_SLOTS;
+  },
+
+  /** Add to party; if all six slots (including an Egg) are occupied, store in the PC box instead.
    *  Returns 'party' or 'box' to tell the caller where it went. */
   add(registry: Phaser.Data.DataManager, entry: PartyEntry): boolean {
     const party = this.get(registry);
-    if (party.length >= 6) { this.boxAdd(registry, entry); return false; }
+    if (party.length + (carriedEggOccupiesSlot(registry) ? 1 : 0) >= MAX_PARTY_SLOTS) {
+      this.boxAdd(registry, entry);
+      return false;
+    }
     party.push(entry);
     this.set(registry, party);
     return true;
   },
 
   isFull(registry: Phaser.Data.DataManager): boolean {
-    return this.get(registry).length >= 6;
+    return this.occupiedSlots(registry) >= MAX_PARTY_SLOTS;
   },
 
   // ── PC Box storage ────────────────────────────────────────────────────────
@@ -207,7 +238,7 @@ export const PartySystem = {
   /** Move a box Pokémon into the party (if room). Returns true on success. */
   boxToParty(registry: Phaser.Data.DataManager, boxIdx: number): boolean {
     const party = this.get(registry);
-    if (party.length >= 6) return false;
+    if (party.length + (carriedEggOccupiesSlot(registry) ? 1 : 0) >= MAX_PARTY_SLOTS) return false;
     const box = this.getBox(registry);
     const mon = box.splice(boxIdx, 1)[0];
     if (!mon) return false;

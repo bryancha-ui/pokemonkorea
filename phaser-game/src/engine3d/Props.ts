@@ -80,6 +80,557 @@ export function makeGengar(): THREE.Group {
   return g;
 }
 
+/**
+ * Volumetric 목탁귀 (Moktakgwi). Its generated GLB was hosted on an expired
+ * CDN URL, so this faithful lightweight sculpture is built locally and works
+ * instantly in field, battle and hatch scenes (including iOS/Android).
+ * The face points toward +Z.
+ */
+export function makeMoktakgwi(): THREE.Group {
+  const g = new THREE.Group();
+  const WOOD = 0x75492f, DARK_WOOD = 0x49301f, RIM = 0xa77b52, MOSS = 0x728d49;
+  const GHOST = 0x83d7ae, GHOST_LIGHT = 0xb3f3c8, MOUTH = 0x201f1d, TOOTH = 0xe9e2c7;
+
+  const tube = (points: THREE.Vector3[], radius: number, color: number, opacity = 1): THREE.Mesh => {
+    const curve = new THREE.CatmullRomCurve3(points, false, 'centripetal');
+    const mesh = new THREE.Mesh(
+      new THREE.TubeGeometry(curve, 32, radius, 8, false),
+      toonMat(color, opacity < 1 ? { transparent: true, opacity } : {}),
+    );
+    mesh.castShadow = opacity > 0.8;
+    return mesh;
+  };
+  const cylinderBetween = (a: THREE.Vector3, b: THREE.Vector3, radius: number, color: number): THREE.Mesh => {
+    const delta = b.clone().sub(a);
+    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius * 1.08, delta.length(), 9), toonMat(color));
+    mesh.position.copy(a).add(b).multiplyScalar(0.5);
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), delta.normalize());
+    mesh.castShadow = true;
+    return mesh;
+  };
+
+  // Rounded wooden moktak body — deliberately deep on Z so it reads as a
+  // carved object from a moving battle camera, not a stretched sprite card.
+  const body = new THREE.Mesh(new THREE.SphereGeometry(1, 26, 20), toonMat(WOOD));
+  body.scale.set(0.88, 0.93, 0.68);
+  body.position.set(-0.14, 0.9, 0);
+  body.castShadow = true;
+  body.receiveShadow = true;
+  g.add(body);
+
+  const lowerBark = new THREE.Mesh(new THREE.SphereGeometry(1, 18, 12), toonMat(DARK_WOOD));
+  lowerBark.scale.set(0.8, 0.25, 0.62);
+  lowerBark.position.set(-0.14, 0.26, 0.02);
+  g.add(lowerBark);
+
+  // Black carved cavity and thick wooden lip sell the huge open-mouth design.
+  const cavity = new THREE.Mesh(new THREE.CircleGeometry(0.65, 36), new THREE.MeshBasicMaterial({ color: MOUTH }));
+  cavity.scale.set(1, 0.88, 1);
+  cavity.position.set(-0.03, 0.94, 0.685);
+  g.add(cavity);
+  const lip = new THREE.Mesh(new THREE.TorusGeometry(0.65, 0.105, 10, 40), toonMat(RIM));
+  lip.scale.set(1, 0.88, 1);
+  lip.position.set(-0.03, 0.94, 0.7);
+  lip.castShadow = true;
+  g.add(lip);
+
+  // Uneven inward-facing teeth around the opening.
+  const toothAngles = [-2.75, -2.28, -1.82, -1.35, -0.85, 0.42, 0.84, 1.28, 1.72, 2.14, 2.58];
+  for (let i = 0; i < toothAngles.length; i++) {
+    const a = toothAngles[i];
+    const px = -0.03 + Math.cos(a) * 0.58;
+    const py = 0.94 + Math.sin(a) * 0.49;
+    const tooth = new THREE.Mesh(new THREE.ConeGeometry(0.085 + (i % 3) * 0.012, 0.27, 9), toonMat(TOOTH));
+    tooth.position.set(px, py, 0.75);
+    const inward = new THREE.Vector3(-0.03 - px, 0.94 - py, 0).normalize();
+    tooth.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), inward);
+    tooth.castShadow = true;
+    g.add(tooth);
+  }
+
+  // Raised grain rings and bark strips keep the body recognisably wooden.
+  for (const [x, y, r] of [[-0.58, 0.86, 0.17], [-0.47, 1.34, 0.1], [-0.38, 0.45, 0.12]] as const) {
+    const grain = new THREE.Mesh(new THREE.TorusGeometry(r, 0.024, 6, 20), toonMat(DARK_WOOD));
+    grain.scale.y = 0.72;
+    grain.position.set(x, y, 0.625);
+    g.add(grain);
+  }
+  const barkLine = tube([
+    new THREE.Vector3(-0.78, 0.45, 0.42), new THREE.Vector3(-0.7, 0.7, 0.59),
+    new THREE.Vector3(-0.8, 1.02, 0.47), new THREE.Vector3(-0.66, 1.35, 0.42),
+  ], 0.026, DARK_WOOD);
+  g.add(barkLine);
+
+  // A broken stem and moss crown sit above the wooden shell.
+  g.add(cylinderBetween(new THREE.Vector3(-0.5, 1.68, -0.03), new THREE.Vector3(-0.56, 1.95, 0), 0.09, DARK_WOOD));
+  g.add(cylinderBetween(new THREE.Vector3(-0.56, 1.9, 0), new THREE.Vector3(-0.68, 2.08, 0.01), 0.055, DARK_WOOD));
+  for (const [x, y, sx] of [[-0.36, 1.76, 0.32], [-0.1, 1.73, 0.27], [-0.62, 1.7, 0.22]] as const) {
+    const moss = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 8), toonMat(MOSS));
+    moss.scale.set(sx, 0.13, 0.24);
+    moss.position.set(x, y, 0.03);
+    g.add(moss);
+  }
+
+  // Spectral tail pours out of the hollow drum and curls into the head.
+  const ghostTail = tube([
+    new THREE.Vector3(-0.02, 0.83, 0.74), new THREE.Vector3(0.16, 1.05, 0.8),
+    new THREE.Vector3(0.18, 1.42, 0.74), new THREE.Vector3(0.38, 1.64, 0.56),
+  ], 0.24, GHOST, 0.92);
+  g.add(ghostTail);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(1, 22, 17), toonMat(GHOST, { transparent: true, opacity: 0.92 }));
+  head.scale.set(0.47, 0.59, 0.39);
+  head.position.set(0.38, 1.78, 0.55);
+  g.add(head);
+
+  // Signature curled flame crest.
+  const crest = tube([
+    new THREE.Vector3(0.22, 2.18, 0.48), new THREE.Vector3(0.05, 2.38, 0.35),
+    new THREE.Vector3(-0.25, 2.45, 0.25), new THREE.Vector3(-0.38, 2.28, 0.29),
+    new THREE.Vector3(-0.27, 2.16, 0.36),
+  ], 0.15, GHOST, 0.9);
+  g.add(crest);
+
+  // Luminous eyes and curved smile sit slightly proud of the translucent head.
+  const glowMat = new THREE.MeshBasicMaterial({ color: GHOST_LIGHT, transparent: true, opacity: 0.98 });
+  for (const x of [0.22, 0.53]) {
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 9), glowMat);
+    eye.scale.y = 1.35;
+    eye.position.set(x, 1.86, 0.9);
+    g.add(eye);
+  }
+  const smile = tube([
+    new THREE.Vector3(0.19, 1.64, 0.91), new THREE.Vector3(0.37, 1.55, 0.95),
+    new THREE.Vector3(0.57, 1.65, 0.9),
+  ], 0.027, GHOST_LIGHT, 0.98);
+  g.add(smile);
+
+  // Spectral arm grips a gnarled wooden striker at the right side.
+  const arm = tube([
+    new THREE.Vector3(0.64, 1.68, 0.57), new THREE.Vector3(0.86, 1.45, 0.62),
+    new THREE.Vector3(1.02, 1.28, 0.58),
+  ], 0.105, GHOST, 0.9);
+  g.add(arm);
+  const handleA = new THREE.Vector3(0.91, 0.78, 0.35);
+  const handleB = new THREE.Vector3(1.35, 1.66, 0.38);
+  g.add(cylinderBetween(handleA, handleB, 0.055, DARK_WOOD));
+  const malletHead = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.17, 0.4, 10), toonMat(WOOD));
+  malletHead.position.set(1.4, 1.78, 0.38);
+  malletHead.rotation.z = -0.52;
+  malletHead.castShadow = true;
+  g.add(malletHead);
+
+  // Wispy musical leaves at the base mirror the pale spirit trail in the art.
+  for (const side of [-1, 1]) {
+    const wisp = tube([
+      new THREE.Vector3(side * 0.45 - 0.15, 0.22, -0.08),
+      new THREE.Vector3(side * 0.8 - 0.15, 0.08, 0.05),
+      new THREE.Vector3(side * 0.96 - 0.15, 0.26, 0.12),
+    ], 0.055, GHOST_LIGHT, 0.72);
+    g.add(wisp);
+  }
+
+  return g;
+}
+
+/**
+ * Volumetric 두루광 (Thanatoat), the Water/Ghost grim-reaper crane. The old
+ * generated GLB now returns HTTP 403, so this local model preserves the blue
+ * crane, black gat, funeral robe and feathered soul-staff on every device.
+ * Built facing +Z for battle, field and hatch cameras.
+ */
+export function makeThanatoat(): THREE.Group {
+  const g = new THREE.Group();
+  const INK = 0x252b3c, ROBE = 0x353a45, ROBE_LIGHT = 0x4b4f52;
+  const BLUE = 0x087eb3, BLUE_LIGHT = 0x8eb1e1, GOLD = 0xf2c94c;
+  const BONE = 0xe8edf0, STAFF = 0x202638, WISP = 0x9edff0;
+
+  const tube = (points: THREE.Vector3[], radius: number, color: number, opacity = 1): THREE.Mesh => {
+    const curve = new THREE.CatmullRomCurve3(points, false, 'centripetal');
+    const mesh = new THREE.Mesh(
+      new THREE.TubeGeometry(curve, 34, radius, 8, false),
+      toonMat(color, opacity < 1 ? { transparent: true, opacity } : {}),
+    );
+    mesh.castShadow = opacity > 0.82;
+    return mesh;
+  };
+  const extruded = (points: Array<[number, number]>, color: number, depth = 0.18): THREE.Mesh => {
+    const shape = new THREE.Shape();
+    shape.moveTo(points[0][0], points[0][1]);
+    for (let i = 1; i < points.length; i++) shape.lineTo(points[i][0], points[i][1]);
+    shape.closePath();
+    const geo = new THREE.ExtrudeGeometry(shape, {
+      depth, bevelEnabled: true, bevelSegments: 1, bevelSize: 0.025, bevelThickness: 0.025,
+    });
+    geo.translate(0, 0, -depth / 2);
+    const mesh = new THREE.Mesh(geo, toonMat(color));
+    mesh.castShadow = true;
+    return mesh;
+  };
+  const cylinderBetween = (a: THREE.Vector3, b: THREE.Vector3, radius: number, color: number): THREE.Mesh => {
+    const delta = b.clone().sub(a);
+    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, delta.length(), 9), toonMat(color));
+    mesh.position.copy(a).add(b).multiplyScalar(0.5);
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), delta.normalize());
+    mesh.castShadow = true;
+    return mesh;
+  };
+  const feather = (width: number, height: number, color: number): THREE.Mesh => {
+    const shape = new THREE.Shape();
+    shape.moveTo(0, 0);
+    shape.bezierCurveTo(-width * 0.56, height * 0.24, -width * 0.52, height * 0.78, 0, height);
+    shape.bezierCurveTo(width * 0.52, height * 0.78, width * 0.56, height * 0.24, 0, 0);
+    const geo = new THREE.ExtrudeGeometry(shape, {
+      depth: 0.12, bevelEnabled: true, bevelSegments: 1, bevelSize: 0.018, bevelThickness: 0.018,
+    });
+    geo.translate(0, 0, -0.06);
+    const mesh = new THREE.Mesh(geo, toonMat(color));
+    mesh.castShadow = true;
+    return mesh;
+  };
+
+  // Long funeral robe, widened at the hem but rounded in depth so the model
+  // keeps a full silhouette when the battle camera moves around it.
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.72, 1.55, 16), toonMat(ROBE));
+  body.scale.z = 0.7;
+  body.position.set(0, 0.9, 0);
+  body.castShadow = true;
+  body.receiveShadow = true;
+  g.add(body);
+  const robeFront = extruded([
+    [-0.38, 1.6], [-0.66, 1.05], [-0.78, 0.2], [-0.5, 0.04],
+    [-0.12, 0.32], [0.2, 0.08], [0.62, 0.24], [0.68, 1.04], [0.36, 1.6],
+  ], ROBE_LIGHT, 0.2);
+  robeFront.position.z = 0.43;
+  g.add(robeFront);
+
+  // Broad asymmetrical sleeves evoke folded crane wings and the original
+  // flowing jeoseung-saja hanbok rather than a generic humanoid cylinder.
+  const leftSleeve = extruded([
+    [-0.34, 1.52], [-0.82, 1.65], [-1.42, 1.42], [-1.72, 0.68],
+    [-1.58, 0.38], [-1.12, 0.62], [-0.58, 1.02],
+  ], INK, 0.22);
+  leftSleeve.position.z = 0.04;
+  g.add(leftSleeve);
+  const rightSleeve = extruded([
+    [0.33, 1.48], [0.74, 1.7], [1.06, 2.38], [1.54, 2.5],
+    [1.4, 1.78], [1.04, 1.18], [0.6, 0.94],
+  ], INK, 0.22);
+  rightSleeve.position.z = 0.02;
+  g.add(rightSleeve);
+  // Feather steps along the raised wing keep its crane anatomy readable.
+  for (let i = 0; i < 4; i++) {
+    const wingFeather = feather(0.25 + i * 0.035, 0.72 + i * 0.08, i % 2 ? INK : 0x303647);
+    wingFeather.position.set(0.56 + i * 0.2, 1.55 + i * 0.13, 0.18 - i * 0.025);
+    wingFeather.rotation.z = -0.78 + i * 0.08;
+    g.add(wingFeather);
+  }
+
+  // Thin S-curved blue crane neck emerging from the white funeral collar.
+  const neck = tube([
+    new THREE.Vector3(0, 1.45, 0.12), new THREE.Vector3(-0.06, 1.95, 0.1),
+    new THREE.Vector3(0.03, 2.48, 0.12), new THREE.Vector3(0.02, 2.82, 0.16),
+  ], 0.145, BLUE);
+  g.add(neck);
+  const collarLeft = extruded([[-0.38, 1.55], [-0.04, 1.32], [0, 1.6], [-0.22, 1.79]], BONE, 0.1);
+  collarLeft.position.z = 0.48;
+  g.add(collarLeft);
+  const collarRight = extruded([[0.38, 1.55], [0.04, 1.32], [0, 1.6], [0.22, 1.79]], BONE, 0.1);
+  collarRight.position.z = 0.48;
+  g.add(collarRight);
+  for (const side of [-1, 1]) {
+    const bow = extruded([[0, 0], [side * 0.42, 0.16], [side * 0.38, -0.18]], ROBE_LIGHT, 0.11);
+    bow.position.set(side * 0.02, 1.19, 0.52);
+    g.add(bow);
+  }
+
+  // Crane head and pale cheek mask.
+  const head = new THREE.Mesh(new THREE.SphereGeometry(1, 22, 17), toonMat(BLUE));
+  head.scale.set(0.42, 0.33, 0.4);
+  head.position.set(0, 2.92, 0.18);
+  head.castShadow = true;
+  g.add(head);
+  const face = new THREE.Mesh(new THREE.SphereGeometry(1, 18, 13), toonMat(BLUE_LIGHT));
+  face.scale.set(0.34, 0.26, 0.26);
+  face.position.set(0, 2.86, 0.48);
+  g.add(face);
+  for (const x of [-0.17, 0.17]) {
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.07, 12, 9), new THREE.MeshBasicMaterial({ color: GOLD }));
+    eye.scale.y = 1.25;
+    eye.position.set(x, 2.98, 0.7);
+    g.add(eye);
+    const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.026, 8, 6), toonMat(0x172033));
+    pupil.position.set(x, 2.98, 0.758);
+    g.add(pupil);
+  }
+  const beak = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.68, 10), toonMat(0xd6b65c));
+  beak.rotation.x = Math.PI / 2;
+  beak.position.set(0, 2.84, 0.84);
+  beak.castShadow = true;
+  g.add(beak);
+
+  // Traditional black gat: wide brim, rounded crown and small blue ribbon.
+  const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.76, 0.07, 28), toonMat(INK));
+  brim.scale.z = 0.86;
+  brim.position.set(0, 3.22, 0.14);
+  brim.castShadow = true;
+  g.add(brim);
+  const crown = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 12), toonMat(INK));
+  crown.scale.set(0.46, 0.27, 0.42);
+  crown.position.set(0, 3.39, 0.08);
+  crown.castShadow = true;
+  g.add(crown);
+  const ribbon = tube([
+    new THREE.Vector3(0.38, 3.35, 0.24), new THREE.Vector3(0.58, 3.5, 0.2),
+    new THREE.Vector3(0.48, 3.62, 0.12), new THREE.Vector3(0.34, 3.55, 0.16),
+  ], 0.045, BLUE);
+  g.add(ribbon);
+
+  // Diagonal soul-staff held across the robe. A layered feather bloom at its
+  // lower end matches the brush/scythe silhouette in the source design.
+  const staffA = new THREE.Vector3(-1.18, 0.58, 0.62);
+  const staffB = new THREE.Vector3(1.06, 2.25, 0.62);
+  g.add(cylinderBetween(staffA, staffB, 0.035, STAFF));
+  const grip = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 9), toonMat(INK));
+  grip.position.set(0.32, 1.7, 0.64);
+  grip.scale.set(1.25, 0.82, 0.85);
+  g.add(grip);
+  for (let i = 0; i < 7; i++) {
+    const plume = feather(0.18 + (i % 3) * 0.035, 0.5 + (i % 2) * 0.16, i % 2 ? ROBE_LIGHT : INK);
+    plume.position.set(-0.82 + Math.cos(i * 0.9) * 0.18, 0.82 + Math.sin(i * 0.9) * 0.14, 0.5 + i * 0.012);
+    plume.rotation.z = -1.15 + i * 0.34;
+    g.add(plume);
+  }
+
+  // Crane legs and curled dark shoes anchor the otherwise floating robe.
+  for (const side of [-1, 1]) {
+    const leg = cylinderBetween(
+      new THREE.Vector3(side * 0.18, 0.25, -0.02),
+      new THREE.Vector3(side * 0.24, 0.02, 0.12), 0.045, INK,
+    );
+    g.add(leg);
+    const foot = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 8), toonMat(INK));
+    foot.scale.set(0.13, 0.07, 0.33);
+    foot.position.set(side * 0.24, 0.015, 0.29);
+    g.add(foot);
+  }
+
+  // Small translucent soul wisps communicate Ghost typing without hiding the
+  // authored robe silhouette.
+  for (const side of [-1, 1]) {
+    const wisp = tube([
+      new THREE.Vector3(side * 0.6, 0.46, -0.18),
+      new THREE.Vector3(side * 0.92, 0.66, -0.12),
+      new THREE.Vector3(side * 0.8, 0.94, -0.08),
+    ], 0.045, WISP, 0.58);
+    g.add(wisp);
+  }
+
+  return g;
+}
+
+/**
+ * Volumetric 넋풀 (Ghograss), built from its authored dead-leaf illustration.
+ * The old generated GLB lived only on an expired CDN URL, so this lightweight
+ * model is deliberately local, synchronous and safe on mobile. It faces +Z.
+ */
+export function makeGhograss(): THREE.Group {
+  const g = new THREE.Group();
+  const BROWN = 0x76503f, DARK = 0x4b3632, MID = 0x956343;
+  const OCHRE = 0xd9af45, OLIVE = 0x8f8b55, ORANGE = 0xdf5938;
+
+  const leaf = (width: number, height: number, color: number, depth = 0.1): THREE.Mesh => {
+    const shape = new THREE.Shape();
+    shape.moveTo(0, 0);
+    shape.bezierCurveTo(-width * 0.58, height * 0.2, -width * 0.55, height * 0.7, 0, height);
+    shape.bezierCurveTo(width * 0.55, height * 0.7, width * 0.58, height * 0.2, 0, 0);
+    const geo = new THREE.ExtrudeGeometry(shape, {
+      depth, bevelEnabled: true, bevelSegments: 2,
+      bevelSize: Math.min(width, height) * 0.045,
+      bevelThickness: depth * 0.18,
+    });
+    geo.translate(0, 0, -depth / 2);
+    const mesh = new THREE.Mesh(geo, toonMat(color));
+    mesh.castShadow = true;
+    return mesh;
+  };
+
+  const tube = (points: THREE.Vector3[], radius: number, color: number, segments = 32): THREE.Mesh => {
+    const curve = new THREE.CatmullRomCurve3(points, false, 'centripetal');
+    const mesh = new THREE.Mesh(new THREE.TubeGeometry(curve, segments, radius, 8, false), toonMat(color));
+    mesh.castShadow = true;
+    return mesh;
+  };
+
+  // Three torn-looking dead leaves form the tall ghostly crown behind the body.
+  const backLeft = leaf(0.43, 1.05, DARK, 0.13);
+  backLeft.position.set(-0.48, 0.72, -0.16); backLeft.rotation.z = 0.2; g.add(backLeft);
+  const backTall = leaf(0.48, 1.42, 0x59423b, 0.15);
+  backTall.position.set(-0.16, 0.72, -0.2); backTall.rotation.z = -0.06; g.add(backTall);
+  const backRight = leaf(0.5, 1.08, 0x65483e, 0.14);
+  backRight.position.set(0.38, 0.72, -0.14); backRight.rotation.z = -0.18; g.add(backRight);
+
+  // Olive mould patches give the right leaf the same aged vegetation motif as
+  // the 2D design without relying on a texture map.
+  for (const [x, y, sx, sy] of [
+    [0.28, 1.47, 0.22, 0.17], [0.47, 1.39, 0.2, 0.2], [0.32, 1.25, 0.25, 0.16],
+  ] as [number, number, number, number][]) {
+    const patch = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 10), toonMat(OLIVE));
+    patch.scale.set(sx, sy, 0.035); patch.position.set(x, y, 0.02); g.add(patch);
+  }
+
+  // Rounded seed-pod body, flattened only slightly so it reads as a real volume
+  // from the rotating 3D camera instead of the old accordion-like card.
+  const body = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 18), toonMat(BROWN));
+  body.scale.set(0.72, 0.67, 0.42); body.position.set(-0.04, 0.8, 0.08); body.castShadow = true; g.add(body);
+  const belly = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 10), toonMat(0xe0bd59));
+  belly.scale.set(0.2, 0.18, 0.04); belly.position.set(-0.34, 0.65, 0.485); g.add(belly);
+  for (const [x, y, s] of [[0.26, 0.62, 0.09], [-0.22, 0.91, 0.105], [0.5, 0.76, 0.07]] as const) {
+    const spot = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 8), toonMat(x > 0.35 ? OCHRE : ORANGE));
+    spot.scale.set(s, s * 0.72, 0.03); spot.position.set(x, y, 0.5); g.add(spot);
+  }
+
+  // White asymmetric eyes sit proud of the pod surface.
+  const eyeMat = toonMat(0xf4f1e7);
+  const leftEye = new THREE.Mesh(new THREE.SphereGeometry(1, 18, 12), eyeMat);
+  leftEye.scale.set(0.17, 0.28, 0.07); leftEye.position.set(-0.32, 1.16, 0.47); g.add(leftEye);
+  const rightEye = new THREE.Mesh(new THREE.SphereGeometry(1, 18, 12), eyeMat);
+  rightEye.scale.set(0.18, 0.3, 0.07); rightEye.position.set(0.31, 1.16, 0.46); g.add(rightEye);
+  const leftPupil = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 8), toonMat(0x888239));
+  leftPupil.scale.set(0.095, 0.12, 0.04); leftPupil.position.set(-0.32, 1.24, 0.54); g.add(leftPupil);
+  // Two orange lobes and a point reproduce the signature heart-shaped pupil.
+  for (const x of [0.275, 0.345]) {
+    const lobe = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 8), toonMat(ORANGE));
+    lobe.scale.set(0.06, 0.065, 0.035); lobe.position.set(x, 1.22, 0.535); g.add(lobe);
+  }
+  const heartPoint = new THREE.Mesh(new THREE.ConeGeometry(0.085, 0.14, 8), toonMat(ORANGE));
+  heartPoint.rotation.z = Math.PI; heartPoint.scale.z = 0.45;
+  heartPoint.position.set(0.31, 1.15, 0.545); g.add(heartPoint);
+
+  // A curling vine loops around the body and reaches into a golden leaf hand.
+  const loop = tube([
+    new THREE.Vector3(0.25, 1.1, 0.42), new THREE.Vector3(-0.18, 1.25, 0.49),
+    new THREE.Vector3(-0.72, 1.22, 0.36), new THREE.Vector3(-0.91, 0.94, 0.18),
+    new THREE.Vector3(-0.69, 0.65, 0.31), new THREE.Vector3(-0.38, 0.73, 0.48),
+    new THREE.Vector3(-0.48, 0.88, 0.52),
+  ], 0.055, MID, 40);
+  g.add(loop);
+  const arm = tube([
+    new THREE.Vector3(-0.78, 1.08, 0.25), new THREE.Vector3(-0.18, 1.12, 0.48),
+    new THREE.Vector3(0.42, 1.1, 0.5), new THREE.Vector3(0.68, 1.0, 0.42),
+  ], 0.06, OCHRE, 30);
+  g.add(arm);
+  const hand = leaf(0.25, 0.55, 0xe1b94c, 0.11);
+  hand.position.set(0.62, 1.0, 0.4); hand.rotation.z = -Math.PI / 2; g.add(hand);
+
+  // Long hooked tail and dry terminal leaf.
+  const tail = tube([
+    new THREE.Vector3(0.08, 0.35, 0.02), new THREE.Vector3(0.25, 0.08, 0.02),
+    new THREE.Vector3(0.57, 0.05, 0.01), new THREE.Vector3(0.47, 0.27, 0.02),
+    new THREE.Vector3(0.35, 0.22, 0.03), new THREE.Vector3(0.56, 0.03, 0.01),
+    new THREE.Vector3(0.92, 0.17, 0),
+  ], 0.045, MID, 42);
+  g.add(tail);
+  const tailLeaf = leaf(0.22, 0.48, 0x8a4935, 0.1);
+  tailLeaf.position.set(0.91, 0.15, 0); tailLeaf.rotation.z = -0.9; g.add(tailLeaf);
+
+  g.traverse((obj) => {
+    const mesh = obj as THREE.Mesh;
+    if (mesh.isMesh) { mesh.castShadow = true; mesh.receiveShadow = true; }
+  });
+  return g;
+}
+
+/**
+ * Low-poly 여우귀 (Foxgeist), matching the grey native fox and flowing purple
+ * spirit-cloak in its Pokédex art. The generated GLB is 39 MB / 1.4M triangles
+ * and is blocked on mobile; this synchronous model loads reliably everywhere.
+ * Faces +Z like the other procedural battlers.
+ */
+export function makeFoxgeist(): THREE.Group {
+  const g = new THREE.Group();
+  const FUR = 0xaeb7bd, LIGHT = 0xf0f3f2, SHADE = 0x7481a3;
+  const SPIRIT = 0x49345f, SPIRIT_HI = 0x675078, DARK = 0x21182a;
+
+  const orb = (
+    color: number, x: number, y: number, z: number,
+    sx: number, sy: number, sz: number, seg = 16,
+  ) => {
+    const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, seg, Math.max(8, seg - 4)), toonMat(color));
+    mesh.position.set(x, y, z); mesh.scale.set(sx, sy, sz); g.add(mesh);
+    return mesh;
+  };
+  const tube = (points: THREE.Vector3[], radius: number, color: number, segments = 18) => {
+    const curve = new THREE.CatmullRomCurve3(points, false, 'centripetal');
+    const mesh = new THREE.Mesh(new THREE.TubeGeometry(curve, segments, radius, 7, false), toonMat(color));
+    g.add(mesh); return mesh;
+  };
+
+  // Sleek floating fox body, chest and head.
+  orb(FUR, 0, 0.93, -0.2, 0.5, 0.55, 0.72, 18);
+  orb(LIGHT, 0, 0.93, 0.33, 0.37, 0.43, 0.24, 16);
+  orb(FUR, 0, 1.42, 0.42, 0.43, 0.39, 0.4, 18);
+  orb(LIGHT, 0, 1.29, 0.77, 0.38, 0.19, 0.43, 16);
+  orb(DARK, 0, 1.3, 1.16, 0.105, 0.075, 0.09, 12);
+
+  // Tall fox ears with white tips and blue inner fur.
+  for (const side of [-1, 1]) {
+    const ear = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.72, 7), toonMat(FUR));
+    ear.position.set(side * 0.29, 1.88, 0.36); ear.rotation.z = side * -0.09; g.add(ear);
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.36, 7), toonMat(LIGHT));
+    tip.position.set(side * 0.3, 2.06, 0.38); tip.rotation.z = side * -0.09; g.add(tip);
+    const inner = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.34, 7), toonMat(SHADE));
+    inner.position.set(side * 0.29, 1.82, 0.57); inner.scale.z = 0.35; g.add(inner);
+  }
+
+  // Purple spectral mask, red eyes and the small tongue from the illustration.
+  for (const side of [-1, 1]) {
+    orb(SPIRIT, side * 0.23, 1.47, 0.73, 0.24, 0.18, 0.12, 14);
+    orb(0xe5524b, side * 0.2, 1.46, 0.84, 0.085, 0.075, 0.035, 12);
+    orb(DARK, side * 0.2, 1.46, 0.875, 0.035, 0.055, 0.02, 10);
+  }
+  tube([
+    new THREE.Vector3(-0.3, 1.39, 0.77), new THREE.Vector3(0, 1.24, 0.86),
+    new THREE.Vector3(0.32, 1.36, 0.77),
+  ], 0.075, SPIRIT, 14);
+  orb(0xe66d70, 0, 1.08, 0.93, 0.09, 0.16, 0.05, 12);
+
+  // Four tapered floating legs with pale paws.
+  for (const [x, z, forward] of [
+    [-0.28, 0.2, true], [0.28, 0.2, true], [-0.32, -0.52, false], [0.32, -0.52, false],
+  ] as [number, number, boolean][]) {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.13, forward ? 0.66 : 0.52, 8), toonMat(FUR));
+    leg.position.set(x, forward ? 0.48 : 0.63, z); leg.rotation.z = x * 0.35; g.add(leg);
+    orb(forward ? LIGHT : SHADE, x * 1.05, forward ? 0.15 : 0.38, z + 0.06, 0.12, 0.1, 0.18, 12);
+  }
+
+  // The characteristic purple cloak draped across the haunches.
+  orb(SPIRIT, -0.32, 1.18, -0.47, 0.44, 0.32, 0.48, 16);
+  orb(SPIRIT_HI, 0.28, 1.17, -0.48, 0.45, 0.3, 0.46, 16);
+  for (const side of [-1, 1]) orb(DARK, side * 0.3, 1.37, -0.21, 0.19, 0.08, 0.25, 12);
+
+  // One tall flame-tail and two wind-swept wisps make the Ghost typing readable
+  // from every battle-camera angle without a transparent billboard.
+  tube([
+    new THREE.Vector3(0, 1.27, -0.72), new THREE.Vector3(-0.1, 1.8, -0.78),
+    new THREE.Vector3(0.18, 2.27, -0.72), new THREE.Vector3(0.03, 2.68, -0.62),
+    new THREE.Vector3(0.32, 2.86, -0.48),
+  ], 0.2, SPIRIT_HI, 24);
+  tube([
+    new THREE.Vector3(-0.25, 1.15, -0.66), new THREE.Vector3(-0.75, 1.05, -0.66),
+    new THREE.Vector3(-1.08, 1.22, -0.5),
+  ], 0.12, SPIRIT, 18);
+  tube([
+    new THREE.Vector3(0.28, 1.12, -0.65), new THREE.Vector3(0.82, 0.98, -0.62),
+    new THREE.Vector3(1.13, 1.12, -0.45),
+  ], 0.11, SPIRIT_HI, 18);
+
+  g.traverse(obj => {
+    const mesh = obj as THREE.Mesh;
+    if (mesh.isMesh) { mesh.castShadow = true; mesh.receiveShadow = true; }
+  });
+  return g;
+}
+
 // ── Blob shadow (shared geometry+material, cloned cheaply) ──────────────────
 let blobGeo: THREE.CircleGeometry | null = null;
 let blobMat: THREE.MeshBasicMaterial | null = null;
@@ -779,6 +1330,76 @@ export function makeStoneLantern(): THREE.Group {
   add(new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.26, 0.24), new THREE.MeshBasicMaterial({ color: 0xffd680 })), 0.9);
   add(new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.22, 6), toonMat(stone)), 1.14);
   add(new THREE.Mesh(new THREE.SphereGeometry(0.05, 6, 5), toonMat(dark)), 1.29);
+  return g;
+}
+
+/** A hand-placed coastal boulder cluster. Unlike the broad colour-based terrain
+ * classifier, this only appears where a scene has an authored rock tile. */
+export function makeScenicRock(): THREE.Group {
+  const g = new THREE.Group();
+  const rocks = makeRocks(3, 0x817a70);
+  rocks.place(0, 0, 1.25, 0.25);
+  rocks.place(-0.28, 0.18, 0.62, 1.4);
+  rocks.place(0.3, 0.2, 0.48, 2.2);
+  rocks.finalize();
+  g.add(...rocks.meshes);
+  return g;
+}
+
+/** One lush broadleaf tree for authored parks and forest towns. */
+export function makeForestTree(): THREE.Group {
+  const g = new THREE.Group();
+  const trees = makeTrees(1, 0x3f9345, 0x604329);
+  trees.place(0, 0, 1.2, 0);
+  trees.finalize();
+  g.add(...trees.meshes);
+  return g;
+}
+
+/** A compact flower bed that keeps the underlying walkable tile natural green. */
+export function makeFlowerBed(): THREE.Group {
+  const g = new THREE.Group();
+  const pink = makeFlowers(2, 0xf27fc2);
+  pink.place(-0.18, 0, 1.05, 0.2);
+  pink.place(0.2, 0.08, 0.9, 1.2);
+  pink.finalize();
+  g.add(...pink.meshes);
+  return g;
+}
+
+/** Bioluminescent woodland mushrooms. MeshBasic caps remain softly luminous
+ * without adding expensive point lights on mobile. */
+export function makeGlowPlants(): THREE.Group {
+  const g = new THREE.Group();
+  const stemMat = toonMat(0xb8e7d1);
+  const glowMat = new THREE.MeshBasicMaterial({ color: 0x70f5cf });
+  for (const [x, z, s] of [[-0.22, 0.08, 1], [0.18, -0.08, 0.72], [0.04, 0.22, 0.55]] as [number, number, number][]) {
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.035 * s, 0.05 * s, 0.28 * s, 7), stemMat);
+    stem.position.set(x, 0.14 * s, z);
+    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.13 * s, 9, 6, 0, Math.PI * 2, 0, Math.PI * 0.55), glowMat);
+    cap.position.set(x, 0.3 * s, z);
+    g.add(stem, cap);
+  }
+  return g;
+}
+
+/** Low wooden footbridge for ponds. The deck sits close to the ground so the
+ * Phaser collision grid remains authoritative and characters never appear sunk. */
+export function makeWoodBridge(width = 2, depth = 3): THREE.Group {
+  const g = new THREE.Group();
+  const deckMat = toonMat(0x9a7448), edgeMat = toonMat(0x60452e);
+  const planks = Math.max(4, Math.round(depth * 3));
+  for (let i = 0; i < planks; i++) {
+    const z = -depth / 2 + (i + 0.5) * depth / planks;
+    const plank = new THREE.Mesh(new THREE.BoxGeometry(width, 0.11, depth / planks * 0.88), deckMat);
+    plank.position.set(0, 0.14 + Math.sin((i / (planks - 1)) * Math.PI) * 0.08, z);
+    g.add(plank);
+  }
+  for (const x of [-width / 2 + 0.08, width / 2 - 0.08]) {
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, depth), edgeMat);
+    beam.position.set(x, 0.11, 0);
+    g.add(beam);
+  }
   return g;
 }
 

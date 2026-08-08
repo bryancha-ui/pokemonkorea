@@ -1,6 +1,7 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as skeletonClone } from 'three/examples/jsm/utils/SkeletonUtils.js';
+import { applyProductionMaterials } from './ModelMaterials';
 import { makeGengar } from './Props';
 
 // Procedural (code-built) creature models — no GLB and no generation credits, and
@@ -11,8 +12,8 @@ const PROCEDURAL: Record<string, () => THREE.Object3D> = {
 };
 
 // Lightweight hero/boss GLBs (~4–5 MB each) that are allowed even on mobile,
-// where `allowsHeavy3DAssets()` would otherwise fall the whole roster back to the
-// 2D relief. These species only appear in scripted, one-at-a-time boss battles —
+// where `allowsHeavy3DAssets()` would otherwise keep the lightweight presentation.
+// These species only appear in scripted, one-at-a-time boss battles —
 // well inside the mobile 2-model cache — so the WebGL budget stays safe while the
 // story's marquee custom Pokémon still get their true 3D form. Keyed by species
 // key (see the Pokédex / CustomBattle keys), normalized.
@@ -20,7 +21,18 @@ const MOBILE_ALLOWED = new Set<string>([
   'snoqueen',    // 스노퀸 — Ice/Fairy frost sovereign
   'pipetiger',   // 염흥왕 — the flame king (evolves from 염태자)
   'yeomtaeja',   // 염태자 — the flame prince
+  'banderado',   // 활빈다람 — starter final evolution, local optimized HQ GLB
+  'thanatoat',   // 두루광 — starter final evolution, local optimized HQ GLB
+  'onnurian',    // 온누리안 — local optimized GLB (3.5 MB)
+  'munkain',     // 월식매 — local optimized GLB (4.6 MB)
+  'bosongnun', 'camerghoost', 'hambillet', 'kkaakdang', 'luninari',
+  'samdumae', 'silicutis', 'supiryeong', 'unsilgami', // local 3–5 MB GLBs
 ]);
+
+// The starter remasters are shipped with the game and remain discoverable even
+// if the manifest itself is unavailable. This lets their local GLB attempt reach
+// a definitive ready/failed state, so a failure can restore the authored 2D art.
+const CORE_LOCAL_MODELS = ['thanatoat', 'banderado', 'pipetiger'] as const;
 
 /** True when `key`'s GLB may load on the current device: heavy assets are gated
  *  off on mobile except for the small hero allowlist. */
@@ -32,19 +44,16 @@ function modelAllowedHere(key: string): boolean {
 // True 3D creature models (generated from the game's own artwork) are listed in
 // `public/assets/models3d/manifest.json`. Two entry forms are supported:
 //
-//   { "models": ["vipour", { "key": "munkain", "url": "https://…/x.glb" }] }
+//   { "models": ["vipour", { "key": "munkain", "rotY": 90, "scale": 0.8 }] }
 //
-//   • plain string  → loads the vendored file  assets/models3d/<key>.glb
-//   • {key, url}    → loads the GLB straight from the given URL (e.g. the
-//                     generator's CDN), so models work before they're vendored.
-//
-// Run `node scripts/fetch-models.mjs` to download every remote entry into
-// public/assets/models3d/ and rewrite the manifest to local form (offline play).
+// Every entry loads only the vendored file assets/models3d/<key>.glb. Generated
+// CDN URLs expire and are intentionally never used at runtime. Object entries
+// retain optional orientation and scale corrections for their local GLB.
 //
 // Battle sprites automatically use a listed model instead of the relief-
-// extruded art. A missing manifest quietly disables the feature.
+// extruded art. A missing manifest still probes the three bundled starter GLBs.
 
-type Entry = string | { key: string; url?: string; rotX?: number; rotY?: number; rotZ?: number; scale?: number };
+type Entry = string | { key: string; rotX?: number; rotY?: number; rotZ?: number; scale?: number };
 
 /** A loaded model plus any animation clips baked into the GLB. */
 export interface LoadedModel {
@@ -54,7 +63,6 @@ export interface LoadedModel {
 
 /** Registry value: where to load the GLB and optional orientation/size fixes. */
 interface ModelSpec {
-  url: string | null;                       // null = vendored local file
   rot?: { x: number; y: number; z: number }; // degrees, baked before normalization
   scale?: number;                           // normalized height (1 = default); <1 shrinks the model
 }
@@ -63,13 +71,44 @@ let manifest: Map<string, ModelSpec> | null = null;   // key → spec
 let manifestLoading = false;
 const models = new Map<string, LoadedModel | 'loading' | 'failed'>();
 const modelUse = new Map<string, number>();
+const modelFailures = new Map<string, { at: number; attempts: number; permanent: boolean }>();
 let useClock = 0;
 const loader = new GLTFLoader();
+const assetUrl = (path: string): string => new URL(path, document.baseURI).toString();
+
+export type ModelLoadStatus = 'unavailable' | 'idle' | 'loading' | 'ready' | 'failed';
+
+/** Distinguish an in-flight load from a confirmed failure so callers can use
+ * the authored 2D sprite only when the GLB has actually failed. */
+export function modelLoadStatus(key: string): ModelLoadStatus {
+  const k = normalizeKey(key);
+  if (PROCEDURAL[k]) return 'ready';
+  if (!manifest) return manifestLoading ? 'loading' : 'unavailable';
+  if (!manifest.has(k)) return 'unavailable';
+  // A manifest-backed GLB that is intentionally gated on this device must use
+  // the same authored 2D fallback as a file/parse failure, never a relief model.
+  if (!modelAllowedHere(k)) return 'failed';
+  const state = models.get(k);
+  if (state === 'loading') return 'loading';
+  if (state === 'failed') return 'failed';
+  if (state) return 'ready';
+  return 'idle';
+}
+
+function markModelFailure(key: string, permanent: boolean): void {
+  const previous = modelFailures.get(key);
+  modelFailures.set(key, {
+    at: Date.now(),
+    attempts: (previous?.attempts ?? 0) + 1,
+    permanent,
+  });
+  models.set(key, 'failed');
+}
 
 /** The generated sculpture GLBs can exceed 40 MB / 700k vertices each. Two of
  * those plus Phaser exceed the WebGL budget on iOS and many Android devices.
- * Those devices retain the lightweight 3D relief instead of risking a lost
- * context; authored/procedural maps remain fully 3D. */
+ * Heavy models are skipped there to avoid a lost context; the optimized starter
+ * models and authored/procedural maps remain available. */
 export function allowsHeavy3DAssets(): boolean {
   if (typeof navigator === 'undefined') return true;
   const nav = navigator as Navigator & { deviceMemory?: number };
@@ -87,29 +126,43 @@ export function normalizeKey(key: string): string {
 export function primeManifest(): void {
   if (manifest || manifestLoading) return;
   manifestLoading = true;
-  fetch('assets/models3d/manifest.json')
+  fetch(assetUrl('assets/models3d/manifest.json'))
     .then(r => (r.ok ? r.json() : null))
     .then((j: { models?: Entry[] } | null) => {
       const m = new Map<string, ModelSpec>();
       for (const e of j?.models ?? []) {
-        if (typeof e === 'string') m.set(normalizeKey(e), { url: null });
+        if (typeof e === 'string') m.set(normalizeKey(e), {});
         else if (e && e.key) {
           const rot = (e.rotX || e.rotY || e.rotZ)
             ? { x: e.rotX ?? 0, y: e.rotY ?? 0, z: e.rotZ ?? 0 }
             : undefined;
-          m.set(normalizeKey(e.key), { url: e.url ?? null, rot, scale: e.scale });
+          m.set(normalizeKey(e.key), { rot, scale: e.scale });
         }
       }
       manifest = m;
+      const preload = () => {
+        for (const key of ['thanatoat', 'banderado', 'pipetiger']) if (m.has(key)) getModel(key);
+      };
+      const idle = (window as unknown as {
+        requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+      }).requestIdleCallback;
+      if (idle) idle(preload, { timeout: 2200 });
+      else setTimeout(preload, 300);
     })
-    .catch(() => { manifest = new Map(); })
+    .catch((error) => {
+      console.warn('[engine3d] model manifest unavailable; using original 2D sprites:', error);
+      manifest = new Map(CORE_LOCAL_MODELS.map(key => [key, {}]));
+    })
     .finally(() => { manifestLoading = false; });
 }
 
 export function hasModel(key: string): boolean {
   const k = normalizeKey(key);
   if (PROCEDURAL[k]) return true;   // code-built models are cheap — allowed on mobile too
-  return !!manifest && manifest.has(k) && modelAllowedHere(k);
+  // Report manifest intent independently of the current device budget. Callers
+  // then ask modelLoadStatus(); a gated/missing GLB resolves to the clean 2D
+  // sprite instead of silently constructing an extruded substitute.
+  return !!manifest && manifest.has(k);
 }
 
 /** The model's baked Y-orientation fix (manifest rotY) in radians, or 0. Callers
@@ -133,7 +186,7 @@ export function getModel(key: string): LoadedModel | null {
     if (cached && cached !== 'loading' && cached !== 'failed') { modelUse.set(k, ++useClock); return cloneNormalized(cached); }
     const inner = new THREE.Group();
     inner.add(PROCEDURAL[k]());
-    if (!normalize(inner, 1) || !isRenderableModel(inner)) { models.set(k, 'failed'); return null; }
+    if (!normalize(inner, 1) || !isRenderableModel(inner)) { markModelFailure(k, true); return null; }
     const root = new THREE.Group();
     root.add(inner);
     const loaded: LoadedModel = { group: root, animations: [] };
@@ -143,18 +196,27 @@ export function getModel(key: string): LoadedModel | null {
   }
   if (!manifest || !manifest.has(k) || !modelAllowedHere(k)) return null;
   const spec = manifest.get(k)!;
-  const entry = models.get(k);
-  if (entry === 'loading' || entry === 'failed') return null;
+  let entry = models.get(k);
+  if (entry === 'loading') return null;
+  if (entry === 'failed') {
+    const failure = modelFailures.get(k);
+    if (!failure || failure.permanent) return null;
+    // A temporary 404/service-worker race or dropped mobile connection should
+    // not poison this Pokémon for the rest of the session. Polling callers retry
+    // with exponential backoff while callers keep the authored 2D sprite visible.
+    const retryAfter = Math.min(60_000, 4_000 * 2 ** Math.min(4, failure.attempts - 1));
+    if (Date.now() - failure.at < retryAfter) return null;
+    models.delete(k);
+    entry = undefined;
+  }
   if (entry) {
     modelUse.set(k, ++useClock);
     return cloneNormalized(entry);
   }
 
   models.set(k, 'loading');
-  const url = spec.url || `assets/models3d/${k}.glb`;
-  loader.load(
-    url,
-    (gltf) => {
+  const localUrl = assetUrl(`assets/models3d/${k}.glb`);
+  const accept = (gltf: GLTF): boolean => {
       try {
         // Normalization (height→1, feet at y=0, centered) is baked onto an inner
         // wrapper — NOT the root — because the root's position/rotation/scale are
@@ -163,6 +225,7 @@ export function getModel(key: string): LoadedModel | null {
         // scale and pivot (→ mis-sized and sunk into the ground).
         const inner = new THREE.Group();
         inner.add(gltf.scene);
+        applyProductionMaterials(gltf.scene);
         // Per-model orientation fix (manifest rotX/Y/Z degrees) — for models the
         // generator reconstructed lying down or facing the wrong way, applied
         // BEFORE normalize so the height/centering measure the upright pose.
@@ -173,24 +236,33 @@ export function getModel(key: string): LoadedModel | null {
             THREE.MathUtils.degToRad(spec.rot.z),
           );
         }
-        // Never replace the visible relief with an empty/corrupt GLB. Empty
+        // Never replace the visible presentation with an empty/corrupt GLB. Empty
         // scenes previously normalized to Infinity and made that Pokémon vanish.
         if (!normalize(inner, spec.scale ?? 1) || !isRenderableModel(inner)) {
-          models.set(k, 'failed');
-          return;
+          return false;
         }
         const root = new THREE.Group();
         root.add(inner);
         models.set(k, { group: root, animations: gltf.animations ?? [] });
+        modelFailures.delete(k);
         modelUse.set(k, ++useClock);
         trimModelCache(k);
+        return true;
       } catch (err) {
-        console.warn(`[engine3d] unusable creature model "${k}", retaining 2D relief:`, err);
-        models.set(k, 'failed');
+        console.warn(`[engine3d] unusable creature model "${k}", retaining original 2D sprite:`, err);
+        return false;
       }
+  };
+  loader.load(
+    localUrl,
+    (gltf) => {
+      if (!accept(gltf)) markModelFailure(k, true); // parsed, but structurally unusable
     },
     undefined,
-    () => { models.set(k, 'failed'); },
+    (error) => {
+      console.warn(`[engine3d] local creature model "${k}" failed to load; using original 2D sprite.`, error);
+      markModelFailure(k, false);         // a transient cache/service-worker miss may recover later
+    },
   );
   return null;
 }
@@ -279,7 +351,9 @@ function disposeModelGpu(root: THREE.Object3D): void {
     const mats = mesh.material ? (Array.isArray(mesh.material) ? mesh.material : [mesh.material]) : [];
     for (const mat of mats) {
       materials.add(mat);
-      for (const value of Object.values(mat)) if (value instanceof THREE.Texture) textures.add(value);
+      for (const value of Object.values(mat)) {
+        if (value instanceof THREE.Texture && !value.userData.pkSharedDetailTexture) textures.add(value);
+      }
     }
   });
   textures.forEach(t => t.dispose());

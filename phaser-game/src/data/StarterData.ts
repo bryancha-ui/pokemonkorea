@@ -1,5 +1,6 @@
 import { PokemonData } from '../battle/Pokemon';
 import { MoveData } from '../battle/Pokemon';
+import { OUTLAW_LEAFSTORM, SOUL_FERRY_DELUGE } from './SignatureMoves';
 
 export interface StarterDef {
   data: PokemonData;
@@ -122,12 +123,12 @@ export const EVOLVED_FORMS: StarterDef[] = [
     ability: 'Overgrow',
     flavorA: 'A masked forest bandit. Its acorn helm and leaf-blade tail are feared across the highlands.',
     flavorB: 'It moves between trees unseen, defending the wild from those who would harm it.',
-    startingMoves: [LEAF_BLADE, NIGHT_SLASH, WOOD_HAMMER, SWORDS_DANCE],
+    startingMoves: [LEAF_BLADE, NIGHT_SLASH, OUTLAW_LEAFSTORM, SWORDS_DANCE],
     data: {
       id: 912, name: 'Banderado',
       type1: 'grass', type2: 'dark',
       baseHp: 92, baseAtk: 110, baseDef: 95, baseSpAtk: 112, baseSpDef: 100, baseSpd: 98,
-      spriteUrl: 'assets/banderado.png',
+      spriteUrl: 'assets/remaster/banderado-hq.png',
     },
   },
   {
@@ -148,7 +149,7 @@ export const EVOLVED_FORMS: StarterDef[] = [
     ability: 'Torrent',
     flavorA: 'A crane magistrate of the spirit world. Its fanned tail judges the worthy from the damned.',
     flavorB: 'Under the gat hat its eyes see beyond the veil. Where it walks, the drowned find peace.',
-    startingMoves: [HYDRO_PUMP, SHADOW_BALL, SHADOW_SNEAK, MIST],
+    startingMoves: [HYDRO_PUMP, SHADOW_BALL, SOUL_FERRY_DELUGE, MIST],
     data: {
       id: 914, name: 'Onnujang',
       type1: 'water', type2: 'ghost',

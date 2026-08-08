@@ -20,6 +20,7 @@ export const SPRITE_SCALE: Record<string, number> = {
   // ── Tuned-down designs ──
   disguijar:    1.20,  // 
   vipour:       0.6,   // shrink the starter to 60%
+  bosongnun:    0.72,  // small snow spirit; keep both GLB and 2D fallback compact
   // ── Big final-stage designs ──
   snoqueen:     1.0,   // 60% smaller than the standard fit
   thanatoat:    1.3,
@@ -30,7 +31,7 @@ export const SPRITE_SCALE: Record<string, number> = {
   mperodactyl:  1.3,
   noeryong:     1.3,
   komodread:    1.25,
-  yeomtaeja:    1.5,
+  yeomtaeja:    0.78,  // mid-stage flame prince was oversized at 1.5×
   namsoon:      1.4,
   // ── Rival's evolved starters (ace in the later rival fights) — make him loom ──
   scorpent:     1.35,

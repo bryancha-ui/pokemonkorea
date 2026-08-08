@@ -295,6 +295,7 @@ export const KO_STRINGS: Record<string, string> = {
   'Moonblast': '문포스',
   'Mud Slap': '진흙뿌리기',
   'Night Slash': '밤의일격',
+  'Outlaw Leafstorm': '의적엽풍',
   'Outrage': '역린',
   'Peck': '쪼기',
   'Poison Sting': '독침',
@@ -303,6 +304,7 @@ export const KO_STRINGS: Record<string, string> = {
   'Psybeam': '사이코빔',
   'Psychic': '사이코키네시스',
   'Psyshock': '사이코쇼크',
+  'Royal Kiln Roar': '왕염화통',
   'Pursuit': '따라가때리기',
   'Quick Attack': '전광석화',
   'Razor Leaf': '잎날가르기',
@@ -316,6 +318,7 @@ export const KO_STRINGS: Record<string, string> = {
   'Shock Wave': '전기쇼크',
   'Silver Wind': '은빛바람',
   'Smokescreen': '연막',
+  'Soul-Ferry Deluge': '혼백도강',
   'Steel Wing': '강철날개',
   'Sucker Punch': '기습',
   'Supersonic': '초음파',
@@ -758,7 +761,7 @@ export const KO_STRINGS: Record<string, string> = {
   'Rival: Six of them and he still won\'t move? Fine by me. We hold this gate together!': '라이벌: 여섯이나 되는데도 안 비켜? 나야 좋지. 이 문은 같이 지키는 거다!',
   'Executive Mubaek: The gate holds while I stand. Come, then.': '간부 무백: 내가 서 있는 한 이 문은 지켜진다. 그럼, 와라.',
   'Prof. Song (comms): Now — while he\'s calm. This is your chance. End his suffering, or make him yours.': '송 박사 (통신): 지금 — 저 녀석이 잠잠할 때. 이게 네 기회야. 저 고통을 끝내주거나, 네 것으로 만들어.',
-  'Prof. Song: You have to SURVIVE. Hold out — keep your team alive — until the moment is right. Then release her.': '송 박사: 넌 반드시 살아남아야 해. 버텨 — 팀을 살려둬 — 때가 올 때까지. 그런 다음 그를 풀어놔.',
+  'Prof. Song: You have to SURVIVE. Hold out — keep your team alive — until the moment is right. Then release her.': '송 박사: 반드시 살아남아야 해. 팀을 지키며 버텨 — 때가 오면 나비할망을 내보내.',
   'You steel yourself and weather another wave of Hwanwoong\'s fury...': '너는 마음을 다잡고 환웅의 분노가 몰아치는 또 한 번의 파도를 견뎌낸다...',
   'You burst onto the summit. At the center of the ring of towers, the volcanic lake churns — and Hwanwoong rises, dragging the siphoned power of the captured trio in a thrashing red-and-purple corona around its body.': '너는 정상으로 뛰쳐나간다. 탑들이 이룬 고리 한가운데 화산 호수가 소용돌이치고 — 환웅이 솟아오르며, 붙잡힌 삼신의 빨아들인 힘을 붉고 보랏빛으로 요동치는 코로나처럼 제 몸 주위에 휘감고 있다.',
   'Together, you place the final seventh tablet into the central pedestal. The six towers don\'t shut down — they HARMONIZE.': '함께, 너희는 마지막 일곱 번째 석판을 중앙 받침대에 끼워 넣는다. 여섯 탑은 멈추지 않는다 — 조화를 이룬다.',
@@ -992,12 +995,12 @@ export const KO_STRINGS: Record<string, string> = {
   '↑ Vent Trail (the climb)': '↑ 분화구 등반로 (오르막)',
   '↓ Ferry → back to Haean City': '↓ 여객선 → 해안시로 돌아가기',
   'Dock Worker: Nobody climbs that fast without a reason. The summit\'s no place for tourists — mind the lava.': '부두 인부: 이유 없이 그렇게 빨리 오르는 사람은 없지. 정상은 관광객이 갈 곳이 아니야 — 용암을 조심해.',
-  'Commander Ryeo: No. They don\'t. (She turns and walks down the mountain, alone.)': '려 사령관: 그래. 안 오르지. (그는 돌아서서 홀로 산을 내려간다.)',
+  'Commander Ryeo: No. They don\'t. (She turns and walks down the mountain, alone.)': '려 사령관: 그래. 더는 닿지 않지. (그녀는 돌아서서 홀로 산을 내려간다.)',
   '⛰ Summit — the Vents': '⛰ 정상 — 분화구',
   'Commander Ryeo: Hold it. HOLD IT.': '려 사령관: 멈춰. 멈추라고.',
-  'Commander Ryeo: ...Impossible. She was never going to be a battery. She\'s not a tool. We were wrong about what she was. (She orders a retreat.)': '려 사령관: ...말도 안 돼. 그는 애초에 동력원이 될 존재가 아니었어. 도구가 아니야. 우린 그가 무엇인지 잘못 알고 있었어. (그는 후퇴를 명령한다.)',
-  'Prof. Song (comms): She\'s frightened, and testing you. The old texts say she binds only to a guardian she deems worthy of protecting the south.': '송 박사 (통신): 그는 겁먹은 채 너를 시험하고 있어. 옛 문헌에 따르면 그는 남쪽을 지킬 자격이 있다고 여기는 수호자에게만 마음을 맡긴대.',
-  'Prof. Song: Your Master Ball — this is the moment Dosik meant. Weaken her first, then throw it.': '송 박사: 네 마스터볼 — 이게 바로 도식이 말한 그 순간이야. 먼저 그를 약하게 만든 다음, 던져.',
+  'Commander Ryeo: ...Impossible. She was never going to be a battery. She\'s not a tool. We were wrong about what she was. (She orders a retreat.)': '려 사령관: ...말도 안 돼. 나비할망은 애초에 동력원이 될 존재가 아니었어. 도구가 아니야. 우리가 그분을 잘못 이해했어. (려가 후퇴를 명령한다.)',
+  'Prof. Song (comms): She\'s frightened, and testing you. The old texts say she binds only to a guardian she deems worthy of protecting the south.': '송 박사 (통신): 나비할망은 겁먹은 채 너를 시험하고 있어. 옛 문헌에 따르면 남쪽을 지킬 자격이 있다고 여긴 수호자에게만 마음을 맡기신대.',
+  'Prof. Song: Your Master Ball — this is the moment Dosik meant. Weaken her first, then throw it.': '송 박사: 네 마스터볼 — 이게 바로 도식이 말한 순간이야. 먼저 나비할망의 힘을 빼고 던져.',
   '🌋 Jeju Vents Portal': '🌋 제주 분화구 관문',
   'WASD: move  SHIFT: run  M: menu': 'WASD: 이동  SHIFT: 달리기  M: 메뉴',
   'My deer graze this whole plateau, from lake to larch. They fear neither cold nor stranger — let\'s see if you do!': '내 사슴들은 이 고원 전체를, 호수에서 낙엽송까지 누비며 풀을 뜯지. 추위도 낯선 이도 두려워하지 않아 — 너는 어떤지 보자!',
@@ -1164,7 +1167,7 @@ export const KO_STRINGS: Record<string, string> = {
   'Commander Ryeo: Still in my way? So be it.': '려 사령관: 아직도 내 앞을 막나? 그렇다면 어쩔 수 없지.',
   'Been castin\' this stretch forty years. Reel one in with me — winner keeps their pride!': '이 물길에서 사십 년째 낚싯대를 던졌어. 나랑 한 마리 낚아봐 — 이긴 쪽이 자존심을 지키는 거야!',
   'Commander Ryeo: You again. Then you should hear it plainly.': '려 사령관: 또 너로군. 그럼 분명하게 들어둬.',
-  'Commander Ryeo: When the Spirit of Cheonji wakes, its first-moment energy output will be immeasurable. We intend to collect that energy.': '려 사령관: 천지의 정령이 깨어날 때, 그 첫 순간의 에너지 방출은 헤아릴 수 없을 정도지. 우린 그 에너지를 거둘 작정이다.',
+  'Commander Ryeo: When the Spirit of Cheonji wakes, its first-moment energy output will be immeasurable. We intend to collect that energy.': '려 사령관: 화산의 정령이 깨어날 때, 그 첫 순간의 에너지 방출은 헤아릴 수 없을 정도지. 우린 그 에너지를 거둘 작정이다.',
   'Rival: Collect it for WHAT? What do you mean, useful?': '라이벌: 그걸 뭐에 쓰려고? 유용하다니, 무슨 소리야?',
   'Commander Ryeo: The south has prospered for decades while the north has suffered. The imbalance ends.': '려 사령관: 남쪽은 수십 년간 번영했지만 북쪽은 고통받았다. 그 불균형을 끝낸다.',
   'Commander Ryeo: The Spirit\'s awakening energy — properly weaponized — will correct it.': '려 사령관: 정령의 각성 에너지를 — 제대로 무기화하면 — 그걸 바로잡을 것이다.',
@@ -1175,9 +1178,9 @@ export const KO_STRINGS: Record<string, string> = {
   'Admin Chaeyeon: But before you interfere again — show me you\'ve grown.': '간부 채연: 하지만 또 끼어들기 전에 — 네가 성장했다는 걸 보여줘.',
   'Admin Chaeyeon: Still in our way. Fine — again, then.': '간부 채연: 아직도 우리 앞을 막네. 좋아 — 그럼 또 한 번.',
   'Commander Ryeo stands at the shrine gate, silhouetted against the rising sun.': '려 사령관이 떠오르는 해를 등지고, 사당 문 앞에 실루엣으로 서 있다.',
-  'Commander Ryeo: You freed the Grandmother. You\'ve cost us our backup plan.': '려 사령관: 네가 할망을 풀어줬군. 우리 예비책을 날려버렸어.',
-  'Commander Ryeo: But Cheonji remains. I\'ll see you at the top — and I cannot guarantee your safety.': '려 사령관: 하지만 천지는 그대로다. 정상에서 보지 — 그리고 네 안전은 보장 못 한다.',
-  '(She walks on toward the Sunrise Cliffs without another word.)': '(그는 더 말없이 해돋이 절벽 쪽으로 걸어간다.)',
+  'Commander Ryeo: It will be us who will be selected by the Grandmother .': '려 사령관: 결국 할망에게 선택받는 것은 우리다',
+  'Commander Ryeo: But the Jeju vent remains. I\'ll see you at the top — and I cannot guarantee your safety.': '려 사령관: 하지만 천지는 그대로다. 정상에서 보지 — 그리고 네 안전은 보장 못 한다.',
+  '(She walks on toward the Sunrise Cliffs without another word.)': '(그녀는 더 말없이 해돋이 절벽 쪽으로 걸어간다.)',
   '← walk in the grass to find them': '← 풀숲을 걸으며 찾아봐',
   '🗺 Route 1 — Mountain Pass': '🗺 1번 도로 — 산길 고개',
   'WASD/Arrows: move  |  SHIFT: run  |  M: menu': 'WASD/화살표: 이동  |  SHIFT: 달리기  |  M: 메뉴',
@@ -1255,7 +1258,7 @@ export const KO_STRINGS: Record<string, string> = {
   'Prof. Song\'s Pokémon Lab': '송 박사의 포켓몬 연구소',
   'You take the express boat back to Sudo City and hurry to Professor Song\'s lab.': '너는 쾌속선을 타고 수도시로 돌아와 송 박사의 연구소로 서둘러 간다.',
   '(She unrolls a faded scroll painting of a vast, moth-like Pokémon.)': '(그녀가 거대한 나방 같은 포켓몬이 그려진 빛바랜 두루마리 그림을 펼친다.)',
-  'Prof. Song: If they can\'t harvest Cheonji directly, they\'ll use HER as a living battery instead.': '송 박사: 천지를 직접 거둘 수 없다면, 그들은 대신 그녀를 살아 있는 배터리로 쓸 거야.',
+  'Prof. Song: If they can\'t harvest Cheonji directly, they\'ll use HER as a living battery instead.': '송 박사: 천지의 각성 에너지를 직접 거둘 수 없다면, 그들은 대신 나비할망을 살아 있는 동력원으로 쓰려 할 거야.',
   'Rival: Then we protect her too. ...But first —': '라이벌: 그럼 그녀도 우리가 지키자. ...하지만 먼저 —',
   'Rival: Before we split up to cover ground, one more battle. I told you my starter would evolve.': '라이벌: 흩어져서 넓게 살피기 전에, 한 판 더. 내 스타팅 포켓몬이 진화할 거라고 했잖아.',
   '🌟  POKÉMON  KOREA  🌟': '🌟  포켓몬  코리아  🌟',
@@ -1468,7 +1471,7 @@ export const KO_STRINGS: Record<string, string> = {
   'Explore the city, visit the Capitol Tower,\nand challenge the Capitol Gym!':
     '도시를 둘러보고, 수도 타워를 방문하고,\n수도 체육관에 도전하세요!',
   'The Gym Leader Jin awaits at the northern gym.\nPrepare well — her shadow Pokémon are powerful.':
-    '관장 진이 북쪽 체육관에서 기다리고 있어요.\n잘 준비하세요 — 그의 섀도우 포켓몬은 강력합니다.',
+    '관장 진이 북쪽 체육관에서 기다리고 있어요.\n잘 준비하세요 — 그녀의 섀도우 포켓몬은 강력합니다.',
 
   // ── Baekdu Gym (Summit Dojo) ──
   'Open-walled training hall built into the mountainside, overlooking the highland lake.':
@@ -1926,7 +1929,7 @@ export const KO_STRINGS: Record<string, string> = {
     '라이벌: 누가 태왕을 이길 줄은 몰랐어. 근데 너잖아 — 그러니 당연한 거지.',
   "📟 Then, mid-celebration, your Pokédex screams an alarm. Prof. Song's face drains of colour.":
     '📟 그때, 축제 한가운데서 도감이 경보를 울린다. 송 박사의 얼굴이 새하얗게 질린다.',
-  "Prof. Song: It's 노스단. They're moving on the Onseong Mountains — RIGHT NOW — racing to reach 환웅 (Hwanwoong), the Sovereign Who Descended, before anyone can stop them.":
+  "Prof. Song: It's 노스단. They're moving on the Onseong Mountains — RIGHT NOW — racing to reach 환웅 (Hwanung), the Sovereign Who Descended, before anyone can stop them.":
     '송 박사: 노스단이야. 놈들이 지금 — 바로 지금 — 온성 산맥으로 움직이고 있어. 아무도 막기 전에 강림한 군주 환웅에게 닿으려 하고 있어.',
   "Prof. Song: They've sealed the whole range behind their lines. But there is another way in — the 고대 제단 (Ancient Altar) opens a hidden stair straight to the Sacred Peak.":
     '송 박사: 놈들이 산맥 전체를 봉쇄했어. 하지만 다른 길이 있지 — 고대 제단이 성스러운 봉우리로 곧장 이어지는 숨겨진 계단을 연단다.',
@@ -1939,7 +1942,7 @@ export const KO_STRINGS: Record<string, string> = {
     '노스단이 온성 산맥의 모든 길목을 봉쇄했다 — 하지만 이곳만은 몰랐다.',
   'You lay your hand on the 고대 제단 (Ancient Altar). The stone hums with divine energy, and it responds to your presence.':
     '고대 제단에 손을 얹는다. 돌이 신성한 기운으로 진동하며, 너의 존재에 응답한다.',
-  'The hidden stair opens — a shortcut straight past the blockade to the Sacred Peak, where 환웅 (Hwanwoong) awaits...':
+  'The hidden stair opens — a shortcut straight past the blockade to the Sacred Peak, where 환웅 (Hwanung) awaits...':
     '숨겨진 계단이 열린다 — 봉쇄를 곧장 지나 성스러운 봉우리로 이어지는 지름길, 그곳엔 환웅이 기다린다...',
   // Finale party + rival one-on-one
   'You beat 노스단 to the summit, defeated Sovereign Clemont, and 환웅 itself descended to your side. The threat is over.':
@@ -1991,7 +1994,7 @@ export const KO_STRINGS: Record<string, string> = {
   "Thank you for coming so fast. I finally understand what we're facing.":
     '이렇게 빨리 와줘서 고마워. 드디어 우리가 뭘 마주하고 있는지 알아냈어.',
   'Team Suri wants to wake the Spirit of Cheonji and control it — to heal the region. Misguided, dangerous.':
-    '수리단은 천지의 정령을 깨워 통제하려 해 — 지방을 치유하려고. 그릇되고 위험한 생각이지.',
+    '수리단은 화산의 정령을 깨워 통제하려 해 — 지방을 치유하려고. 그릇되고 위험한 생각이지.',
   "But 노스단 doesn't care about the Spirit. They want to be PRESENT when it wakes —":
     '하지만 노스단은 정령엔 관심 없어. 그들은 정령이 깨어날 때 그 자리에 있으려 해 —',
   '— to harvest the catastrophic awakening energy and weaponize it against the south.':
@@ -2287,7 +2290,7 @@ export const KO_STRINGS: Record<string, string> = {
   'No way! I just polished my sneakers…': '말도 안 돼! 방금 운동화도 닦았는데…',
   "...You're stronger than the locals. The Director will hear of this.": '...현지인들보다 세군. 국장님께 보고하겠어.',
   "...The Spirit of Cheonji will be awakened. The only question is who controls what happens next — and it will NOT be Team Suri.":
-    '...천지의 정령은 깨어날 거야. 문제는 그다음을 누가 통제하느냐지 — 그건 수리단이 아니야.',
+    '...화산의 정령은 깨어날 거야. 문제는 그다음을 누가 통제하느냐지 — 그건 수리단이 아니야.',
   "...This changes nothing. The array will be ready when the Spirit wakes. (She withdraws south.)":
     '...이걸로 달라지는 건 없어. 정령이 깨어날 때 장치는 준비돼 있을 거야. (그녀는 남쪽으로 물러난다.)',
   "...Okay. Not luck. You're the real thing. My starter's almost ready for its final form. Next time, you won't recognize it.":
@@ -2363,7 +2366,7 @@ export const KO_STRINGS: Record<string, string> = {
     '사령관 려: 억제장을 조여! 저 나방의 날개는 천지 에너지를 중화할 수 있어 — 저것을 확보하면 호수 없이도 무기가 완성된다!',
   '노스단 Operative: Commander, her output is climbing—': '노스단 대원: 사령관님, 저것의 출력이 치솟고 있습니다—',
   'Commander Ryeo staggers backward, her Pokémon recalled. She looks at the towering moth beside you — at the glow of her wings — and something breaks in her expression.':
-    '사령관 려가 비틀거리며 물러서고, 포켓몬을 회수한다. 네 곁에 우뚝 선 나방을 바라본다 — 그 날개의 빛을 — 그러자 그의 표정에서 무언가가 무너진다.',
+    '사령관 려가 비틀거리며 물러서고, 포켓몬을 회수한다. 네 곁에 우뚝 선 나비할망과 빛나는 날개를 바라보자, 려의 표정에서 무언가가 무너진다.',
   'Prof. Song: Reach the Onnuri League, prove yourself champion. Then the world opens up. The north has lessons too.':
     '송 박사: 온누리 리그에 도달해, 챔피언임을 증명해. 그러면 세계가 열릴 거야. 북쪽에도 배울 것들이 있단다.',
 
@@ -2430,7 +2433,7 @@ export const KO_STRINGS: Record<string, string> = {
   'Prof. Song (over the Pokédex, quietly): Champion. I let you have your night — you deserved a hundred of them. But those reports I mentioned...':
     '송 박사 (도감 너머로, 조용히): 챔피언. 너에게 그 밤을 누리게 했어 — 백 번은 누릴 자격이 있었으니까. 하지만 내가 말했던 그 보고들 말이야...',
   'Prof. Song: Something is stirring in the sealed northern reaches. 노스단 is moving again — and this time they reach for something far older than the Spirit of Cheonji.':
-    '송 박사: 봉인된 북방 관문에서 무언가 꿈틀대고 있어. 노스단이 다시 움직이고 있어 — 이번엔 천지의 정령보다 훨씬 오래된 무언가를 노리고 있어.',
+    '송 박사: 봉인된 북방 관문에서 무언가 꿈틀대고 있어. 노스단이 다시 움직이고 있어 — 이번엔 화산의 정령보다 훨씬 오래된 무언가를 노리고 있어.',
   "Prof. Song: Rest today. Tomorrow, the last road begins. I'll call again when it's time.  (To be continued…)":
     '송 박사: 오늘은 쉬어. 내일, 마지막 길이 시작돼. 때가 되면 다시 연락할게.  (다음에 계속…)',
   "Prof. Song (over the Pokédex, grim): 노스단. Again — but bigger. With Commander Ryeo imprisoned, someone new has taken the banner, and they've abandoned the old plan entirely.":
@@ -2801,7 +2804,7 @@ export const KO_STRINGS: Record<string, string> = {
   "(You cross into the great dolmen field. 노스단 machinery whines against a sealed capstone deep to the west — and Leader Sandol stands square in its way.)": "(너는 거대한 고인돌 벌판으로 들어선다. 서쪽 깊은 곳에서 노스단의 기계가 봉인된 덮개돌에 대고 윙윙거리고 — 그 앞을 두목 산돌이 정면으로 가로막고 서 있다.)",
   "노스단 Digger: This slab's been sealed a few thousand years. Whatever's under it, the Director wants it.": "노스단 발굴꾼: 이 석판은 수천 년 봉인돼 있었지. 그 아래 뭐가 있든, 국장님이 원하셔.",
   "노스단 Digger: The old stonecutter won't let us work. Move him — and you — aside.": "노스단 발굴꾼: 저 늙은 석공이 작업을 못 하게 막네. 저 영감도 — 너도 — 비켜.",
-  "나비할망 — the moth grandmother you bonded with at the Jeju vents — sweeps back to your side, her dancheong wings folding gently. She was returned to your team (or your PC box, if your party was full).": "나비할망 — 제주 분화구에서 유대를 맺은 그 나방 할망 — 이 단청 날개를 곱게 접으며 네 곁으로 돌아온다. 그녀는 네 팀으로 (파티가 꽉 찼다면 PC 박스로) 돌아왔다.",
+  "나비할망 — the moth grandmother you bonded with at the Jeju vents — sweeps back to your side, her dancheong wings folding gently. She was returned to your team (or your PC box, if your party was full).": "제주 분화구에서 유대를 맺은 나비할망이 단청 날개를 곱게 접으며 네 곁으로 돌아온다. 파티가 가득 찼다면 PC 박스로 이동했다.",
   "Prof. Song: The Ancient Keeper Badge — your fifth. Well done. But drop everything and come back to 소올 (So-ol).": "송 박사: 고대 수호자 배지 — 다섯 번째로군. 잘했어. 하지만 모든 걸 멈추고 소올로 돌아와 줘.",
   "Prof. Song: I've pieced together what Team Suri and 노스단 are really after. You need to hear this in person.": "송 박사: 수리단과 노스단이 진짜로 노리는 게 뭔지 짜맞췄어. 이건 직접 만나서 들어야 해.",
   "Prof. Song: Heal your team at the Pokémon Center first, then come to my lab — you'll want to be at full strength.": "송 박사: 먼저 포켓몬 센터에서 팀을 회복하고, 그다음 연구소로 와 — 만전을 기하는 게 좋을 거야.",
@@ -2919,7 +2922,87 @@ export const KO_STRINGS: Record<string, string> = {
   "Steward: Stairs at the end take you back up to the open deck. Mind the swell.": "승무원: 끝에 있는 계단으로 올라가면 갑판으로 돌아가요. 너울 조심하세요.",
   "Traveler: First crossing to Jeju? The vents glow at night — you can see them from the rail.": "여행자: 제주로 가는 첫 항해예요? 분화구는 밤에 빛나요 — 난간에서도 보인답니다.",
   "Deckhand: Storm cracked a crate loose last run. Watch your step around the lashings.": "갑판원: 지난번 항해 때 폭풍에 화물 상자 하나가 풀렸어요. 결박줄 근처에선 발밑 조심하세요.",
-  "The path to the Sacred Peak opens before you, where 환웅 (Hwanwoong) awaits...": "신성한 봉우리로 향하는 길이 네 앞에 열린다. 그곳엔 환웅이 기다리고 있다...",
+  "The path to the Sacred Peak opens before you, where 환웅 (Hwanung) awaits...": "신성한 봉우리로 향하는 길이 네 앞에 열린다. 그곳엔 환웅이 기다리고 있다...",
   "With a grinding of rock, the base splits, revealing a hidden stair winding down toward 천지 (Cheonji), the sacred crater lake...": "바위가 갈리는 소리와 함께 받침이 갈라지며, 신성한 화구호 천지로 굽이쳐 내려가는 숨겨진 계단이 드러난다...",
+
+  // ── Full dialogue audit (2026-08-08) ──
+  "노스단 Admin: Commander Ryeo's last order still stands. The trio's power will wake the Spirit of Cheonji — and the south will kneel.": "노스단 간부: 려 사령관의 마지막 명령은 아직 유효하다. 삼신의 힘으로 천지신을 깨우면 남부는 무릎 꿇을 것이다.",
+  "Director Suri: If that machine runs to completion, it won't just wake the Spirit of Cheonji. It will trigger an eruption that takes the entire northern range with it.": "수리 국장: 저 장치가 완성되면 천지신만 깨우는 게 아니야. 북부 산맥 전체를 집어삼킬 분화가 일어나.",
+  "The Spirit of Cheonji, its borrowed agony lifted, slowly stills. Its corona fades from violent red to a calm, deep blue.": "억지로 떠안은 고통에서 풀려난 천지신이 서서히 진정한다. 사납게 붉던 광륜은 고요한 짙은 파랑으로 잦아든다.",
+  "Prof. Song (comms): Now — while it's calm. This is your chance. End its suffering, or make it yours.": "송 박사 (통신): 지금이야 — 천지신이 진정해 있을 때. 고통을 끝내 주거나, 네 동료로 만들어.",
+  "You steel yourself and weather another wave of the Spirit's fury...": "마음을 다잡고 천지신의 분노가 몰아치는 또 한 번의 파도를 견뎌낸다...",
+  "The Spirit of Cheonji rises, dragging the siphoned power of the captured trio in a thrashing red-and-purple corona around its body.": "천지신이 솟아오른다. 붙잡힌 삼신에게서 빼앗은 힘이 붉고 보랏빛인 격렬한 광륜으로 그 몸을 휘감는다.",
+  "It is not attacking out of malice. It is in agony — the matrix is wrenching at its waking mind, and the trio's chained energy feeds the overload.": "천지신은 악의로 공격하는 것이 아니다. 장치가 깨어나는 정신을 비틀고, 속박된 삼신의 힘이 폭주를 키워 고통받고 있다.",
+  "Prof. Song (comms): Listen to me — you can't DEFEAT it! That energy isn't its own; it's 풍백, 우사, and 운사's power forced through it! Every hit you land just feeds the matrix more!": "송 박사 (통신): 잘 들어 — 천지신을 쓰러뜨려선 안 돼! 저건 천지신의 힘이 아니라 풍백, 우사, 운사의 힘을 억지로 흘려보내는 거야! 공격할수록 장치만 더 강해져!",
+  "You burst onto the summit. At the center of the ring of towers, the volcanic lake churns as the matrix tears open the sky.": "정상으로 뛰어오른다. 탑들이 둘러싼 중심에서 장치가 하늘을 찢고, 화구호가 거세게 소용돌이친다.",
+  "Spirit of Cheonji — 천지신": "천지신",
+  "The Spirit of Cheonji is yours — its corona gone, the lake mirror-still beneath a clearing sky.": "천지신이 네 동료가 되었다. 광륜은 사라지고, 맑아지는 하늘 아래 호수는 거울처럼 잔잔하다.",
+  "Prof. Song: You've done something no one has in a thousand years. The south has its guardian in 나비할망, and the Spirit of Cheonji has restored balance to the northern range. You carry the trust of both now.": "송 박사: 넌 천 년 동안 아무도 못 한 일을 해냈어. 남부에는 나비할망이라는 수호자가 있고, 천지신은 북부 산맥의 균형을 되찾았지. 이제 두 존재 모두가 널 믿고 있어.",
+
+  "Commander Ryeo studies a weathered statue of the Grandmother at the shrine gate, silhouetted against the rising sun.": "려 사령관이 떠오르는 해를 등진 채 사당 문 앞의 낡은 나비할망 석상을 살핀다.",
+  "Commander Ryeo: So Dolmoe still remembers her. They say the Grandmother's wings can contain even a god's awakening.": "려 사령관: 돌뫼는 아직도 할망을 기억하는군. 그 날개는 신이 깨어날 때의 힘조차 품을 수 있다고 하지.",
+  "Commander Ryeo: If she still lives, 노스단 will find her first. I'm heading north — stay out of our path.": "려 사령관: 그분이 아직 살아 있다면 노스단이 먼저 찾아낼 것이다. 난 북쪽으로 간다 — 우리 길을 막지 마라.",
+
+  "Box is empty.": "박스가 비어 있다.",
+  "Moved to box.": "박스로 보냈다.",
+  "You must keep at least one Pokémon!": "파티에는 포켓몬을 최소 한 마리 남겨야 한다!",
+  "Moved to party.": "파티로 옮겼다.",
+  "Your party is full (6).": "파티가 가득 찼다 (6마리).",
+  "What? The Egg is beginning to move!": "어라? 알이 움직이기 시작했다!",
+  "Cracks are spreading across the Egg...": "알에 금이 퍼지고 있다...",
+  "Tap the screen or press A to continue": "화면을 누르거나 A 버튼으로 계속",
+  "It joined your party!": "파티에 들어왔다!",
+  "It was sent to the PC Box.": "PC 박스로 전송되었다.",
+  "SPACE — Unlock the door with the 보석함 key": "SPACE — 보석함 열쇠로 문 열기",
+  "SPACE — Force the séance-hall door": "SPACE — 강령회장 문을 억지로 열기",
+  "The 보석함 key grinds in the ancient lock. With a groan, the séance-hall door swings inward.": "보석함 열쇠가 낡은 자물쇠 안에서 거칠게 돌아간다. 신음 같은 소리와 함께 강령회장 문이 안쪽으로 열린다.",
+  "You throw your shoulder against the ancient door. The rotten lock finally gives with a crack.": "낡은 문에 어깨를 들이받자 썩은 자물쇠가 마침내 부서진다.",
+  "Minho: Roots run deeper than you think. Mind your footing.": "민호: 뿌리는 네 생각보다 깊어. 발밑을 조심해.",
+  "The spirit's grief eases. It sets the 목탁 gently upon the altar and fades into the roots, at peace.": "정령의 슬픔이 누그러진다. 목탁을 제단에 살며시 내려놓고, 평온한 모습으로 뿌리 속에 스며든다.",
+  "Who are you?": "너는 누구니?",
+  "Choose your character. Your rival will be the opposite.": "플레이할 캐릭터를 고르자. 라이벌은 반대 성별이 된다.",
+  "Rival: a girl": "라이벌: 여자아이",
+  "Rival: a boy": "라이벌: 남자아이",
+  "← →  choose      SPACE / click  confirm": "← →  선택      SPACE / 클릭  확정",
+  "All your Pokémon fainted!": "모든 포켓몬이 쓰러졌다!",
+  "Byungchan: Cold currents, poison spines — the deep is not kind. Show me you can swim in it.": "병찬: 차가운 해류와 독가시 — 심해는 자비롭지 않아. 그 안을 헤쳐 나갈 수 있는지 보여 줘.",
+  "Tap a Pokémon for details · SET LEAD changes your first battler": "포켓몬을 눌러 상세 보기 · 선두 변경으로 첫 출전 포켓몬 교체",
+  "Tap a Pokémon for details. Use SET LEAD to change your first battler.": "포켓몬을 눌러 상세 정보를 확인하세요. 선두 변경으로 첫 출전 포켓몬을 바꿀 수 있습니다.",
+  "Walk together to hatch it": "함께 걸으면 부화한다",
+  "Unknown location": "알 수 없는 장소",
+  "어사대 Inspector (barring the trail): A test, not a fight. Answer plainly.": "어사대 심사관 (길을 막으며): 싸움이 아니라 시험이다. 솔직하게 답하라.",
+  "어사대 Inspector: 나비할망 — the moth grandmother who protects Jeju — is a Fire-type Pokémon. True or false?": "어사대 심사관: 제주를 지키는 나비할망은 불꽃타입 포켓몬이다. 참인가, 거짓인가?",
+  "어사대 Inspector: One more, before the woods end.": "어사대 심사관: 숲이 끝나기 전에 하나 더 묻겠다.",
+  "어사대 Inspector: 풍백, 우사 and 운사 are the three attendants of Hwanung — the Wind, the Rain and the Clouds. True or false?": "어사대 심사관: 풍백, 우사, 운사는 환웅을 모시는 바람·비·구름의 삼신이다. 참인가, 거짓인가?",
+  "No Pokémon are available.": "맡길 수 있는 포켓몬이 없다.",
+  "Two compatible Pokémon can produce an Egg as you walk.": "궁합이 맞는 포켓몬 두 마리를 맡기고 걸으면 알이 생길 수 있다.",
+  "An Egg was found!": "알을 발견했다!",
+  "You are already carrying another Egg.": "이미 다른 알을 가지고 있다.",
+  "Your party is full. Make at least one empty slot first.": "파티가 가득 찼다. 먼저 빈자리를 하나 이상 만들어야 한다.",
+  "The Egg will occupy one party slot until it hatches.": "알은 부화할 때까지 파티 한 칸을 차지한다.",
+  "Egg in incubation": "부화 중인 알",
+  "No Egg has been found yet.": "아직 발견된 알이 없다.",
+  "Leave a compatible pair and explore the world.": "궁합이 맞는 두 마리를 맡기고 모험을 계속하자.",
+  "Oh! We found an Egg while caring for them.": "오! 포켓몬을 돌보던 중 알을 발견했단다.",
+  "Keep walking with that Egg and it will hatch.": "그 알과 함께 계속 걸으면 부화할 거야.",
+  "Leave two compatible Pokémon with us and they may produce an Egg.": "궁합이 맞는 포켓몬 두 마리를 맡기면 알이 생길 수도 있단다.",
+  "← → page   ·   click an entry for details   ·   ESC to close": "← → 페이지   ·   항목을 클릭해 상세 보기   ·   ESC로 닫기",
+  "[ ESC / click to go back ]": "[ ESC / 클릭으로 돌아가기 ]",
+  "Hall of the High Wind": "높은바람의 전당",
+  "(Backstage support restores your team to full health before the headline match.)": "(결승전에 앞서 무대 뒤 지원팀이 파티를 완전히 회복해 준다.)",
+  "Royal Warden: ...Seven 마패. The regional inspectorate is satisfied, Champion.": "왕실 관리인: ...마패 일곱 개. 각 지방 어사대가 그대를 인정했군, 챔피언.",
+  "Royal Warden: Halt. None pass into Gwanmunseong without the inspectorate's 마패.": "왕실 관리인: 멈춰라. 어사대의 마패 없이는 누구도 관문성에 들어갈 수 없다.",
+  "▲ 동굴 입구 (cave mouth)": "▲ 동굴 입구",
+  "❄ 능선 (windswept ridge)": "❄ 바람 부는 능선",
+  "돌탑 (summit cairn)": "정상 돌탑",
+  "→ Up to Deck": "→ 갑판으로 올라가기",
+  "Click BUY ×1 or BUY ×5   ·   ESC to exit": "구매 ×1 또는 구매 ×5 클릭   ·   ESC로 나가기",
+  "SPACE: talk to": "SPACE: 대화",
+  "Daehwi: The panels only turn for the quick. Keep up!": "대휘: 발 빠른 자만 패널을 돌릴 수 있지. 따라와 봐!",
+  "The next Pokémon is entering the battle…": "다음 포켓몬이 배틀에 나옵니다…",
+  "Admin Chaeyeon: 노스단 isn't here for healing. They've followed our digs for months, waiting. I've filed reports — the Director calls them a myth. She's wrong. And I don't know what to do with that.": "간부 채연: 노스단은 치유를 위해 온 게 아니야. 몇 달 동안 우리 발굴을 뒤쫓으며 기다렸어. 보고서를 올렸지만 국장님은 전설일 뿐이라고 했지. 국장님이 틀렸어. 나도 이제 어떻게 해야 할지 모르겠어.",
+  "your partner": "너의 파트너",
+  "▶ Chapter 11 complete — the Cheonji crisis is over. ✓": "▶ 제11장 완료 — 천지의 위기는 끝났다. ✓",
+  "The Onnuri League now awaits beyond Scholars' Road.": "이제 선비로 너머에서 온누리 리그가 기다린다.",
 
 };

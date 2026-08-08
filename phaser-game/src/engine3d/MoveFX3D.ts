@@ -59,7 +59,11 @@ export class MoveFX3D {
     const name = moveName.toLowerCase();
     const strong = Math.max(0.75, Math.min(1.45, 0.72 + power / 145));
 
-    if (type === 'electric' || /thunder|shock|volt/.test(name)) {
+    if (name === 'soul-ferry deluge') {
+      this.soulFerryDeluge(from, to, color, strong, eff, onImpact);
+    } else if (name === 'royal kiln roar') {
+      this.royalKilnRoar(from, to, color, strong, eff, onImpact);
+    } else if (type === 'electric' || /thunder|shock|volt/.test(name)) {
       this.electricArc(from, to, color, strong, eff, onImpact);
     } else if (name === 'surf' || /deluge|tidal|wave/.test(name)) {
       this.waterWave(from, to, color, strong, eff, onImpact);
@@ -123,7 +127,9 @@ export class MoveFX3D {
   physicalImpact(at: THREE.Vector3, moveType: string, moveName: string, color: number, power: number, eff: number): void {
     const type = moveType.toLowerCase(), name = moveName.toLowerCase();
     const scale = Math.max(0.75, Math.min(1.55, 0.75 + power / 130));
-    if (/slash|claw|blade|wing|cut|edge/.test(name) || type === 'flying') {
+    if (name === 'outlaw leafstorm') {
+      this.outlawLeafstorm(at, color, scale);
+    } else if (/slash|claw|blade|wing|cut|edge/.test(name) || type === 'flying') {
       this.slashImpact(at, color, scale);
     } else if (/bite|fang|crunch/.test(name)) {
       this.biteImpact(at, color, scale);
@@ -135,6 +141,185 @@ export class MoveFX3D {
       this.slashImpact(at, 0xe7f1f7, scale * 1.05);
     }
     this.burst(at, color, eff, scale);
+  }
+
+  /** 두루광 전용기: a spectral river, ferry rings and soul flames converge. */
+  private soulFerryDeluge(
+    from: THREE.Vector3, to: THREE.Vector3, color: number,
+    scale: number, eff: number, onImpact?: () => void,
+  ): void {
+    const group = new THREE.Group();
+    const dir = to.clone().sub(from);
+    const side = new THREE.Vector3(-dir.z, 0, dir.x).normalize();
+    const ribbons: THREE.Mesh[] = [];
+    for (let lane = -2; lane <= 2; lane++) {
+      const points: THREE.Vector3[] = [];
+      for (let i = 0; i <= 12; i++) {
+        const k = i / 12;
+        const p = from.clone().lerp(to, k);
+        p.addScaledVector(side, lane * 0.17 * scale + Math.sin(k * Math.PI * 3 + lane) * 0.12 * scale);
+        p.y = Math.max(0.07, p.y * (1 - k) + 0.08 + Math.sin(k * Math.PI) * 0.42 * scale);
+        points.push(p);
+      }
+      const ribbon = new THREE.Mesh(
+        new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 64, (0.07 + Math.abs(lane) * 0.012) * scale, 10, false),
+        glowMaterial(lane % 2 ? 0x82e8ff : mixWhite(color, 0.25), 0),
+      );
+      group.add(ribbon); ribbons.push(ribbon);
+    }
+    const ferryRings: THREE.Mesh[] = [];
+    for (let i = 0; i < 4; i++) {
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry((0.36 + i * 0.14) * scale, 0.035 * scale, 8, 42),
+        glowMaterial(i % 2 ? 0xc9f7ff : 0x9f83ff, 0),
+      );
+      ring.position.copy(to).add(new THREE.Vector3(0, 0.24 + i * 0.18, 0));
+      ring.rotation.x = Math.PI / 2;
+      group.add(ring); ferryRings.push(ring);
+    }
+    const souls: { mesh: THREE.Mesh; phase: number; lane: number }[] = [];
+    for (let i = 0; i < 18; i++) {
+      const soul = new THREE.Mesh(
+        i % 3 === 0 ? new THREE.OctahedronGeometry(0.09 * scale, 1) : new THREE.SphereGeometry(0.065 * scale, 10, 7),
+        glowMaterial(i % 2 ? 0xbef7ff : 0xc1a3ff, 0),
+      );
+      group.add(soul);
+      souls.push({ mesh: soul, phase: i / 18, lane: (i % 5) - 2 });
+    }
+    this.addTask(group, 0.78, (k) => {
+      const rise = Math.min(1, k / 0.22);
+      const fade = k < 0.76 ? 1 : (1 - k) / 0.24;
+      ribbons.forEach((r, i) => {
+        opacity(r, rise * fade * (0.38 + i * 0.085));
+        r.scale.y = 0.82 + Math.sin(k * Math.PI * 5 + i) * 0.08;
+      });
+      ferryRings.forEach((ring, i) => {
+        ring.rotation.z += 0.06 + i * 0.018;
+        ring.scale.setScalar(0.65 + rise * 0.6 + Math.sin(k * Math.PI * 6 + i) * 0.08);
+        opacity(ring, rise * fade * 0.82);
+      });
+      souls.forEach((s, i) => {
+        const travel = (k * 1.25 + s.phase) % 1;
+        s.mesh.position.copy(from).lerp(to, travel);
+        s.mesh.position.addScaledVector(side, s.lane * 0.17 * scale + Math.sin(travel * Math.PI * 4 + i) * 0.09);
+        s.mesh.position.y += Math.sin(travel * Math.PI) * 0.72 + 0.18;
+        s.mesh.rotation.y += 0.12; s.mesh.rotation.z += 0.08;
+        opacity(s.mesh, Math.sin(travel * Math.PI) * fade * 0.92);
+      });
+    }, 0.66, () => { this.burst(to, 0xa9eaff, eff, scale * 1.35); onImpact?.(); });
+  }
+
+  /** 염흥왕 전용기: pipe-fire beam, steel pressure rings and a flame maw. */
+  private royalKilnRoar(
+    from: THREE.Vector3, to: THREE.Vector3, color: number,
+    scale: number, eff: number, onImpact?: () => void,
+  ): void {
+    const group = new THREE.Group();
+    const unit = to.clone().sub(from).normalize();
+    const core = beamMesh(from, to, 0.11 * scale, 0xfff2b0, 0);
+    const flame = beamMesh(from, to, 0.28 * scale, 0xff6a21, 0);
+    const smokeHalo = beamMesh(from, to, 0.42 * scale, 0xb7c1c8, 0);
+    group.add(smokeHalo, flame, core);
+    const pressure: THREE.Mesh[] = [];
+    for (let i = 1; i <= 7; i++) {
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry((0.2 + i * 0.022) * scale, 0.027 * scale, 7, 30),
+        glowMaterial(i % 2 ? 0xffd36a : 0xdde8ed, 0),
+      );
+      ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), unit);
+      ring.position.copy(from).lerp(to, i / 8);
+      group.add(ring); pressure.push(ring);
+    }
+    const embers: { mesh: THREE.Mesh; offset: THREE.Vector3; speed: number }[] = [];
+    const side = new THREE.Vector3(-unit.z, 0, unit.x);
+    for (let i = 0; i < 26; i++) {
+      const ember = new THREE.Mesh(
+        new THREE.TetrahedronGeometry((0.035 + (i % 4) * 0.012) * scale),
+        glowMaterial(i % 3 ? 0xff8b28 : 0xfff0a0, 0),
+      );
+      group.add(ember);
+      embers.push({ mesh: ember, offset: side.clone().multiplyScalar(((i % 7) - 3) * 0.09), speed: 0.74 + (i % 5) * 0.055 });
+    }
+    const jaws: THREE.Mesh[] = [];
+    for (const sideY of [-1, 1]) for (let i = -2; i <= 2; i++) {
+      const fang = new THREE.Mesh(new THREE.ConeGeometry(0.07 * scale, 0.34 * scale, 7), glowMaterial(0xffefbd, 0));
+      fang.position.copy(to).add(new THREE.Vector3(i * 0.14 * scale, 0.85 + sideY * 0.34 * scale, 0));
+      fang.rotation.z = sideY < 0 ? 0 : Math.PI;
+      group.add(fang); jaws.push(fang);
+    }
+    this.addTask(group, 0.7, (k) => {
+      const charge = Math.min(1, k / 0.2);
+      const fade = k < 0.74 ? 1 : (1 - k) / 0.26;
+      const growth = Math.min(1, k / 0.3);
+      for (const beam of [smokeHalo, flame, core]) setBeamGrowth(beam, from, to, growth);
+      opacity(smokeHalo, charge * fade * 0.2);
+      opacity(flame, charge * fade * 0.58);
+      opacity(core, charge * fade * 0.97);
+      pressure.forEach((ring, i) => {
+        ring.rotation.z += 0.1 + i * 0.012;
+        ring.scale.setScalar(0.65 + charge * 0.65 + Math.sin(k * 16 + i) * 0.12);
+        opacity(ring, charge * fade * 0.86);
+      });
+      embers.forEach((e, i) => {
+        const t = (k * e.speed + i / embers.length) % 1;
+        e.mesh.position.copy(from).lerp(to, t).add(e.offset);
+        e.mesh.position.y += Math.sin(t * Math.PI) * 0.32 + Math.sin(k * 18 + i) * 0.06;
+        e.mesh.rotation.set(k * 9 + i, k * 13, 0);
+        opacity(e.mesh, Math.sin(t * Math.PI) * fade);
+      });
+      const bite = Math.sin(Math.min(1, k / 0.62) * Math.PI);
+      jaws.forEach((fang, i) => {
+        const top = i >= 5 ? 1 : -1;
+        fang.position.y = to.y + 0.85 + top * (0.38 - bite * 0.22) * scale;
+        opacity(fang, charge * fade * bite);
+      });
+    }, 0.64, () => { this.burst(to, color, eff, scale * 1.55); onImpact?.(); });
+  }
+
+  /** 활빈다람 전용기: acorn seal, three hero slashes and leaf shrapnel. */
+  private outlawLeafstorm(at: THREE.Vector3, color: number, scale: number): void {
+    const group = new THREE.Group();
+    group.position.copy(at).add(new THREE.Vector3(0, 0.95, 0));
+    const seal = new THREE.Mesh(
+      new THREE.TorusGeometry(0.52 * scale, 0.055 * scale, 9, 44),
+      glowMaterial(0xd6f07a, 0),
+    );
+    seal.rotation.x = Math.PI / 2;
+    group.add(seal);
+    const slashes: THREE.Mesh[] = [];
+    for (let i = 0; i < 3; i++) {
+      const slash = new THREE.Mesh(
+        new THREE.TorusGeometry((0.48 + i * 0.11) * scale, (0.045 + i * 0.006) * scale, 6, 30, Math.PI * 0.92),
+        glowMaterial(i === 1 ? 0xffef88 : mixWhite(color, 0.18), 0),
+      );
+      slash.rotation.set(0.28 + i * 0.18, 0.5, -1.0 + i * 0.7);
+      group.add(slash); slashes.push(slash);
+    }
+    const leaves: { mesh: THREE.Mesh; angle: number; speed: number }[] = [];
+    for (let i = 0; i < 22; i++) {
+      const leaf = new THREE.Mesh(
+        new THREE.ConeGeometry(0.065 * scale, 0.3 * scale, 5),
+        glowMaterial(i % 3 ? 0x8fdd52 : 0xe9ec77, 0),
+      );
+      group.add(leaf);
+      leaves.push({ mesh: leaf, angle: i / 22 * Math.PI * 2, speed: 0.8 + (i % 5) * 0.1 });
+    }
+    this.addTask(group, 0.58, (k) => {
+      const pulse = Math.sin(k * Math.PI);
+      seal.rotation.z += 0.16;
+      seal.scale.setScalar(0.45 + k * 1.25);
+      opacity(seal, pulse * 0.85);
+      slashes.forEach((slash, i) => {
+        slash.scale.setScalar(0.25 + Math.min(1, k * 2.8 - i * 0.17) * 1.35);
+        opacity(slash, Math.max(0, Math.sin(Math.max(0, k - i * 0.09) * Math.PI)));
+      });
+      leaves.forEach((l, i) => {
+        const radius = k * (0.8 + (i % 4) * 0.16) * scale;
+        l.mesh.position.set(Math.cos(l.angle + k * 5 * l.speed) * radius, Math.sin(k * Math.PI) * (0.4 + (i % 3) * 0.12), Math.sin(l.angle + k * 5 * l.speed) * radius);
+        l.mesh.rotation.set(k * 8 + i, k * 11, l.angle);
+        opacity(l.mesh, pulse);
+      });
+    });
   }
 
   /** Expanding shockwave and directional shard spray used by every solid hit. */

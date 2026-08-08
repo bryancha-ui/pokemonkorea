@@ -8,6 +8,8 @@ import { DexTracker } from '../systems/DexTracker';
 import { Inventory } from '../systems/Items';
 import { drawTrainerBody, drawNpcBody, playerDesign } from '../data/CharacterSprite';
 import { markTrainerPortrait } from '../data/BattlePortraits';
+import { playHwanungEntranceVideo, preloadHwanungEntranceVideo } from '../systems/HwanungEntranceVideo';
+import { migrateLegacyCheonjiCapture } from '../systems/StoryMigrations';
 
 // ── POST-GAME II — The Sacred Northern Peak (finale) ─────────────────────────────
 // The climb to Hwanung's descent-point. Three sealed shrines each hold one of the
@@ -55,6 +57,8 @@ export class SacredPeakScene extends Phaser.Scene {
   private py = 37 * TILE + 16;
   private facing = 1; private walkFrame = 0; private walkTimer = 0;
   private cutsceneActive = false;
+  /** While the full-screen entrance movie is open, SPACE controls the movie instead of the dialog. */
+  private entranceVideoAction?: () => void;
   private spawnGuard = false;
   private readonly SPEED = 120;
   private readonly ALTAR = { col: 9, row: 6 };
@@ -64,6 +68,7 @@ export class SacredPeakScene extends Phaser.Scene {
   preload() {
     if (!this.textures.exists('hwanwoong'))   this.load.image('hwanwoong', 'assets/dex/hwanwoong.png');
     if (!this.textures.exists('nabihalmang')) this.load.image('nabihalmang', 'assets/dex/nabihalmang.png');
+    preloadHwanungEntranceVideo(this);
   }
 
   /** Scale an image so its largest side is maxPx. */
@@ -83,7 +88,9 @@ export class SacredPeakScene extends Phaser.Scene {
   private get hwanungCaught() { return this.got('hwanwoong'); }
 
   create() {
+    migrateLegacyCheonjiCapture(this.registry);
     this.cutsceneActive = false; this.walkFrame = 0; this.walkTimer = 0;
+    this.entranceVideoAction = undefined;
     playBgm(this, 'sacredpeak');
     this.input.keyboard?.resetKeys();
     this.spawnGuard = true;
@@ -225,7 +232,10 @@ export class SacredPeakScene extends Phaser.Scene {
   // ── Update ───────────────────────────────────────────────────────────────
   update(_: number, delta: number) {
     if (this.cutsceneActive) {
-      if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) this.dialog.advance();
+      if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
+        if (this.entranceVideoAction) this.entranceVideoAction();
+        else this.dialog.advance();
+      }
       return;
     }
     const dt = delta / 1000; let dx = 0, dy = 0;
@@ -305,6 +315,20 @@ export class SacredPeakScene extends Phaser.Scene {
 
   /** The three attendants call 환웅 down from the heavens for the final catch. */
   private playDescent() {
+    this.dialog.show([
+      '노스단\'s leader is dragged from the altar. For a moment, the peak is silent.',
+      'Then 풍백, 우사 and 운사 rise from your side of their own accord and take their places around the altar — Wind, Rain and Cloud, wheeling in harmony. The sky splits with light.',
+    ], () => {
+      this.entranceVideoAction = playHwanungEntranceVideo(
+        this,
+        () => this.finishDescent(),
+        () => { this.entranceVideoAction = undefined; },
+      );
+    });
+  }
+
+  /** Continue the original in-engine reveal and catch sequence after the movie. */
+  private finishDescent() {
     const W = this.scale.width, H = this.scale.height;
     const flash = this.add.rectangle(W / 2, H / 2, W, H, 0xffffff, 0).setScrollFactor(0).setDepth(140);
     this.tweens.add({ targets: flash, alpha: 0.7, duration: 1400, yoyo: true });
@@ -317,8 +341,6 @@ export class SacredPeakScene extends Phaser.Scene {
     this.tweens.add({ targets: hwan, y: '+=6', duration: 1600, yoyo: true, repeat: -1, delay: 1600 });   // gentle hover
 
     this.dialog.show([
-      '노스단\'s leader is dragged from the altar. For a moment, the peak is silent.',
-      'Then 풍백, 우사 and 운사 rise from your side of their own accord and take their places around the altar — Wind, Rain and Cloud, wheeling in harmony. The sky splits with light.',
       '🌟 환웅 (Hwanung), the Sovereign Who Descended, alights upon the altar — but the raw energy of his descent screams off the peak, and the god\'s eyes blaze with a fury older than the mountains.',
       'Prof. Song (at your side, urgent): That awakening energy will tear the peak apart! You need something that can absorb it — 나비할망! Her wings, Champion, NOW!',
     ], () => {

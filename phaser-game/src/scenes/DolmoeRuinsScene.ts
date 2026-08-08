@@ -39,6 +39,8 @@ export class DolmoeRuinsScene extends Phaser.Scene {
    * dark dig tiles stay painted on the ground instead of rising into tall 3D
    * walls. Authored dolmen models in buildingPlots remain standing. */
   public clearSight3D = true;
+  public flatTerrain3D = true;
+  public noRocks3D = true;
   public noVehicles = true;
   private playerG!: Phaser.GameObjects.Graphics;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;

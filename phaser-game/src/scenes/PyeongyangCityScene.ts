@@ -21,8 +21,8 @@ type Tile = typeof T[keyof typeof T];
 const TILE = 32, COLS = 32, ROWS = 36;
 
 const COLORS: Record<Tile, number> = {
-  [T.GROUND]: 0x33353c, [T.PAVE]: 0x3d4048, [T.WALL]: 0x1a1c22, [T.MONU]: 0x2a2c34, [T.BANNER]: 0x1e2a44,
-  [T.GARDEN]: 0x2a3a2a, [T.FOUNTAIN]: 0x3a5a6a, [T.PLAZA]: 0x454852,
+  [T.GROUND]: 0x59616e, [T.PAVE]: 0x454b55, [T.WALL]: 0x3b424c, [T.MONU]: 0x626b77, [T.BANNER]: 0x263654,
+  [T.GARDEN]: 0x3f5842, [T.FOUNTAIN]: 0x4f8299, [T.PLAZA]: 0x747d89,
 };
 const SOLID = new Set<Tile>([T.WALL, T.MONU, T.BANNER]);
 
@@ -39,6 +39,13 @@ interface CityBuilding {
 const CITY_BUILDINGS: CityBuilding[] = [
   { label: 'Pokémon Center', scene: 'PokemonCenterScene', x: 4, y: 4, w: 6, h: 6, doorCol: 7, doorRow: 9, model: 'pokecenter' },
   { label: 'Poké Mart', scene: 'MartScene', x: 22, y: 4, w: 6, h: 6, doorCol: 25, doorRow: 9, model: 'mart' },
+];
+
+// Symmetrical civic blocks frame the Grand Avenue without narrowing its route.
+// They give the northern capital a real skyline instead of an empty dark field.
+const CIVIC_BLOCKS = [
+  { x: 2, y: 12, w: 4, h: 7 }, { x: 26, y: 12, w: 4, h: 7 },
+  { x: 2, y: 22, w: 4, h: 7 }, { x: 26, y: 22, w: 4, h: 7 },
 ];
 
 // City Wardens standing formal watch across the plaza.
@@ -78,10 +85,21 @@ export class PyeongyangCityScene extends Phaser.Scene {
   // This keeps the capital readable while retaining its skyline.
   public buildingPlots = [
     ...CITY_BUILDINGS.map(b => ({ x: b.x, y: b.y, w: b.w, h: b.h, model: b.model })),
+    ...CIVIC_BLOCKS,
     { x: 8, y: 23, w: 16, h: 4, model: 'grand-palace' },
   ];
   public onlyNamedBuildings = true;
   public clearSight3D = true;
+  /** Keep boundary/building collision authoritative without extruding the
+   *  near-black tile art into view-blocking walls around the player. */
+  public flatTerrain3D = true;
+  /** Rebuild the capital as a detailed urban surface: textured Grand Avenue,
+   *  lane markings, granite walks, crossings, lamps and street furniture. */
+  public cityTiles3D = {
+    road: [T.PAVE] as number[],
+    sidewalk: [T.PLAZA, T.GROUND, T.GARDEN] as number[],
+    style: 'urban' as const,
+  };
   // View-blocking tall props removed (the grand obelisk and the avenue arch that
   // rose in front of the player); only the low bronze statue and short plaza
   // lanterns remain so the capital reads open and unobstructed.
@@ -185,9 +203,9 @@ export class PyeongyangCityScene extends Phaser.Scene {
     for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
       const t = this.map[r][c];
       g.fillStyle(COLORS[t], 1); g.fillRect(c * TILE, r * TILE, TILE, TILE);
-      if (t === T.PAVE)   { g.fillStyle(0x44474f, 0.5); g.fillRect(c*TILE+1, r*TILE+1, TILE-2, TILE-2); }
-      if (t === T.GROUND) { g.fillStyle(0x2b2d34, 0.5); g.fillRect(c*TILE+2, r*TILE+2, TILE-4, TILE-4); }
-      if (t === T.WALL)   { g.fillStyle(0x24262e); g.fillRect(c*TILE+2, r*TILE+2, TILE-4, TILE-4); g.fillStyle(0x0e0f14); g.fillRect(c*TILE+6, r*TILE+5, 5, 7); g.fillRect(c*TILE+21, r*TILE+18, 5, 7); }
+      if (t === T.PAVE)   { g.fillStyle(0x545b66, 0.55); g.fillRect(c*TILE+1, r*TILE+1, TILE-2, TILE-2); }
+      if (t === T.GROUND) { g.fillStyle(0x697280, 0.38); g.fillRect(c*TILE+2, r*TILE+2, TILE-4, TILE-4); }
+      if (t === T.WALL)   { g.fillStyle(0x4b535e); g.fillRect(c*TILE+2, r*TILE+2, TILE-4, TILE-4); g.fillStyle(0x252b33); g.fillRect(c*TILE+6, r*TILE+5, 5, 7); g.fillRect(c*TILE+21, r*TILE+18, 5, 7); }
       if (t === T.BANNER) { g.fillStyle(0x24304a); g.fillRect(c*TILE+8, r*TILE, TILE-16, TILE); g.fillStyle(0xb8a24a); g.fillRect(c*TILE+8, r*TILE, TILE-16, 3); g.fillRect(c*TILE+14, r*TILE, 4, TILE); }  // navy banner with a gold vertical band
       if (t === T.GARDEN) { g.fillStyle(0x3a4a3a, 0.6); g.fillCircle(c*TILE+16, r*TILE+16, 8); g.fillStyle(0x2a3a2a, 0.8); g.fillRect(c*TILE+4, r*TILE+4, 24, 24); }
       if (t === T.FOUNTAIN) { g.fillStyle(0x4a6a7a, 0.8); g.fillCircle(c*TILE+16, r*TILE+16, 12); g.fillStyle(0x6a8a9a, 0.6); g.fillCircle(c*TILE+16, r*TILE+16, 6); }
@@ -468,6 +486,7 @@ function buildMap(): Tile[][] {
   // Civic services flank the avenue; their front doors open onto visible paved
   // connectors rather than ending in an unmarked wall.
   for (const b of CITY_BUILDINGS) fill(b.y, b.y + b.h, b.x, b.x + b.w, T.WALL);
+  for (const b of CIVIC_BLOCKS) fill(b.y, b.y + b.h, b.x, b.x + b.w, T.WALL);
   fill(9, 10, 7, 15, T.PAVE);
   fill(9, 10, 17, 26, T.PAVE);
   for (const b of CITY_BUILDINGS) m[b.doorRow][b.doorCol] = T.PAVE;

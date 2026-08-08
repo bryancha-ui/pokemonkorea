@@ -24,8 +24,10 @@ export class CameraRig {
   private hasSnapped = false;
 
   // Battle rig state
-  private battleBase = new THREE.Vector3(-2.5, 2.6, 5.5);
-  private battleLook = new THREE.Vector3(0.35, 1.1, -0.6);
+  // Slightly telephoto and closer than the exploration camera: more of the
+  // model's surface detail survives while both combatants stay in frame.
+  private battleBase = new THREE.Vector3(-2.35, 2.5, 5.65);
+  private battleLook = new THREE.Vector3(0.28, 1.08, -0.58);
   private focus = new THREE.Vector3();
   private focusAmt = 0;                // 0..1 punch-in toward focus point
   private shake = 0;
@@ -114,7 +116,7 @@ export class CameraRig {
     this.look.lerp(look, k);
 
     this.applyShake(dt);
-    const fovTarget = 43 - this.focusAmt * 4;
+    const fovTarget = 40 - this.focusAmt * 4.5;
     this.cam.fov += (fovTarget - this.cam.fov) * Math.min(1, dt * 4);
     this.cam.updateProjectionMatrix();
     this.cam.position.copy(this.pos);

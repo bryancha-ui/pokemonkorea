@@ -7,10 +7,11 @@ import { buildCharacterModel, PlayerModel } from './CharacterModel';
 import { CreatureAnimator, MoveCategory } from './CreatureAnimator';
 import { buildFlatCard, buildRelief, reliefMaterials } from './Extruder';
 import { measureCommands } from './GraphicsRaster';
-import { getModel, hasModel, isRenderableModel, primeManifest } from './GlbModels';
+import { getModel, hasModel, isRenderableModel, modelLoadStatus, primeManifest } from './GlbModels';
 import { MoveFX3D } from './MoveFX3D';
 import { makeBlobShadow } from './Props';
 import { spriteScale } from '../data/SpriteScale';
+import { battleFallbackSprite } from '../data/BattleFallbackSprites';
 import { EnvProfile, ThreeStage } from './ThreeStage';
 
 // ── Battle mirror ────────────────────────────────────────────────────────────
@@ -64,6 +65,10 @@ interface Combatant {
   /** A readable Phaser sprite is kept on top if its 3D relief cannot be built. */
   fallback2D: boolean;
   fallbackRetry: number;
+  /** Dedicated screen-space copy. The battle-owned sprite remains untouched so
+   *  its tweens, switching and damage logic continue to be the source of truth. */
+  fallbackSprite: Phaser.GameObjects.Image | null;
+  fallbackTextureKey: string | null;
 }
 
 const ANCHORS = {
@@ -79,6 +84,11 @@ const ANCHORS = {
 // Restore the authored stage presence after that safety clamp.
 const BATTLE_SIZE_OVERRIDES: Record<string, number> = {
   palmcockatoo: 1.45,
+  bosongnun: 0.72,
+  yeomtaeja: 0.78,
+  thanatoat: 1.13,
+  banderado: 1.10,
+  pipetiger: 1.12,
 };
 
 function battleSizeOverride(textureKey: string): number {
@@ -191,6 +201,7 @@ export class BattleMirror {
     this.scene.events.off('pk3d-movefx', this.onMoveFx);
     this.scene.events.off('pk3d-screen-target', this.onScreenTarget);
     this.scene.events.off('pk3d-chargefx', this.onChargeFx);
+    for (const cb of this.combatants.values()) this.destroyFallbackSprite(cb);
     this.combatants.clear();
     for (const w of this.trainers) this.root.remove(w.group);
     this.trainers.length = 0;
@@ -430,7 +441,7 @@ export class BattleMirror {
       rejectedGlbKey: null,
       // Generated models read smaller than flat art at equal height (they have
       // real depth), so give them extra presence — SwSh-scale battlers.
-      targetH: (side === 'enemy' ? 1.8 : 1.45) * Math.min(1.25, Math.max(0.95, dh / 220)) * speciesSize,
+      targetH: (side === 'enemy' ? 1.92 : 1.58) * Math.min(1.25, Math.max(0.95, dh / 220)) * speciesSize,
       anim: null,
       fainted: false,
       chargeLift: 0,
@@ -438,6 +449,8 @@ export class BattleMirror {
       texSig: `${im.texture.key}:${im.frame?.name ?? 0}`,
       fallback2D: false,
       fallbackRetry: 0,
+      fallbackSprite: null,
+      fallbackTextureKey: null,
     });
     this.scene.cameras.main.ignore(im);
   }
@@ -445,6 +458,7 @@ export class BattleMirror {
   /** Rebuild a battler's relief + scale factors for its CURRENT texture. */
   private refreshCombatant(cb: Combatant): boolean {
     const im = cb.obj;
+    this.destroyFallbackSprite(cb);
     const src = this.frameCanvas(im);
     const has3D = hasModel(im.texture.key);
     const relief = (src && buildRelief(
@@ -467,7 +481,7 @@ export class BattleMirror {
     const speciesSize = battleSizeOverride(im.texture.key);
     cb.scalePx = ((cb.side === 'enemy' ? 1.45 : 1.1) * sizeBias * speciesSize) / relief.pxHeight;
     cb.baseSX = null; cb.baseSY = null; cb.scaleStill = 0;   // re-settle on the new art
-    cb.targetH = (cb.side === 'enemy' ? 1.8 : 1.45) * Math.min(1.25, Math.max(0.95, dh / 220)) * speciesSize;
+    cb.targetH = (cb.side === 'enemy' ? 1.92 : 1.58) * Math.min(1.25, Math.max(0.95, dh / 220)) * speciesSize;
     // A different creature key means a different generated model (or none).
     const nk = hasModel(im.texture.key) ? im.texture.key : null;
     if (cb.rejectedGlbKey !== im.texture.key) cb.rejectedGlbKey = null;
@@ -484,18 +498,123 @@ export class BattleMirror {
     cb.anim?.standUp();
     cb.fallback2D = false;
     cb.fallbackRetry = 0;
+    cb.fallbackTextureKey = null;
     if (this.active3D) this.scene.cameras.main.ignore(im);
     return true;
   }
 
-  /** Keep the original Phaser battler visible if a runtime texture is not yet
-   * readable. This is preferable to stretching the old species or showing air. */
+  /** Show a dedicated 2D copy at the projected battle anchor. Keeping the
+   * battle-owned sprite hidden and untouched prevents its pre-intro/off-screen
+   * coordinates from leaking into the 3D presentation. */
   private use2DFallback(cb: Combatant): void {
     cb.fallback2D = true;
     cb.fallbackRetry = 0;
     cb.holder.visible = false;
-    const cam = this.scene.cameras.main as Phaser.Cameras.Scene2D.Camera & { id: number };
-    (cb.obj as unknown as { cameraFilter: number }).cameraFilter &= ~cam.id;
+    this.scene.cameras.main.ignore(cb.obj);
+    this.ensureFallbackSprite(cb);
+    this.syncFallback2DCombatant(cb);
+  }
+
+  private ensureFallbackSprite(cb: Combatant): void {
+    if (cb.fallbackSprite?.scene) return;
+
+    const speciesKey = cb.rejectedGlbKey ?? cb.obj.texture.key;
+    const authored = battleFallbackSprite(speciesKey);
+    const initialKey = authored && this.scene.textures.exists(authored.key)
+      ? authored.key
+      : cb.obj.texture.key;
+    const sprite = this.scene.add.image(0, 0, initialKey)
+      .setOrigin(cb.obj.originX, cb.obj.originY)
+      .setDepth(cb.obj.depth)
+      .setData('no3d', true);
+    cb.fallbackSprite = sprite;
+    cb.fallbackTextureKey = authored?.key ?? initialKey;
+
+    // TitleScene normally has these ready. This on-demand path also makes a
+    // directly launched/debug battle recover correctly.
+    if (authored && !this.scene.textures.exists(authored.key)) {
+      const event = `filecomplete-image-${authored.key}`;
+      this.scene.load.once(event, () => {
+        if (cb.fallback2D && cb.fallbackSprite?.scene) {
+          cb.fallbackSprite.setTexture(authored.key);
+          this.syncFallback2DCombatant(cb);
+        }
+      });
+      this.scene.load.image(authored.key, authored.url);
+      if (!this.scene.load.isLoading()) this.scene.load.start();
+    }
+  }
+
+  private destroyFallbackSprite(cb: Combatant): void {
+    if (cb.fallbackSprite?.scene) cb.fallbackSprite.destroy();
+    cb.fallbackSprite = null;
+    cb.fallbackTextureKey = null;
+  }
+
+  /** Copy visual state from the real battler but pin the copy's feet to the
+   * live 3D ground anchor. This keeps send-out/faint/tint animation intact. */
+  private syncFallback2DCombatant(cb: Combatant, dt = 0): void {
+    if (!this.active3D || !cb.fallback2D) return;
+    this.ensureFallbackSprite(cb);
+    const im = cb.fallbackSprite;
+    if (!im?.scene) return;
+
+    const source = cb.obj;
+    const x = source.x ?? 0;
+    const y = source.y ?? 0;
+    const dx = x - cb.lastPos.x;
+    const dy = y - cb.lastPos.y;
+    cb.speed = cb.speed * 0.82 + (Math.abs(dx) + Math.abs(dy)) * 0.18;
+    cb.lastPos = { x, y };
+    const visibleAndSettled = source.visible !== false && (source.alpha ?? 1) > 0.85;
+    if (visibleAndSettled && Math.abs(dx) + Math.abs(dy) < 0.6) {
+      cb.settleTimer += dt;
+      if (cb.settleTimer > 0.25 && !cb.base) cb.base = { x, y };
+    } else if (!visibleAndSettled) {
+      cb.settleTimer = 0;
+    }
+
+    const camera = this.stage.camera;
+    camera.updateMatrixWorld();
+    const feet = ANCHORS[cb.side][cb.slot].clone().project(camera);
+    if (!Number.isFinite(feet.x) || !Number.isFinite(feet.y) || feet.z < -1 || feet.z > 1) {
+      im.setVisible(false);
+      return;
+    }
+
+    // Preserve the battle scene's intended visual extent even when the legacy
+    // sprite has a different source resolution or aspect ratio from HQ art.
+    const sourceExtent = Math.max(Math.abs(source.displayWidth ?? 0), Math.abs(source.displayHeight ?? 0));
+    const frameExtent = Math.max(1, im.frame.realWidth || im.width, im.frame.realHeight || im.height);
+    im.setScale(sourceExtent / frameExtent)
+      .setFlipX(!!source.flipX)
+      .setFlipY(!!source.flipY)
+      .setAngle(source.angle ?? 0)
+      .setAlpha(source.alpha ?? 1)
+      .setVisible(source.visible !== false && (source.alpha ?? 1) > 0.001);
+
+    const tint = source as { tintTopLeft?: number; isTinted?: boolean; tintFill?: boolean };
+    if (tint.isTinted && tint.tintTopLeft !== undefined) {
+      if (tint.tintFill) im.setTintFill(tint.tintTopLeft);
+      else im.setTint(tint.tintTopLeft);
+    } else {
+      im.clearTint();
+    }
+
+    const anchorX = (feet.x + 1) * 0.5 * this.scene.scale.width;
+    const anchorY = (1 - feet.y) * 0.5 * this.scene.scale.height;
+    const offsetX = cb.base ? (source.x - cb.base.x) : 0;
+    const offsetY = cb.base ? (source.y - cb.base.y) : 0;
+    im.setPosition(
+      anchorX + (im.originX - 0.5) * im.displayWidth + offsetX,
+      anchorY - (1 - im.originY) * im.displayHeight + offsetY,
+    );
+  }
+
+  private syncFallback2DCombatants(dt: number): void {
+    for (const cb of this.combatants.values()) {
+      if (cb.fallback2D) this.syncFallback2DCombatant(cb, dt);
+    }
   }
 
   private rejectGeneratedModel(cb: Combatant): void {
@@ -507,6 +626,9 @@ export class BattleMirror {
     cb.glbHealthTimer = 0;
     cb.anim = null;
     cb.inner.visible = true;
+    // A confirmed GLB failure must never expose the relief/extruded substitute.
+    // Restore the original authored Phaser sprite for the rest of this battle.
+    this.use2DFallback(cb);
   }
 
   private frameCanvas(im: Phaser.GameObjects.Image): HTMLCanvasElement | null {
@@ -655,6 +777,12 @@ export class BattleMirror {
       // Async textures can be unreadable for one frame during a party switch.
       // Retry without hiding the working Phaser sprite in the meantime.
       if (cb.fallback2D) {
+        // Confirmed GLB failure: retain the clean original 2D sprite. Texture
+        // read failures still retry below because they may resolve next frame.
+        if (cb.rejectedGlbKey) {
+          cb.holder.visible = false;
+          continue;
+        }
         cb.fallbackRetry += dt;
         if (cb.fallbackRetry >= 0.5) this.refreshCombatant(cb);
         if (cb.fallback2D) continue;
@@ -697,8 +825,14 @@ export class BattleMirror {
           cb.inner.visible = true;
         } else if (loaded) {
           this.rejectGeneratedModel(cb);
+        } else if (modelLoadStatus(cb.glbKey) === 'failed') {
+          this.rejectGeneratedModel(cb);
         }
       }
+      // rejectGeneratedModel() restores Phaser visibility and hides this holder.
+      // Stop here so the shared transform/visibility code below cannot turn the
+      // relief placeholder back on during the failure frame.
+      if (cb.fallback2D) continue;
 
       const x = o.x ?? 0, y = o.y ?? 0;
       const dx = x - cb.lastPos.x, dy = y - cb.lastPos.y;
@@ -786,6 +920,7 @@ export class BattleMirror {
         }
         if (cb.glb) cb.glb.visible = (o.alpha ?? 1) > 0.05;
       }
+      if (cb.fallback2D) continue;
       if (!cb.glb) {
         const scale = uniformRel * cb.scalePx;
         cb.inner.scale.set(cb.side === 'player' ? -scale : scale, scale * idle, scale);
@@ -808,7 +943,11 @@ export class BattleMirror {
     }
     for (const d of dead) {
       const cb = this.combatants.get(d);
-      if (cb) { this.root.remove(cb.holder); this.combatants.delete(d); }
+      if (cb) {
+        this.destroyFallbackSprite(cb);
+        this.root.remove(cb.holder);
+        this.combatants.delete(d);
+      }
     }
 
     // 2D camera shake → 3D shake (existing battle code shakes on hits).
@@ -816,6 +955,7 @@ export class BattleMirror {
     if (cam.shakeEffect?.isRunning) this.rig.addShake(0.4);
 
     this.rig.update(dt, null);
+    this.syncFallback2DCombatants(dt);
     this.syncPinned2DTrainers();
   }
 
@@ -824,6 +964,7 @@ export class BattleMirror {
     const cam = this.scene.cameras.main as Phaser.Cameras.Scene2D.Camera & { id: number };
     const unhide = (o: GO) => { (o as unknown as { cameraFilter: number }).cameraFilter &= ~cam.id; };
     for (const cb of this.combatants.values()) unhide(cb.obj);
+    for (const cb of this.combatants.values()) cb.fallbackSprite?.setVisible(false);
     for (const w of this.trainers) unhide(w.obj);
     for (const b of this.hiddenBackdrops) unhide(b);
     for (const [im, pinned] of this.pinned2DTrainers) {
@@ -834,7 +975,8 @@ export class BattleMirror {
   apply3D(): void {
     this.active3D = true;
     for (const cb of this.combatants.values()) {
-      if (!cb.fallback2D) this.scene.cameras.main.ignore(cb.obj);
+      this.scene.cameras.main.ignore(cb.obj);
+      if (cb.fallback2D) this.syncFallback2DCombatant(cb);
     }
     for (const w of this.trainers) this.scene.cameras.main.ignore(w.obj);
     for (const b of this.hiddenBackdrops) this.scene.cameras.main.ignore(b);

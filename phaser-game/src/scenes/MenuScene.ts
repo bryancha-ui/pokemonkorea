@@ -11,6 +11,7 @@ import { fetchPokemon, fetchPokemonSpeciesInfo, fetchPokemonAbilityInfo } from '
 import { genderForPokemon, genderSymbol } from '../data/PokemonGender';
 import { deckHideLeadPicker, deckShowLeadPicker } from '../systems/TouchControls';
 import { fontScaleForScene } from '../systems/UiScale';
+import { BreedingSystem, type NurseryEgg } from '../systems/BreedingSystem';
 
 // Battle data for HM field moves, so teaching one on a full moveset can offer the
 // same "which move to forget?" picker that TMs use.
@@ -187,11 +188,15 @@ export class MenuScene extends Phaser.Scene {
   // ── Pokémon tab — shows ALL party members ────────────────────────────────
 
   private renderPokemonTab() {
+    // Reading nursery state first also migrates older saves that carried an Egg
+    // alongside six Pokémon. The overflow Pokémon is safely moved to the PC.
+    const egg = BreedingSystem.getState(this.registry).carriedEgg;
     const party = PartySystem.get(this.registry);
+    const occupiedCount = party.length + (egg ? 1 : 0);
     const cx    = this.W / 2;
     const cy    = this.H / 2;
 
-    if (party.length === 0) {
+    if (occupiedCount === 0) {
       deckHideLeadPicker();
       const t = this.add.text(cx, cy + 20,
         tr("You have no Pokémon yet.\nVisit Prof. Song's Lab to choose your starter!"),
@@ -206,13 +211,17 @@ export class MenuScene extends Phaser.Scene {
       const winTop = cy - this.winH / 2, winBottom = cy + this.winH / 2;
       const gridTop = winTop + 88, gridBottom = winBottom - 40;
       const gap = 10;
-      const n = Math.max(1, party.length);
+      const n = Math.max(1, occupiedCount);
       const cardH = Math.min(152, (gridBottom - gridTop - gap * (n - 1)) / n);
       const cardW = this.winW - 40;
       party.forEach((entry, i) => {
         const y = gridTop + cardH / 2 + i * (cardH + gap);
         this.drawPartyCardMobile(entry, cx, y, cardW, cardH, i === 0, i);
       });
+      if (egg) {
+        const y = gridTop + cardH / 2 + party.length * (cardH + gap);
+        this.drawEggCardMobile(egg, cx, y, cardW, cardH);
+      }
       deckShowLeadPicker(party.map((entry, index) => ({
         name: this.partyName(entry), level: entry.level,
         hp: entry.hp, maxHp: entry.maxHp, isLead: index === 0,
@@ -237,6 +246,12 @@ export class MenuScene extends Phaser.Scene {
 
       this.drawPartyCard(entry, x, y, cardW, cardH, i === 0, i);
     });
+    if (egg) {
+      const index = party.length;
+      const col = index % 2;
+      const row = Math.floor(index / 2);
+      this.drawEggCard(egg, gridX[col], startY + row * rowH, cardW, cardH);
+    }
 
     // The Phaser canvas is heavily scaled down on phones, so expose the same
     // action as large native-size buttons on the mobile lower control screen.
@@ -251,7 +266,7 @@ export class MenuScene extends Phaser.Scene {
       { fontSize: '11px', color: '#8899bb' }).setOrigin(0.5));
 
     // Empty slots
-    for (let i = party.length; i < 6; i++) {
+    for (let i = occupiedCount; i < 6; i++) {
       const col = i % 2;
       const row = Math.floor(i / 2);
       const x   = gridX[col];
@@ -262,6 +277,32 @@ export class MenuScene extends Phaser.Scene {
         .setOrigin(0.5);
       this.contentContainer.add([bg, lbl]);
     }
+  }
+
+  /** A carried Egg is deliberately not a PartyEntry: battles must never select
+   *  it. It still appears as the final occupied slot in the Pokémon menu. */
+  private drawEggCard(egg: NurseryEgg, x: number, y: number, w: number, h: number): void {
+    const left = x - w / 2;
+    const total = Math.max(1, egg.totalSteps);
+    const remaining = Phaser.Math.Clamp(egg.stepsRemaining, 0, total);
+    const progress = Phaser.Math.Clamp((total - remaining) / total, 0, 1);
+    const bg = this.add.rectangle(x, y, w, h, 0x29213b, 1)
+      .setStrokeStyle(2, 0xf1d58a);
+    const icon = this.add.text(left + 42, y - 2, '🥚', { fontSize: '48px' }).setOrigin(0.5);
+    const name = this.add.text(left + 78, y - 31, t('Pokémon Egg', '포켓몬의 알'), {
+      fontSize: '15px', color: '#fff2bd', fontStyle: 'bold',
+    });
+    const remainingText = this.add.text(left + 78, y - 8,
+      t(`${remaining} steps until hatching`, `부화까지 ${remaining}걸음`),
+      { fontSize: '12px', color: '#d9c9ef' });
+    const barX = left + 78;
+    const barW = w - 98;
+    const track = this.add.rectangle(barX + barW / 2, y + 18, barW, 10, 0x171327);
+    const fill = this.add.rectangle(barX, y + 18, barW * progress, 10, 0xe7bf67).setOrigin(0, 0.5);
+    const pct = this.add.text(left + w - 10, y + 27, `${Math.floor(progress * 100)}%`, {
+      fontSize: '9px', color: '#bbaed0',
+    }).setOrigin(1, 0);
+    this.contentContainer.add([bg, icon, name, remainingText, track, fill, pct]);
   }
 
   private drawPartyCard(entry: PartyEntry, x: number, y: number, w: number, h: number, isLead: boolean, index = 0) {
@@ -407,6 +448,34 @@ export class MenuScene extends Phaser.Scene {
         this.contentContainer.add(this.add.text(px + 52, midY, typeName(tp),
           { fontSize: '11px', color: '#fff', fontStyle: 'bold' }).setOrigin(0.5));
       });
+    }
+  }
+
+  private drawEggCardMobile(egg: NurseryEgg, x: number, y: number, w: number, h: number): void {
+    const left = x - w / 2, right = x + w / 2, top = y - h / 2, bottom = y + h / 2;
+    const total = Math.max(1, egg.totalSteps);
+    const remaining = Phaser.Math.Clamp(egg.stepsRemaining, 0, total);
+    const progress = Phaser.Math.Clamp((total - remaining) / total, 0, 1);
+    const bg = this.add.rectangle(x, y, w, h, 0x29213b, 1).setStrokeStyle(3, 0xf1d58a);
+    const icon = this.add.text(left + h * 0.5, y, '🥚', {
+      fontSize: `${Math.max(38, Math.min(68, h * 0.48))}px`,
+    }).setOrigin(0.5);
+    const contentX = left + h + 12;
+    const name = this.add.text(contentX, top + 12, t('Pokémon Egg', '포켓몬의 알'), {
+      fontSize: '18px', color: '#fff2bd', fontStyle: 'bold',
+    });
+    const remainingText = this.add.text(right - 16, top + 14,
+      t(`${remaining} steps left`, `${remaining}걸음 남음`),
+      { fontSize: '14px', color: '#d9c9ef' }).setOrigin(1, 0);
+    const barY = bottom - 25;
+    const barW = Math.max(80, right - 16 - contentX);
+    const track = this.add.rectangle(contentX + barW / 2, barY, barW, 13, 0x171327);
+    const fill = this.add.rectangle(contentX, barY, barW * progress, 13, 0xe7bf67).setOrigin(0, 0.5);
+    this.contentContainer.add([bg, icon, name, remainingText, track, fill]);
+    if (h >= 112) {
+      this.contentContainer.add(this.add.text(contentX, barY - 27,
+        t('Walk together to hatch it', '함께 걸으면 알이 부화합니다'),
+        { fontSize: '12px', color: '#a89bbc' }));
     }
   }
 

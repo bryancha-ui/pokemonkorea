@@ -68,13 +68,24 @@ function readState(registry: Phaser.Data.DataManager): NurseryState {
   if (!raw) return blankState();
   try {
     const parsed = (typeof raw === 'string' ? JSON.parse(raw) : raw) as Partial<NurseryState>;
-    return {
+    const state: NurseryState = {
       parents: Array.isArray(parsed.parents) ? parsed.parents.slice(0, 2) : [],
       eggProgress: Math.max(0, Number(parsed.eggProgress) || 0),
       eggReady: parsed.eggReady,
       carriedEgg: parsed.carriedEgg,
       totalSteps: Math.max(0, Number(parsed.totalSteps) || 0),
     };
+    // Repair saves made before Eggs occupied a party slot. Preserve every
+    // Pokémon by moving overflow from slot six into the PC Box.
+    if (state.carriedEgg) {
+      const party = PartySystem.get(registry);
+      if (party.length >= 6) {
+        const overflow = party.splice(5);
+        PartySystem.set(registry, party);
+        overflow.forEach(mon => PartySystem.boxAdd(registry, mon));
+      }
+    }
+    return state;
   } catch {
     return blankState();
   }
@@ -261,6 +272,9 @@ export const BreedingSystem = {
     const state = readState(registry);
     if (!state.eggReady) return { ok: false, message: '아직 발견된 알이 없습니다.' };
     if (state.carriedEgg) return { ok: false, message: '이미 부화 중인 알을 가지고 있습니다.' };
+    if (!PartySystem.hasOpenSlot(registry)) {
+      return { ok: false, message: '동료가 6마리라 알을 받을 수 없습니다. PC에 한 마리를 맡겨 빈자리를 만들어 주세요.' };
+    }
     state.carriedEgg = state.eggReady;
     delete state.eggReady;
     state.eggProgress = 0;
@@ -284,10 +298,14 @@ export const BreedingSystem = {
       state.carriedEgg.stepsRemaining = Math.max(0, state.carriedEgg.stepsRemaining - amount);
       if (state.carriedEgg.stepsRemaining === 0) {
         const child = state.carriedEgg.child;
+        // Release the Egg's reserved party slot before adding the hatchling.
+        // Otherwise PartySystem correctly sees six occupied slots and sends the
+        // newborn to the PC instead of replacing the Egg in-place.
+        delete state.carriedEgg;
+        writeState(registry, state);
         const inParty = PartySystem.add(registry, child);
         DexTracker.markCaught(registry, child.spriteKey);
         result.hatched = { child, destination: inParty ? 'party' : 'box' };
-        delete state.carriedEgg;
       }
     }
 

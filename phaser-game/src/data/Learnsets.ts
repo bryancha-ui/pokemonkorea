@@ -5,6 +5,7 @@
  */
 import { MoveData } from '../battle/Pokemon';
 import { PokemonType } from '../battle/TypeChart';
+import { OUTLAW_LEAFSTORM, ROYAL_KILN_ROAR, SOUL_FERRY_DELUGE } from './SignatureMoves';
 
 const M = (name: string, type: string, category: 'physical' | 'special', power: number, accuracy = 100, pp = 10): MoveData =>
   ({ name, type: type as PokemonType, category, power, accuracy, pp });
@@ -114,8 +115,9 @@ const OVERRIDES: Record<string, LearnEntry[]> = {
   vipour:     [{ level: 9, move: S('Smokescreen', 'normal', 20) }],
   onnurian:   [{ level: 9, move: S('Mist', 'ice', 30) }],
   feldaconda: [{ level: 38, move: M('Earth Power', 'ground', 'special', 90, 100) }], // extra Ground coverage
-  thanatoat:  [{ level: 38, move: M('Ice Beam', 'ice', 'special', 90, 100) }],
-  banderado:  [{ level: 38, move: M('Stone Edge', 'rock', 'physical', 95, 80) }],
+  thanatoat:  [{ level: 36, move: SOUL_FERRY_DELUGE }, { level: 38, move: M('Ice Beam', 'ice', 'special', 90, 100) }],
+  banderado:  [{ level: 36, move: OUTLAW_LEAFSTORM }, { level: 38, move: M('Stone Edge', 'rock', 'physical', 95, 80) }],
+  pipetiger:  [{ level: 44, move: ROYAL_KILN_ROAR }],
   // 화투루미 (Onnujang) — a proper Ghost STAB in its early 20s, before it evolves
   // into Thanatoat at Lv.36 (fills the gap between Shadow Sneak @15 and Hex @25).
   onnujang:   [{ level: 21, move: M('Ominous Wind', 'ghost', 'special', 60, 100) }],

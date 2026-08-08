@@ -10,6 +10,7 @@ import { PartySystem, baseStatsFromData, recomputeMaxHp, PartyEntry } from '../s
 import { DexTracker } from '../systems/DexTracker';
 import { customForm } from '../data/CustomBattle';
 import { installCeladonCityViewer } from '../systems/SketchfabCityViewer';
+import type { PropPlot } from '../engine3d/TerrainBuilder';
 
 // ── Tiles ───────────────────────────────────────────────────────────────────
 const T = { MOSS: 0, PATH: 1, BUILDING: 2, TREE: 3, GLOW: 4, POND: 5, BRIDGE: 6, FLOWER: 7 } as const;
@@ -17,9 +18,17 @@ type Tile = typeof T[keyof typeof T];
 const TILE = 32, COLS = 30, ROWS = 26;
 const COLORS: Record<Tile, number> = {
   [T.MOSS]: 0x4a7a42, [T.PATH]: 0xb6a878, [T.BUILDING]: 0xdcd2b4, [T.TREE]: 0x143a18,
-  [T.GLOW]: 0x66e6c0, [T.POND]: 0x2f7acc, [T.BRIDGE]: 0x8a6a44, [T.FLOWER]: 0xcf5fae,
+  [T.GLOW]: 0x4f8654, [T.POND]: 0x2f7acc, [T.BRIDGE]: 0x8a6a44, [T.FLOWER]: 0x568b4d,
 };
 const SOLID = new Set<Tile>([T.BUILDING, T.TREE, T.POND]);
+const FOREST_TREES: Array<[number, number]> = [
+  [2,2],[2,7],[2,11],[2,19],[2,24],[2,28],
+  [5,2],[5,10],[5,19],[5,28],
+  [8,11],[8,19],[16,2],[16,8],[16,22],[16,28],
+  [17,5],[17,25],[22,12],[22,20],[23,25],[23,28],
+];
+const FOREST_GLOW: Array<[number, number]> = [[16,12],[16,18],[19,15],[23,10],[18,23]];
+const FOREST_FLOWERS: Array<[number, number]> = [[18,12],[18,18],[15,10],[15,20],[23,16]];
 
 interface Building { label: string; scene: string; x: number; y: number; w: number; h: number; doorCol: number; doorRow: number; roof: number; }
 const BUILDINGS: Building[] = [
@@ -40,9 +49,9 @@ function buildMap(): Tile[][] {
   fill(20, 23, 3, 10, T.POND);
   fill(20, 23, 6, 8, T.BRIDGE);
   // Giant trees, glow patches, flowers
-  for (const [r,c] of [[8,11],[8,19],[17,5],[17,25],[22,20],[5,2]] as [number,number][]) m[r][c] = T.TREE;
-  for (const [r,c] of [[16,12],[16,18],[19,15]] as [number,number][]) m[r][c] = T.GLOW;
-  for (const [r,c] of [[18,12],[18,18]] as [number,number][]) m[r][c] = T.FLOWER;
+  for (const [r,c] of FOREST_TREES) m[r][c] = T.TREE;
+  for (const [r,c] of FOREST_GLOW) m[r][c] = T.GLOW;
+  for (const [r,c] of FOREST_FLOWERS) m[r][c] = T.FLOWER;
   return m;
 }
 
@@ -50,7 +59,15 @@ export class ForestCityScene extends Phaser.Scene {
   private map!: Tile[][];
   public buildingPlots = BUILDINGS.map((b, i) => ({ x: b.x, y: b.y, w: b.w, h: b.h, model: ['pokecenter', 'templegym', 'mart'][i] }));
   public onlyNamedBuildings = true;
-  // Clear all automatic terrain generation (rocks, walls, foliage) to keep paths clear
+  public treeTileIds3D = [T.TREE];
+  public flatTileIds3D = [T.MOSS, T.PATH, T.GLOW, T.BRIDGE, T.FLOWER];
+  public noRocks3D = true;
+  public propPlots: PropPlot[] = [
+    ...FOREST_GLOW.map(([r, c], i) => ({ x: c, y: r, kind: 'glowplant' as const, scale: 0.95 + (i % 2) * 0.12, rot: i * 0.7 })),
+    ...FOREST_FLOWERS.map(([r, c], i) => ({ x: c, y: r, kind: 'flower' as const, scale: 1 + (i % 2) * 0.1, rot: i * 0.55 })),
+    { x: 6.5, y: 21, kind: 'woodbridge', w: 2, d: 3 },
+  ];
+  // Keep camera sight-lines low while retaining authored 3D trees and scenery.
   public clearSight3D = true;
   private playerG!: Phaser.GameObjects.Graphics;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;

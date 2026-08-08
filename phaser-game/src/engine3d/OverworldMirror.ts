@@ -7,7 +7,8 @@ import { buildSurfMountModel, type SurfMountModel } from './SurfMountModel';
 import { buildFlatCard, buildRelief, reliefMaterials } from './Extruder';
 import { drawCommands, hashCommands, measureCommands, rasterizeGraphics } from './GraphicsRaster';
 import { generateNabihalmangAppearance, type GeneratedCreatureAnimation } from './GeneratedCreatureAnimation';
-import { getModel, hasModel, modelBaseYawRad, primeManifest } from './GlbModels';
+import { getModel, hasModel, modelBaseYawRad, modelLoadStatus, primeManifest } from './GlbModels';
+import { HatchEffect3D, type HatchEffectProfile3D } from './HatchEffect3D';
 import { makeBlobShadow } from './Props';
 import { getProp, propFailed, type PropDef } from './PropModels';
 import { buildTerrain, PX, TerrainResult } from './TerrainBuilder';
@@ -52,6 +53,7 @@ interface Tracked {
   /** Optional true-3D creature model for a tagged overworld Image. */
   creatureKey?: string;
   creature?: THREE.Group;
+  creatureFailed?: boolean;
   creatureBaseScale?: number;
   creatureAnimation?: GeneratedCreatureAnimation;
   /** Authored interactive checkpoint that mirrors its Phaser gate state. */
@@ -68,6 +70,12 @@ interface InteriorModel3D {
   width: number;
   maxDepth?: number;
   rotation?: number;
+  /** Optional authored south/front entrance edge in terrain-local tiles. */
+  entranceZ?: number;
+  /** The GLB supplies its own floor, walls and fixtures; hide the generated room once loaded. */
+  replaceLegacyTerrain?: boolean;
+  /** Solid fallback floor kept around a full-room GLB so its open entrance never reveals black. */
+  replacementGroundColor?: number;
 }
 
 const WORLD_COVER = 0.42;      // graphics covering ≥42% of the world = part of the map painting
@@ -118,6 +126,7 @@ export class OverworldMirror {
   private surfMount: SurfMountModel | null = null;
   private heroWalkPhase = 0;
   private heroLast: { x: number; z: number } | null = null;
+  private hatchEffect: HatchEffect3D | null = null;
   private pendingInteriorModel: {
     holder: THREE.Group;
     def: PropDef;
@@ -137,6 +146,7 @@ export class OverworldMirror {
 
   destroy(): void {
     this.scene.events.off('addedtoscene', this.onAdded);
+    this.stopHatchEffect();
     for (const t of this.tracked.values()) t.creatureAnimation?.dispose();
     this.tracked.clear();
     this.mapGraphics.clear();
@@ -274,11 +284,13 @@ export class OverworldMirror {
       grassTileIds3D?: number[];
       grassDensity3D?: number;
       grassTone3D?: number;
+      flatTileIds3D?: number[];
       interiorTerrain3D?: boolean;
       flatTerrain3D?: boolean;
       treeTileIds3D?: number[];
       mountainTileIds3D?: number[];
       cityTiles3D?: import('./CityDetail3D').CityTileSpec;
+      noRocks3D?: boolean;
     };
     const known = sc.buildingPlots ?? [];
     const useFreeCityBuildings = sc.freeBuildings ?? (
@@ -296,10 +308,12 @@ export class OverworldMirror {
       sc.caveFloorHint ?? false, sc.noVehicles ?? false, useFreeCityBuildings,
       sc.propPlots ?? [], sc.clearSight3D ?? false, sc.grass3D ?? false,
       sc.grassTileIds3D ?? [], sc.grassDensity3D ?? 1.45, sc.grassTone3D ?? 0x49b23a,
+      sc.flatTileIds3D ?? [],
       sc.flatTerrain3D ?? false,
       sc.treeTileIds3D ?? [],
       sc.mountainTileIds3D ?? [],
       sc.cityTiles3D ?? null,
+      sc.noRocks3D ?? false,
     );
     this.terrain = t;
     this.groundTex = ((t.group.children[0] as THREE.Mesh).material as THREE.MeshToonMaterial).map as THREE.CanvasTexture;
@@ -351,15 +365,54 @@ export class OverworldMirror {
     model.scale.multiplyScalar(Math.min(fitWidth, fitDepth));
     model.updateMatrixWorld(true);
 
-    // Centre on the authored room width and align the model's rear edge with
-    // the north wall. This leaves the existing entrance/player aisle clear.
+    // Centre on the authored room width. Complete room models can align their
+    // open front edge directly to the gameplay doorway; other decorative room
+    // shells retain the original north-wall alignment.
     const fitted = new THREE.Box3().setFromObject(model);
     const center = new THREE.Vector3();
     fitted.getCenter(center);
     model.position.x += pending.spec.x + pending.spec.width / 2 - center.x;
-    model.position.z += pending.spec.z - fitted.min.z;
+    model.position.z += pending.spec.entranceZ === undefined
+      ? pending.spec.z - fitted.min.z
+      : pending.spec.entranceZ - fitted.max.z;
     model.position.y += 0.035 - fitted.min.y; // avoid floor z-fighting
     pending.holder.add(model);
+
+    // Full authored interiors must not sit on top of the legacy room decal,
+    // diorama skirt, inferred water or generated wall meshes. Keep those pieces
+    // visible only as a loading/failure fallback, then remove them atomically
+    // once the GLB is ready so the player sees one entrance and one room.
+    if (pending.spec.replaceLegacyTerrain) {
+      const terrainGroup = pending.holder.parent;
+      terrainGroup?.children.forEach(child => {
+        if (child === pending.holder) return;
+        const keepSolidBase = pending.spec.replacementGroundColor !== undefined
+          && (child.name === 'generated-terrain-ground' || child.name === 'generated-terrain-skirt');
+        child.visible = keepSolidBase;
+        if (!keepSolidBase) return;
+
+        // Strip the old room decal / soil texture while retaining a plain slab
+        // beneath and immediately outside the GLB's open doorway. This fills the
+        // camera footprint without reintroducing the duplicated 3D interior.
+        child.traverse(obj => {
+          const mesh = obj as THREE.Mesh;
+          if (!mesh.isMesh || !mesh.material) return;
+          const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+          for (const material of mats) {
+            const mat = material as THREE.MeshLambertMaterial;
+            if (!mat.color) continue;
+            mat.map = null;
+            if ('emissiveMap' in mat) mat.emissiveMap = null;
+            mat.color.set(pending.spec.replacementGroundColor!);
+            if (mat.emissive) {
+              mat.emissive.set(pending.spec.replacementGroundColor!).multiplyScalar(0.12);
+              mat.emissiveIntensity = 0.2;
+            }
+            mat.needsUpdate = true;
+          }
+        });
+      });
+    }
     this.pendingInteriorModel = null;
   }
 
@@ -900,6 +953,11 @@ export class OverworldMirror {
       const z = ((o.y ?? 0) + t.footY * ((o.scaleY ?? 1))) / PX;
       t.mesh.position.set(x, 0, z);
       t.mesh.visible = (o.visible !== false) && ((o.alpha ?? 1) > 0.02);
+      if (t.creatureFailed) {
+        t.mesh.visible = false;
+        this.show2D(o);
+        continue;
+      }
 
       // Named flat guardians/props can request a live yaw toward the player.
       // This preserves their authored front instead of leaving the relief at a
@@ -926,11 +984,19 @@ export class OverworldMirror {
         const loaded = getModel(t.creatureKey);
         if (loaded) {
           t.creature = loaded.group;
+          t.creatureFailed = false;
           t.mesh.add(t.creature);
           if (o.getData?.('creatureAnimation3D') === 'nabihalmang-appearance') {
             t.creatureAnimation = generateNabihalmangAppearance(t.creature);
           }
           if (inner) inner.visible = false;
+        } else if (modelLoadStatus(t.creatureKey) === 'failed') {
+          // A failed GLB falls back to the original authored Phaser sprite,
+          // never the relief/extruded placeholder.
+          t.creatureFailed = true;
+          t.mesh.visible = false;
+          this.show2D(o);
+          continue;
         }
       }
       if (t.creature) {
@@ -1034,6 +1100,9 @@ export class OverworldMirror {
 
     this.rig.update(dt, playerPos);
     if (playerPos) this.fadeOccluders(playerPos, dt);
+    // The hatch stage follows the final camera pose, so camera smoothing and
+    // interior/overworld rigs cannot make the Egg drift across the screen.
+    this.hatchEffect?.update(dt);
   }
 
   // ── See-through buildings ──
@@ -1136,6 +1205,19 @@ export class OverworldMirror {
     }
   }
 
+  /** Play the nursery hatch cutscene inside this mirror's existing renderer. */
+  startHatchEffect(profile: HatchEffectProfile3D): boolean {
+    if (!this.built) return false;
+    this.stopHatchEffect();
+    this.hatchEffect = new HatchEffect3D(this.stage, profile);
+    return true;
+  }
+
+  stopHatchEffect(): void {
+    this.hatchEffect?.dispose();
+    this.hatchEffect = null;
+  }
+
   /** Restore all Phaser-side visibility (leaving 3D mode). */
   restore2D(): void {
     for (const o of this.hiddenFrom2D) this.show2D(o);
@@ -1147,7 +1229,10 @@ export class OverworldMirror {
   /** Re-apply 2D hiding (entering 3D mode). */
   apply3D(): void {
     for (const o of this.hiddenFrom2D) this.hideFrom2D(o);
-    for (const t of this.tracked.values()) this.hideFrom2D(t.obj);
+    for (const t of this.tracked.values()) {
+      if (t.creatureFailed) this.show2D(t.obj);
+      else this.hideFrom2D(t.obj);
+    }
     for (const g of this.mapGraphics) this.hideFrom2D(g);
     for (const i of this.mapImages) this.hideFrom2D(i);
   }

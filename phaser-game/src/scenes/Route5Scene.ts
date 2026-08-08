@@ -25,17 +25,17 @@ const BARRIER_COLS = [9, 10, 11, 12, 13, 14];
 
 // Ancient-forest encounters — bug & grass (mostly new customs)
 const R5_ENCOUNTERS: EncounterEntry[] = [
-  { id: 'crystbeetle',    weight: 14, minLevel: 33, maxLevel: 38, isCustom: true,  catchRate: 170 },
-  { id: 'bookbug',        weight: 14, minLevel: 33, maxLevel: 38, isCustom: true,  catchRate: 200 },
-  { id: 'kudzu',          weight: 14, minLevel: 33, maxLevel: 38, isCustom: true,  catchRate: 200 },
-  { id: 'trumpetcreeper', weight: 12, minLevel: 33, maxLevel: 38, isCustom: true,  catchRate: 200 },
-  { id: 'ghograss',       weight: 10, minLevel: 33, maxLevel: 38, isCustom: true,  catchRate: 180 },
-  { id: 'peacockrose',    weight: 10, minLevel: 33, maxLevel: 38, isCustom: true,  catchRate: 180 },
-  { id: 'moranlovebird',  weight: 10, minLevel: 33, maxLevel: 38, isCustom: true,  catchRate: 200 },
-  { id: 43, weight: 8, minLevel: 33, maxLevel: 38, isCustom: false, catchRate: 200 }, // Oddish
-  { id: 69, weight: 8, minLevel: 33, maxLevel: 38, isCustom: false, catchRate: 200 }, // Bellsprout
-  { id: 'yeomtaeja', weight: 10, minLevel: 33, maxLevel: 38, isCustom: true, catchRate: 120 }, // Fire/Steel flame prince
-  { id: 'groundzoome', weight: 10, minLevel: 33, maxLevel: 38, isCustom: true, catchRate: 180 }, // Ground/Ghost
+  { id: 'crystbeetle',    weight: 14, minLevel: 31, maxLevel: 32, isCustom: true,  catchRate: 170 },
+  { id: 'bookbug',        weight: 14, minLevel: 31, maxLevel: 32, isCustom: true,  catchRate: 200 },
+  { id: 'kudzu',          weight: 14, minLevel: 31, maxLevel: 32, isCustom: true,  catchRate: 200 },
+  { id: 'trumpetcreeper', weight: 12, minLevel: 31, maxLevel: 32, isCustom: true,  catchRate: 200 },
+  { id: 'ghograss',       weight: 10, minLevel: 31, maxLevel: 32, isCustom: true,  catchRate: 180 },
+  { id: 'peacockrose',    weight: 10, minLevel: 31, maxLevel: 32, isCustom: true,  catchRate: 180 },
+  { id: 'moranlovebird',  weight: 10, minLevel: 31, maxLevel: 32, isCustom: true,  catchRate: 200 },
+  { id: 43, weight: 8, minLevel: 31, maxLevel: 32, isCustom: false, catchRate: 200 }, // Oddish
+  { id: 69, weight: 8, minLevel: 31, maxLevel: 32, isCustom: false, catchRate: 200 }, // Bellsprout
+  { id: 'yeomtaeja', weight: 10, minLevel: 31, maxLevel: 32, isCustom: true, catchRate: 120 }, // Fire/Steel flame prince
+  { id: 'groundzoome', weight: 10, minLevel: 31, maxLevel: 32, isCustom: true, catchRate: 180 }, // Ground/Ghost
 ];
 
 function buildMap(): Tile[][] {
@@ -102,13 +102,13 @@ export class Route5Scene extends Phaser.Scene {
     {
       key: 'r5-beomseok', name: 'Bug Catcher Beomseok', col: 6, row: 44, color: 0x6a8a2a, label: 'Bug\nCatcher',
       line: "These old trees are crawling with my favourites! Wanna see my best ones? They bite!",
-      pokemon: JSON.stringify([{ id: 0, level: 36, custom: 'crystbeetle' }, { id: 0, level: 37, custom: 'bookbug' }]),
+      pokemon: JSON.stringify([{ id: 0, level: 33, custom: 'crystbeetle' }, { id: 0, level: 35, custom: 'bookbug' }]),
       expPool: 920,
     },
     {
       key: 'r5-jiyeon', name: 'Aroma Lady Jiyeon', col: 17, row: 12, color: 0xcf6fae, label: 'Aroma\nLady',
       line: "Breathe in. The forest's scent calms the heart — and sharpens my Pokémon. Shall we?",
-      pokemon: JSON.stringify([{ id: 0, level: 37, custom: 'trumpetcreeper' }, { id: 0, level: 38, custom: 'kudzu' }]),
+      pokemon: JSON.stringify([{ id: 0, level: 34, custom: 'trumpetcreeper' }, { id: 0, level: 35, custom: 'kudzu' }]),
       expPool: 960,
     },
   ] as const;
@@ -327,9 +327,9 @@ export class Route5Scene extends Phaser.Scene {
       this.registry.set('trainerName', 'Admin Chaeyeon');
       this.registry.set('trainerKey', 'suri-chaeyeon-2');
       this.registry.set('trainerPokemon', JSON.stringify([
-        { id: 461, level: 36 },                       // Weavile
-        { id: 0,   level: 37, custom: 'martbadger' },  // Steel/Dark
-        { id: 635, level: 40 },                        // Hydreigon (Dragon/Dark ace)
+        { id: 461, level: 33 },                       // Weavile
+        { id: 0,   level: 34, custom: 'martbadger' },  // Steel/Dark
+        { id: 635, level: 36 },                        // Hydreigon (Dragon/Dark ace)
       ]));
       this.registry.set('trainerExpPool', 1700);
       this.registry.set('trainerReturnScene', 'Route5Scene');

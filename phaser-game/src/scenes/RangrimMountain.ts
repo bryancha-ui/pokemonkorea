@@ -261,7 +261,7 @@ export class RangrimBaseScene extends Phaser.Scene {
     this.dialog.show([
       '노스단 has sealed every pass up the Onseong Mountains — but they never knew about this.',
       'You lay your hand on the 고대 제단 (Ancient Altar). The stone hums with divine energy, and it responds to your presence.',
-      'The hidden stair opens — a shortcut straight past the blockade to the Sacred Peak, where 환웅 (Hwanwoong) awaits...',
+      'The hidden stair opens — a shortcut straight past the blockade to the Sacred Peak, where 환웅 (Hwanung) awaits...',
     ], () => {
       this.cameras.main.fadeOut(500, 0, 0, 0, () => {
         this.registry.set('sacredPeakReturnX', 9 * 32 + 16);
@@ -487,7 +487,7 @@ const ALTAR: RgConfig = {
     col: 11, row: 13, prompt: 'SPACE — Touch the Ancient Altar',
     lines: [
       'You lay your hand on the 고대 제단 (Ancient Altar). The stone hums with divine energy, and it responds to your presence.',
-      'The path to the Sacred Peak opens before you, where 환웅 (Hwanwoong) awaits...',
+      'The path to the Sacred Peak opens before you, where 환웅 (Hwanung) awaits...',
     ],
   },
   // Interacting with the statue (aisle at row 9) opens a hidden stair to Cheonji (crater lake).

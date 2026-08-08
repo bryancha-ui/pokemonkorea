@@ -80,6 +80,7 @@ export const PORTRAITS: Record<string, Portrait> = {
   'seorae-nunsong':   P('gym trainer Nunsong.png'),
   'sunrise-daehwi':   P('gym trainer daehwi.png'),
   'sunrise-seongwoo': P('gym trainer seongwoo.png'),
+  'dolmoe-bawoo':     P('hiker_bawoo.png'),
   'dolmoe-doran':     P('gym trainer doran.png'),
   'baekdu-taeguk':    P('gym trainer taeguk.png'),
   'baekdu-nari':      P('gym_trainer_nari.png'),

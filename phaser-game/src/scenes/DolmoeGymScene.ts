@@ -21,6 +21,8 @@ export class DolmoeGymScene extends Phaser.Scene {
   // classified as rows of tall outdoor cliff tiles, hiding the player.
   public interior3D = true;
   public clearSight3D = true;
+  public flatTerrain3D = true;
+  public noRocks3D = true;
   private playerG!: Phaser.GameObjects.Graphics;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private spaceKey!: Phaser.Input.Keyboard.Key;

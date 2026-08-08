@@ -2,11 +2,11 @@ import Phaser from 'phaser';
 import * as THREE from 'three';
 import { toonMat, toonRamp } from './Props';
 
-type ArenaFamily = 'gym' | 'hanbando' | 'northern';
+type ArenaFamily = 'gym' | 'hanbando' | 'northern' | 'lab';
 type ArenaMotif =
   | 'shadow' | 'dojo' | 'lantern' | 'tide' | 'forest' | 'storm' | 'quarry' | 'frost'
   | 'crane' | 'forge' | 'wind' | 'spirit' | 'idol'
-  | 'stone' | 'fortress' | 'tiger' | 'throne';
+  | 'stone' | 'fortress' | 'tiger' | 'throne' | 'research';
 
 export interface BattleArenaTheme {
   family: ArenaFamily;
@@ -38,6 +38,10 @@ const HANBANDO_THEMES: Record<string, BattleArenaTheme> = {
 };
 
 const NORTHERN_THEMES: Record<string, BattleArenaTheme> = {
+  // Final Rival send-off at the Northern League doors. Keep the granite
+  // colonnade, ceremonial red banners and gold accents visible in battle instead
+  // of falling back to the generic snowy field for NorthernPlazaScene.
+  'rival-5':          { family: 'northern', motif: 'fortress', floor: 0x45484f, floorAlt: 0x555a62, wall: 0x17191e, trim: 0x727984, accent: 0xe0bd4f },
   'north-seorak':    { family: 'northern', motif: 'stone',    floor: 0x403c38, floorAlt: 0x4b4640, wall: 0x171615, trim: 0x6d604f, accent: 0xc9a86a },
   'north-hanseol':   { family: 'northern', motif: 'frost',    floor: 0x34444e, floorAlt: 0x405762, wall: 0x121b20, trim: 0x638493, accent: 0xbfe8ff },
   'north-cheolgang': { family: 'northern', motif: 'fortress', floor: 0x363a40, floorAlt: 0x444950, wall: 0x111317, trim: 0x69717c, accent: 0xced4de },
@@ -48,6 +52,14 @@ const NORTHERN_THEMES: Record<string, BattleArenaTheme> = {
   // walls with a ceremonial gold trim (the great bronze figure of the plaza), so
   // his battle reads as the disciplined stone capital rather than an open meadow.
   'eosa-pyeongseong': { family: 'northern', motif: 'fortress', floor: 0x4a4b50, floorAlt: 0x585a62, wall: 0x191b20, trim: 0x7b818b, accent: 0xd9b64a },
+};
+
+/** Professor Song's bright Sudo City laboratory. Rival battle #3 starts here
+ * after the Nabihalmang briefing and must not inherit an outdoor route arena. */
+const SUDO_LAB_THEME: BattleArenaTheme = {
+  family: 'lab', motif: 'research',
+  floor: 0xb8c2d4, floorAlt: 0xd9e2ef, wall: 0xdfe6f2,
+  trim: 0x718198, accent: 0x55ddcc,
 };
 
 const GYM_KEY: Record<string, string> = {
@@ -91,6 +103,10 @@ export function resolveBattleArenaTheme(scene: Phaser.Scene): BattleArenaTheme |
   if (scene.scene.key !== 'TrainerBattleScene') return undefined;
 
   const trainerKey = String(scene.registry.get('trainerKey') ?? '');
+  const returnScene = String(scene.registry.get('trainerReturnScene') ?? '');
+  // Accept either marker so an older save made immediately before the battle
+  // still resolves the laboratory even if one registry field was absent.
+  if (trainerKey === 'rival-3' || returnScene === 'SudoLabScene') return SUDO_LAB_THEME;
   if (HANBANDO_THEMES[trainerKey]) return HANBANDO_THEMES[trainerKey];
   if (NORTHERN_THEMES[trainerKey]) return NORTHERN_THEMES[trainerKey];
   const gymKey = GYM_KEY[trainerKey];
@@ -98,7 +114,6 @@ export function resolveBattleArenaTheme(scene: Phaser.Scene): BattleArenaTheme |
 
   // Gym trainers share their building's interior even though their keys are
   // personal names rather than the leader's city-prefixed key.
-  const returnScene = String(scene.registry.get('trainerReturnScene') ?? '');
   // Any battle fought inside the 노스단 아지트 uses the fortress arena.
   if (NOSDAN_RETURN_SCENES.has(returnScene)) return NOSDAN_THEME;
   const returnGym = GYM_RETURN_SCENE[returnScene];
@@ -304,7 +319,10 @@ function addRoomShell(root: THREE.Group, theme: BattleArenaTheme): void {
 
   // Structural rhythm mirrors the repeated columns in both League towers.
   const columnColor = theme.family === 'northern' ? mixed(theme.wall, 0xffffff, 0.22) : theme.trim;
-  for (const x of [-7.5, -4.6, 4.6, 7.5]) {
+  // The laboratory has broad uninterrupted map boards, so only slim edge
+  // pilasters remain; League/gym rooms retain their ceremonial colonnade.
+  const columnPositions = theme.family === 'lab' ? [-8.35, 8.35] : [-7.5, -4.6, 4.6, 7.5];
+  for (const x of columnPositions) {
     box(root, [0.62, 4.8, 0.62], columnColor, [x, 2.4, -6.78]);
     box(root, [0.88, 0.22, 0.82], theme.accent, [x, 4.84, -6.76]);
     box(root, [0.88, 0.18, 0.82], theme.trim, [x, 0.12, -6.76]);
@@ -373,6 +391,88 @@ function addThroneDecor(root: THREE.Group, theme: BattleArenaTheme): void {
   const crown = new THREE.Mesh(new THREE.OctahedronGeometry(0.34), glowingMaterial(theme.accent));
   crown.position.set(1.9, 3.45, -6.35);
   root.add(crown);
+}
+
+function addResearchLabDecor(root: THREE.Group, theme: BattleArenaTheme): void {
+  const DARK = 0x172438, FRAME = 0x66758a, BENCH = 0x96a3b5;
+  const SCREEN = 0x55ddcc, RED = 0xdd4050, BLUE = 0x66ccff;
+
+  // The two wall maps reproduce the red Team Suri / black Nosdan pin boards
+  // from SudoLabScene. Raised routes and pins remain readable from the battle
+  // camera instead of relying on a flat unlit texture.
+  for (const [cx, pinColor] of [[-4.35, RED], [4.35, 0x30343a]] as const) {
+    box(root, [3.75, 2.28, 0.12], FRAME, [cx, 3.18, -6.98]);
+    box(root, [3.48, 2.02, 0.08], DARK, [cx, 3.18, -6.9]);
+    const route = [
+      new THREE.Vector3(cx - 1.25, 2.62, -6.83),
+      new THREE.Vector3(cx - 0.64, 3.38, -6.82),
+      new THREE.Vector3(cx + 0.12, 3.0, -6.82),
+      new THREE.Vector3(cx + 0.68, 3.66, -6.82),
+      new THREE.Vector3(cx + 1.28, 3.16, -6.82),
+    ];
+    for (let i = 1; i < route.length; i++) segment(root, route[i - 1], route[i], mixed(pinColor, 0xffffff, 0.3), 0.025);
+    const pins: Array<[number, number]> = [
+      [-1.18, 0.54], [-0.78, -0.34], [-0.2, 0.17], [0.32, -0.48], [0.76, 0.45], [1.2, -0.08],
+    ];
+    for (const [dx, dy] of pins) glowSphere(root, pinColor, [cx + dx, 3.18 + dy, -6.76], 0.055);
+  }
+
+  // Central analyzer terminal and live cyan display.
+  box(root, [1.62, 1.62, 0.18], FRAME, [0, 3.16, -6.92]);
+  const screen = new THREE.Mesh(new THREE.BoxGeometry(1.38, 1.34, 0.08), glowingMaterial(SCREEN, 0.93));
+  screen.position.set(0, 3.16, -6.76);
+  root.add(screen);
+  for (let i = 0; i < 4; i++) {
+    box(root, [0.78 - i * 0.1, 0.035, 0.035], i % 2 ? 0xe7ffff : 0x1b7380,
+      [-0.18 + i * 0.06, 3.56 - i * 0.25, -6.69], i % 2 ? -0.15 : 0.12);
+  }
+
+  // Stainless benches flank the enemy side. Glassware is genuinely
+  // volumetric and emissive enough to survive the interior's soft lighting.
+  for (const side of [-1, 1]) {
+    const x = side * 5.55;
+    box(root, [3.4, 0.18, 1.08], mixed(BENCH, 0xffffff, 0.18), [x, 1.0, -5.95]);
+    for (const leg of [-1.35, 1.35]) box(root, [0.16, 1.0, 0.16], FRAME, [x + leg, 0.5, -5.95]);
+    box(root, [3.28, 0.62, 0.18], BENCH, [x, 0.67, -6.37]);
+
+    const fluids = side < 0 ? [BLUE, 0xffdf78, 0xa1efa8] : [0xf0a6d8, SCREEN, 0xff9c70];
+    for (let i = 0; i < 3; i++) {
+      const bx = x - 0.7 + i * 0.7;
+      const flask = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 8), glowingMaterial(fluids[i], 0.82));
+      flask.scale.y = 1.25;
+      flask.position.set(bx, 1.25, -5.78);
+      root.add(flask);
+      cylinder(root, 0.065, 0.075, 0.3, 0xdcecf3, [bx, 1.52, -5.78], 10);
+    }
+  }
+
+  // Books and specimen boxes at the far left.
+  box(root, [1.25, 3.3, 0.52], 0x7b6146, [-7.55, 1.7, -6.45]);
+  for (const y of [0.55, 1.25, 1.95, 2.65, 3.3]) box(root, [1.18, 0.09, 0.62], 0x4e3b2b, [-7.55, y, -6.38]);
+  const bookColors = [0xc84b4b, 0x4f78c8, 0x55a66a, 0xd2a541, 0x9966b6];
+  for (let i = 0; i < 10; i++) {
+    box(root, [0.15, 0.43, 0.14], bookColors[i % bookColors.length],
+      [-7.98 + (i % 5) * 0.22, 0.82 + Math.floor(i / 5) * 0.71, -6.05], (i % 3 - 1) * 0.04);
+  }
+
+  // Compact healing machine with the same red cross as the authored lab.
+  box(root, [1.28, 2.0, 0.72], 0xeaf0f7, [7.35, 1.04, -6.15]);
+  box(root, [0.82, 0.66, 0.08], 0x26384d, [7.35, 1.44, -5.75]);
+  box(root, [0.52, 0.12, 0.05], RED, [7.35, 1.44, -5.68]);
+  box(root, [0.12, 0.52, 0.05], RED, [7.35, 1.44, -5.67]);
+  for (const x of [7.05, 7.35, 7.65]) glowSphere(root, x === 7.35 ? SCREEN : BLUE, [x, 0.5, -5.74], 0.07);
+
+  // Long clinical light strips brighten the pale room without placing a roof
+  // in front of the cinematic camera.
+  for (const x of [-5.4, -1.8, 1.8, 5.4]) {
+    box(root, [2.55, 0.1, 0.25], 0xf5fbff, [x, 5.03, -5.95]);
+    const light = new THREE.PointLight(0xdff7ff, 0.38, 7.5, 2);
+    light.position.set(x, 4.75, -4.9);
+    root.add(light);
+  }
+  const labAccent = new THREE.PointLight(theme.accent, 0.52, 8, 2);
+  labAccent.position.set(0, 3.7, -5.3);
+  root.add(labAccent);
 }
 
 function addMotifDecor(root: THREE.Group, theme: BattleArenaTheme): void {
@@ -474,6 +574,9 @@ function addMotifDecor(root: THREE.Group, theme: BattleArenaTheme): void {
     case 'throne':
       addThroneDecor(root, theme);
       break;
+    case 'research':
+      addResearchLabDecor(root, theme);
+      break;
   }
 }
 
@@ -484,6 +587,7 @@ export function buildThemedBattleArena(root: THREE.Group, theme: BattleArenaThem
 
   // A subtle family-specific ceiling beam completes the room silhouette without
   // lowering a roof into the battle camera.
-  const beamColor = theme.family === 'northern' ? 0x4a1618 : theme.trim;
+  const beamColor = theme.family === 'northern' ? 0x4a1618
+    : theme.family === 'lab' ? mixed(theme.wall, 0xffffff, 0.16) : theme.trim;
   box(root, [18.1, 0.34, 0.5], beamColor, [0, 5.15, -6.7]);
 }

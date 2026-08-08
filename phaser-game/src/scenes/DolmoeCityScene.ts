@@ -22,6 +22,9 @@ const SOLID = new Set<Tile>([T.WALL, T.ROOF]);
 const GYM  = { col: 5,  row: 9 };
 const NURSE = { col: 16, row: 9 };
 const MART = { col: 25, row: 9 };
+// Scenic stones that used to read as flat dolmen/mountain stamps on the granite
+// ground. They now use the project's existing `dolmen` GLB at the same layer.
+const CITY_DOLMENS = [[2, 14], [4, 18], [18, 12], [26, 13], [24, 20], [30, 14]] as const;
 const TOWNS = [
   { col: 8,  row: 17, color: 0x8a6a4a, line: "Stonemason: Every dolmen in this valley was raised by hand. My grandfather cut those capstones himself." },
   { col: 22, row: 16, color: 0x6a8a9a, line: "Potter: 옹기 jars breathe, you know. Ferment anything in them and it keeps through the hardest winter." },
@@ -35,6 +38,8 @@ export class DolmoeCityScene extends Phaser.Scene {
   // Keep the authored buildings and pottery, but suppress colour-inferred rock
   // mountains that otherwise grow through and cover the small onggi props.
   public clearSight3D = true;
+  public flatTileIds3D = [T.GROUND, T.ROAD, T.WALL, T.ROOF];
+  public noRocks3D = true;
   // Quarry gym, Pokémon Center and mart reuse the shared models; the moth-
   // grandmother (나비할망) statue gets its own generated model on the plaza.
   public buildingPlots = [
@@ -42,6 +47,7 @@ export class DolmoeCityScene extends Phaser.Scene {
     { x: 14, y: 4,  w: 6, h: 5, model: 'pokecenter' },
     { x: 23, y: 4,  w: 6, h: 5, model: 'mart' },
     { x: 7,  y: 12, w: 2, h: 2, model: 'nabihalmang' },
+    ...CITY_DOLMENS.map(([x, y]) => ({ x, y, w: 1, h: 1, model: 'dolmen' })),
   ];
   public onlyNamedBuildings = true;
   // Traditional 옹기 pottery jars around the plaza, as real 3D urns (coords mirror
@@ -108,10 +114,12 @@ export class DolmoeCityScene extends Phaser.Scene {
     const g = this.make.graphics({ x: 0, y: 0 });
     for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
       const t = this.map[r][c];
-      g.fillStyle(COLORS[t], 1); g.fillRect(c * TILE, r * TILE, TILE, TILE);
-      if (t === T.GROUND) { g.fillStyle(0x746e64, 0.5); g.fillRect(c*TILE+3, r*TILE+4, 5, 3); g.fillRect(c*TILE+20, r*TILE+18, 5, 3); }
-      if (t === T.ROAD)   { g.fillStyle(0x807a70, 0.5); g.fillRect(c*TILE+1, r*TILE+1, TILE-2, TILE-2); }
-      if (t === T.WALL)   { g.fillStyle(0x4a453e); g.fillRect(c*TILE+2, r*TILE+2, TILE-4, TILE-4); }
+      // WALL remains authoritative for collision, but its old dark mountain
+      // stamp is no longer baked into the ground. Authored 3D buildings cover
+      // their own footprints; the map boundary stays as clean granite paving.
+      const painted = t === T.WALL || t === T.ROOF ? T.GROUND : t;
+      g.fillStyle(COLORS[painted], 1); g.fillRect(c * TILE, r * TILE, TILE, TILE);
+      if (painted === T.ROAD) { g.fillStyle(0x807a70, 0.5); g.fillRect(c*TILE+1, r*TILE+1, TILE-2, TILE-2); }
     }
     const key = '__dolmoeMap__';
     if (this.textures.exists(key)) this.textures.remove(key);

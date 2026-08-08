@@ -23,6 +23,15 @@ const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
 const entries = manifest.models ?? [];
 let vendored = 0, skipped = 0, failed = 0;
 
+// Keep orientation/scale corrections when an object entry becomes local. The
+// previous implementation collapsed every vendored object to just its key,
+// accidentally discarding rotX/rotY/rotZ/scale metadata.
+function localEntry(entry) {
+  if (typeof entry === 'string') return entry;
+  const { url: _remoteUrl, ...local } = entry;
+  return Object.keys(local).length === 1 ? local.key : local;
+}
+
 const out = [];
 for (const entry of entries) {
   const key = typeof entry === 'string' ? entry : entry.key;
@@ -30,7 +39,7 @@ for (const entry of entries) {
   const dest = path.join(dir, `${key}.glb`);
 
   if (fs.existsSync(dest) && fs.statSync(dest).size > 0) {
-    skipped++; out.push(key);
+    skipped++; out.push(localEntry(entry));
     continue;
   }
   if (!url) { out.push(key); continue; }
@@ -42,7 +51,7 @@ for (const entry of entries) {
     const buf = Buffer.from(await res.arrayBuffer());
     fs.writeFileSync(dest, buf);
     console.log(`${(buf.length / 1024 / 1024).toFixed(1)} MB`);
-    vendored++; out.push(key);
+    vendored++; out.push(localEntry(entry));
   } catch (err) {
     console.log(`failed (${err.message}) — keeping remote URL`);
     failed++; out.push(entry);

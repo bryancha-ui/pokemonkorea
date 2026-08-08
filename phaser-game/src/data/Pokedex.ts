@@ -24,6 +24,17 @@ export interface DexEntry {
 
 const A = 'assets/';
 const D = 'assets/dex/';
+const R = 'assets/remaster/';
+
+export const REMASTER_SPRITE_URLS: Readonly<Record<string, string>> = {
+  thanatoat: R + 'thanatoat-hq.png',
+  banderado: R + 'banderado-hq.png',
+  pipetiger: R + 'pipetiger-hq.png',
+};
+
+export function remasteredSpriteUrl(key: string): string | undefined {
+  return REMASTER_SPRITE_URLS[key.toLowerCase()];
+}
 
 // PokéAPI official front sprite by national id
 const api = (id: number) =>
@@ -39,7 +50,7 @@ export const POKEDEX: DexEntry[] = [
     spriteUrl: A + 'munklift.png', evolvesTo: 'banderado', evolvesAtLevel: 36, dist: 'Starter', where: 'Evolve Munkain' },
   { num: 3, key: 'banderado', name: 'Banderado', type1: 'grass', type2: 'dark', ability: 'Overgrow',
     dexText: 'A masked forest bandit. Its acorn helm and leaf-blade tail are feared across the highlands.',
-    spriteUrl: A + 'banderado.png', dist: 'Starter', where: 'Evolve Munklift' },
+    spriteUrl: REMASTER_SPRITE_URLS.banderado, dist: 'Starter', where: 'Evolve Munklift' },
 
   { num: 4, key: 'vipour', name: 'Vipour', type1: 'fire', type2: 'poison', ability: 'Blaze',
     dexText: 'Smoke from burning food drifts from its neck. The scent puts prey strangely at ease.',
@@ -404,7 +415,7 @@ export const POKEDEX: DexEntry[] = [
     spriteUrl: D + 'yeomtaeja.png', evolvesTo: 'pipetiger', evolvesAtLevel: 44, dist: 'Wild', where: 'Mountain forests' },
   { num: 79, key: 'pipetiger', name: 'Pipetiger', type1: 'fire', type2: 'steel', ability: 'Flame Body',
     dexText: '염흥왕 — the flame king. Smokestack pipes rise from its back like a folk-tale tiger smoking a pipe; it roars jets of white-hot steam.',
-    spriteUrl: D + 'pipetiger.png', dist: 'Wild', where: 'Evolve Yeomtaeja' },
+    spriteUrl: REMASTER_SPRITE_URLS.pipetiger, dist: 'Wild', where: 'Evolve Yeomtaeja' },
   { num: 80, key: 'layone', name: 'Layone', type1: 'normal', ability: 'Run Away',
     dexText: 'A curious little companion that trails travelers along the road, content simply to keep pace.',
     spriteUrl: D + 'layone.png', dist: 'Wild', where: 'Roadsides' },
@@ -454,7 +465,7 @@ export const POKEDEX: DexEntry[] = [
     spriteUrl: D + 'feldaconda.png', dist: 'Starter', where: 'Evolve Scorpent' },
   { num: 95, key: 'thanatoat', name: 'Thanatoat', type1: 'water', type2: 'ghost', ability: 'Torrent',
     dexText: "Onnujang's final form. A grim-reaper crane of the spirit world; it ferries drowned souls across still water and no tide it claims is ever given back.",
-    spriteUrl: D + 'thanatoat.png', dist: 'Starter', where: 'Evolve Onnujang' },
+    spriteUrl: REMASTER_SPRITE_URLS.thanatoat, dist: 'Starter', where: 'Evolve Onnujang' },
   { num: 96, key: 'cheonjisin', name: 'Spirit of Cheonji', type1: 'dragon', type2: 'water', ability: 'Multiscale',
     dexText: 'The slumbering guardian of Cheonji, the crater lake atop Baekdu. When its rest is undisturbed its scales run the deep blue of still water; roused, its corona burns a furious red. The whole peninsula breathes by its breathing.',
     spriteUrl: D + 'cheonjisin.png', dist: 'Legendary', where: 'Cheonji Lake — Baekdu Peak', legendary: true },

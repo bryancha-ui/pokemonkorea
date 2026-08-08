@@ -5,6 +5,7 @@
 import { PokemonData, MoveData } from '../battle/Pokemon';
 import { PokemonType } from '../battle/TypeChart';
 import { POKEDEX } from './Pokedex';
+import { ROYAL_KILN_ROAR } from './SignatureMoves';
 
 // One reliable attacking move per type
 const MOVE_BY_TYPE: Record<string, MoveData> = {
@@ -201,6 +202,7 @@ for (const cb of CUSTOM) {
   const moves: MoveData[] = [TACKLE];
   if (MOVE_BY_TYPE[cb.t1]) moves.push(MOVE_BY_TYPE[cb.t1]);
   if (cb.t2 && MOVE_BY_TYPE[cb.t2]) moves.push(MOVE_BY_TYPE[cb.t2]);
+  if (cb.key === 'pipetiger') moves.push(ROYAL_KILN_ROAR);
   FORMS[cb.key] = { data, moves };
 }
 

@@ -1,7 +1,9 @@
 import Phaser from 'phaser';
 import * as THREE from 'three';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { clearReliefCache } from './Extruder';
 import { allowsHeavy3DAssets, releaseModelGpuResources } from './GlbModels';
+import { tuneModelTextures } from './ModelMaterials';
 import { releasePropGpuResources } from './PropModels';
 
 // ── Three.js stage ───────────────────────────────────────────────────────────
@@ -28,7 +30,7 @@ const ENVS: Record<EnvProfile, EnvColors> = {
   interior: { skyTop: 0x2a2634, skyBottom: 0x3c3648, fog: 0x302b39, fogNear: 20, fogFar: 48,
               hemiSky: 0xfff4df, hemiGround: 0x7b6e5c, hemiIntensity: 1.32, sun: 0xffe5ba, sunIntensity: 1.25, showSky: false, cloudOpacity: 0 },
   battle:   { skyTop: 0x398fdf, skyBottom: 0xe5f4ff, fog: 0xd5e9f8, fogNear: 32, fogFar: 96,
-              hemiSky: 0xe3f1ff, hemiGround: 0x91a875, hemiIntensity: 1.3, sun: 0xffefd1, sunIntensity: 2.1, showSky: true, cloudOpacity: 0.62 },
+              hemiSky: 0xe3f1ff, hemiGround: 0x91a875, hemiIntensity: 0.9, sun: 0xffefd1, sunIntensity: 1.5, showSky: true, cloudOpacity: 0.62 },
 };
 
 export class ThreeStage {
@@ -41,6 +43,8 @@ export class ThreeStage {
 
   private hemi: THREE.HemisphereLight;
   private sun: THREE.DirectionalLight;
+  private rim: THREE.DirectionalLight;
+  private fill: THREE.DirectionalLight;
   private sky: THREE.Mesh;
   private skyMat: THREE.ShaderMaterial;
   private clouds = new THREE.Group();
@@ -49,6 +53,9 @@ export class ThreeStage {
   private viewDir = new THREE.Vector3();
   private lightFocus = new THREE.Vector3();
   private readonly sunOffset = new THREE.Vector3(-11, 18, 10);
+  private readonly rimOffset = new THREE.Vector3(11, 8, -12);
+  private readonly fillOffset = new THREE.Vector3(8, 5, 10);
+  private readonly maxAnisotropy: number;
   private game: Phaser.Game;
   private rectTimer = 0;
   private contextLost = false;
@@ -58,13 +65,15 @@ export class ThreeStage {
     this.canvas = document.createElement('canvas');
     this.canvas.style.cssText = 'position:absolute;pointer-events:none;display:none;';
     const highGpuBudget = allowsHeavy3DAssets();
-    this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: highGpuBudget, alpha: false });
+    this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.08;
+    this.renderer.toneMappingExposure = 1.0;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, highGpuBudget ? 2 : 1.25));
+    this.renderer.shadowMap.autoUpdate = true;
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, highGpuBudget ? 2 : 1.5));
+    this.maxAnisotropy = this.renderer.capabilities.getMaxAnisotropy();
 
     // A mobile browser is allowed to evict a WebGL context when GPU memory is
     // tight.  Previously the transparent Phaser canvas remained enabled after
@@ -82,6 +91,11 @@ export class ThreeStage {
     }, false);
 
     this.scene = new THREE.Scene();
+    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    const room = new RoomEnvironment();
+    this.scene.environment = pmrem.fromScene(room, 0.04).texture;
+    room.dispose();
+    pmrem.dispose();
     this.camera = new THREE.PerspectiveCamera(50, 16 / 9, 0.1, 200);
     this.worldRoot = new THREE.Group();
     this.scene.add(this.worldRoot);
@@ -91,7 +105,7 @@ export class ThreeStage {
     this.sun = new THREE.DirectionalLight(0xfff2d8, 1.6);
     this.sun.position.set(-6, 12, 5);
     this.sun.castShadow = true;
-    const shadowSize = highGpuBudget ? 1536 : 768;
+    const shadowSize = highGpuBudget ? 2048 : 1024;
     this.sun.shadow.mapSize.set(shadowSize, shadowSize);
     this.sun.shadow.bias = -0.00035;
     this.sun.shadow.normalBias = 0.035;
@@ -103,6 +117,9 @@ export class ThreeStage {
     shadowCam.updateProjectionMatrix();
     this.scene.add(this.sun);
     this.scene.add(this.sun.target);
+    this.rim = new THREE.DirectionalLight(0x8ed8ff, 0);
+    this.fill = new THREE.DirectionalLight(0xffb56b, 0);
+    this.scene.add(this.rim, this.rim.target, this.fill, this.fill.target);
 
     // Gradient sky dome.
     this.skyMat = new THREE.ShaderMaterial({
@@ -198,6 +215,12 @@ export class ThreeStage {
     this.sun.intensity = e.sunIntensity;
     this.clouds.visible = e.cloudOpacity > 0;
     this.cloudMaterial.opacity = e.cloudOpacity;
+    const battle = profile === 'battle';
+    this.rim.color.set(battle ? 0x79cfff : 0xa8cfff);
+    this.rim.intensity = battle ? 1.0 : profile === 'interior' ? 0.34 : 0.18;
+    this.fill.color.set(battle ? 0xffa55f : 0xffd6a4);
+    this.fill.intensity = battle ? 0.36 : profile === 'interior' ? 0.34 : 0.12;
+    this.scene.environmentIntensity = battle ? 0.42 : profile === 'interior' ? 0.46 : 0.38;
   }
 
   /** Scene-specific clear/fog colour used by bright authored interiors. */
@@ -254,7 +277,13 @@ export class ThreeStage {
     this.lightFocus.copy(this.camera.position).addScaledVector(this.viewDir, 8);
     this.sun.target.position.copy(this.lightFocus);
     this.sun.position.copy(this.lightFocus).add(this.sunOffset);
+    this.rim.target.position.copy(this.lightFocus);
+    this.rim.position.copy(this.lightFocus).add(this.rimOffset);
+    this.fill.target.position.copy(this.lightFocus);
+    this.fill.position.copy(this.lightFocus).add(this.fillOffset);
     this.sun.target.updateMatrixWorld();
+    this.rim.target.updateMatrixWorld();
+    this.fill.target.updateMatrixWorld();
     if (this.rectTimer % 30 === 0) this.prepareWorldMeshes();
     this.renderer.render(this.scene, this.camera);
     return this.isHealthy();
@@ -265,6 +294,7 @@ export class ThreeStage {
       const mesh = obj as THREE.Mesh;
       if (!mesh.isMesh || this.preparedMeshes.has(mesh)) return;
       this.preparedMeshes.add(mesh);
+      tuneModelTextures(mesh, this.maxAnisotropy);
       const mats = (Array.isArray(mesh.material) ? mesh.material : [mesh.material]) as THREE.Material[];
       const translucent = mats.some(m => m.transparent || m.opacity < 0.98);
       mesh.castShadow = !translucent;
@@ -309,7 +339,7 @@ export function disposeDeep(root: THREE.Object3D): void {
     // Textures are separate GPU resources; Material.dispose() does not release
     // them. gradientMap is the process-wide toon ramp and must remain shared.
     for (const [key, value] of Object.entries(material)) {
-      if (key === 'gradientMap' || !(value instanceof THREE.Texture) || disposedTextures.has(value)) continue;
+      if (key === 'gradientMap' || !(value instanceof THREE.Texture) || value.userData.pkSharedDetailTexture || disposedTextures.has(value)) continue;
       disposedTextures.add(value);
       value.dispose();
     }
