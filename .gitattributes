@@ -2,6 +2,8 @@
 *.wav filter=lfs diff=lfs merge=lfs -text
 *.m4a filter=lfs diff=lfs merge=lfs -text
 
-# GitHub Pages must receive the actual Hwanung entrance movie. Git LFS pointer
+# GitHub Pages must receive the actual entrance/ending movies. Git LFS pointer
 # files are otherwise published verbatim and cannot be decoded by the browser.
 phaser-game/public/assets/cutscenes/hwanung_entrance_final.mp4 -filter -diff -merge -text
+phaser-game/public/assets/cutscenes/nabihalmang_jeju_crater_entrance_final.mp4 -filter -diff -merge -text
+phaser-game/public/assets/cutscenes/pokemon_korea_ending_credits_original_audio_bug_backup.mp4 -filter -diff -merge -text

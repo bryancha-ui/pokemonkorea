@@ -153,6 +153,7 @@ import { BreedingTrackerPlugin } from './systems/BreedingTracker';
 import { bootstrap3D } from './engine3d';
 import { SaveManager } from './utils/SaveManager';
 import { PartySystem } from './systems/PartySystem';
+import { standaloneTestMode } from './systems/StandaloneTestMode';
 
 function launchRyeoBattleTest(game: Phaser.Game): void {
   // Restore into this window's Phaser registry only. The battle scene's save
@@ -178,6 +179,34 @@ function launchRyeoBattleTest(game: Phaser.Game): void {
   // title so it cannot remain underneath the standalone battle window.
   if (game.scene.isActive('TitleScene')) game.scene.stop('TitleScene');
   game.scene.start('JejuVentScene');
+}
+
+/** Open the complete pre-capture summit staging without touching the real save. */
+function launchNabihalmangEntranceTest(game: Phaser.Game): void {
+  game.registry.set('sceneFlowTest', true);
+  game.registry.set('party', '[]');
+  game.registry.set('box', '[]');
+  game.registry.set('dexCaught', '[]');
+  game.registry.set('seoraeGymDefeated', true);
+  game.registry.set('jejuSummitSeen', false);
+  game.registry.set('nabiEntranceMovieSeen', false);
+  game.registry.set('jejuClimbStarted', true);
+  game.registry.set('trainerDefeated_jeju-suri-1', true);
+  game.registry.set('trainerDefeated_jeju-suri-2', true);
+  game.registry.set('jejuVentReturnX', 12 * 32 + 16);
+  game.registry.set('jejuVentReturnY', 8 * 32 + 16);
+  if (game.scene.isActive('TitleScene')) game.scene.stop('TitleScene');
+  game.scene.start('JejuVentScene');
+}
+
+/** Open the true-ending celebration, movie and homecoming without saving. */
+function launchTrueEndingTest(game: Phaser.Game): void {
+  game.registry.set('sceneFlowTest', true);
+  game.registry.set('party', '[]');
+  game.registry.set('finalePartyPending', true);
+  game.registry.set('trueEndDone', true);
+  if (game.scene.isActive('TitleScene')) game.scene.stop('TitleScene');
+  game.scene.start('SudoLabScene');
 }
 
 async function bootGame() {
@@ -240,10 +269,19 @@ initI18n(game);   // load the saved KO/EN language preference before any scene r
 // keeps drawing all UI. Game logic is untouched. Press F3 to toggle 2D ↔ 3D.
 bootstrap3D(game);
 
-// Open the test directly when the popup is launched with ?test=ryeo-battle.
-if (new URLSearchParams(location.search).get('test') === 'ryeo-battle') {
+// Open isolated scene-flow checks directly from their dedicated URLs.
+const testMode = standaloneTestMode();
+if (testMode === 'ryeo-battle') {
   game.events.once(Phaser.Core.Events.READY, () => {
     window.setTimeout(() => launchRyeoBattleTest(game), 0);
+  });
+} else if (testMode === 'nabi-entrance') {
+  game.events.once(Phaser.Core.Events.READY, () => {
+    window.setTimeout(() => launchNabihalmangEntranceTest(game), 350);
+  });
+} else if (testMode === 'true-ending') {
+  game.events.once(Phaser.Core.Events.READY, () => {
+    window.setTimeout(() => launchTrueEndingTest(game), 350);
   });
 }
 }

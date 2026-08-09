@@ -145,7 +145,7 @@ export const SaveManager = {
   save(registry: Phaser.Data.DataManager, px: number, py: number, scene = 'WorldMapScene'): boolean {
     // The Commander Ryeo popup is an isolated rehearsal. Never let its copied
     // party, battle damage, rewards, or debug flags reach the real save slot.
-    if (registry.get('ryeoBattleTest')) return false;
+    if (registry.get('ryeoBattleTest') || registry.get('sceneFlowTest')) return false;
     // Remember the current resumable scene/position so menu/battle saves (which
     // don't know the scene) can record it correctly instead of defaulting to WorldMap.
     registry.set('lastScene', scene);

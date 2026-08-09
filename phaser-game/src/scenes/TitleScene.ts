@@ -6,9 +6,12 @@ import { playBgm, stopBgm } from '../systems/Music';
 import { t, getLang, setLang } from '../systems/i18n';
 import { fontScaleForScene } from '../systems/UiScale';
 import { preloadBattleFallbackSprites } from '../data/BattleFallbackSprites';
+import { standaloneTestMode } from '../systems/StandaloneTestMode';
 
-const TITLE_BG_KEY = 'pokemon-string-opening';
-const TITLE_BG_URL = 'assets/title/pokemon-string-opening.png';
+const TITLE_BACKGROUNDS = {
+  ko: { key: 'pokemon-string-opening-ko', url: 'assets/title/pokemon-string-opening-ko.png' },
+  en: { key: 'pokemon-string-opening-en', url: 'assets/title/pokemon-string-opening-en.png' },
+} as const;
 
 export class TitleScene extends Phaser.Scene {
   private selected = 0;
@@ -30,8 +33,10 @@ export class TitleScene extends Phaser.Scene {
   constructor() { super('TitleScene'); }
 
   preload() {
-    if (new URLSearchParams(location.search).get('test') === 'ryeo-battle') return;
-    if (!this.textures.exists(TITLE_BG_KEY)) this.load.image(TITLE_BG_KEY, TITLE_BG_URL);
+    if (standaloneTestMode()) return;
+    for (const background of Object.values(TITLE_BACKGROUNDS)) {
+      if (!this.textures.exists(background.key)) this.load.image(background.key, background.url);
+    }
     STARTERS.forEach(s => {
       if (!this.textures.exists(s.spriteKey))
         this.load.image(s.spriteKey, s.data.spriteUrl);
@@ -43,16 +48,13 @@ export class TitleScene extends Phaser.Scene {
     // The dedicated Commander Ryeo test window is launched by main.ts. Keep
     // the automatically booted title scene visually empty during that handoff
     // so its menu cannot remain underneath the battle canvas.
-    if (new URLSearchParams(location.search).get('test') === 'ryeo-battle') return;
+    if (standaloneTestMode()) return;
     this.hasSave = SaveManager.exists();
     this.cameras.main.fadeIn(900);
     playBgm(this, 'title');   // starts once the browser unlocks audio on first input
     this.events.once('shutdown', () => stopBgm(this));   // never let the title theme bleed into the next scene
 
     this.drawBackground();
-    this.drawStars();
-    this.drawStarters();
-    this.drawLogoArea();
     this.drawMenu();
     this.drawSaveInfo();
     this.drawRestoreOption();
@@ -111,10 +113,17 @@ export class TitleScene extends Phaser.Scene {
   // ── Background ────────────────────────────────────────────────────────────
 
   private drawBackground() {
-    if (this.textures.exists(TITLE_BG_KEY)) {
-      const backdrop = this.add.image(this.W / 2, this.H / 2, TITLE_BG_KEY)
-        .setDisplaySize(this.W, this.H)
-        .setDepth(-20);
+    const background = TITLE_BACKGROUNDS[getLang()];
+    if (this.textures.exists(background.key)) {
+      const backdrop = this.add.image(this.W / 2, this.H / 2, background.key).setDepth(-20);
+      const source = this.textures.get(background.key).getSourceImage();
+      const coverScale = Math.max(
+        this.W / Math.max(1, Number(source.width)),
+        this.H / Math.max(1, Number(source.height)),
+      );
+      // Preserve the authored artwork's aspect ratio and crop only its safe
+      // outer margin when the game viewport is wider than the supplied image.
+      backdrop.setScale(coverScale);
       this.tweens.add({
         targets: backdrop, scaleX: backdrop.scaleX * 1.035, scaleY: backdrop.scaleY * 1.035,
         duration: 14000, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
@@ -124,13 +133,11 @@ export class TitleScene extends Phaser.Scene {
       this.add.rectangle(this.W / 2, this.H / 2, this.W, this.H, 0x08000f).setDepth(-20);
     }
 
-    // Darken only the UI zones; the luminous mountain and string-energy focal
-    // point stay visible between the logo and the menu.
+    // Keep the authored title/logo untouched. Only shade the lower menu zone
+    // enough for readable controls over either localized illustration.
     const shade = this.add.graphics().setDepth(-19);
-    shade.fillGradientStyle(0x040008, 0x040008, 0x040008, 0x040008, 0.48, 0.48, 0, 0);
-    shade.fillRect(0, 0, this.W, this.H * 0.42);
     shade.fillGradientStyle(0x05000b, 0x05000b, 0x05000b, 0x05000b, 0, 0, 0.82, 0.82);
-    shade.fillRect(0, this.H * 0.48, this.W, this.H * 0.52);
+    shade.fillRect(0, this.H * 0.54, this.W, this.H * 0.46);
 
     // Thin cinematic letterbox edges give the splash a finished console-game frame.
     shade.fillStyle(0x030006, 0.72);

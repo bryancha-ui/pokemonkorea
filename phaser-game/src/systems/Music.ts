@@ -104,7 +104,8 @@ export const TRACKS: Record<string, string> = {
   leagueinterior: BASE + 'bgm_leagueinterior.mp3', // League interior
   halloffame: BASE + 'bgm_halloffame.mp3',  // Hall of Fame
   evolution:  BASE + 'bgm_evolution.mp3',   // Evolution sequence
-  endingcredits: BASE + 'bgm_endingcredits.mp3',  // Ending credits roll
+  endingcredits: BASE + 'bgm_endingcredits.mp3',  // Ending credits — first movement
+  endingcredits2: BASE + 'pokemon_endingcretids.mp3', // Ending credits — second movement
 };
 
 // Short, one-shot jingles that play OVER the current music (non-looping).

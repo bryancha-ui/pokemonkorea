@@ -5,24 +5,78 @@ import { MOBILE_ACTION_EVENT } from './TouchControls';
 export const ENDING_CREDITS_VIDEO_URL =
   'assets/cutscenes/pokemon_korea_ending_credits_original_audio_bug_backup.mp4';
 
-// The two sources have similar mastered loudness. Keep the movie's authored
-// soundtrack in front while leaving enough headroom for the looping game BGM.
-export const ENDING_VIDEO_VOLUME = 0.55;
 export const ENDING_BGM_VOLUME = 0.45;
+export const ENDING_CREDITS_DURATION_MS = 300_000;
+export const ENDING_CREDITS_BGM_KEYS = ['endingcredits', 'endingcredits2'] as const;
 
 /**
- * Stream the five-minute ending movie without putting its 195 MB payload into
- * Phaser's preload queue. The owning scene supplies the separately-looping
- * `bgm_endingcredits` track, producing the requested live audio mix.
+ * Play the two local ending themes as one five-minute soundtrack. The first
+ * piece is 130.351 seconds; the second starts on its completion and is cut at
+ * the movie's exact 300-second boundary (looping only as a safety net if an
+ * asset is replaced by a shorter master later).
+ */
+export function playEndingCreditsBgm(scene: Phaser.Scene): () => void {
+  const registry = scene.game.registry;
+  let stopped = false;
+  let current: Phaser.Sound.BaseSound | undefined;
+  let stopTimer: Phaser.Time.TimerEvent | undefined;
+
+  const stop = () => {
+    if (stopped) return;
+    stopped = true;
+    stopTimer?.remove(false);
+    scene.events.off(Phaser.Scenes.Events.SHUTDOWN, stop);
+    if (current) {
+      current.stop();
+      current.destroy();
+      if (registry.get('bgmSound') === current) registry.remove('bgmSound');
+    }
+    if (ENDING_CREDITS_BGM_KEYS.includes(registry.get('bgmKey'))) registry.remove('bgmKey');
+    registry.remove('bgmWanted');
+  };
+
+  const playTrack = (index: number) => {
+    if (stopped) return;
+    const key = ENDING_CREDITS_BGM_KEYS[index];
+    if (!key || !scene.cache.audio.exists(key)) {
+      console.warn(`[ending-credits] soundtrack asset missing: ${key ?? 'unknown'}`);
+      return;
+    }
+    if (current) current.destroy();
+    current = scene.sound.add(key, {
+      loop: index === ENDING_CREDITS_BGM_KEYS.length - 1,
+      volume: ENDING_BGM_VOLUME,
+    });
+    (current as Phaser.Sound.WebAudioSound).setMute?.(!!registry.get('bgmMuted'));
+    registry.set('bgmSound', current);
+    registry.set('bgmKey', key);
+    registry.set('bgmWanted', 'ending-credits-sequence');
+    if (index + 1 < ENDING_CREDITS_BGM_KEYS.length) {
+      current.once(Phaser.Sound.Events.COMPLETE, () => playTrack(index + 1));
+    }
+    current.play();
+  };
+
+  scene.events.once(Phaser.Scenes.Events.SHUTDOWN, stop);
+  stopTimer = scene.time.delayedCall(ENDING_CREDITS_DURATION_MS, stop);
+  playTrack(0);
+  return stop;
+}
+
+/**
+ * Stream the five-minute mobile-optimised ending movie without putting its
+ * payload into Phaser's preload queue. Its own audio is always muted because
+ * the owning scene supplies a dedicated two-part local soundtrack.
  *
- * Returns a debounced SPACE/A/tap action. The first gesture unlocks audible
- * playback on iOS; a later gesture skips. Load/codec failures invoke the
+ * Returns a debounced SPACE/A/tap action. The first gesture unlocks playback
+ * on iOS; a later gesture skips. Load/codec failures invoke the
  * legacy-credits fallback rather than leaving the ending stuck on black.
  */
 export function playEndingCreditsVideo(
   scene: Phaser.Scene,
   onComplete: () => void,
   onUnavailable: () => void,
+  onPlaybackStarted?: () => void,
 ): () => void {
   const w = scene.scale.width, h = scene.scale.height;
   const cx = w / 2, cy = h / 2;
@@ -47,6 +101,7 @@ export function playEndingCreditsVideo(
   let lastActionAt = -Infinity;
   let fallbackTimer: Phaser.Time.TimerEvent | undefined;
   let hintFade: Phaser.Time.TimerEvent | undefined;
+  let playbackStartNotified = false;
 
   const dispose = (): boolean => {
     if (settled) return false;
@@ -79,10 +134,14 @@ export function playEndingCreditsVideo(
   const abort = () => { dispose(); };
   const fitVideo = () => video.setDisplaySize(w, h);
   const showUnlockHint = () => {
-    hint.setAlpha(1).setText(t('Tap or press A to play with sound', '탭 또는 A 버튼을 눌러 소리와 함께 재생'));
+    hint.setAlpha(1).setText(t('Tap or press A to play', '탭 또는 A 버튼을 눌러 재생'));
   };
   const showPlayingHint = () => {
     hasPlayed = true;
+    if (!playbackStartNotified) {
+      playbackStartNotified = true;
+      onPlaybackStarted?.();
+    }
     fitVideo();
     hint.setAlpha(1).setText(t('Tap / A / SPACE to skip', '탭 / A / SPACE: 건너뛰기'));
     hintFade?.remove(false);
@@ -100,8 +159,8 @@ export function playEndingCreditsVideo(
     if (now - lastActionAt < 420) return;
     lastActionAt = now;
     if (video.touchLocked || !video.isPlaying()) {
-      video.setMute(!!scene.registry.get('bgmMuted'));
-      video.setVolume(ENDING_VIDEO_VOLUME);
+      video.setMute(true);
+      video.setVolume(0);
       video.play(false);
       return;
     }
@@ -122,8 +181,8 @@ export function playEndingCreditsVideo(
 
   try {
     video.loadURL(ENDING_CREDITS_VIDEO_URL, false);
-    video.setMute(!!scene.registry.get('bgmMuted'));
-    video.setVolume(ENDING_VIDEO_VOLUME);
+    video.setMute(true);
+    video.setVolume(0);
     video.play(false);
   } catch (error) {
     console.warn('[ending-credits] movie unavailable; using the in-game fallback:', error);

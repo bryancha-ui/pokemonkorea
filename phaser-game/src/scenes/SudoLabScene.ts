@@ -1,7 +1,11 @@
 import Phaser from 'phaser';
 import { tr, speakerName } from '../systems/i18n';
 import { playBgm, stopBgm, TRACKS } from '../systems/Music';
-import { ENDING_BGM_VOLUME, playEndingCreditsVideo } from '../systems/EndingCreditsVideo';
+import {
+  ENDING_CREDITS_BGM_KEYS,
+  playEndingCreditsBgm,
+  playEndingCreditsVideo,
+} from '../systems/EndingCreditsVideo';
 import { DialogBox } from '../ui/DialogBox';
 import { SaveManager } from '../utils/SaveManager';
 import { PartySystem } from '../systems/PartySystem';
@@ -30,6 +34,7 @@ export class SudoLabScene extends Phaser.Scene {
   private busy = false;
   private ending = false;
   private endingVideoAction?: () => void;
+  private stopEndingBgm?: () => void;
 
   constructor() { super('SudoLabScene'); }
 
@@ -42,11 +47,13 @@ export class SudoLabScene extends Phaser.Scene {
       const url = dexEntry(k)?.spriteUrl;
       if (url) this.load.image(k, url);
     }
-    // Decode only the small looping mix track here. The 195 MB movie itself is
-    // streamed on demand so entering the final Sudo scene never waits for the
-    // whole five-minute file to download, especially on mobile.
-    if (this.registry.get('finalePartyPending') && !this.cache.audio.exists('endingcredits')) {
-      this.load.audio('endingcredits', TRACKS.endingcredits);
+    // Decode only the two local soundtrack files here. The mobile-optimised movie
+    // is streamed on demand so entering the final Sudo scene never waits for
+    // the whole five-minute file to download.
+    if (this.registry.get('finalePartyPending')) {
+      for (const key of ENDING_CREDITS_BGM_KEYS) {
+        if (!this.cache.audio.exists(key)) this.load.audio(key, TRACKS[key]);
+      }
     }
   }
 
@@ -54,6 +61,7 @@ export class SudoLabScene extends Phaser.Scene {
     this.disable3D = false;
     this.ending = false;
     this.endingVideoAction = undefined;
+    this.stopEndingBgm = undefined;
     playBgm(this, 'sudo');
     this.input.keyboard?.resetKeys();
     this.cameras.main.fadeIn(400);
@@ -314,8 +322,8 @@ export class SudoLabScene extends Phaser.Scene {
     this.playerG.setPosition(this.px, this.py);
   }
 
-  /** Stream the authored ending movie and mix its original audio with the
-   * looping game credits theme, then send the Champion home. */
+  /** Stream the muted ending movie with the two-part local soundtrack, then
+   * send the Champion home. */
   private rollCredits() {
     this.cameras.main.fadeOut(1000, 0, 0, 0, () => {
       // Free the complete laboratory display list and let Engine3D release its
@@ -323,25 +331,28 @@ export class SudoLabScene extends Phaser.Scene {
       this.destroyDisplayList();
       this.ending = true;
       this.disable3D = true;
-      playBgm(this, 'endingcredits');
-      const mixedBgm = this.registry.get('bgmSound') as (Phaser.Sound.BaseSound & {
-        setVolume?: (value: number) => unknown;
-      }) | undefined;
-      mixedBgm?.setVolume?.(ENDING_BGM_VOLUME);
+      stopBgm(this);
       this.cameras.main.fadeIn(1000);
       this.endingVideoAction = playEndingCreditsVideo(
         this,
         () => this.endGame(),
         () => {
           this.endingVideoAction = undefined;
+          this.startEndingSoundtrack();
           this.rollLegacyCredits();
         },
+        () => this.startEndingSoundtrack(),
       );
     });
   }
 
+  private startEndingSoundtrack(): void {
+    if (this.stopEndingBgm) return;
+    this.stopEndingBgm = playEndingCreditsBgm(this);
+  }
+
   /** Codec/network fallback retained so the true ending never soft-locks on a
-   * browser that cannot decode H.264. The mixed BGM continues underneath. */
+   * browser that cannot decode H.264. The local BGM continues underneath. */
   private rollLegacyCredits() {
     if (!this.ending) return;
     const W = this.scale.width, H = this.scale.height;
@@ -383,6 +394,8 @@ export class SudoLabScene extends Phaser.Scene {
     if (!this.ending) return;
     this.ending = false;
     this.endingVideoAction = undefined;
+    this.stopEndingBgm?.();
+    this.stopEndingBgm = undefined;
     // Credits used to drop the player at the title screen. Make the ending an
     // actual homecoming and persist it first, so Continue also resumes at home
     // if the browser closes during the final fade.
