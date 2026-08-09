@@ -14,14 +14,6 @@ interface HatchEngineBridge {
   stopHatch(scene: Phaser.Scene): void;
 }
 
-const TYPE_COLORS: Record<string, number> = {
-  normal: 0xd5c8ad, fire: 0xff7043, water: 0x4f9fe8, electric: 0xffd643,
-  grass: 0x6fc35a, ice: 0x8ddbea, fighting: 0xc65a45, poison: 0x9c63c7,
-  ground: 0xc69b5d, flying: 0x91b9e8, psychic: 0xe96899, bug: 0x9caf46,
-  rock: 0xa99163, ghost: 0x7568a5, dragon: 0x6758c7, dark: 0x5f5360,
-  steel: 0x9caeba, fairy: 0xf39abb,
-};
-
 /**
  * Modal hatch cutscene. In 3D mode the Egg and newborn are supplied by the
  * existing Three.js overworld renderer; this scene owns the fade, copy and
@@ -157,33 +149,21 @@ export class EggHatchScene extends Phaser.Scene {
     if (this.textures.exists(this.hatchTextureKey)) {
       const sprite = this.add.image(cx, cy + 82, this.hatchTextureKey).setAlpha(0).setScale(0.01);
       const source = this.textures.get(this.hatchTextureKey).getSourceImage() as { width?: number; height?: number };
-      const fit = Math.min(300 / Math.max(1, source.width ?? 1), 280 / Math.max(1, source.height ?? 1));
+      const fit = Math.min(330 / Math.max(1, source.width ?? 1), 308 / Math.max(1, source.height ?? 1));
       sprite.setData('hatchTargetScale', fit);
       this.child2D = sprite;
     } else {
-      this.child2D = this.makeGeneric2DCreature(cx, cy + 78).setAlpha(0).setScale(0.01);
+      // Never invent a substitute Pokémon when both the GLB and authored sprite
+      // are unavailable. Keep the reveal neutral and report the missing art.
+      const unavailable = this.add.container(cx, cy + 78);
+      unavailable.add(this.add.text(0, 0, t('Image unavailable', '이미지를 불러오지 못했습니다'), {
+        fontSize: '18px', color: '#dcecff', fontStyle: 'bold',
+        stroke: '#10172a', strokeThickness: 4,
+      }).setOrigin(0.5));
+      this.child2D = unavailable.setAlpha(0).setScale(0.01);
       this.child2D.setData('hatchTargetScale', 1);
     }
     this.fallbackLayer.add(this.child2D);
-  }
-
-  private makeGeneric2DCreature(x: number, y: number): Phaser.GameObjects.Container {
-    const color = TYPE_COLORS[this.child.type1.toLowerCase()] ?? 0x78c8ff;
-    const group = this.add.container(x, y);
-    const g = this.add.graphics();
-    g.fillStyle(color, 1);
-    g.fillEllipse(0, 18, 128, 156);
-    g.fillCircle(0, -65, 55);
-    g.fillTriangle(-43, -96, -58, -154, -12, -111);
-    g.fillTriangle(43, -96, 58, -154, 12, -111);
-    g.fillStyle(0xffedaa, 1);
-    g.fillEllipse(0, -49, 58, 35);
-    g.fillEllipse(-38, 92, 46, 22);
-    g.fillEllipse(38, 92, 46, 22);
-    g.lineStyle(5, 0xffffff, 0.88);
-    g.strokeCircle(0, -65, 55);
-    group.add(g);
-    return group;
   }
 
   private onShellBreak(): void {

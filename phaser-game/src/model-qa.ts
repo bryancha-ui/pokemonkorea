@@ -1,16 +1,15 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { applyProductionMaterials } from './engine3d/ModelMaterials';
+import { getModel, hasModel, modelLoadStatus, primeManifest } from './engine3d/GlbModels';
 import { MoveFX3D } from './engine3d/MoveFX3D';
 
 declare global {
   interface Window {
-    __modelQa?: { ready: boolean; errors: string[]; models: Array<{ key: string; meshes: number; authoredMaps: number; clips: string[] }> };
+    __modelQa?: { ready: boolean; errors: string[]; deferred2D: string[]; models: Array<{ key: string; meshes: number; triangles: number; authoredMaps: number; clips: string[] }> };
   }
 }
 
-const qa: NonNullable<Window['__modelQa']> = window.__modelQa = { ready: false, errors: [], models: [] };
+const qa: NonNullable<Window['__modelQa']> = window.__modelQa = { ready: false, errors: [], deferred2D: [], models: [] };
 const scene = new THREE.Scene();
 const fxRoot = new THREE.Group();
 const moveFx = new MoveFX3D(fxRoot);
@@ -68,7 +67,6 @@ for (let i = 0; i < 3; i++) {
 const mixers: THREE.AnimationMixer[] = [];
 const actors: THREE.Object3D[] = [];
 const animationSets: Array<{ mixer: THREE.AnimationMixer; clips: THREE.AnimationClip[]; current?: THREE.AnimationAction }> = [];
-const loader = new GLTFLoader();
 const texturedQa = new URLSearchParams(location.search).has('textured');
 const specs = texturedQa
   ? [
@@ -93,18 +91,37 @@ function normalize(model: THREE.Object3D, x: number): void {
   model.updateMatrixWorld(true);
 }
 
+async function waitFor(predicate: () => boolean, timeoutMs = 90_000): Promise<void> {
+  const started = performance.now();
+  while (!predicate()) {
+    if (performance.now() - started > timeoutMs) throw new Error('model loader timeout');
+    await new Promise(resolve => setTimeout(resolve, 80));
+  }
+}
+
+primeManifest();
+
 await Promise.all(specs.map(async (spec) => {
   try {
-    const gltf = await loader.loadAsync(`/assets/models3d/${spec.key}.glb`);
-    const actor = gltf.scene;
-    applyProductionMaterials(actor);
+    await waitFor(() => hasModel(spec.key) || modelLoadStatus(spec.key) === 'failed');
+    const immediate = getModel(spec.key);
+    if (immediate === null && modelLoadStatus(spec.key) === 'loading') qa.deferred2D.push(spec.key);
+    await waitFor(() => ['ready', 'failed'].includes(modelLoadStatus(spec.key)));
+    if (modelLoadStatus(spec.key) !== 'ready') throw new Error('game registry rejected local GLB');
+    const loaded = getModel(spec.key);
+    if (!loaded) throw new Error('game registry returned no model after ready');
+    const actor = loaded.group;
     normalize(actor, spec.x);
     let meshes = 0;
+    let triangles = 0;
     let authoredMaps = 0;
     actor.traverse(obj => {
       const mesh = obj as THREE.Mesh;
       if (!mesh.isMesh) return;
       meshes++;
+      const indexCount = mesh.geometry.index?.count;
+      const vertexCount = mesh.geometry.getAttribute('position')?.count ?? 0;
+      triangles += Math.floor((indexCount ?? vertexCount) / 3);
       const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
       if (materials.some(material => material?.userData.pkAuthoredBaseColorMap)) authoredMaps++;
       mesh.castShadow = true;
@@ -114,11 +131,11 @@ await Promise.all(specs.map(async (spec) => {
     actors.push(actor);
     const mixer = new THREE.AnimationMixer(actor);
     mixers.push(mixer);
-    const idle = gltf.animations.find(clip => /idle|breath/i.test(clip.name));
-    const animationSet = { mixer, clips: gltf.animations, current: idle ? mixer.clipAction(idle) : undefined };
+    const idle = loaded.animations.find(clip => /idle|breath/i.test(clip.name));
+    const animationSet = { mixer, clips: loaded.animations, current: idle ? mixer.clipAction(idle) : undefined };
     animationSet.current?.play();
     animationSets.push(animationSet);
-    qa.models.push({ key: spec.key, meshes, authoredMaps, clips: gltf.animations.map(clip => clip.name) });
+    qa.models.push({ key: spec.key, meshes, triangles, authoredMaps, clips: loaded.animations.map(clip => clip.name) });
   } catch (error) {
     qa.errors.push(`${spec.key}: ${String(error)}`);
   }
@@ -127,11 +144,13 @@ await Promise.all(specs.map(async (spec) => {
 qa.models.sort((a, b) => specs.findIndex(s => s.key === a.key) - specs.findIndex(s => s.key === b.key));
 qa.ready = true;
 const status = document.querySelector('#status');
+const totalTriangles = () => qa.models.reduce((sum, model) => sum + model.triangles, 0);
+const totalClips = () => qa.models.reduce((sum, model) => sum + model.clips.length, 0);
 if (status) status.textContent = qa.errors.length
   ? `오류 ${qa.errors.length}건 · ${qa.errors.join(' / ')}`
   : texturedQa
     ? `${qa.models.length}/3 Higgsfield 로컬 모델 정상 · 원본 색상 맵 ${qa.models.reduce((sum, model) => sum + model.authoredMaps, 0)}개 보존`
-    : `${qa.models.length}/3 모델 정상 · 각 4개 배틀 애니메이션 · ${qa.models.reduce((sum, model) => sum + model.meshes, 0)} meshes · Idle_Breathe 재생 중`;
+    : `${qa.models.length}/3 게임 로더 정상 · 2D 대기 ${qa.deferred2D.length}/3 · ${(totalTriangles() / 1_000_000).toFixed(2)}M triangles · PBR 색상 맵 ${qa.models.reduce((sum, model) => sum + model.authoredMaps, 0)}개 · 내장 클립 ${totalClips()}개`;
 
 let activeClip = 0;
 setInterval(() => {
@@ -147,7 +166,8 @@ setInterval(() => {
     set.current = next;
   });
   if (status && !qa.errors.length && !texturedQa) {
-    status.textContent = `${qa.models.length}/3 모델 정상 · 각 4개 배틀 애니메이션 · ${qa.models.reduce((sum, model) => sum + model.meshes, 0)} meshes · ${qa.models[0]?.clips[activeClip] ?? 'unknown'} 재생 중`;
+    const clip = qa.models.find(model => model.clips[activeClip])?.clips[activeClip];
+    status.textContent = `${qa.models.length}/3 게임 로더 정상 · 2D 대기 ${qa.deferred2D.length}/3 · ${(totalTriangles() / 1_000_000).toFixed(2)}M triangles · PBR 색상 맵 ${qa.models.reduce((sum, model) => sum + model.authoredMaps, 0)}개 · ${clip ? `${clip} 재생 중` : '런타임 절차 애니메이션 대상'}`;
   }
   if (activeClip === 1) {
     moveFx.playSpecial(new THREE.Vector3(-2.65, 1.35, 0.35), new THREE.Vector3(-1.55, 0.48, 0.75), 'ghost', 'Soul-Ferry Deluge', 0x8266db, 105, 1);

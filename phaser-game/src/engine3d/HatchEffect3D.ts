@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { CreatureAnimator } from './CreatureAnimator';
-import { getModel, hasModel, isRenderableModel } from './GlbModels';
+import type { LoadedModel } from './GlbModels';
 import { disposeDeep, ThreeStage } from './ThreeStage';
 
 /** The small, camera-anchored 3D stage used while a nursery Egg hatches. */
@@ -32,13 +32,6 @@ function smoothstep(a: number, b: number, value: number): number {
   return k * k * (3 - 2 * k);
 }
 
-function materialForFallback(color: number): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({
-    color, emissive: color, emissiveIntensity: 0.42, roughness: 0.42, metalness: 0.04,
-    transparent: true, opacity: 0.94,
-  });
-}
-
 /**
  * A real Three.js hatch effect rendered inside the existing game renderer.
  * It is camera-relative, so it stays framed correctly in outdoor maps and GLB
@@ -50,21 +43,17 @@ export class HatchEffect3D {
   private readonly egg = new THREE.Group();
   private readonly cracks = new THREE.Group();
   private readonly child = new THREE.Group();
-  private readonly fallback: THREE.Group;
   private readonly halo: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>;
   private readonly flash: THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicMaterial>;
   private readonly burst: BurstPiece[] = [];
-  private readonly profile: HatchEffectProfile3D;
   private actualModel: THREE.Group | null = null;
   private animator: CreatureAnimator | null = null;
   private time = 0;
-  private modelPoll = 0;
   private burstStarted = false;
   private disposed = false;
 
-  constructor(stage: ThreeStage, profile: HatchEffectProfile3D) {
+  constructor(stage: ThreeStage, loaded: LoadedModel, primaryType?: string) {
     this.stage = stage;
-    this.profile = profile;
     this.root.name = 'egg-hatch-effect-3d';
     this.root.renderOrder = 9000;
     stage.scene.add(this.root);
@@ -107,10 +96,13 @@ export class HatchEffect3D {
     this.egg.add(this.cracks);
     this.root.add(this.egg);
 
-    const typeColor = TYPE_COLORS[(profile.type1 ?? '').toLowerCase()] ?? 0x78c8ff;
-    this.fallback = this.makeFallbackCreature(typeColor);
-    this.fallback.visible = true;
-    this.child.add(this.fallback);
+    const typeColor = TYPE_COLORS[(primaryType ?? '').toLowerCase()] ?? 0x78c8ff;
+    this.actualModel = loaded.group;
+    this.actualModel.visible = true;
+    this.child.add(this.actualModel);
+    this.animator = new CreatureAnimator(this.actualModel, loaded.animations);
+    this.animator.setBase(0);
+    this.animator.setFacing(0);
     this.child.position.y = -0.98;
     this.child.scale.setScalar(0.001);
     this.child.visible = false;
@@ -132,52 +124,6 @@ export class HatchEffect3D {
     this.root.add(this.flash);
 
     this.anchorToCamera();
-    this.tryLoadActualModel();
-  }
-
-  private makeFallbackCreature(color: number): THREE.Group {
-    const group = new THREE.Group();
-    const mat = materialForFallback(color);
-    const accent = materialForFallback(0xfff1a8);
-    const body = new THREE.Mesh(new THREE.SphereGeometry(0.48, 22, 16), mat);
-    body.scale.set(0.92, 1.12, 0.82);
-    body.position.y = 0.57;
-    group.add(body);
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.4, 22, 16), mat);
-    head.position.y = 1.23;
-    group.add(head);
-    for (const side of [-1, 1]) {
-      const ear = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.56, 12), mat);
-      ear.position.set(side * 0.27, 1.68, 0);
-      ear.rotation.z = side * -0.2;
-      group.add(ear);
-      const foot = new THREE.Mesh(new THREE.SphereGeometry(0.16, 14, 10), accent);
-      foot.scale.set(1.25, 0.55, 1.3);
-      foot.position.set(side * 0.24, 0.1, 0.05);
-      group.add(foot);
-    }
-    const muzzle = new THREE.Mesh(new THREE.SphereGeometry(0.19, 14, 10), accent);
-    muzzle.scale.set(1.18, 0.72, 0.62);
-    muzzle.position.set(0, 1.13, 0.35);
-    group.add(muzzle);
-    group.traverse((obj) => {
-      const mesh = obj as THREE.Mesh;
-      if (mesh.isMesh) { mesh.castShadow = true; mesh.receiveShadow = true; }
-    });
-    return group;
-  }
-
-  private tryLoadActualModel(): void {
-    if (this.actualModel || !hasModel(this.profile.key)) return;
-    const loaded = getModel(this.profile.key);
-    if (!loaded || !isRenderableModel(loaded.group)) return;
-    this.actualModel = loaded.group;
-    this.actualModel.visible = true;
-    this.child.add(this.actualModel);
-    this.fallback.visible = false;
-    this.animator = new CreatureAnimator(this.actualModel, loaded.animations);
-    this.animator.setBase(0);
-    this.animator.setFacing(0);
   }
 
   private anchorToCamera(): void {
@@ -230,12 +176,6 @@ export class HatchEffect3D {
     dt = Math.min(0.1, Math.max(0, dt));
     this.time += dt;
     this.anchorToCamera();
-
-    this.modelPoll -= dt;
-    if (!this.actualModel && this.modelPoll <= 0) {
-      this.modelPoll = 0.25;
-      this.tryLoadActualModel();
-    }
 
     if (this.time < BREAK_AT) {
       const strength = smoothstep(0.35, BREAK_AT, this.time);

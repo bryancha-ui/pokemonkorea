@@ -19,7 +19,7 @@ export interface BattleFallbackSprite {
 }
 
 export function battleFallbackSprite(speciesKey: string): BattleFallbackSprite | undefined {
-  const canonical = speciesKey.toLowerCase();
+  const canonical = speciesKey.toLowerCase().replace(/^(wild|enemy|foe|ally|player|te)-/, '');
   const url = ORIGINAL_BATTLE_SPRITES[canonical];
   return url ? { key: `${PREFIX}${canonical}`, url } : undefined;
 }

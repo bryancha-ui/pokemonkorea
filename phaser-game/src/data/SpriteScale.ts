@@ -74,3 +74,10 @@ export function spriteScale(key: string | undefined): number {
   const numeric = key.match(/(?:^|[-_])(\d+)$/)?.[1];
   return numeric ? (NUMERIC_SPECIES_SCALE[Number(numeric)] ?? 1) : 1;
 }
+
+/** Small readability lift for authored 2D Pokémon art in battle and hatch UI. */
+export const BATTLE_2D_SPRITE_BOOST = 1.1;
+
+export function battle2DSpriteScale(key: string | undefined): number {
+  return spriteScale(key) * BATTLE_2D_SPRITE_BOOST;
+}

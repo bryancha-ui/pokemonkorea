@@ -202,8 +202,8 @@ const game = new Phaser.Game({
   backgroundColor: '#000000',
   parent: shell.parent,
   scene: [TitleScene, WorldMapScene, BattleScene, PlayerHomeScene, PokemonCenterScene, RivalHomeScene, StarterSelectScene, RivalBattleScene, MenuScene, RouteScene, WildBattleScene, SeoulScene, TrainerBattleScene, CapitolCityScene, CapitolTowerScene, CapitolGymScene, GymLeaderBattleScene, CapitolPCScene, CapitolPalaceScene, CapitolAssemblyScene, CapitolLibraryScene, CapitolMarketScene, EvolutionScene, EggHatchScene, Route2Scene, PineNeedleTownScene, PineNeedlePCScene, PineNeedleStudioScene, NurseryScene, NurseryManageScene, PokedexScene, ShopScene, BoxScene, BaekduPassScene, BaekduCityScene, BaekduPCScene, BaekduGymScene, Route3Scene, GeumgangCityScene, GeumgangPCScene, GeumgangGymScene, Route4Scene, HaeanCityScene, HaeanPCScene, HaeanGymScene, SudoLabScene, Route5Scene, ForestCityScene, ForestPCScene, ForestGymScene, ForestShrineScene, FerryScene, FerryDepartScene, FerryCorridorScene, FerryRoomAScene, FerryRoomBScene, FerryRoomCScene, JejuPortScene, JejuCityScene, JejuVentsPortScene, JejuPCScene, JejuVentScene, Route6Scene, SunriseCityScene, SunrisePCScene, SunriseGymScene, SunriseCliff1Scene, SunriseCliff2Scene, SunriseCliff3Scene, BaekduCheckpointScene, BaekduSummitScene, ScholarsRoadScene, LeaguePlazaScene, PokemonLeagueScene, RegionMapScene, NorthernColiseumScene, NorthernPlazaScene, PyeongyangCityScene, NorthernReachesScene, SacredPeakScene, DolmoeCityScene, DolmoeGymScene, DolmoeRuinsScene, DolmoePCScene, DolmoeMineScene, SeoraePassScene, OceanScene, MartScene, DeptStoreScene, SeoraeTownScene, SeoraePCScene, SeoraeBuildingScene, SeoraeGymScene, GenderSelectScene, IntroScene, HaenyeoHotSpringScene, HallasanGardensScene, HarborTavernScene, JejuLibraryScene, JejuMarketScene, BeachPavilionScene, SanbangsanShrineScene, CheonjiyeonWaterfallScene, KaesongCityScene, HanRiverParkScene, BikeShopScene, ConvenienceStoreScene, NampoCityScene, WonsanCityScene, HamhungCityScene, ChongjinCityScene, SinuijuCityScene, SamjiyonCityScene, RyesongValleyScene, PokemonLabScene, NampoBeachScene, AhobiryongPassScene, WonsanBeachScene, SijungCoastScene, HamhungMineScene, ChilboHighlandsScene, KaemaPlateauScene, RangrimFoothillsScene, RangrimCavernScene, RangrimAltarScene, RangrimSnowfieldScene, RangrimSummitScene, SamjiyonAjitRoadScene, NosdanHideoutScene, CheonjiScene, PyeongseongCheckpointScene, SinuijuIceCaveScene, FogboundManorScene, HamhungNaengmyeonScene, NorthernBuildingScene, SeolbongInnScene],
-  // CORS-enabled loads let the 3D layer read pixels of CDN-hosted art
-  // (PokeAPI HOME renders) to extrude battler meshes. Visual pipeline only.
+  // CORS-enabled loads keep remote authored 2D fallback art readable while
+  // approved local GLBs load. Visual pipeline only.
   loader: { crossOrigin: 'anonymous' },
   render: {
     powerPreference: 'high-performance',   // prefer the discrete GPU on dual-GPU laptops
@@ -235,7 +235,7 @@ initI18n(game);   // load the saved KO/EN language preference before any scene r
 (window as unknown as { __game: Phaser.Game }).__game = game;
 
 // ── 3D rendering layer ───────────────────────────────────────────────────────
-// Renders the game world in 3D (terrain, extruded characters & creatures,
+// Renders the game world in 3D (terrain, characters and approved local GLBs,
 // third-person + cinematic battle cameras) beneath the Phaser canvas, which
 // keeps drawing all UI. Game logic is untouched. Press F3 to toggle 2D ↔ 3D.
 bootstrap3D(game);

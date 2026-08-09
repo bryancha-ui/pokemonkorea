@@ -5,7 +5,6 @@ import { buildThemedBattleArena, resolveBattleArenaTheme } from './BattleArenaTh
 import { buildGeographicBattleArena, resolveOutdoorBattleTheme } from './BattleGeography';
 import { buildCharacterModel, PlayerModel } from './CharacterModel';
 import { CreatureAnimator, MoveCategory } from './CreatureAnimator';
-import { buildFlatCard, buildRelief, reliefMaterials } from './Extruder';
 import { measureCommands } from './GraphicsRaster';
 import { getModel, hasModel, isRenderableModel, modelLoadStatus, primeManifest } from './GlbModels';
 import { MoveFX3D } from './MoveFX3D';
@@ -16,11 +15,9 @@ import { EnvProfile, ThreeStage } from './ThreeStage';
 
 // ── Battle mirror ────────────────────────────────────────────────────────────
 // Turns the existing 2D battle scenes into a cinematic 3D arena without
-// touching a line of battle logic. The two creature Images are lifted into
-// extruded 3D meshes standing on a grassy arena; every tween the battle code
-// already runs on those sprites (send-out fades, attack lunges, hit shakes,
-// faints) automatically drives the 3D models, and the rig adds modern-style
-// camera drift, punch-ins and shake. All battle UI stays 2D on top.
+// touching battle logic. A Pokémon remains its authored 2D image until its
+// local GLB is fully loaded and validated; there is no sprite extrusion or
+// code-built creature substitute. All battle UI stays 2D on top.
 
 type GO = Phaser.GameObjects.GameObject & {
   x?: number; y?: number; alpha?: number; visible?: boolean;
@@ -32,8 +29,6 @@ type GO = Phaser.GameObjects.GameObject & {
 interface Combatant {
   obj: GO & Phaser.GameObjects.Image;
   holder: THREE.Group;
-  inner: THREE.Mesh;
-  mats: THREE.MeshBasicMaterial[];
   shadow: THREE.Mesh;
   side: 'player' | 'enemy';
   slot: number;
@@ -41,13 +36,10 @@ interface Combatant {
   settleTimer: number;
   lastPos: { x: number; y: number };
   speed: number;
-  /** world-units-per-art-pixel, normalized at adoption from the DISPLAY size. */
-  scalePx: number;
   /** the sprite's scale at adoption — later tweened scales are applied as ratios. */
   baseSX: number | null; baseSY: number | null;
   lastSX: number; scaleStill: number;
-  phase: number;
-  /** generated true-3D model (GLB) support */
+  /** Local production GLB support. */
   glbKey: string | null;
   glb: THREE.Group | null;
   glbVerifyFrames: number;
@@ -62,9 +54,8 @@ interface Combatant {
   /** texture signature — rebuilt when the game swaps the sprite's texture
    *  (async PokeAPI art arriving, party switches). */
   texSig: string;
-  /** A readable Phaser sprite is kept on top if its 3D relief cannot be built. */
+  /** A readable Phaser sprite stays on top until a validated GLB is ready. */
   fallback2D: boolean;
-  fallbackRetry: number;
   /** Dedicated screen-space copy. The battle-owned sprite remains untouched so
    *  its tweens, switching and damage logic continue to be the source of truth. */
   fallbackSprite: Phaser.GameObjects.Image | null;
@@ -97,7 +88,7 @@ const BATTLE_SIZE_OVERRIDES: Record<string, number> = {
 function battleSizeOverride(textureKey: string): number {
   const explicit = BATTLE_SIZE_OVERRIDES[textureKey];
   if (explicit) return explicit;
-  // The relief/model pipeline deliberately clamps raw display-height influence
+  // The GLB pipeline deliberately clamps raw display-height influence
   // to 1.15. Restore the remainder of the authored species multiplier so large
   // Pokémon such as Garchomp and Tyranitar stay imposing in 3D as well as 2D.
   return Math.max(1, spriteScale(textureKey) / 1.15);
@@ -177,7 +168,7 @@ export class BattleMirror {
     this.stage = stage;
     this.rig = rig;
     this.root = stage.resetWorld();
-    primeManifest();                 // generated GLB models, if the game ships any
+    primeManifest();                 // local production GLB models, if the game ships any
     stage.setEnvironment(this.buildArena());
     rig.setMode('battle');
     this.fx = new MoveFX3D(this.root);
@@ -375,23 +366,6 @@ export class BattleMirror {
     // trainer for a UI icon or it remains in Phaser's upper-left battle layer
     // instead of being handed to the enemy Pokémon's 3D arena anchor.
     if (!pokemonSide && !trainerAtEnemy && (dw < 70 || dh < 70)) return; // icons stay 2D
-    const src = this.frameCanvas(im);
-    // Creatures WITHOUT a generated 3D model keep their authored art on a thin
-    // relief so pixel rows cannot turn into a stretched accordion. Creatures
-    // that DO have a model use a volumetric sculpture only until the GLB loads.
-    // If pixels can't be read at all (CORS-tainted source), fall back to a
-    // flat textured card so a battler is NEVER invisible.
-    const has3D = hasModel(im.texture.key);
-    const relief = (src && buildRelief(
-      `img:${im.texture.key}:${im.frame?.name ?? 0}:${has3D ? 'volume-v2' : 'thin-v2'}`,
-      src,
-      has3D ? undefined : 1,
-    )) ?? buildFlatCard(
-      `flat:img:${im.texture.key}:${im.frame?.name ?? 0}`,
-      im.texture.getSourceImage() as HTMLImageElement,
-    );
-    if (!relief) return;
-
     // Battle layout puts the ENEMY zone in the upper screen area and the
     // player's in the lower-left — classify by both axes so intro portraits
     // (drawn upper-middle at the enemy spot) never land on the player side.
@@ -400,49 +374,33 @@ export class BattleMirror {
     const slot = pokemonSide || trainerAtEnemy ? 0
       : [...this.combatants.values()].filter(cb => cb.side === side).length % 2;
 
-    const mats = reliefMaterials(relief.texture);
-    const inner = new THREE.Mesh(relief.geometry, mats);
-    inner.userData.sharedGeo = true;
-    // Normalize creature height to a consistent stage presence. The bias from
-    // the 2D display size is kept NARROW so a 96px pixel sprite and a 512px
-    // HOME render both land near the same world height (fixes giant/small
-    // battlers when art resolution varies wildly).
     const sizeBias = Math.min(1.15, Math.max(0.85, dh / 220));
     const speciesSize = battleSizeOverride(im.texture.key);
-    // The enemy stands ~2× farther from the camera — bigger stage height. A
-    // trainer pinned to the enemy anchor is sized to a full battler height
-    // (NOT the small portrait-derived size) so it stands in the same spot AND
-    // scale as the Pokémon it hands the anchor to — otherwise the little
-    // portrait reads as a figure floating high at the far anchor.
-    const scale = ((trainerAtEnemy ? 1.75 : (side === 'enemy' ? 1.45 : 1.1) * sizeBias) * speciesSize) / relief.pxHeight;
-    inner.scale.setScalar(scale);
-
     const holder = new THREE.Group();
-    holder.add(inner);
-    const shadow = makeBlobShadow(Math.min(1.5, (relief.pxWidth * scale) * 0.42));
+    const shadow = makeBlobShadow(Math.min(1.5, Math.max(0.42, dw / 190)));
+    shadow.visible = false;
     holder.add(shadow);
 
     const anchor = ANCHORS[side][slot];
     holder.position.copy(anchor);
-    // Face the opponent: player mon shows its back 3/4, enemy faces camera 3/4.
+    // The holder remains at the authoritative battle anchor while a screen-space
+    // 2D copy is shown. It becomes visible only after a validated GLB attaches.
     holder.rotation.y = side === 'player' ? Math.PI * 0.88 : Math.PI * 0.06;
-    if (side === 'player') inner.scale.x *= -1;         // its art was flipX'd in 2D
+    holder.visible = false;
 
     this.root.add(holder);
-    this.combatants.set(im, {
-      obj: im, holder, inner, mats, shadow, side, slot,
+    const combatant: Combatant = {
+      obj: im, holder, shadow, side, slot,
       base: null, settleTimer: 0,
       lastPos: { x: im.x ?? 0, y: im.y ?? 0 }, speed: 0,
-      scalePx: scale,
       baseSX: null, baseSY: null,
       lastSX: Math.abs(im.scaleX ?? 1), scaleStill: 0,
-      phase: Math.random() * Math.PI * 2,
       glbKey: !trainerAtEnemy && hasModel(im.texture.key) ? im.texture.key : null,
       glb: null,
       glbVerifyFrames: 0,
       glbHealthTimer: 0,
       rejectedGlbKey: null,
-      // Generated models read smaller than flat art at equal height (they have
+      // Volumetric GLB models read smaller than flat art at equal height (they have
       // real depth), so give them extra presence — SwSh-scale battlers.
       targetH: (side === 'enemy' ? 1.92 : 1.58) * Math.min(1.25, Math.max(0.95, dh / 220)) * speciesSize,
       anim: null,
@@ -450,59 +408,45 @@ export class BattleMirror {
       chargeLift: 0,
       chargeTarget: 0,
       texSig: `${im.texture.key}:${im.frame?.name ?? 0}`,
-      fallback2D: false,
-      fallbackRetry: 0,
+      fallback2D: true,
       fallbackSprite: null,
       fallbackTextureKey: null,
-    });
-    this.scene.cameras.main.ignore(im);
+    };
+    this.combatants.set(im, combatant);
+    this.use2DFallback(combatant);
   }
 
-  /** Rebuild a battler's relief + scale factors for its CURRENT texture. */
+  /** Rebind a battler when the battle scene swaps its species/texture. */
   private refreshCombatant(cb: Combatant): boolean {
     const im = cb.obj;
-    this.destroyFallbackSprite(cb);
-    const src = this.frameCanvas(im);
-    const has3D = hasModel(im.texture.key);
-    const relief = (src && buildRelief(
-      `img:${im.texture.key}:${im.frame?.name ?? 0}:${has3D ? 'volume-v2' : 'thin-v2'}`,
-      src,
-      has3D ? undefined : 1,
-    )) ?? buildFlatCard(
-      `flat:img:${im.texture.key}:${im.frame?.name ?? 0}`,
-      im.texture.getSourceImage() as HTMLImageElement,
-    );
-    if (!relief) {
-      this.use2DFallback(cb);
-      return false;
-    }
-    cb.inner.geometry = relief.geometry;
-    cb.mats[0].map = relief.texture;
-    cb.mats[0].needsUpdate = true;
     const dh = im.displayHeight ?? 0;
-    const sizeBias = Math.min(1.15, Math.max(0.85, dh / 220));
     const speciesSize = battleSizeOverride(im.texture.key);
-    cb.scalePx = ((cb.side === 'enemy' ? 1.45 : 1.1) * sizeBias * speciesSize) / relief.pxHeight;
+    cb.base = null;
+    cb.settleTimer = 0;
     cb.baseSX = null; cb.baseSY = null; cb.scaleStill = 0;   // re-settle on the new art
     cb.targetH = (cb.side === 'enemy' ? 1.92 : 1.58) * Math.min(1.25, Math.max(0.95, dh / 220)) * speciesSize;
-    // A different creature key means a different generated model (or none).
+    // A different creature key means a different production GLB (or no GLB).
     const nk = hasModel(im.texture.key) ? im.texture.key : null;
     if (cb.rejectedGlbKey !== im.texture.key) cb.rejectedGlbKey = null;
     if (cb.glb && nk !== cb.glbKey) {
       cb.holder.remove(cb.glb);
       cb.glb = null;
       cb.anim = null;
-      cb.inner.visible = true;
+      cb.shadow.visible = false;
       cb.glbVerifyFrames = 0;
       cb.glbHealthTimer = 0;
     }
     cb.glbKey = nk;
     cb.fainted = false;
     cb.anim?.standUp();
-    cb.fallback2D = false;
-    cb.fallbackRetry = 0;
-    cb.fallbackTextureKey = null;
-    if (this.active3D) this.scene.cameras.main.ignore(im);
+    if (cb.glb) {
+      cb.fallback2D = false;
+      this.destroyFallbackSprite(cb);
+      cb.shadow.visible = true;
+    } else {
+      this.destroyFallbackSprite(cb);
+      this.use2DFallback(cb);
+    }
     return true;
   }
 
@@ -511,8 +455,8 @@ export class BattleMirror {
    * coordinates from leaking into the 3D presentation. */
   private use2DFallback(cb: Combatant): void {
     cb.fallback2D = true;
-    cb.fallbackRetry = 0;
     cb.holder.visible = false;
+    cb.shadow.visible = false;
     this.scene.cameras.main.ignore(cb.obj);
     this.ensureFallbackSprite(cb);
     this.syncFallback2DCombatant(cb);
@@ -620,7 +564,7 @@ export class BattleMirror {
     }
   }
 
-  private rejectGeneratedModel(cb: Combatant): void {
+  private rejectGlbModel(cb: Combatant): void {
     cb.rejectedGlbKey = cb.glbKey ?? cb.obj.texture.key;
     if (cb.glb) cb.holder.remove(cb.glb);
     cb.glb = null;
@@ -628,23 +572,10 @@ export class BattleMirror {
     cb.glbVerifyFrames = 0;
     cb.glbHealthTimer = 0;
     cb.anim = null;
-    cb.inner.visible = true;
-    // A confirmed GLB failure must never expose the relief/extruded substitute.
-    // Restore the original authored Phaser sprite for the rest of this battle.
+    cb.shadow.visible = false;
+    // A confirmed GLB failure keeps the original authored sprite. No generated,
+    // extruded or procedural creature is allowed to replace it.
     this.use2DFallback(cb);
-  }
-
-  private frameCanvas(im: Phaser.GameObjects.Image): HTMLCanvasElement | null {
-    try {
-      const frame = im.frame;
-      const srcImg = im.texture.getSourceImage() as HTMLImageElement | HTMLCanvasElement;
-      if (!srcImg || !frame) return null;
-      const c = document.createElement('canvas');
-      c.width = frame.cutWidth || srcImg.width;
-      c.height = frame.cutHeight || srcImg.height;
-      c.getContext('2d')!.drawImage(srcImg as CanvasImageSource, frame.cutX, frame.cutY, c.width, c.height, 0, 0, c.width, c.height);
-      return c;
-    } catch { return null; }
   }
 
   /** Local yaw that points a battler's +Z/front axis straight at the live
@@ -768,36 +699,23 @@ export class BattleMirror {
       const o = cb.obj;
       if (!o.scene) { dead.push(o); continue; }
 
-      // The game swaps sprite textures at runtime (async PokeAPI art arriving,
-      // party switches). Rebuild this battler's mesh + scale when that happens —
-      // otherwise the old geometry stretches the new image like an accordion.
+      // The game swaps sprite textures at runtime (async PokeAPI art arriving
+      // and party switches). Rebind the production model/fallback when it does.
       const sig = `${o.texture.key}:${o.frame?.name ?? 0}`;
       if (sig !== cb.texSig) {
         cb.texSig = sig;
         this.refreshCombatant(cb);
       }
 
-      // Async textures can be unreadable for one frame during a party switch.
-      // Retry without hiding the working Phaser sprite in the meantime.
-      if (cb.fallback2D) {
-        // Confirmed GLB failure: retain the clean original 2D sprite. Texture
-        // read failures still retry below because they may resolve next frame.
-        if (cb.rejectedGlbKey) {
-          cb.holder.visible = false;
-          continue;
-        }
-        cb.fallbackRetry += dt;
-        if (cb.fallbackRetry >= 0.5) this.refreshCombatant(cb);
-        if (cb.fallback2D) continue;
-      }
-
       // The manifest loads asynchronously, so a creature adopted before it
-      // arrived still resolves to its generated model once the list is in.
+      // arrived still resolves to its local GLB once the list is in. Until that
+      // moment, and for species without a local GLB, the 2D image remains live.
       if (!cb.glbKey && !cb.glb && cb.rejectedGlbKey !== cb.obj.texture.key && hasModel(cb.obj.texture.key)) {
         cb.glbKey = cb.obj.texture.key;
       }
 
-      // Swap in the generated true-3D model once it finishes loading.
+      // Swap only after the local GLB has completely loaded and passed geometry
+      // validation. No relief/procedural mesh is ever exposed in the meantime.
       if (cb.glbKey && !cb.glb) {
         const loaded = getModel(cb.glbKey);
         if (loaded && isRenderableModel(loaded.group)) {
@@ -805,9 +723,7 @@ export class BattleMirror {
           // Enemy Pokémon present their front to the battle camera. The old
           // fixed zero yaw only followed the world axis, so models such as
           // Cerrapin appeared side-on in the diagonal battle composition.
-          // The player's own model should FACE THE OPPONENT across the field
-          // (not a fixed yaw that left it looking at the camera): aim its +Z front
-          // at the enemy anchor, cancelling the holder's flat-relief billboard yaw.
+          // The player's own model faces the opponent across the field.
           if (cb.side === 'player') {
             const dir = ANCHORS.enemy[0].clone().sub(ANCHORS.player[cb.slot]);
             model.rotation.y = Math.atan2(dir.x, dir.z) - cb.holder.rotation.y;
@@ -820,22 +736,24 @@ export class BattleMirror {
           // moves the whole mesh procedurally.
           cb.anim = new CreatureAnimator(model, loaded.animations);
           cb.anim.setFacing(model.rotation.y);
-          // Keep the known-good relief for the first animated frames. A GLB can
-          // contain a scale/visibility animation that only becomes invalid once
-          // its mixer starts, even though its static scene looked valid.
+          cb.fallback2D = false;
+          this.destroyFallbackSprite(cb);
+          cb.holder.visible = true;
+          cb.shadow.visible = true;
+          // Recheck the first animated frames because a malformed baked clip can
+          // invalidate an otherwise valid static scene.
           cb.glbVerifyFrames = 2;
           cb.glbHealthTimer = 0;
-          cb.inner.visible = true;
         } else if (loaded) {
-          this.rejectGeneratedModel(cb);
+          this.rejectGlbModel(cb);
         } else if (modelLoadStatus(cb.glbKey) === 'failed') {
-          this.rejectGeneratedModel(cb);
+          this.rejectGlbModel(cb);
         }
       }
-      // rejectGeneratedModel() restores Phaser visibility and hides this holder.
-      // Stop here so the shared transform/visibility code below cannot turn the
-      // relief placeholder back on during the failure frame.
-      if (cb.fallback2D) continue;
+      if (!cb.glb) {
+        if (!cb.fallback2D) this.use2DFallback(cb);
+        continue;
+      }
 
       const x = o.x ?? 0, y = o.y ?? 0;
       const dx = x - cb.lastPos.x, dy = y - cb.lastPos.y;
@@ -852,31 +770,8 @@ export class BattleMirror {
       }
 
       const anchor = ANCHORS[cb.side][cb.slot];
-      const toward = ANCHORS[cb.side === 'player' ? 'enemy' : 'player'][0].clone().sub(anchor).normalize();
+      cb.holder.position.set(anchor.x, 0, anchor.z);
 
-      if (cb.base && !cb.glb) {
-        // Relief battlers follow the 2D tweens: horizontal delta pushes along
-        // the attack axis (a lunge), vertical delta lifts or sinks.
-        // (Models with an animator stay anchored and act out the move in 3D.)
-        const offAxis = (x - cb.base.x) / 46 * (cb.side === 'player' ? 1 : -1);
-        const lift = Math.max(-0.4, -(y - cb.base.y) / 90);
-        cb.holder.position.set(
-          anchor.x + toward.x * offAxis,
-          Math.max(0, lift),
-          anchor.z + toward.z * offAxis,
-        );
-        // A fast move = an attack → cinematic punch toward the actor.
-        if (cb.speed > 14) {
-          this.rig.focusOn(cb.holder.position, Math.min(1, cb.speed / 60));
-        }
-      } else {
-        // Generated models act inside their animator and otherwise remain at
-        // their arena anchor. Reset y before layering a charge-move lift below.
-        cb.holder.position.set(anchor.x, 0, anchor.z);
-      }
-
-      // Idle life: breathing + slight sway while standing.
-      const idle = 1 + Math.sin(this.time * 2.4 + cb.phase) * 0.018;
       // Scale baseline is captured only when the sprite is SETTLED (still +
       // fully visible), so send-out/switch scale tweens read as relative
       // animation instead of poisoning the battler's size (giant/invisible).
@@ -897,50 +792,32 @@ export class BattleMirror {
       // A 3D mesh must keep one uniform scale or the original pixel art is
       // visibly stretched into a tall/wide accordion shape.
       const uniformRel = (relX + relY) / 2;
-      if (cb.glb) {
-        // Track the subtle camera drift/punch-ins so every opposing 3D model
-        // continues to face forward throughout the battle, not only on spawn.
-        if (cb.side === 'enemy') cb.anim?.setFacing(this.cameraFacingYaw(cb.holder));
-        // Fainting: the battle fades/drops the sprite — play the topple once.
-        const down = (o.alpha ?? 1) < 0.5 || o.visible === false;
-        if (down && !cb.fainted && cb.base) { cb.fainted = true; cb.anim?.faint(); }
-        if (!down && cb.fainted) {
-          cb.fainted = false;
-          // A send-out/switch also fades the shared Phaser image. That fade is
-          // not a knockout: reset the held topple before showing the new mon.
-          cb.anim?.standUp();
-        }
-        // The animator owns this model's transform (position/rotation/scale).
-        cb.anim?.update(dt, cb.targetH * uniformRel);
-        cb.glbHealthTimer += dt;
-        if (cb.glbVerifyFrames > 0 || cb.glbHealthTimer >= 2) {
-          cb.glbHealthTimer = 0;
-          if (!isRenderableModel(cb.glb)) {
-            this.rejectGeneratedModel(cb);
-          } else if (cb.glbVerifyFrames > 0 && --cb.glbVerifyFrames === 0) {
-            cb.inner.visible = false;
-          }
-        }
-        if (cb.glb) cb.glb.visible = (o.alpha ?? 1) > 0.05;
+      // Track the subtle camera drift/punch-ins so every opposing 3D model
+      // continues to face forward throughout the battle, not only on spawn.
+      if (cb.side === 'enemy') cb.anim?.setFacing(this.cameraFacingYaw(cb.holder));
+      // Fainting: the battle fades/drops the sprite — play the topple once.
+      const down = (o.alpha ?? 1) < 0.5 || o.visible === false;
+      if (down && !cb.fainted && cb.base) { cb.fainted = true; cb.anim?.faint(); }
+      if (!down && cb.fainted) {
+        cb.fainted = false;
+        // A send-out/switch also fades the shared Phaser image. That fade is
+        // not a knockout: reset the held topple before showing the new mon.
+        cb.anim?.standUp();
       }
-      if (cb.fallback2D) continue;
-      if (!cb.glb) {
-        const scale = uniformRel * cb.scalePx;
-        cb.inner.scale.set(cb.side === 'player' ? -scale : scale, scale * idle, scale);
-        cb.inner.rotation.z = -((o.angle ?? 0) * Math.PI / 180);
+      cb.anim?.update(dt, cb.targetH * uniformRel);
+      cb.glbHealthTimer += dt;
+      if (cb.glbVerifyFrames > 0 || cb.glbHealthTimer >= 2) {
+        cb.glbHealthTimer = 0;
+        if (!isRenderableModel(cb.glb)) {
+          this.rejectGlbModel(cb);
+          continue;
+        }
+        if (cb.glbVerifyFrames > 0) --cb.glbVerifyFrames;
       }
+      cb.glb.visible = (o.alpha ?? 1) > 0.05;
 
       cb.chargeLift += (cb.chargeTarget - cb.chargeLift) * Math.min(1, dt * 8);
       cb.holder.position.y += cb.chargeLift;
-
-      // Opacity / tint flashes (send-out fade, hit flash, faint fade).
-      const tint = o as { tintTopLeft?: number; isTinted?: boolean; tintFill?: boolean };
-      for (const m of cb.mats) {
-        m.opacity = o.alpha ?? 1;
-        // Phaser's hit flash is a multiply tint — identical semantics here.
-        if (tint.isTinted && tint.tintTopLeft !== undefined) m.color.set(tint.tintTopLeft);
-        else m.color.set(0xffffff);
-      }
       cb.holder.visible = (o.visible !== false) && ((o.alpha ?? 1) > 0.02);
       cb.shadow.visible = cb.holder.position.y < 0.5;
     }

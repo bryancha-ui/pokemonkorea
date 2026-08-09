@@ -196,9 +196,9 @@ export class BattleScene extends Phaser.Scene {
 
   private createSprites() {
     this._enemySprite  = this.add.image(580, 160, 'enemy-sprite')
-      .setScale(3).setData('battlePokemonSide', 'enemy');
+      .setScale(3.3).setData('battlePokemonSide', 'enemy');
     this._playerSprite = this.add.image(220, 280, 'player-sprite')
-      .setScale(3).setFlipX(true).setData('battlePokemonSide', 'player');
+      .setScale(3.3).setFlipX(true).setData('battlePokemonSide', 'player');
   }
 
   private createActionPanel() {

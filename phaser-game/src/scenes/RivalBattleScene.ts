@@ -4,7 +4,7 @@ import {
   deckShowBattleActions, deckHideBattleActions, deckShowMoves, deckHideMoves,
 } from '../systems/TouchControls';
 import { executeBattleMove, pendingMoveFor } from '../systems/MoveEffects';
-import { spriteScale } from '../data/SpriteScale';
+import { battle2DSpriteScale } from '../data/SpriteScale';
 import { Pokemon, Move } from '../battle/Pokemon';
 import { STARTERS, TYPE_COLORS, findForm } from '../data/StarterData';
 import { SaveManager } from '../utils/SaveManager';
@@ -259,7 +259,7 @@ export class RivalBattleScene extends Phaser.Scene {
   private fitSprite(img: Phaser.GameObjects.Image, targetSize: number) {
     const tex = this.textures.get(img.texture.key).getSourceImage();
     const dim = Math.max((tex.width as number) || 1, (tex.height as number) || 1);
-    img.setScale((targetSize * spriteScale(img.texture.key)) / dim);
+    img.setScale((targetSize * battle2DSpriteScale(img.texture.key)) / dim);
   }
 
   // ── Dialog ────────────────────────────────────────────────────────────────

@@ -7,7 +7,7 @@ import { buildSurfMountModel, type SurfMountModel } from './SurfMountModel';
 import { buildFlatCard, buildRelief, reliefMaterials } from './Extruder';
 import { drawCommands, hashCommands, measureCommands, rasterizeGraphics } from './GraphicsRaster';
 import { generateNabihalmangAppearance, type GeneratedCreatureAnimation } from './GeneratedCreatureAnimation';
-import { getModel, hasModel, modelBaseYawRad, modelLoadStatus, primeManifest } from './GlbModels';
+import { getModel, hasModel, modelBaseYawRad, primeManifest } from './GlbModels';
 import { HatchEffect3D, type HatchEffectProfile3D } from './HatchEffect3D';
 import { makeBlobShadow } from './Props';
 import { getProp, propFailed, type PropDef } from './PropModels';
@@ -17,10 +17,10 @@ import { disposeDeep, ThreeStage } from './ThreeStage';
 // ── Overworld mirror ─────────────────────────────────────────────────────────
 // Watches a running Phaser scene (which keeps 100% of the game logic) and
 // maintains a 3D twin of it: the big map Graphics become the painted terrain,
-// every human becomes an animated procedural model, while creatures and props
-// become volumetric meshes that track their 2D counterpart's position, alpha,
-// tint, scale and visibility every frame. World-space text becomes floating
-// billboards. UI (scrollFactor 0) stays in Phaser, drawn on top of the 3D view.
+// every human becomes an animated model, while tagged creatures use only an
+// approved local GLB and otherwise retain their authored 2D sprite. Props track
+// their 2D counterpart's position, alpha, tint, scale and visibility every frame.
+// World-space text becomes floating billboards. UI stays in Phaser on top.
 
 type GO = Phaser.GameObjects.GameObject & {
   x?: number; y?: number; alpha?: number; visible?: boolean;
@@ -33,6 +33,8 @@ type GO = Phaser.GameObjects.GameObject & {
 interface Tracked {
   obj: GO;
   mesh: THREE.Object3D;
+  /** Raster relief used only for non-creature authored props/Graphics. */
+  relief?: THREE.Mesh;
   mats: THREE.MeshBasicMaterial[] | null;
   shadow: THREE.Mesh | null;
   kind: 'graphics' | 'character' | 'image' | 'text' | 'rect' | 'badge-scanner';
@@ -53,7 +55,6 @@ interface Tracked {
   /** Optional true-3D creature model for a tagged overworld Image. */
   creatureKey?: string;
   creature?: THREE.Group;
-  creatureFailed?: boolean;
   creatureBaseScale?: number;
   creatureAnimation?: GeneratedCreatureAnimation;
   /** Authored interactive checkpoint that mirrors its Phaser gate state. */
@@ -628,6 +629,7 @@ export class OverworldMirror {
     this.root.add(holder);
     const tracked: Tracked = {
       obj: g, mesh: holder, mats, shadow, kind: 'graphics', hash,
+      relief: mesh,
       footY, halfW, baseColor: new THREE.Color(0xffffff), phase: Math.random() * Math.PI * 2,
       aspect: ras.width / Math.max(1, ras.height),
     };
@@ -748,7 +750,8 @@ export class OverworldMirror {
     if (!ras) return;
     const relief = buildRelief(`gfx:${this.scene.scene.key}:${hash}`, ras.canvas, Math.max(4, ras.width * 0.14) * ras.scale);
     if (!relief) return;
-    const inner = t.mesh.children[0] as THREE.Mesh;
+    const inner = t.relief;
+    if (!inner) return;
     inner.geometry = relief.geometry;
     if (t.mats) { t.mats[0].map = relief.texture; t.mats[0].needsUpdate = true; }
     t.footY = ras.minY + ras.height;
@@ -756,6 +759,31 @@ export class OverworldMirror {
   }
 
   private adoptImage(im: GO & Phaser.GameObjects.Image): void {
+    const creatureKey = im.getData?.('creatureModel3DKey') as string | undefined;
+    // Pokémon and other tagged creatures never receive a generated extrusion.
+    // Their authored Phaser sprite stays visible until a production GLB is
+    // completely loaded and validated.
+    if (creatureKey) {
+      const holder = new THREE.Group();
+      const halfW = Math.max(0.18, (im.displayWidth ?? im.width ?? 32) / (PX * 2));
+      const shadow = makeBlobShadow(Math.min(1.2, halfW * 0.85));
+      shadow.visible = false;
+      holder.add(shadow);
+      holder.visible = false;
+      this.root.add(holder);
+      this.tracked.set(im, {
+        obj: im, mesh: holder, mats: null, shadow, kind: 'image', hash: 0,
+        footY: (im.displayOriginY ?? (im.height ?? 0) / 2),
+        halfW, baseColor: new THREE.Color(0xffffff), phase: Math.random() * Math.PI * 2,
+        aspect: (im.displayWidth ?? im.width ?? 1) / Math.max(1, im.displayHeight ?? im.height ?? 1),
+        texSig: `${im.texture.key}:${im.frame?.name ?? 0}`,
+        creatureKey,
+        creatureBaseScale: Math.max(0.0001, Math.abs(im.scaleX ?? 1)),
+      });
+      this.show2D(im);
+      return;
+    }
+
     const src = this.frameCanvas(im);
     const key = `img:${im.texture.key}:${im.frame?.name ?? 0}`;
     const relief = (src && buildRelief(key, src)) ?? buildFlatCard(
@@ -776,20 +804,24 @@ export class OverworldMirror {
     this.root.add(holder);
     // Image origin is its center by default; feet = origin + displayHeight/2.
     const footY = (im.displayOriginY ?? (im.height ?? 0) / 2);
-    const creatureKey = im.getData?.('creatureModel3DKey') as string | undefined;
     this.tracked.set(im, {
       obj: im, mesh: holder, mats, shadow, kind: 'image', hash: 0,
+      relief: mesh,
       footY, halfW, baseColor: new THREE.Color(0xffffff), phase: Math.random() * Math.PI * 2,
       aspect: relief.pxWidth / Math.max(1, relief.pxHeight),
       texSig: `${im.texture.key}:${im.frame?.name ?? 0}`,
-      creatureKey,
-      creatureBaseScale: Math.max(0.0001, Math.abs(im.scaleX ?? 1)),
     });
     this.hideFrom2D(im);
   }
 
   /** Rebuild an image's relief when the game swaps its texture at runtime. */
   private refreshImage(t: Tracked, im: GO & Phaser.GameObjects.Image): void {
+    if (t.creatureKey) {
+      t.footY = (im.displayOriginY ?? (im.height ?? 0) / 2);
+      t.halfW = Math.max(0.18, (im.displayWidth ?? im.width ?? 32) / (PX * 2));
+      t.aspect = (im.displayWidth ?? im.width ?? 1) / Math.max(1, im.displayHeight ?? im.height ?? 1);
+      return;
+    }
     const src = this.frameCanvas(im);
     const key = `img:${im.texture.key}:${im.frame?.name ?? 0}`;
     const relief = (src && buildRelief(key, src)) ?? buildFlatCard(
@@ -797,7 +829,8 @@ export class OverworldMirror {
       im.texture.getSourceImage() as HTMLImageElement | HTMLCanvasElement,
     );
     if (!relief) return;
-    const inner = t.mesh.children[0] as THREE.Mesh;
+    const inner = t.relief;
+    if (!inner) return;
     inner.geometry = relief.geometry;
     if (t.mats) { t.mats[0].map = relief.texture; t.mats[0].needsUpdate = true; }
     t.footY = (im.displayOriginY ?? (im.height ?? 0) / 2);
@@ -953,11 +986,6 @@ export class OverworldMirror {
       const z = ((o.y ?? 0) + t.footY * ((o.scaleY ?? 1))) / PX;
       t.mesh.position.set(x, 0, z);
       t.mesh.visible = (o.visible !== false) && ((o.alpha ?? 1) > 0.02);
-      if (t.creatureFailed) {
-        t.mesh.visible = false;
-        this.show2D(o);
-        continue;
-      }
 
       // Named flat guardians/props can request a live yaw toward the player.
       // This preserves their authored front instead of leaving the relief at a
@@ -974,32 +1002,26 @@ export class OverworldMirror {
         if (Math.hypot(dx, dz) > 0.05) t.mesh.rotation.y = Math.atan2(dx, dz) - yawOffset;
       }
 
-      const inner = t.mesh.children[0] as THREE.Mesh | undefined;
+      const inner = t.relief;
 
-      // Tagged legendary/creature Images use their generated GLB in the
-      // overworld too. Keep the authored relief visible while the manifest or
-      // model loads, then replace it without changing the Phaser object that
-      // still owns cutscene position, alpha, scale and lifetime.
+      // Tagged legendary/creature Images use only their local production GLB.
+      // Keep the real authored 2D sprite visible while the manifest/model loads
+      // (or forever if unavailable), then swap without changing the Phaser
+      // object that still owns cutscene position, alpha, scale and lifetime.
       if (t.kind === 'image' && t.creatureKey && !t.creature && hasModel(t.creatureKey)) {
         const loaded = getModel(t.creatureKey);
         if (loaded) {
           t.creature = loaded.group;
-          t.creatureFailed = false;
           t.mesh.add(t.creature);
           if (o.getData?.('creatureAnimation3D') === 'nabihalmang-appearance') {
             t.creatureAnimation = generateNabihalmangAppearance(t.creature);
           }
-          if (inner) inner.visible = false;
-        } else if (modelLoadStatus(t.creatureKey) === 'failed') {
-          // A failed GLB falls back to the original authored Phaser sprite,
-          // never the relief/extruded placeholder.
-          t.creatureFailed = true;
-          t.mesh.visible = false;
-          this.show2D(o);
-          continue;
+          this.hideFrom2D(o);
         }
       }
       if (t.creature) {
+        t.mesh.visible = (o.visible !== false) && ((o.alpha ?? 1) > 0.02);
+        if (t.shadow) t.shadow.visible = t.mesh.visible;
         const authoredHeight = Number(o.getData?.('creatureHeight3D'));
         const height = Number.isFinite(authoredHeight) && authoredHeight > 0 ? authoredHeight : 1.8;
         const scaleRatio = Math.abs(o.scaleX ?? 1) / Math.max(0.0001, t.creatureBaseScale ?? 1);
@@ -1009,6 +1031,10 @@ export class OverworldMirror {
         // not consume the generated intro while the owning Phaser image is
         // still at alpha 0.
         if (t.mesh.visible) t.creatureAnimation?.update(dt);
+      } else if (t.creatureKey) {
+        t.mesh.visible = false;
+        if (t.shadow) t.shadow.visible = false;
+        this.show2D(o);
       }
       if (inner) {
         const sx = Math.abs(o.scaleX ?? 1), sy = Math.abs(o.scaleY ?? 1);
@@ -1178,7 +1204,7 @@ export class OverworldMirror {
       disposeDeep(this.surfMount.group);
       this.surfMount = null;
     }
-    const inner = t.mesh.children[0] as THREE.Mesh | undefined;
+    const inner = t.relief;
     this.hero.group.visible = true;
     this.hero.setRiding?.(riding && !surfing);
     this.hero.setSurfing?.(surfing);
@@ -1209,7 +1235,11 @@ export class OverworldMirror {
   startHatchEffect(profile: HatchEffectProfile3D): boolean {
     if (!this.built) return false;
     this.stopHatchEffect();
-    this.hatchEffect = new HatchEffect3D(this.stage, profile);
+    const loaded = getModel(profile.key);
+    // The Phaser hatch scene already owns the real species artwork. If its GLB
+    // is not ready, use that 2D path instead of inventing a generic 3D creature.
+    if (!loaded) return false;
+    this.hatchEffect = new HatchEffect3D(this.stage, loaded, profile.type1);
     return true;
   }
 
@@ -1230,7 +1260,7 @@ export class OverworldMirror {
   apply3D(): void {
     for (const o of this.hiddenFrom2D) this.hideFrom2D(o);
     for (const t of this.tracked.values()) {
-      if (t.creatureFailed) this.show2D(t.obj);
+      if (t.creatureKey && !t.creature) this.show2D(t.obj);
       else this.hideFrom2D(t.obj);
     }
     for (const g of this.mapGraphics) this.hideFrom2D(g);

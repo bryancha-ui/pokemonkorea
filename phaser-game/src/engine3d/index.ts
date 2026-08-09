@@ -14,9 +14,10 @@ import { ThreeStage } from './ThreeStage';
 // Phaser canvas, which continues to draw all UI on top.
 //
 //   • Overworld / interior scenes (anything that camera-follows the player)
-//     get painted 3D terrain, extruded characters and a third-person camera.
-//   • Battle scenes get a cinematic arena with 3D creatures and a drifting
-//     battle camera.
+//     get painted 3D terrain, characters and a third-person camera. Tagged
+//     creatures keep their authored 2D art until an approved GLB is ready.
+//   • Battle scenes get a cinematic arena with approved local GLBs (or the
+//     authored 2D battler) and a drifting battle camera.
 //   • Menu / Pokédex / title screens intentionally stay crisp 2D.
 //
 //   F3 toggles 2D ↔ 3D at any time (saved to localStorage).
@@ -40,7 +41,7 @@ class Engine3D {
   constructor(game: Phaser.Game) {
     this.game = game;
     this.enabled = (localStorage.getItem(STORE_KEY) ?? '1') === '1';
-    // Load the generated-asset registries up front so the first scene already
+    // Load the approved local-asset registries up front so the first scene already
     // knows which creature models and city props exist.
     primeManifest();
     primeProps();

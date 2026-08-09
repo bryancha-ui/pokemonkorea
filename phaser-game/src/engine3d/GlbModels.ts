@@ -2,27 +2,14 @@ import * as THREE from 'three';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as skeletonClone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { applyProductionMaterials } from './ModelMaterials';
-import { makeGengar } from './Props';
 
-// Procedural (code-built) creature models — no GLB and no generation credits, and
-// cheap enough to render even on mobile. Keyed by normalized species key; a battle
-// texture key like "te-94" / "wild-94" normalizes to "94".
-const PROCEDURAL: Record<string, () => THREE.Object3D> = {
-  '94': makeGengar,   // Fog-Wraith Gengar (안개 팬텀) — Fogbound Manor boss
-};
-
-// Lightweight hero/boss GLBs (~4–5 MB each) that are allowed even on mobile,
-// where `allowsHeavy3DAssets()` would otherwise keep the lightweight presentation.
-// These species only appear in scripted, one-at-a-time boss battles —
-// well inside the mobile 2-model cache — so the WebGL budget stays safe while the
-// story's marquee custom Pokémon still get their true 3D form. Keyed by species
-// key (see the Pokédex / CustomBattle keys), normalized.
+// Small hero/boss GLBs that are allowed even on mobile, where
+// `allowsHeavy3DAssets()` otherwise keeps the authored 2D presentation. The
+// Higgsfield starter finals are deliberately absent: their PBR meshes are
+// 49–59 MB / ~800k triangles each and must never be decoded on a mobile GPU.
 const MOBILE_ALLOWED = new Set<string>([
   'snoqueen',    // 스노퀸 — Ice/Fairy frost sovereign
-  'pipetiger',   // 염흥왕 — the flame king (evolves from 염태자)
   'yeomtaeja',   // 염태자 — the flame prince
-  'banderado',   // 활빈다람 — starter final evolution, local optimized HQ GLB
-  'thanatoat',   // 두루광 — starter final evolution, local optimized HQ GLB
   'onnurian',    // 온누리안 — local optimized GLB (3.5 MB)
   'munkain',     // 월식매 — local optimized GLB (4.6 MB)
   'bosongnun', 'camerghoost', 'hambillet', 'kkaakdang', 'luninari',
@@ -40,14 +27,14 @@ function modelAllowedHere(key: string): boolean {
   return allowsHeavy3DAssets() || MOBILE_ALLOWED.has(key);
 }
 
-// ── Generated 3D model registry ─────────────────────────────────────────────
-// True 3D creature models (generated from the game's own artwork) are listed in
+// ── Production GLB model registry ───────────────────────────────────────────
+// Approved true-3D creature models shipped with the game are listed in
 // `public/assets/models3d/manifest.json`. Two entry forms are supported:
 //
 //   { "models": ["vipour", { "key": "munkain", "rotY": 90, "scale": 0.8 }] }
 //
-// Every entry loads only the vendored file assets/models3d/<key>.glb. Generated
-// CDN URLs expire and are intentionally never used at runtime. Object entries
+// Every entry loads only the vendored file assets/models3d/<key>.glb. Remote or
+// generated CDN URLs are intentionally never used at runtime. Object entries
 // retain optional orientation and scale corrections for their local GLB.
 //
 // Battle sprites automatically use a listed model instead of the relief-
@@ -82,7 +69,6 @@ export type ModelLoadStatus = 'unavailable' | 'idle' | 'loading' | 'ready' | 'fa
  * the authored 2D sprite only when the GLB has actually failed. */
 export function modelLoadStatus(key: string): ModelLoadStatus {
   const k = normalizeKey(key);
-  if (PROCEDURAL[k]) return 'ready';
   if (!manifest) return manifestLoading ? 'loading' : 'unavailable';
   if (!manifest.has(k)) return 'unavailable';
   // A manifest-backed GLB that is intentionally gated on this device must use
@@ -105,10 +91,10 @@ function markModelFailure(key: string, permanent: boolean): void {
   models.set(key, 'failed');
 }
 
-/** The generated sculpture GLBs can exceed 40 MB / 700k vertices each. Two of
+/** Some production GLBs can exceed 40 MB / 700k vertices each. Two of
  * those plus Phaser exceed the WebGL budget on iOS and many Android devices.
- * Heavy models are skipped there to avoid a lost context; the optimized starter
- * models and authored/procedural maps remain available. */
+ * Heavy models are skipped there to avoid a lost context; their authored 2D
+ * sprites remain visible instead. */
 export function allowsHeavy3DAssets(): boolean {
   if (typeof navigator === 'undefined') return true;
   const nav = navigator as Navigator & { deviceMemory?: number };
@@ -140,14 +126,9 @@ export function primeManifest(): void {
         }
       }
       manifest = m;
-      const preload = () => {
-        for (const key of ['thanatoat', 'banderado', 'pipetiger']) if (m.has(key)) getModel(key);
-      };
-      const idle = (window as unknown as {
-        requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
-      }).requestIdleCallback;
-      if (idle) idle(preload, { timeout: 2200 });
-      else setTimeout(preload, 300);
+      // High-density Higgsfield GLBs are loaded only when their Pokémon enters
+      // a scene. BattleMirror keeps the authored 2D sprite visible during that
+      // request, so boot never downloads/decodes all three ~50 MB files at once.
     })
     .catch((error) => {
       console.warn('[engine3d] model manifest unavailable; using original 2D sprites:', error);
@@ -158,7 +139,6 @@ export function primeManifest(): void {
 
 export function hasModel(key: string): boolean {
   const k = normalizeKey(key);
-  if (PROCEDURAL[k]) return true;   // code-built models are cheap — allowed on mobile too
   // Report manifest intent independently of the current device budget. Callers
   // then ask modelLoadStatus(); a gated/missing GLB resolves to the clean 2D
   // sprite instead of silently constructing an extruded substitute.
@@ -179,21 +159,6 @@ export function modelBaseYawRad(key: string): number {
  */
 export function getModel(key: string): LoadedModel | null {
   const k = normalizeKey(key);
-  // Procedural creatures are built synchronously (no async GLB fetch), then cached
-  // and cloned exactly like a loaded model.
-  if (PROCEDURAL[k]) {
-    const cached = models.get(k);
-    if (cached && cached !== 'loading' && cached !== 'failed') { modelUse.set(k, ++useClock); return cloneNormalized(cached); }
-    const inner = new THREE.Group();
-    inner.add(PROCEDURAL[k]());
-    if (!normalize(inner, 1) || !isRenderableModel(inner)) { markModelFailure(k, true); return null; }
-    const root = new THREE.Group();
-    root.add(inner);
-    const loaded: LoadedModel = { group: root, animations: [] };
-    models.set(k, loaded);
-    modelUse.set(k, ++useClock);
-    return cloneNormalized(loaded);
-  }
   if (!manifest || !manifest.has(k) || !modelAllowedHere(k)) return null;
   const spec = manifest.get(k)!;
   let entry = models.get(k);

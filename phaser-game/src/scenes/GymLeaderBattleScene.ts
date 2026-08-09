@@ -16,7 +16,7 @@ import { SaveManager } from '../utils/SaveManager';
 import { portraitFor, fitPortrait } from '../data/BattlePortraits';
 import { pushBgm, popBgm, stopBgm, playJingle } from '../systems/Music';
 import { executeBattleMove, pendingMoveFor } from '../systems/MoveEffects';
-import { spriteScale } from '../data/SpriteScale';
+import { battle2DSpriteScale } from '../data/SpriteScale';
 import { runLevelUpLearning, runBenchLevelUpLearning } from '../systems/MoveLearning';
 import type { BenchLevelUp } from '../systems/BattleExp';
 import { tr, pokeNameEn} from '../systems/i18n';
@@ -276,7 +276,7 @@ export class GymLeaderBattleScene extends Phaser.Scene {
   private fitSprite(img: Phaser.GameObjects.Image, size: number) {
     const tex = this.textures.get(img.texture.key).getSourceImage();
     const dim = Math.max((tex.width as number) || 1, (tex.height as number) || 1);
-    img.setScale((size * spriteScale(img.texture.key)) / dim);
+    img.setScale((size * battle2DSpriteScale(img.texture.key)) / dim);
   }
 
   private updateEnemySprite() {

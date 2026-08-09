@@ -5,7 +5,7 @@ import {
   deckShowBattleActions, deckHideBattleActions, deckShowMoves, deckHideMoves,
 } from '../systems/TouchControls';
 import { executeBattleMove, pendingMoveFor } from '../systems/MoveEffects';
-import { spriteScale } from '../data/SpriteScale';
+import { battle2DSpriteScale } from '../data/SpriteScale';
 import { runLevelUpLearning, runBenchLevelUpLearning } from '../systems/MoveLearning';
 import type { BenchLevelUp } from '../systems/BattleExp';
 import { Pokemon, Move } from '../battle/Pokemon';
@@ -280,7 +280,7 @@ export class WildBattleScene extends Phaser.Scene {
     const fitImg = (img: Phaser.GameObjects.Image, size: number) => {
       const tex = this.textures.get(img.texture.key).getSourceImage();
       const dim = Math.max((tex.width as number) || 1, (tex.height as number) || 1);
-      img.setScale((size * spriteScale(img.texture.key)) / dim);
+      img.setScale((size * battle2DSpriteScale(img.texture.key)) / dim);
     };
     fitImg(this.wildSprite, 130);
     fitImg(this.playerSprite, 140);
@@ -900,14 +900,14 @@ export class WildBattleScene extends Phaser.Scene {
       this.playerSprite.setTexture(entry.spriteKey);
       const tex = this.textures.get(entry.spriteKey).getSourceImage();
       const dim = Math.max((tex.width as number) || 1, (tex.height as number) || 1);
-      this.playerSprite.setScale((140 * spriteScale(entry.spriteKey)) / dim);
+      this.playerSprite.setScale((140 * battle2DSpriteScale(entry.spriteKey)) / dim);
     }
     if (!this.textures.exists(entry.spriteKey)) await ensurePartyTexture(this, entry);
     if (this.textures.exists(entry.spriteKey) && this.playerSprite.texture.key !== entry.spriteKey) {
       this.playerSprite.setTexture(entry.spriteKey);
       const tex = this.textures.get(entry.spriteKey).getSourceImage();
       const dim = Math.max((tex.width as number) || 1, (tex.height as number) || 1);
-      this.playerSprite.setScale((140 * spriteScale(entry.spriteKey)) / dim);
+      this.playerSprite.setScale((140 * battle2DSpriteScale(entry.spriteKey)) / dim);
     }
     playBallSendOut(this, this.playerSprite, {
       side: 'player', targetX: 180, targetY: 260,
@@ -968,7 +968,7 @@ export class WildBattleScene extends Phaser.Scene {
       this.playerSprite.setTexture(key);
       const tex2 = this.textures.get(key).getSourceImage();
       const dim2 = Math.max((tex2.width as number) || 1, (tex2.height as number) || 1);
-      this.playerSprite.setScale((140 * spriteScale(key)) / dim2);
+      this.playerSprite.setScale((140 * battle2DSpriteScale(key)) / dim2);
     }
     playBallSendOut(this, this.playerSprite, {
       side: 'player', targetX: 180, targetY: 260,
