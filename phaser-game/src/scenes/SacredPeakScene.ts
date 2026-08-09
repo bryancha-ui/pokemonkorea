@@ -438,13 +438,19 @@ export class SacredPeakScene extends Phaser.Scene {
     // OverworldMirror promotes it to the shipped hwanwoong.glb in 3D mode.
     const altar = this.altarCenter();
     const hwan = this.build3DCreature('hwanwoong', 'hwanwoong',
-      altar.x, altar.y - TILE * 2.5, 2.8, 96)
+      altar.x, altar.y, 2.8, 96)
       .setDepth(25).setAlpha(0)
       // The mobile 2D fallback has a wide golden aura on its right, leaving
       // Hwanung's body visibly left of the object's midpoint. Moving only the
       // image origin centres the body while the 3D holder stays at altar.x.
       .setOrigin(0.24, 0.5);
-    this.tweens.add({ targets: hwan, alpha: 1, y: altar.y, duration: 1600, ease: 'Sine.out' });
+    // OverworldMirror places a creature GLB at the image's visual feet
+    // (y + displayHeight / 2), not at the image centre. Compensate here so the
+    // model's feet — and therefore its true 3D pivot — land on the exact centre
+    // of the altar instead of south of it (which projected visually to the left).
+    const landingY = altar.y - hwan.displayHeight / 2;
+    hwan.setY(landingY - TILE * 2.5);
+    this.tweens.add({ targets: hwan, alpha: 1, y: landingY, duration: 1600, ease: 'Sine.out' });
     this.tweens.add({ targets: hwan, y: '+=6', duration: 1600, yoyo: true, repeat: -1, delay: 1600 });   // gentle hover
 
     this.dialog.show([
@@ -485,7 +491,15 @@ export class SacredPeakScene extends Phaser.Scene {
 
   private launchCatch(key: string, level: number, catchRate: number) {
     PartySystem.healAll(this.registry);
-    if (Inventory.count(this.registry, 'masterball') <= 0) Inventory.add(this.registry, 'masterball', 1);
+    // Grant the finale safety Master Ball at most once. Re-entering/reloading
+    // the altar after it has been thrown must never silently restore the item.
+    const grantFlag = 'hwanungMasterBallGranted';
+    if (!this.registry.get(grantFlag)) {
+      if (Inventory.count(this.registry, 'masterball') <= 0) {
+        Inventory.add(this.registry, 'masterball', 1);
+      }
+      this.registry.set(grantFlag, true);
+    }
     this.registry.set('wildId', key);
     this.registry.set('wildLevel', level);
     this.registry.set('wildCustom', true);

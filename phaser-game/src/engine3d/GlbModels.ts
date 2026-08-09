@@ -9,6 +9,10 @@ import { performanceProfile } from './PerformanceProfile';
 // Higgsfield starter finals are deliberately absent: their PBR meshes are
 // 49–59 MB / ~800k triangles each and must never be decoded on a mobile GPU.
 const MOBILE_ALLOWED = new Set<string>([
+  // The final Hwanung encounter must always use its shipped GLB in battle and
+  // on the altar, even on phones. It is intentionally the one large boss-model
+  // exception to the normal mobile memory gate.
+  'hwanwoong',
   'snoqueen',    // 스노퀸 — Ice/Fairy frost sovereign
   'yeomtaeja',   // 염태자 — the flame prince
   'onnurian',    // 온누리안 — local optimized GLB (3.5 MB)

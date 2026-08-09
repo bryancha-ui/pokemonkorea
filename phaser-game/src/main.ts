@@ -213,6 +213,31 @@ function launchHwanungEntranceTest(game: Phaser.Game): void {
   game.scene.start('SacredPeakScene');
 }
 
+/** Isolated Hwanung GLB + Master Ball consumption regression fixture. */
+function launchHwanungBattleTest(game: Phaser.Game): void {
+  game.registry.set('sceneFlowTest', true);
+  game.registry.set('party', '[]');
+  game.registry.set('box', '[]');
+  game.registry.set('dexCaught', JSON.stringify(['poongbaek', 'woosa', 'woonsa']));
+  game.registry.set('starterName', 'Vipour');
+  game.registry.set('starterKey', 'vipour');
+  game.registry.set('starterLevel', 80);
+  game.registry.set('starterExp', 0);
+  PartySystem.initFromStarter(game.registry);
+  game.registry.set('inventoryInit', true);
+  game.registry.set('inventory', JSON.stringify({ masterball: 2 }));
+  game.registry.set('hwanungMasterBallGranted', true);
+  game.registry.set('wildId', 'hwanwoong');
+  game.registry.set('wildLevel', 80);
+  game.registry.set('wildCustom', true);
+  game.registry.set('wildCatchRate', 2);
+  game.registry.set('wildReturnScene', 'SacredPeakScene');
+  game.registry.set('sacredPeakReturnX', 9 * 32 + 16);
+  game.registry.set('sacredPeakReturnY', 7 * 32 + 16);
+  if (game.scene.isActive('TitleScene')) game.scene.stop('TitleScene');
+  game.scene.start('WildBattleScene');
+}
+
 /** Open the true-ending celebration, movie and homecoming without saving. */
 function launchTrueEndingTest(game: Phaser.Game): void {
   game.registry.set('sceneFlowTest', true);
@@ -363,6 +388,10 @@ if (testMode === 'ryeo-battle') {
 } else if (testMode === 'hwanung-entrance') {
   game.events.once(Phaser.Core.Events.READY, () => {
     window.setTimeout(() => launchHwanungEntranceTest(game), 350);
+  });
+} else if (testMode === 'hwanung-battle') {
+  game.events.once(Phaser.Core.Events.READY, () => {
+    window.setTimeout(() => launchHwanungBattleTest(game), 350);
   });
 } else if (testMode === 'true-ending') {
   game.events.once(Phaser.Core.Events.READY, () => {

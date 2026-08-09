@@ -502,10 +502,18 @@ export class WildBattleScene extends Phaser.Scene {
       this.typeDialog('You have none of that ball!', () => this.onBag());
       return;
     }
-    Inventory.remove(this.registry, ballKey, 1);
+    // Lock the action before mutating inventory and require the removal to
+    // succeed. Rebuild the hidden panel immediately so opening the bag/menu
+    // during the animation can never show the pre-throw Master Ball count.
+    this.state = 'catching';
+    if (!Inventory.remove(this.registry, ballKey, 1)) {
+      this.state = 'bag';
+      this.typeDialog('You have none of that ball!', () => this.onBag());
+      return;
+    }
+    this.rebuildBagPanel();
     this.ballRate = itemDef(ballKey)?.ballRate ?? 1;
     this.activeBallKey = ballKey;
-    this.state = 'catching';
     this.hideAllPanels();
 
     // Ball animation
