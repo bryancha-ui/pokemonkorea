@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import {
   InstancedProp, WallBuilder, makeBronzeStatue, makeFlowers, makeGrandObelisk,
   makeCherryTree, makeFlowerBed, makeForestTree, makeGlowPlants, makeGrassTufts, makeIceStatue, makeMineCart, makePineTree, makePines, makePot, makeRailTrack,
-  makeRocks, makeScenicRock, makeGrandPalace, makeHanokPalace, makeMountainRange, makeNosdanHQ, makePalmTree, makePokemonCenter, makePokeMart, makeSacredPeakTemple, makeStall, makeStoneLantern, makeStoreFixture, makeStreetlamp, makeTrees, makeTriumphalArch, makeWater, makeWaterfall, makeWoodBridge, toonRamp,
+  makeRocks, makeScenicRock, makeGrandPalace, makeHanokPalace, makeMountainRange, makeNosdanHQ, makePalmTree, makePokemonCenter, makePokeMart, makeSacredPeakCloudSea, makeStall, makeStoneLantern, makeStoreFixture, makeStreetlamp, makeTrees, makeTriumphalArch, makeWater, makeWaterfall, makeWoodBridge, toonRamp,
   type StoreFixtureKind,
 } from './Props';
 import { buildCityDetail, CityTileSpec } from './CityDetail3D';
@@ -346,6 +346,12 @@ export function buildTerrain(
   // Disable only automatically inferred boulders while retaining buildings,
   // authored props and collision.
   noRocks3D = false,
+  // Sacred Peak's building-free summit uses animated cloud banks around the
+  // non-walkable outer ridge while the shared stage supplies its sky dome.
+  sacredPeakNature3D = false,
+  // Preserve authored ground decals even when their detailed pixels resemble
+  // a building footprint to the heuristic detector.
+  preservePaintedGround3D = false,
 ): TerrainResult {
   const group = new THREE.Group();
   const cols = Math.max(1, Math.round(worldW / PX));
@@ -690,7 +696,7 @@ export function buildTerrain(
   // around/through it, so we repaint each footprint with the ground tone
   // sampled just outside it (pavement/plaza), padded upward to also wipe the
   // roof art that overhangs the footprint in the 2D projection.
-  if (buildings.length) {
+  if (buildings.length && !preservePaintedGround3D) {
     const gctx = ground.getContext('2d');
     if (gctx) {
       const sampleGround = (b: { x: number; z: number; w: number; d: number }): string => {
@@ -1058,18 +1064,6 @@ export function buildTerrain(
       group.add(holder);
       continue;
     }
-    // The Sacred Peak is an open-air temple, not a solid building. Its low
-    // platform, perimeter columns and distant mountain silhouettes are built
-    // procedurally so the altar remains readable from every camera angle.
-    if (b.model === 'sacred-temple') {
-      const holder = new THREE.Group();
-      holder.position.set(b.x + b.w / 2, 0, b.z + b.d / 2);
-      holder.add(makeSacredPeakTemple(b.w, b.d));
-      group.add(holder);
-      // Deliberately no blocker: the temple is a colonnade with open sightlines,
-      // not a building that should fade over the player or the Hwanung cast.
-      continue;
-    }
     const def = b.model ? propById(b.model) : null;
     if (def) {
       const holder = new THREE.Group();
@@ -1150,6 +1144,8 @@ export function buildTerrain(
 
   // ── Vehicles parked along the roads (generated models only) ────────────────
   let lastT = -1;                       // for real-time deltas in update()
+  const sacredPeakNature = sacredPeakNature3D ? makeSacredPeakCloudSea(cols, rows) : null;
+  if (sacredPeakNature) group.add(sacredPeakNature.group);
   const pendingVehicles: { group: THREE.Group; def: import('./PropModels').PropDef; scale: number; rot: number }[] = [];
   if (!interior && !noVehicles && placedVehicles.length) {
     // The scene pins its vehicles (e.g. the Songhyeon express bus at its stop) —
@@ -1241,6 +1237,7 @@ export function buildTerrain(
       const dt = lastT < 0 ? 0 : Math.max(0, Math.min(0.5, t - lastT));
       lastT = t;
       cityDetail?.update(t);
+      sacredPeakNature?.update(t);
       for (const w of waters) w.update(t);
 
       // Rustle only the tufts around a moving player. Each contact produces a

@@ -75,12 +75,14 @@ export function playHwanungEntranceVideo(
 
   let settled = false;
   let fallbackTimer: Phaser.Time.TimerEvent | undefined;
+  let startupTimer: Phaser.Time.TimerEvent | undefined;
   let musicPaused = false;
 
   const dispose = () => {
     if (settled) return false;
     settled = true;
     fallbackTimer?.remove(false);
+    startupTimer?.remove(false);
     scene.events.off(Phaser.Scenes.Events.SHUTDOWN, abort);
     video.off(Phaser.GameObjects.Events.VIDEO_COMPLETE, finish);
     video.off(Phaser.GameObjects.Events.VIDEO_ERROR, finish);
@@ -100,7 +102,10 @@ export function playHwanungEntranceVideo(
   };
   const abort = () => { dispose(); };
   const showUnlockHint = () => hint.setText(tr('탭하여 영상 재생'));
-  const showSkipHint = () => hint.setText(tr('탭 / SPACE: 건너뛰기'));
+  const showSkipHint = () => {
+    startupTimer?.remove(false);
+    hint.setText(tr('탭 / SPACE: 건너뛰기'));
+  };
   const handleAction = () => {
     // A first real gesture unlocks audible video on restrictive mobile browsers.
     // Once playback is underway, the same gesture is the skip action.
@@ -136,6 +141,14 @@ export function playHwanungEntranceVideo(
     finish();
   }
   
+  // A corrupt deployment can still populate Phaser's cache while the browser
+  // never reaches VIDEO_PLAY (for example, a Git LFS pointer served as MP4).
+  // Continue to the in-engine Hwanung descent instead of holding a black screen.
+  startupTimer = scene.time.delayedCall(5000, () => {
+    if (settled || video.isPlaying() || video.touchLocked) return;
+    console.error('Hwanung entrance video did not start; using the in-engine reveal');
+    finish();
+  });
   fallbackTimer = scene.time.delayedCall(30000, finish);
   return handleAction;
 }

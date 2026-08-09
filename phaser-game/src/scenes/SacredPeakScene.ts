@@ -20,6 +20,8 @@ import { migrateLegacyCheonjiCapture } from '../systems/StoryMigrations';
 const T = { ROCK: 0, WALL: 1, DAIS: 2, BARRIER: 3, PATH: 4, ALTAR: 5, SKY: 6 } as const;
 type Tile = typeof T[keyof typeof T];
 const TILE = 32, COLS = 18, ROWS = 40;
+const SACRED_PEAK_ALTAR_KEY = 'sacred-peak-altar-higgsfield';
+const SACRED_PEAK_ALTAR_URL = 'assets/scenes/sacred_peak_altar_higgsfield.webp';
 
 const COLORS: Record<Tile, number> = {
   [T.ROCK]: 0xb8aa92, [T.WALL]: 0x655b65, [T.DAIS]: 0xd1bf9d, [T.BARRIER]: 0x8d78a6,
@@ -47,22 +49,16 @@ const SOVEREIGN = {
 };
 
 export class SacredPeakScene extends Phaser.Scene {
-  /** The summit is an open-air temple: keep the terrain flush and author only
-   * the deliberate 3D architecture below so no auto-generated black walls hide
-   * the player or the Hwanung cast. */
+  /** Keep the summit flush and building-free so the altar cast remains visible. */
   public flatTerrain3D = true;
   public clearSight3D = true;
   public noRocks3D = true;
-  public buildingPlots = [{ x: 5, y: 2, w: 8, h: 8, model: 'sacred-temple' }];
-  public propPlots = [
-    { x: 5.0, y: 10.0, kind: 'arch' as const, scale: 0.72 },
-    { x: 6.2, y: 10.0, kind: 'lantern' as const, scale: 0.72 },
-    { x: 11.8, y: 10.0, kind: 'lantern' as const, scale: 0.72 },
-    { x: 5.1, y: 3.0, kind: 'glowplant' as const, scale: 0.65 },
-    { x: 12.0, y: 3.0, kind: 'glowplant' as const, scale: 0.65 },
-    { x: 5.0, y: 6.0, kind: 'obelisk' as const, scale: 0.48 },
-    { x: 12.0, y: 6.0, kind: 'obelisk' as const, scale: 0.48 },
-  ];
+  public onlyNamedBuildings = true;
+  public preservePaintedGround3D = true;
+  /** Add low, animated cloud banks beyond the walkable ridge. */
+  public sacredPeakNature3D = true;
+  /** Brighter high-altitude sky, fog and horizon clouds for the summit. */
+  public environmentProfile3D = 'snow' as const;
   private map!: Tile[][];
   private playerG!: Phaser.GameObjects.Graphics;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -82,6 +78,9 @@ export class SacredPeakScene extends Phaser.Scene {
   constructor() { super('SacredPeakScene'); }
 
   preload() {
+    if (!this.textures.exists(SACRED_PEAK_ALTAR_KEY)) {
+      this.load.image(SACRED_PEAK_ALTAR_KEY, SACRED_PEAK_ALTAR_URL);
+    }
     if (!this.textures.exists('hwanwoong'))   this.load.image('hwanwoong', 'assets/dex/hwanwoong.png');
     if (!this.textures.exists('nabihalmang')) this.load.image('nabihalmang', 'assets/dex/nabihalmang.png');
     for (const key of ['poongbaek', 'woosa', 'woonsa']) {
@@ -170,6 +169,14 @@ export class SacredPeakScene extends Phaser.Scene {
     if (this.textures.exists(key)) this.textures.remove(key);
     g.generateTexture(key, COLS * TILE, ROWS * TILE); g.destroy();
     this.add.image(0, 0, key).setOrigin(0, 0).setDepth(0);
+
+    // The Higgsfield-authored courtyard replaces the former procedural temple.
+    // Tagging it as a terrain decal lets OverworldMirror bake the same art into
+    // the horizontal 3D ground instead of raising it as a duplicate billboard.
+    this.add.image(this.ALTAR.col * TILE + 16, this.ALTAR.row * TILE + 16, SACRED_PEAK_ALTAR_KEY)
+      .setDisplaySize(TILE * 7, TILE * 7)
+      .setDepth(1)
+      .setData('terrainDecal3D', true);
 
     this.add.text(9 * TILE, 2.4 * TILE, tr('☀ Altar of the Descent'), { fontSize: '10px', color: '#ffe88a', backgroundColor: '#00000088', padding: { x: 4, y: 2 } }).setOrigin(0.5).setDepth(5);
     this.add.text(9 * TILE, 38.4 * TILE, tr('↓ Ancient Altar (Onseong)'), { fontSize: '9px', color: '#fff', backgroundColor: '#00000088', padding: { x: 3, y: 2 } }).setOrigin(0.5).setDepth(5);

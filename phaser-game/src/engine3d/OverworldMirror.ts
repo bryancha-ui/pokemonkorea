@@ -12,7 +12,7 @@ import { HatchEffect3D, type HatchEffectProfile3D } from './HatchEffect3D';
 import { makeBlobShadow } from './Props';
 import { getProp, propFailed, type PropDef } from './PropModels';
 import { buildTerrain, PX, TerrainResult } from './TerrainBuilder';
-import { disposeDeep, ThreeStage } from './ThreeStage';
+import { disposeDeep, ThreeStage, type EnvProfile } from './ThreeStage';
 
 // ── Overworld mirror ─────────────────────────────────────────────────────────
 // Watches a running Phaser scene (which keeps 100% of the game logic) and
@@ -237,7 +237,8 @@ export class OverworldMirror {
     this.isInterior = forceInterior || (!hadBounds && (this.worldW <= 1500 && this.worldH <= 1000));
     const t = this.buildTerrainPass();
     const isInterior = this.isInterior;
-    this.stage.setEnvironment(isInterior && t.env !== 'cave' ? 'interior' : t.env);
+    const envOverride = (this.scene as unknown as { environmentProfile3D?: EnvProfile }).environmentProfile3D;
+    this.stage.setEnvironment(envOverride ?? (isInterior && t.env !== 'cave' ? 'interior' : t.env));
     const backgroundColor3D = (this.scene as unknown as { backgroundColor3D?: unknown }).backgroundColor3D;
     if (typeof backgroundColor3D === 'number') this.stage.setBackgroundColor(backgroundColor3D);
     this.rig.setMode(isInterior ? 'interior' : 'overworld');
@@ -292,6 +293,8 @@ export class OverworldMirror {
       mountainTileIds3D?: number[];
       cityTiles3D?: import('./CityDetail3D').CityTileSpec;
       noRocks3D?: boolean;
+      sacredPeakNature3D?: boolean;
+      preservePaintedGround3D?: boolean;
     };
     const known = sc.buildingPlots ?? [];
     const useFreeCityBuildings = sc.freeBuildings ?? (
@@ -315,6 +318,8 @@ export class OverworldMirror {
       sc.mountainTileIds3D ?? [],
       sc.cityTiles3D ?? null,
       sc.noRocks3D ?? false,
+      sc.sacredPeakNature3D ?? false,
+      sc.preservePaintedGround3D ?? false,
     );
     this.terrain = t;
     this.groundTex = ((t.group.children[0] as THREE.Mesh).material as THREE.MeshToonMaterial).map as THREE.CanvasTexture;
@@ -464,6 +469,9 @@ export class OverworldMirror {
    *  Image (75 of 113 scenes) — treat any world-covering image as the ground. */
   private isMapImage(obj: GO): boolean {
     if (!(obj instanceof Phaser.GameObjects.Image) && !(obj instanceof Phaser.GameObjects.Sprite)) return false;
+    if ((obj as unknown as { getData?: (key: string) => unknown }).getData?.('terrainDecal3D') === true) {
+      return true;
+    }
     const dw = obj.displayWidth ?? 0, dh = obj.displayHeight ?? 0;
     return (dw * dh) >= (this.worldW * this.worldH * WORLD_COVER);
   }
