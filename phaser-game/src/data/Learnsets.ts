@@ -115,9 +115,12 @@ const OVERRIDES: Record<string, LearnEntry[]> = {
   vipour:     [{ level: 9, move: S('Smokescreen', 'normal', 20) }],
   onnurian:   [{ level: 9, move: S('Mist', 'ice', 30) }],
   feldaconda: [{ level: 38, move: M('Earth Power', 'ground', 'special', 90, 100) }], // extra Ground coverage
-  thanatoat:  [{ level: 36, move: SOUL_FERRY_DELUGE }, { level: 38, move: M('Ice Beam', 'ice', 'special', 90, 100) }],
-  banderado:  [{ level: 36, move: OUTLAW_LEAFSTORM }, { level: 38, move: M('Stone Edge', 'rock', 'physical', 95, 80) }],
-  pipetiger:  [{ level: 44, move: ROYAL_KILN_ROAR }],
+  // The three final starter evolutions unlock their signature moves together at
+  // Lv.56. Keeping this out of the evolution level prevents the move from being
+  // selected automatically before the dedicated level-up learning prompt.
+  thanatoat:  [{ level: 38, move: M('Ice Beam', 'ice', 'special', 90, 100) }, { level: 56, move: SOUL_FERRY_DELUGE }],
+  banderado:  [{ level: 38, move: M('Stone Edge', 'rock', 'physical', 95, 80) }, { level: 56, move: OUTLAW_LEAFSTORM }],
+  pipetiger:  [{ level: 56, move: ROYAL_KILN_ROAR }],
   // 화투루미 (Onnujang) — a proper Ghost STAB in its early 20s, before it evolves
   // into Thanatoat at Lv.36 (fills the gap between Shadow Sneak @15 and Hex @25).
   onnujang:   [{ level: 21, move: M('Ominous Wind', 'ghost', 'special', 60, 100) }],

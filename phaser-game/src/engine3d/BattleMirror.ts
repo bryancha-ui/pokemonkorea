@@ -69,6 +69,17 @@ const ANCHORS = {
   enemy:  [new THREE.Vector3(2.0, 0, -2.4), new THREE.Vector3(2.25, 0, -2.6)],
 };
 
+// These attacks own a staged 3D contact beat. Their target reaction must come
+// from the effect's impact callback, not the generic special-cast midpoint.
+const TIMED_SPECIAL_MOVES = new Set([
+  'soul ferry deluge', 'royal kiln roar', 'ice beam', 'hydro pump', 'shadow ball', 'air slash',
+  'flamethrower', 'ember', 'flame burst', 'fire blast',
+  'psychic', 'psybeam', 'psyshock', 'confusion', 'dark pulse', 'hex', 'ominous wind',
+  'bug buzz', 'hyper voice', 'supersonic', 'energy ball', 'mega drain', 'giga drain', 'absorb', 'grave bloom',
+  'sludge bomb', 'venoshock', 'moonblast', 'dazzling gleam', 'fairy wind', 'draining kiss',
+  'draco meteor', 'dragon pulse', 'dragon breath', 'blizzard', 'powder snow', 'aurora beam',
+]);
+
 // A few species are intentionally much larger than the normalised battle
 // silhouette. The 2D fit already enlarges their sprite, but the 3D mirror
 // clamps source-image size so high-resolution art cannot become enormous.
@@ -197,6 +208,7 @@ export class BattleMirror {
     this.scene.events.off('pk3d-movefx', this.onMoveFx);
     this.scene.events.off('pk3d-screen-target', this.onScreenTarget);
     this.scene.events.off('pk3d-chargefx', this.onChargeFx);
+    this.fx.clearPersistentStatuses();
     for (const cb of this.combatants.values()) this.destroyFallbackSprite(cb);
     this.combatants.clear();
     for (const w of this.trainers) this.root.remove(w.group);
@@ -204,6 +216,21 @@ export class BattleMirror {
     this.pinned2DTrainers.clear();
     this.hiddenBackdrops.clear();
     this.pendingObjects.clear();
+  }
+
+  /** Read the authoritative Pokemon object used by each battle-scene variant.
+   *  TypeScript private fields are ordinary properties at runtime, so this
+   *  keeps the visual mirror decoupled from battle rules and scene subclasses. */
+  private combatantStatus(cb: Combatant): string {
+    const state = this.scene as unknown as Record<string, unknown>;
+    const keys = cb.side === 'player'
+      ? ['player', 'playerPokemon']
+      : ['wild', 'enemy', 'rival', 'enemyPokemon'];
+    for (const key of keys) {
+      const mon = state[key] as { status?: unknown } | undefined;
+      if (mon && typeof mon.status === 'string') return mon.status;
+    }
+    return 'none';
   }
 
   /** Return the live Phaser-screen position of a point on a 3D combatant. */
@@ -240,6 +267,47 @@ export class BattleMirror {
     const category = (d.category === 'special' || d.category === 'status' ? d.category : 'physical') as MoveCategory;
     // Stronger moves swing harder; PokeAPI power tops out around 120.
     const powerScale = 0.7 + Math.min(1.2, (d.power ?? 60) / 100) * 0.6;
+    const moveKey = (d.moveName ?? '').toLowerCase().replace(/-/g, ' ').trim();
+    const isCloseCombat = category === 'physical' && moveKey === 'close combat';
+
+    if (isCloseCombat) {
+      atk.anim?.comboAttack(dir, powerScale);
+      this.rig.focusOn(tgt.holder.position, 0.9);
+      this.fx.closeCombatCombo(from, to, d.color, d.power ?? 120, d.effectiveness, (index) => {
+        tgt.anim?.hit(index === 3 ? 1.35 : 0.72 + index * 0.08);
+        this.rig.focusOn(tgt.holder.position, index === 3 ? 0.9 : 0.72);
+        this.rig.addShake((index === 3 ? 0.72 : 0.32) * (d.effectiveness > 1 ? 1.25 : 1));
+      });
+      return;
+    }
+
+    if (category === 'physical' && (moveKey === 'rock slide' || moveKey === 'stone shower' || moveKey === 'stone edge')) {
+      atk.anim?.attack('special', dir, powerScale);
+      this.rig.focusOn(tgt.holder.position, 0.82);
+      const onRockImpact = () => {
+        tgt.anim?.hit(d.effectiveness > 1 ? 1.35 : 1.05);
+        this.rig.focusOn(tgt.holder.position, 0.86);
+        this.rig.addShake((moveKey === 'stone edge' ? 0.72 : 0.62) * (d.effectiveness > 1 ? 1.2 : 1));
+      };
+      if (moveKey === 'stone edge') {
+        this.fx.stoneEdge(to, d.color, d.power ?? 100, d.effectiveness, onRockImpact);
+      } else {
+        this.fx.rockSlide(to, d.color, d.power ?? 75, d.effectiveness, onRockImpact);
+      }
+      return;
+    }
+
+    if (category === 'special' && TIMED_SPECIAL_MOVES.has(moveKey)) {
+      atk.anim?.attack('special', dir, powerScale);
+      this.rig.focusOn(atk.holder.position, 0.72);
+      this.fx.playSpecial(from, to, d.moveType ?? 'normal', d.moveName ?? 'Move', d.color,
+        d.power ?? 80, d.effectiveness, () => {
+          tgt.anim?.hit(d.effectiveness > 1 ? 1.3 : 1);
+          this.rig.focusOn(tgt.holder.position, 0.86);
+          this.rig.addShake(d.effectiveness > 1 ? 0.72 : 0.52);
+        });
+      return;
+    }
 
     // Damaging moves act out an attack and impact. Utility moves instead hold
     // on the affected Pokémon so a heal/rank aura never looks like self-damage.
@@ -755,6 +823,7 @@ export class BattleMirror {
         }
       }
       if (!cb.glb) {
+        this.fx.removePersistentStatus(cb.holder);
         if (!cb.fallback2D) this.use2DFallback(cb);
         continue;
       }
@@ -825,10 +894,17 @@ export class BattleMirror {
       cb.holder.position.y += cb.chargeLift;
       cb.holder.visible = (o.visible !== false) && ((o.alpha ?? 1) > 0.02);
       cb.shadow.visible = cb.holder.position.y < 0.5;
+      this.fx.syncPersistentStatus(
+        cb.holder,
+        this.combatantStatus(cb),
+        cb.targetH * uniformRel,
+        cb.holder.visible && !down,
+      );
     }
     for (const d of dead) {
       const cb = this.combatants.get(d);
       if (cb) {
+        this.fx.removePersistentStatus(cb.holder);
         this.destroyFallbackSprite(cb);
         this.root.remove(cb.holder);
         this.combatants.delete(d);

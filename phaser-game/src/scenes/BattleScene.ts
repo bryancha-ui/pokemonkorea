@@ -8,6 +8,7 @@ import { fetchPokemon, fetchMove } from '../data/PokeAPI';
 import { executeBattleMove, pendingMoveFor } from '../systems/MoveEffects';
 import { genderedName } from '../data/PokemonGender';
 import { actsBefore } from '../systems/AbilitySystem';
+import { BattleStatusBadge } from '../systems/BattleStatusBadge';
 
 type BattleState = 'loading' | 'start' | 'playerAction' | 'playerMove' | 'busy' | 'over';
 
@@ -24,6 +25,8 @@ export class BattleScene extends Phaser.Scene {
   private enemyHpText!: Phaser.GameObjects.Text;
   private _playerNameText!: Phaser.GameObjects.Text;
   private _enemyNameText!: Phaser.GameObjects.Text;
+  private playerStatusBadge?: BattleStatusBadge;
+  private enemyStatusBadge?: BattleStatusBadge;
   private _playerSprite!: Phaser.GameObjects.Image;
   private _enemySprite!: Phaser.GameObjects.Image;
   private actionPanel!: Phaser.GameObjects.Container;
@@ -182,6 +185,7 @@ export class BattleScene extends Phaser.Scene {
     // Enemy HUD (top-left)
     this.add.rectangle(140, 60, 260, 70, 0x222244).setStrokeStyle(1, 0xffffff);
     this._enemyNameText = this.add.text(20, 32, `${genderedName(pokeNameEn(e.name).toUpperCase(), e, 'demo-enemy')}  Lv.${this.enemyPokemon.level}`, { fontSize: '14px', color: '#fff' });
+    this.enemyStatusBadge = new BattleStatusBadge(this._enemyNameText, () => 260);
     this.add.rectangle(140, 72, 220, 12, 0x444444);
     this.enemyHpBar    = this.add.rectangle(30, 72, 220, 12, 0x44cc44).setOrigin(0, 0.5);
     this.enemyHpText   = this.add.text(20, 82, `${e.hp}/${e.maxHp}`, { fontSize: '12px', color: '#aaa' });
@@ -189,6 +193,7 @@ export class BattleScene extends Phaser.Scene {
     // Player HUD (bottom-right)
     this.add.rectangle(640, 320, 260, 70, 0x222244).setStrokeStyle(1, 0xffffff);
     this._playerNameText = this.add.text(516, 292, `${genderedName(pokeNameEn(p.name).toUpperCase(), p, 'demo-player')}  Lv.${this.playerPokemon.level}`, { fontSize: '14px', color: '#fff' });
+    this.playerStatusBadge = new BattleStatusBadge(this._playerNameText, () => 760);
     this.add.rectangle(640, 332, 220, 12, 0x444444);
     this.playerHpBar    = this.add.rectangle(530, 332, 220, 12, 0x44cc44).setOrigin(0, 0.5);
     this.playerHpText   = this.add.text(516, 342, `${p.hp}/${p.maxHp}`, { fontSize: '12px', color: '#aaa' });
@@ -253,6 +258,11 @@ export class BattleScene extends Phaser.Scene {
   }
 
   // ── UI helpers ───────────────────────────────────────────────────────────
+
+  update(): void {
+    this.enemyStatusBadge?.sync(this.enemyPokemon?.status);
+    this.playerStatusBadge?.sync(this.playerPokemon?.status);
+  }
 
   private showActionPanel() {
     deckHideMoves();

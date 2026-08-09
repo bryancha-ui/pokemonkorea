@@ -21,6 +21,7 @@ import { fontScaleForScene } from '../systems/UiScale';
 import { genderedName } from '../data/PokemonGender';
 import { actsBefore } from '../systems/AbilitySystem';
 import { enemyLearnset, mergeLearnset } from '../data/Learnsets';
+import { BattleStatusBadge } from '../systems/BattleStatusBadge';
 
 type BattleState = 'intro' | 'playerAction' | 'playerMove' | 'busy' | 'levelUp' | 'over';
 const RIVAL_STAGE_X = 580;
@@ -44,6 +45,8 @@ export class RivalBattleScene extends Phaser.Scene {
   private rivalLvText!: Phaser.GameObjects.Text;
   private playerNameText!: Phaser.GameObjects.Text;
   private rivalNameText!: Phaser.GameObjects.Text;
+  private playerStatusBadge?: BattleStatusBadge;
+  private rivalStatusBadge?: BattleStatusBadge;
   private playerSprite!: Phaser.GameObjects.Image;
   private rivalSprite!: Phaser.GameObjects.Image;
   private playerTrainer?: Phaser.GameObjects.Image;
@@ -195,6 +198,8 @@ export class RivalBattleScene extends Phaser.Scene {
     track(this.add.rectangle(130 + ex / 2, 52, 248 + ex, 68, 0x0d0d2e, 0.9).setStrokeStyle(1, 0x5577aa));
     this.rivalNameText = track(this.add.text(14, 24, this.rivalHudName(), { fontSize: '14px', color: '#fff', fontStyle: 'bold' }));
     this.rivalLvText = track(this.add.text(249 + ex, 24, `Lv.${this.rival.level}`, { fontSize: '13px', color: '#ffe44e' }).setOrigin(1, 0));
+    this.rivalStatusBadge = new BattleStatusBadge(this.rivalNameText, () => this.rivalLvText.x - 36);
+    this.hudGroup.push(this.rivalStatusBadge.text);
     track(this.add.rectangle(30 + this.HP_BAR_W / 2, 52, this.HP_BAR_W + 8, 12, 0x333355));
     this.rivalHpBar  = track(this.add.rectangle(30, 52, this.HP_BAR_W, 10, 0x44cc44).setOrigin(0, 0.5));
     this.rivalHpText = track(this.add.text(14, 62, `${this.rival.hp}/${this.rival.maxHp}`, { fontSize: '11px', color: '#aaa' }));
@@ -203,6 +208,8 @@ export class RivalBattleScene extends Phaser.Scene {
     track(this.add.rectangle(1154 - (248 + ex) / 2, 545, 248 + ex, 68, 0x0d0d2e, 0.9).setStrokeStyle(1, 0x5577aa));
     this.playerNameText = track(this.add.text(910 - ex, 517, this.playerHudName(), { fontSize: '14px', color: '#fff', fontStyle: 'bold' }));
     this.playerLvText = track(this.add.text(1090, 517, `Lv.${this.player.level}`, { fontSize: '13px', color: '#ffe44e' }).setOrigin(1, 0));
+    this.playerStatusBadge = new BattleStatusBadge(this.playerNameText, () => this.playerLvText.x - 36);
+    this.hudGroup.push(this.playerStatusBadge.text);
     track(this.add.rectangle(930 - ex + this.HP_BAR_W / 2, 547, this.HP_BAR_W + 8, 12, 0x333355));
     this.playerHpBar  = track(this.add.rectangle(930 - ex, 547, this.HP_BAR_W, 10, 0x44cc44).setOrigin(0, 0.5));
     this.playerHpText = track(this.add.text(910 - ex, 557, `${this.player.hp}/${this.player.maxHp}`, { fontSize: '11px', color: '#aaa' }));
@@ -702,6 +709,11 @@ export class RivalBattleScene extends Phaser.Scene {
   }
 
   // ── UI helpers ────────────────────────────────────────────────────────────
+
+  update(): void {
+    this.rivalStatusBadge?.sync(this.rival?.status);
+    this.playerStatusBadge?.sync(this.player?.status);
+  }
 
   private refreshMovePanel() { this.movePanel.destroy(true); this.createMovePanel(); this.movePanel.setVisible(false); }
   private showActionPanel() {

@@ -28,6 +28,7 @@ import { genderedName, genderForPokemon } from '../data/PokemonGender';
 import { caughtLocationName } from '../data/PokemonOrigin';
 import { actsBefore, guaranteedEscape, preventsEscape } from '../systems/AbilitySystem';
 import { enemyLearnset, mergeLearnset } from '../data/Learnsets';
+import { BattleStatusBadge } from '../systems/BattleStatusBadge';
 
 type WildState = 'loading' | 'intro' | 'playerAction' | 'playerMove' | 'bag' | 'busy' | 'catching' | 'over';
 
@@ -51,6 +52,9 @@ export class WildBattleScene extends Phaser.Scene {
   private playerLvText!: Phaser.GameObjects.Text;
   private playerNameText!: Phaser.GameObjects.Text;
   private wildLvText!: Phaser.GameObjects.Text;
+  private wildNameText!: Phaser.GameObjects.Text;
+  private playerStatusBadge?: BattleStatusBadge;
+  private wildStatusBadge?: BattleStatusBadge;
   private wildSprite!: Phaser.GameObjects.Image;
   private playerSprite!: Phaser.GameObjects.Image;
   private actionPanel!: Phaser.GameObjects.Container;
@@ -252,8 +256,9 @@ export class WildBattleScene extends Phaser.Scene {
     // in a wide mobile box. ex = 0 on desktop → hpW = HP_W, layout unchanged.
     this.hpW = HP_W + Math.max(0, ex - 36);
     this.add.rectangle(5 + (220 + ex) / 2, 50, 220 + ex, 60, 0x0d0d2e, 0.92).setStrokeStyle(1, 0x5577aa);
-    this.add.text(12, 24, this.wildHudName(), { fontSize: '13px', color: '#fff', fontStyle: 'bold' });
+    this.wildNameText = this.add.text(12, 24, this.wildHudName(), { fontSize: '13px', color: '#fff', fontStyle: 'bold' });
     this.wildLvText = this.add.text(220 + ex, 24, `Lv.${this.wild.level}`, { fontSize: '12px', color: '#ffe44e' }).setOrigin(1, 0);
+    this.wildStatusBadge = new BattleStatusBadge(this.wildNameText, () => this.wildLvText.x - 34);
     this.add.rectangle(25 + this.hpW / 2, 52, this.hpW + 6, 10, 0x333355);
     this.wildHpBar  = this.add.rectangle(25, 52, this.hpW, 8, 0x44cc44).setOrigin(0, 0.5);
     this.wildHpText = this.add.text(12, 60, `${this.wild.hp}/${this.wild.maxHp}`, { fontSize: '10px', color: '#aaa' });
@@ -262,6 +267,7 @@ export class WildBattleScene extends Phaser.Scene {
     this.add.rectangle(1140 - (220 + ex) / 2, 545, 220 + ex, 60, 0x0d0d2e, 0.92).setStrokeStyle(1, 0x5577aa);
     this.playerNameText = this.add.text(922 - ex, 519, this.playerHudName(), { fontSize: '13px', color: '#fff', fontStyle: 'bold' });
     this.playerLvText = this.add.text(1100, 519, `Lv.${this.player.level}`, { fontSize: '12px', color: '#ffe44e' }).setOrigin(1, 0);
+    this.playerStatusBadge = new BattleStatusBadge(this.playerNameText, () => this.playerLvText.x - 34);
     this.add.rectangle(940 - ex + this.hpW / 2, 547, this.hpW + 6, 10, 0x333355);
     this.playerHpBar  = this.add.rectangle(940 - ex, 547, this.hpW, 8, 0x44cc44).setOrigin(0, 0.5);
     this.playerHpText = this.add.text(922 - ex, 557, `${this.player.hp}/${this.player.maxHp}`, { fontSize: '10px', color: '#aaa' });
@@ -803,6 +809,11 @@ export class WildBattleScene extends Phaser.Scene {
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
+
+  update(): void {
+    this.wildStatusBadge?.sync(this.wild?.status);
+    this.playerStatusBadge?.sync(this.player?.status);
+  }
 
   private get px() { return (this.registry.get('routeReturnX') as number) ?? 0; }
   private get py() { return (this.registry.get('routeReturnY') as number) ?? 0; }

@@ -40,7 +40,7 @@ export class CreatureAnimator {
   private phase = Math.random() * Math.PI * 2;
 
   // procedural action state
-  private action: { kind: MoveCategory | 'hit' | 'faint'; t: number; dur: number; dir: THREE.Vector3; power: number } | null = null;
+  private action: { kind: MoveCategory | 'combo' | 'hit' | 'faint'; t: number; dur: number; dir: THREE.Vector3; power: number } | null = null;
   private baseY = 0;
   private facing = 0;
   private onImpact: (() => void) | null = null;
@@ -95,6 +95,19 @@ export class CreatureAnimator {
     this.impactFired = false;
     // Contact lands mid-lunge for physical moves, at the cast release otherwise.
     this.impactAt = category === 'physical' ? 0.45 : 0.4;
+    this.state = 'attack';
+    this.play('attack', true);
+  }
+
+  /** Close Combat-style rapid rush. The model stays forward for four visible
+   *  strike beats, weaving around the attack line before snapping home. */
+  comboAttack(dir: THREE.Vector3, power = 1): void {
+    const d = dir.clone().setY(0);
+    if (d.lengthSq() < 1e-6) d.set(0, 0, 1);
+    d.normalize();
+    this.action = { kind: 'combo', t: 0, dur: 0.92, dir: d, power: Math.max(0.5, Math.min(1.6, power)) };
+    this.onImpact = null;
+    this.impactFired = false;
     this.state = 'attack';
     this.play('attack', true);
   }
@@ -158,6 +171,25 @@ export class CreatureAnimator {
         sy = 1 - wind * 0.16 + surge * 0.1;
         sx = sz = 1 + wind * 0.12 - surge * 0.05;
         pitch = -surge * 0.35;
+      } else if (a.kind === 'combo') {
+        // Fast entry → four alternating body blows → fast retreat. Root motion
+        // works for both rigged and static GLBs, so every species can sell the
+        // same Close Combat rhythm even without a bespoke attack clip.
+        const enter = k < 0.16 ? Math.sin((k / 0.16) * Math.PI * 0.5) : 1;
+        const retreat = k > 0.82 ? Math.cos(((k - 0.82) / 0.18) * Math.PI * 0.5) : 1;
+        const forward = Math.max(0, enter * retreat);
+        const sideX = -a.dir.z, sideZ = a.dir.x;
+        const weave = Math.sin(k * Math.PI * 8) * 0.24 * forward * a.power;
+        const strike = Math.abs(Math.sin(k * Math.PI * 4));
+        const lunge = (1.18 + strike * 0.24) * forward * a.power;
+        offX = a.dir.x * lunge + sideX * weave;
+        offZ = a.dir.z * lunge + sideZ * weave;
+        offY = strike * 0.2 * forward * a.power;
+        pitch = -0.22 * forward - strike * 0.12;
+        yaw = Math.sin(k * Math.PI * 8) * 0.24 * forward;
+        roll = -Math.sin(k * Math.PI * 8) * 0.11 * forward;
+        sx = sz = 1 + strike * 0.06;
+        sy = 1 - strike * 0.05;
       } else if (a.kind === 'special') {
         // rear back, charge (glow handled by MoveFX3D), release forward
         const charge = k < 0.42 ? k / 0.42 : 1;

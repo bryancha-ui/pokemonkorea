@@ -24,6 +24,7 @@ import { fontScaleForScene } from '../systems/UiScale';
 import { genderedName } from '../data/PokemonGender';
 import { actsBefore } from '../systems/AbilitySystem';
 import { mergeLearnset } from '../data/Learnsets';
+import { BattleStatusBadge } from '../systems/BattleStatusBadge';
 import { blackoutMessage, blackoutToCenter } from '../systems/Blackout';
 
 type State = 'intro' | 'playerAction' | 'playerMove' | 'busy' | 'over';
@@ -52,6 +53,8 @@ export class GymLeaderBattleScene extends Phaser.Scene {
   private enemyLvText!:  Phaser.GameObjects.Text;
   private playerNameText!: Phaser.GameObjects.Text;
   private enemyNameText!:  Phaser.GameObjects.Text;
+  private playerStatusBadge?: BattleStatusBadge;
+  private enemyStatusBadge?: BattleStatusBadge;
   private enemySprite!:  Phaser.GameObjects.Image;
   private playerSprite!: Phaser.GameObjects.Image;
   private leaderPortrait?: Phaser.GameObjects.Image;
@@ -239,6 +242,8 @@ export class GymLeaderBattleScene extends Phaser.Scene {
     track(this.add.rectangle(130 + ex / 2, 52, 260 + ex, 68, 0x0d0d2e, 0.9).setStrokeStyle(1, 0x9933cc));
     this.enemyNameText = track(this.add.text(14, 24, this.enemyHudName(), { fontSize: '14px', color: '#cc88ff', fontStyle: 'bold' }));
     this.enemyLvText  = track(this.add.text(255 + ex, 24, `Lv.${this.enemy.level}`, { fontSize: '13px', color: '#ffe44e' }).setOrigin(1, 0));
+    this.enemyStatusBadge = new BattleStatusBadge(this.enemyNameText, () => this.enemyLvText.x - 36);
+    this.hudGroup.push(this.enemyStatusBadge.text);
     track(this.add.rectangle(30 + this.hpW / 2, 52, this.hpW + 8, 12, 0x333355));
     this.enemyHpBar   = track(this.add.rectangle(30, 52, this.hpW, 10, 0x44cc44).setOrigin(0, 0.5));
     this.enemyHpText  = track(this.add.text(14, 62, `${this.enemy.hp}/${this.enemy.maxHp}`, { fontSize: '11px', color: '#aaa' }));
@@ -246,6 +251,8 @@ export class GymLeaderBattleScene extends Phaser.Scene {
     track(this.add.rectangle(this.W - (260 + ex) / 2, this.H - 175, 260 + ex, 68, 0x0d0d2e, 0.9).setStrokeStyle(1, 0x9933cc));
     this.playerNameText = track(this.add.text(this.W - 258 - ex, this.H - 203, this.playerHudName(), { fontSize: '14px', color: '#ffffff', fontStyle: 'bold' }));
     this.playerLvText = track(this.add.text(this.W - 12, this.H - 203, `Lv.${this.player.level}`, { fontSize: '13px', color: '#ffe44e' }).setOrigin(1, 0));
+    this.playerStatusBadge = new BattleStatusBadge(this.playerNameText, () => this.playerLvText.x - 36);
+    this.hudGroup.push(this.playerStatusBadge.text);
     track(this.add.rectangle(this.W - 258 - ex + this.hpW / 2, this.H - 173, this.hpW + 8, 12, 0x333355));
     this.playerHpBar  = track(this.add.rectangle(this.W - 258 - ex, this.H - 173, this.hpW, 10, 0x44cc44).setOrigin(0, 0.5));
     this.playerHpText = track(this.add.text(this.W - 258 - ex, this.H - 161, `${this.player.hp}/${this.player.maxHp}`, { fontSize: '11px', color: '#aaa' }));
@@ -693,6 +700,11 @@ export class GymLeaderBattleScene extends Phaser.Scene {
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
+
+  update(): void {
+    this.enemyStatusBadge?.sync(this.enemy?.status);
+    this.playerStatusBadge?.sync(this.player?.status);
+  }
 
   private animateHp(who: 'player' | 'enemy', onDone: () => void) {
     const mon  = who === 'player' ? this.player : this.enemy;

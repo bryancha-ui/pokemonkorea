@@ -32,6 +32,7 @@ import { playBallSendOut } from '../systems/BattleBallFX';
 import { genderedName } from '../data/PokemonGender';
 import { actsBefore } from '../systems/AbilitySystem';
 import { enemyLearnset, mergeLearnset } from '../data/Learnsets';
+import { BattleStatusBadge } from '../systems/BattleStatusBadge';
 
 // ── Enemy movesets ──────────────────────────────────────────────────────────
 // Strong authored move data is reserved for Elite Four / Champion teams below.
@@ -141,6 +142,8 @@ export class TrainerBattleScene extends Phaser.Scene {
   private playerNameText!: Phaser.GameObjects.Text;
   private enemyLvText!: Phaser.GameObjects.Text;
   private enemyNameText!: Phaser.GameObjects.Text;
+  private playerStatusBadge?: BattleStatusBadge;
+  private enemyStatusBadge?: BattleStatusBadge;
   private enemySprite!: Phaser.GameObjects.Image;
   private playerSprite!: Phaser.GameObjects.Image;
   private trainerPortrait?: Phaser.GameObjects.Image;
@@ -415,6 +418,7 @@ export class TrainerBattleScene extends Phaser.Scene {
     this.add.rectangle(5 + (220 + ex) / 2, 50, 220 + ex, 60, 0x0d0d2e, 0.92).setStrokeStyle(1, 0x5577aa);
     this.enemyNameText = this.add.text(12, 24, this.enemyHudName(), { fontSize: '13px', color: '#fff', fontStyle: 'bold' });
     this.enemyLvText  = this.add.text(220 + ex, 24, `Lv.${this.enemy.level}`, { fontSize: '12px', color: '#ffe44e' }).setOrigin(1, 0);
+    this.enemyStatusBadge = new BattleStatusBadge(this.enemyNameText, () => this.enemyLvText.x - 34);
     this.add.rectangle(25 + this.hpW / 2, 52, this.hpW + 6, 10, 0x333355);
     this.enemyHpBar   = this.add.rectangle(25, 52, this.hpW, 8, 0x44cc44).setOrigin(0, 0.5);
     this.enemyHpText  = this.add.text(12, 60, `${this.enemy.hp}/${this.enemy.maxHp}`, { fontSize: '10px', color: '#aaa' });
@@ -422,6 +426,7 @@ export class TrainerBattleScene extends Phaser.Scene {
     this.add.rectangle(1140 - (220 + ex) / 2, 545, 220 + ex, 60, 0x0d0d2e, 0.92).setStrokeStyle(1, 0x5577aa);
     this.playerNameText = this.add.text(922 - ex, 519, this.playerHudName(), { fontSize: '13px', color: '#fff', fontStyle: 'bold' });
     this.playerLvText = this.add.text(1100, 519, `Lv.${this.player.level}`, { fontSize: '12px', color: '#ffe44e' }).setOrigin(1, 0);
+    this.playerStatusBadge = new BattleStatusBadge(this.playerNameText, () => this.playerLvText.x - 34);
     this.add.rectangle(940 - ex + this.hpW / 2, 547, this.hpW + 6, 10, 0x333355);
     this.playerHpBar  = this.add.rectangle(940 - ex, 547, this.hpW, 8, 0x44cc44).setOrigin(0, 0.5);
     this.playerHpText = this.add.text(922 - ex, 557, `${this.player.hp}/${this.player.maxHp}`, { fontSize: '10px', color: '#aaa' });
@@ -1253,6 +1258,11 @@ export class TrainerBattleScene extends Phaser.Scene {
   }
 
   // ── Shared HP animation ───────────────────────────────────────────────────
+
+  update(): void {
+    this.enemyStatusBadge?.sync(this.enemy?.status);
+    this.playerStatusBadge?.sync(this.player?.status);
+  }
 
   private animateHpBar(who: 'player' | 'enemy', onDone: () => void) {
     const mon   = who === 'player' ? this.player  : this.enemy;

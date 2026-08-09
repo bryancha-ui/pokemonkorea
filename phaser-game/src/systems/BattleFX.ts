@@ -2,6 +2,20 @@ import Phaser from 'phaser';
 import { MoveData } from '../battle/Pokemon';
 import { TYPE_COLORS } from '../data/StarterData';
 
+const CINEMATIC_3D_IMPACT_DELAY: Readonly<Record<string, number>> = {
+  'soul ferry deluge': 515, 'royal kiln roar': 450,
+  'ice beam': 365, 'hydro pump': 525, 'shadow ball': 640, 'air slash': 455,
+  flamethrower: 290, ember: 290, 'flame burst': 290, 'fire blast': 290,
+  psychic: 290, psybeam: 290, psyshock: 290, confusion: 290,
+  'dark pulse': 290, hex: 290, 'ominous wind': 290,
+  'bug buzz': 290, 'hyper voice': 290, supersonic: 290,
+  'energy ball': 310, 'mega drain': 310, 'giga drain': 310, absorb: 310, 'grave bloom': 310,
+  'sludge bomb': 320, venoshock: 320,
+  moonblast: 330, 'dazzling gleam': 330, 'fairy wind': 330, 'draining kiss': 330,
+  'draco meteor': 545, 'dragon pulse': 290, 'dragon breath': 290,
+  blizzard: 335, 'powder snow': 335, 'aurora beam': 335,
+};
+
 /**
  * Play a quick attack animation for `move`, from the attacker sprite toward the
  * target sprite, then call `onImpact` at the moment of contact. Type-coloured:
@@ -41,6 +55,17 @@ export function playMoveFX(
   };
 
   if (move.category === 'physical') {
+    const moveKey = move.name.toLowerCase().replace(/-/g, ' ').trim();
+    if (using3D && moveKey === 'close combat') {
+      // The 3D mirror stages four visible contacts over 0.92 s. Resolve battle
+      // damage on the finisher instead of during the old single-lunge beat.
+      scene.time.delayedCall(720, impact);
+      return;
+    }
+    if (using3D && (moveKey === 'rock slide' || moveKey === 'stone shower' || moveKey === 'stone edge')) {
+      scene.time.delayedCall(moveKey === 'stone edge' ? 370 : 540, impact);
+      return;
+    }
     scene.tweens.add({
       targets: attacker,
       x: ax + (tx - ax) * 0.3,
@@ -53,7 +78,9 @@ export function playMoveFX(
     if (using3D) {
       // Keep damage timing identical while the richer effect is drawn by the
       // 3D mirror. Drawing the generic 2D orb here would cover that effect.
-      scene.time.delayedCall(240, impact);
+      const moveKey = move.name.toLowerCase().replace(/-/g, ' ').trim();
+      const delay = CINEMATIC_3D_IMPACT_DELAY[moveKey] ?? 240;
+      scene.time.delayedCall(delay, impact);
       return;
     }
     const orb  = scene.add.circle(ax, ay, 11, color, 0.95).setDepth(9);

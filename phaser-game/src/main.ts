@@ -238,6 +238,149 @@ function launchHwanungBattleTest(game: Phaser.Game): void {
   game.scene.start('WildBattleScene');
 }
 
+/** Isolated Close Combat 3D combo regression fixture. */
+function launchCloseCombatTest(game: Phaser.Game): void {
+  game.registry.set('sceneFlowTest', true);
+  game.registry.set('party', '[]');
+  game.registry.set('box', '[]');
+  game.registry.set('dexCaught', '[]');
+  game.registry.set('starterName', 'Vipour');
+  game.registry.set('starterKey', 'vipour');
+  game.registry.set('starterLevel', 56);
+  game.registry.set('starterExp', 0);
+  PartySystem.initFromStarter(game.registry);
+  const lead = PartySystem.get(game.registry)[0];
+  if (lead) {
+    const battleMoves = [
+      { name: 'Close Combat', type: 'fighting' as const, category: 'physical' as const, power: 95, accuracy: 100, pp: 20 },
+      { name: 'Rock Slide', type: 'rock' as const, category: 'physical' as const, power: 75, accuracy: 100, pp: 10 },
+      { name: 'Stone Edge', type: 'rock' as const, category: 'physical' as const, power: 100, accuracy: 100, pp: 5 },
+      { name: 'Ice Beam', type: 'ice' as const, category: 'special' as const, power: 90, accuracy: 100, pp: 10 },
+    ];
+    PartySystem.set(game.registry, [{
+      ...lead,
+      name: 'Pipetiger', spriteKey: 'pipetiger', level: 56,
+      type1: 'fire', type2: 'steel',
+      moves: battleMoves.map(move => move.name), battleMoves,
+    }]);
+  }
+  game.registry.set('wildId', 'ampere');
+  game.registry.set('wildLevel', 40);
+  game.registry.set('wildCustom', true);
+  game.registry.set('wildCatchRate', 120);
+  game.registry.set('wildReturnScene', 'SacredPeakScene');
+  if (game.scene.isActive('TitleScene')) game.scene.stop('TitleScene');
+  game.scene.start('WildBattleScene');
+}
+
+/** Ice Beam, Hydro Pump and Shadow Ball 3D timing regression fixture. */
+function launchSpecialMoveFxTest(game: Phaser.Game): void {
+  game.registry.set('sceneFlowTest', true);
+  game.registry.set('party', '[]');
+  game.registry.set('box', '[]');
+  game.registry.set('dexCaught', '[]');
+  game.registry.set('starterName', 'Onnurian');
+  game.registry.set('starterKey', 'onnurian');
+  game.registry.set('starterLevel', 56);
+  game.registry.set('starterExp', 0);
+  PartySystem.initFromStarter(game.registry);
+  const lead = PartySystem.get(game.registry)[0];
+  if (lead) {
+    const battleMoves = [
+      { name: 'Ice Beam', type: 'ice' as const, category: 'special' as const, power: 90, accuracy: 100, pp: 10 },
+      { name: 'Hydro Pump', type: 'water' as const, category: 'special' as const, power: 110, accuracy: 100, pp: 5 },
+      { name: 'Shadow Ball', type: 'ghost' as const, category: 'special' as const, power: 90, accuracy: 100, pp: 15 },
+      { name: 'Air Slash', type: 'flying' as const, category: 'special' as const, power: 85, accuracy: 100, pp: 15 },
+    ];
+    PartySystem.set(game.registry, [{
+      ...lead,
+      name: 'Thanatoat', spriteKey: 'thanatoat', level: 56,
+      type1: 'water', type2: 'ghost',
+      moves: battleMoves.map(move => move.name), battleMoves,
+    }]);
+  }
+  game.registry.set('wildId', 'ampere');
+  game.registry.set('wildLevel', 40);
+  game.registry.set('wildCustom', true);
+  game.registry.set('wildCatchRate', 120);
+  game.registry.set('wildReturnScene', 'SacredPeakScene');
+  if (game.scene.isActive('TitleScene')) game.scene.stop('TitleScene');
+  game.scene.start('WildBattleScene');
+}
+
+/** Representative online-reference-inspired effect families. */
+function launchMoveFxFamiliesTest(game: Phaser.Game): void {
+  game.registry.set('sceneFlowTest', true);
+  game.registry.set('party', '[]');
+  game.registry.set('box', '[]');
+  game.registry.set('dexCaught', '[]');
+  game.registry.set('starterName', 'Yeomtaeja');
+  game.registry.set('starterKey', 'yeomtaeja');
+  game.registry.set('starterLevel', 56);
+  game.registry.set('starterExp', 0);
+  PartySystem.initFromStarter(game.registry);
+  const lead = PartySystem.get(game.registry)[0];
+  if (lead) {
+    const battleMoves = [
+      { name: 'Flamethrower', type: 'fire' as const, category: 'special' as const, power: 90, accuracy: 100, pp: 15 },
+      { name: 'Psychic', type: 'psychic' as const, category: 'special' as const, power: 90, accuracy: 100, pp: 10 },
+      { name: 'Dark Pulse', type: 'dark' as const, category: 'special' as const, power: 80, accuracy: 100, pp: 15 },
+      { name: 'Moonblast', type: 'fairy' as const, category: 'special' as const, power: 95, accuracy: 100, pp: 15 },
+    ];
+    PartySystem.set(game.registry, [{
+      ...lead,
+      name: 'Pipetiger', spriteKey: 'pipetiger', level: 56,
+      type1: 'fire', type2: 'steel',
+      moves: battleMoves.map(move => move.name), battleMoves,
+    }]);
+  }
+  game.registry.set('wildId', 'ampere');
+  game.registry.set('wildLevel', 40);
+  game.registry.set('wildCustom', true);
+  game.registry.set('wildCatchRate', 120);
+  game.registry.set('wildReturnScene', 'SacredPeakScene');
+  if (game.scene.isActive('TitleScene')) game.scene.stop('TitleScene');
+  game.scene.start('WildBattleScene');
+}
+
+/** Persistent major-status visuals and localized HUD badge fixture.
+ *  Use `&condition=frz|par|brn|psn` to select the condition. */
+function launchStatusEffectsTest(game: Phaser.Game): void {
+  const requested = new URLSearchParams(location.search).get('condition') ?? 'frz';
+  const condition = ['frz', 'par', 'brn', 'psn'].includes(requested) ? requested : 'frz';
+  game.registry.set('sceneFlowTest', true);
+  game.registry.set('party', '[]');
+  game.registry.set('box', '[]');
+  game.registry.set('dexCaught', '[]');
+  game.registry.set('starterName', 'Onnurian');
+  game.registry.set('starterKey', 'onnurian');
+  game.registry.set('starterLevel', 56);
+  game.registry.set('starterExp', 0);
+  PartySystem.initFromStarter(game.registry);
+  const lead = PartySystem.get(game.registry)[0];
+  if (lead) {
+    const battleMoves = [
+      { name: 'Ice Beam', type: 'ice' as const, category: 'special' as const, power: 90, accuracy: 100, pp: 10 },
+      { name: 'Hydro Pump', type: 'water' as const, category: 'special' as const, power: 110, accuracy: 100, pp: 5 },
+      { name: 'Shadow Ball', type: 'ghost' as const, category: 'special' as const, power: 90, accuracy: 100, pp: 15 },
+      { name: 'Air Slash', type: 'flying' as const, category: 'special' as const, power: 85, accuracy: 100, pp: 15 },
+    ];
+    PartySystem.set(game.registry, [{
+      ...lead,
+      name: 'Thanatoat', spriteKey: 'thanatoat', level: 56, status: condition,
+      type1: 'water', type2: 'ghost',
+      moves: battleMoves.map(move => move.name), battleMoves,
+    }]);
+  }
+  game.registry.set('wildId', 'ampere');
+  game.registry.set('wildLevel', 40);
+  game.registry.set('wildCustom', true);
+  game.registry.set('wildCatchRate', 120);
+  game.registry.set('wildReturnScene', 'SacredPeakScene');
+  if (game.scene.isActive('TitleScene')) game.scene.stop('TitleScene');
+  game.scene.start('WildBattleScene');
+}
+
 /** Open the true-ending celebration, movie and homecoming without saving. */
 function launchTrueEndingTest(game: Phaser.Game): void {
   game.registry.set('sceneFlowTest', true);
@@ -404,6 +547,22 @@ if (testMode === 'ryeo-battle') {
 } else if (testMode === 'ui-localization') {
   game.events.once(Phaser.Core.Events.READY, () => {
     window.setTimeout(() => launchUiLocalizationTest(game), 350);
+  });
+} else if (testMode === 'close-combat') {
+  game.events.once(Phaser.Core.Events.READY, () => {
+    window.setTimeout(() => launchCloseCombatTest(game), 350);
+  });
+} else if (testMode === 'special-move-fx') {
+  game.events.once(Phaser.Core.Events.READY, () => {
+    window.setTimeout(() => launchSpecialMoveFxTest(game), 350);
+  });
+} else if (testMode === 'move-fx-families') {
+  game.events.once(Phaser.Core.Events.READY, () => {
+    window.setTimeout(() => launchMoveFxFamiliesTest(game), 350);
+  });
+} else if (testMode === 'status-effects') {
+  game.events.once(Phaser.Core.Events.READY, () => {
+    window.setTimeout(() => launchStatusEffectsTest(game), 350);
   });
 }
 }
