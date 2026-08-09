@@ -317,13 +317,18 @@ export class SacredPeakScene extends Phaser.Scene {
   private playDescent() {
     this.dialog.show([
       '노스단\'s leader is dragged from the altar. For a moment, the peak is silent.',
-      'Then 풍백, 우사 and 운사 rise from your side of their own accord and take their places around the altar — Wind, Rain and Cloud, wheeling in harmony. The sky splits with light.',
+      'Then 풍백, 우사 and 운사 rise from your side of their own accord and take their places around the altar — Wind, Rain and Clouds, wheeling in harmony. The sky splits with light.',
     ], () => {
-      this.entranceVideoAction = playHwanungEntranceVideo(
+      const action = playHwanungEntranceVideo(
         this,
         () => this.finishDescent(),
         () => { this.entranceVideoAction = undefined; },
       );
+      if (action) {
+        this.entranceVideoAction = action;
+      } else {
+        console.error('Failed to set up Hwanung entrance video action');
+      }
     });
   }
 

@@ -28,7 +28,21 @@ export function playHwanungEntranceVideo(
 ): (() => void) | undefined {
   if (!scene.cache.video.exists(HWANUNG_ENTRANCE_VIDEO_KEY)) {
     console.error('Hwanung entrance video not found in cache:', HWANUNG_ENTRANCE_VIDEO_KEY);
-    scene.time.delayedCall(0, onComplete);
+    // Try to reload the video as a fallback
+    scene.load.video(HWANUNG_ENTRANCE_VIDEO_KEY, HWANUNG_ENTRANCE_VIDEO_URL);
+    scene.load.once('complete', () => {
+      if (scene.cache.video.exists(HWANUNG_ENTRANCE_VIDEO_KEY)) {
+        console.log('Video reloaded successfully, retrying playback');
+        // Retry playback after reload
+        setTimeout(() => {
+          playHwanungEntranceVideo(scene, onComplete, onDisposed);
+        }, 100);
+      } else {
+        console.error('Video reload failed, skipping video');
+        onComplete();
+      }
+    });
+    scene.load.start();
     return undefined;
   }
   console.log('Playing Hwanung entrance video:', HWANUNG_ENTRANCE_VIDEO_KEY);
