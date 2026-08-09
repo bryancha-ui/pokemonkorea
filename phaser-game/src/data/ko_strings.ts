@@ -2357,13 +2357,14 @@ export const KO_STRINGS: Record<string, string> = {
 
   // ── Jeju Vents (ascent, cont.) ──
   '🌋 Jeju Vents — The Ascent (제주 분화구)': '🌋 제주 분화구 — 등정',
+  'WASD: move  SHIFT: run  SPACE: talk  M: menu  F9: Ryeo test': 'WASD: 이동  SHIFT: 달리기  SPACE: 대화  M: 메뉴  F9: 려 배틀 테스트',
   'The vent trail rises sharply from the port — a long, switchbacked climb through lava and ash.':
     '분화구 길이 항구에서 가파르게 솟는다 — 용암과 재를 지나는 길고 구불구불한 오르막.',
   'For the Director!': '국장님을 위하여!',
   'The vent summit is quiet — only wind, steam and black rock. Nothing stirs here yet.':
     '분화구 정상은 고요하다 — 오직 바람, 김, 검은 바위뿐. 아직 아무것도 움직이지 않는다.',
-  'Commander Ryeo: Tighten the restraint field! Her wings can neutralize the Cheonji energy — secure her and the weapon completes itself even without the lake!':
-    '사령관 려: 억제장을 조여! 저 나방의 날개는 천지 에너지를 중화할 수 있어 — 저것을 확보하면 호수 없이도 무기가 완성된다!',
+  'Commander Ryeo: Tighten the restraint field! Her wings can regulate the Jeju crater energy — secure her and the weapon completes itself even without the lake!':
+    '사령관 려: 억제장을 조여! 저 나방의 날개는 제주 분화구 에너지를 조절할 수 있어 — 저것을 확보하면 호수 없이도 무기가 완성된다!',
   '노스단 Operative: Commander, her output is climbing—': '노스단 대원: 사령관님, 저것의 출력이 치솟고 있습니다—',
   'Commander Ryeo staggers backward, her Pokémon recalled. She looks at the towering moth beside you — at the glow of her wings — and something breaks in her expression.':
     '사령관 려가 비틀거리며 물러서고, 포켓몬을 회수한다. 네 곁에 우뚝 선 나비할망과 빛나는 날개를 바라보자, 려의 표정에서 무언가가 무너진다.',

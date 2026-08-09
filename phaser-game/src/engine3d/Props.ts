@@ -816,6 +816,88 @@ export function makeMountainRange(width: number, depth: number): THREE.Group {
   return g;
 }
 
+/**
+ * Open-air Sacred Peak temple inspired by a high-altitude stone sanctuary:
+ * warm limestone paving, a low circular altar, slender perimeter columns and
+ * a distant faceted mountain skyline. It intentionally has no enclosing walls
+ * or roof, so the player and the Hwanung cast remain visible while the space
+ * still reads as a monumental 3D shrine.
+ */
+export function makeSacredPeakTemple(width: number, depth: number): THREE.Group {
+  const g = new THREE.Group();
+  const LIMESTONE = 0xd7c5a2, LIMESTONE_DK = 0xa9977c, EDGE = 0x8d7c6b;
+  const GOLD = 0xe7bf66, GOLD_DK = 0xa9823d, SKY_ROCK = 0x655d70, SKY_LIGHT = 0x8b7891;
+  const mesh = (geometry: THREE.BufferGeometry, material: THREE.Material, x: number, y: number, z: number) => {
+    const m = new THREE.Mesh(geometry, material);
+    m.position.set(x, y, z);
+    g.add(m);
+    return m;
+  };
+  const slab = (w: number, h: number, d: number, color: number, x: number, y: number, z: number) =>
+    mesh(new THREE.BoxGeometry(w, h, d), toonMat(color), x, y, z);
+
+  // Broad stepped platform: a clear readable floor replaces the old dark tile
+  // mass and gives the whole map the wide courtyard silhouette from the concept.
+  slab(width + 1.0, 0.18, depth + 1.0, EDGE, 0, 0.09, 0);
+  slab(width + 0.6, 0.22, depth + 0.6, LIMESTONE_DK, 0, 0.29, 0);
+  slab(width + 0.1, 0.12, depth + 0.1, LIMESTONE, 0, 0.46, 0);
+
+  // Large central solar altar. The low profile prevents it from swallowing the
+  // 3D Hwanung model while the gold inset makes the arrival point unmistakable.
+  const altarRadius = Math.min(width, depth) * 0.2;
+  mesh(new THREE.CylinderGeometry(altarRadius + 0.24, altarRadius + 0.34, 0.18, 12), toonMat(LIMESTONE_DK), 0, 0.61, 0);
+  mesh(new THREE.CylinderGeometry(altarRadius, altarRadius + 0.08, 0.18, 12), toonMat(LIMESTONE), 0, 0.79, 0);
+  mesh(new THREE.TorusGeometry(altarRadius * 0.78, 0.035, 6, 24), toonMat(GOLD), 0, 0.9, 0)
+    .rotation.x = Math.PI / 2;
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    slab(0.08, 0.035, altarRadius * 0.72, GOLD_DK,
+      Math.cos(a) * altarRadius * 0.46, 0.9, Math.sin(a) * altarRadius * 0.46)
+      .rotation.y = a;
+  }
+
+  // Monumental but sightline-safe columns. Only the perimeter rises; the center
+  // and the approach remain open so actors are never hidden behind black towers.
+  const column = (x: number, z: number, h: number, accent = LIMESTONE) => {
+    slab(0.66, 0.16, 0.66, LIMESTONE_DK, x, 0.58, z);
+    const shaft = mesh(new THREE.CylinderGeometry(0.18, 0.25, h, 8), toonMat(accent), x, 0.66 + h / 2, z);
+    shaft.rotation.y = Math.PI / 8;
+    slab(0.72, 0.16, 0.72, LIMESTONE_DK, x, 0.66 + h + 0.08, z);
+    const cap = mesh(new THREE.ConeGeometry(0.34, 0.42, 5), toonMat(GOLD_DK), x, 0.66 + h + 0.35, z);
+    cap.rotation.y = Math.PI / 4;
+  };
+  const sideX = width / 2 - 0.62, frontZ = depth / 2 - 0.68, backZ = -depth / 2 + 0.68;
+  column(-sideX, frontZ, 2.25); column(sideX, frontZ, 2.25);
+  column(-sideX, backZ, 2.75, 0xc6b89f); column(sideX, backZ, 2.75, 0xc6b89f);
+  column(-sideX, 0, 2.45); column(sideX, 0, 2.45);
+  for (const x of [-width * 0.2, width * 0.2]) column(x, backZ, 2.55, 0xc6b89f);
+
+  // Low rear sanctuary wall and a broken lintel frame the altar without making a
+  // solid temple volume. The warm gold line gives the far edge a deliberate AAA
+  // landmark silhouette from the follow camera.
+  slab(width * 0.56, 0.7, 0.24, LIMESTONE_DK, 0, 0.83, backZ + 0.15);
+  slab(width * 0.66, 0.12, 0.34, GOLD_DK, 0, 1.24, backZ + 0.15);
+  slab(width * 0.62, 0.18, 0.18, LIMESTONE, 0, 2.15, backZ + 0.15);
+  slab(width * 0.7, 0.13, 0.22, GOLD, 0, 2.03, backZ + 0.15);
+
+  // Faceted mountain silhouettes sit beyond the open colonnade. They are kept
+  // low enough to read as a backdrop rather than another camera-blocking wall.
+  const peaks = [
+    { x: -width * 0.58, h: 3.3, r: 1.45, c: SKY_ROCK },
+    { x: -width * 0.18, h: 4.2, r: 1.75, c: SKY_LIGHT },
+    { x: width * 0.22, h: 3.7, r: 1.55, c: SKY_ROCK },
+    { x: width * 0.62, h: 4.7, r: 1.9, c: SKY_LIGHT },
+  ];
+  for (const p of peaks) {
+    const mountain = mesh(new THREE.ConeGeometry(p.r, p.h, 7), toonMat(p.c), p.x, p.h / 2, -depth / 2 - 1.9);
+    mountain.rotation.y = p.x * 0.37;
+    const snow = mesh(new THREE.ConeGeometry(p.r * 0.38, p.h * 0.3, 7), toonMat(0xd8d8df), p.x, p.h * 0.86, -depth / 2 - 1.91);
+    snow.rotation.y = mountain.rotation.y;
+  }
+
+  return g;
+}
+
 /** Rocks / boulders. */
 export function makeRocks(max: number, color = 0x8d8578): InstancedProp {
   const g = new THREE.IcosahedronGeometry(0.34, 1);

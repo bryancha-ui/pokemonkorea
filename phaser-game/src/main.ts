@@ -34,6 +34,7 @@ import { RouteScene } from './scenes/RouteScene';
 import { WildBattleScene } from './scenes/WildBattleScene';
 import { SeoulScene } from './scenes/SeoulScene';
 import { TrainerBattleScene } from './scenes/TrainerBattleScene';
+import { configureRyeoBattleTest } from './scenes/RyeoBattleTestScene';
 import { CapitolCityScene } from './scenes/CapitolCityScene';
 import { CapitolTowerScene } from './scenes/CapitolTowerScene';
 import { CapitolGymScene } from './scenes/CapitolGymScene';
@@ -151,6 +152,33 @@ import { PokemonFxPlugin } from './systems/PokemonFx';
 import { BreedingTrackerPlugin } from './systems/BreedingTracker';
 import { bootstrap3D } from './engine3d';
 import { SaveManager } from './utils/SaveManager';
+import { PartySystem } from './systems/PartySystem';
+
+function launchRyeoBattleTest(game: Phaser.Game): void {
+  // Restore into this window's Phaser registry only. The battle scene's save
+  // guard keeps all test damage/EXP/flags out of the real save slot.
+  const saved = SaveManager.load();
+  if (saved) SaveManager.restore(game.registry, saved);
+
+  // A fresh install may not have a party yet, so give the test a usable lead.
+  if (PartySystem.get(game.registry).length === 0) {
+    game.registry.set('starterName', 'Test Trainer');
+    game.registry.set('starterKey', 'vipour');
+    game.registry.set('starterLevel', 50);
+    game.registry.set('starterExp', 0);
+    PartySystem.initFromStarter(game.registry);
+  }
+
+  configureRyeoBattleTest(game.registry);
+  game.registry.set('nabiCaughtBeat', true);
+  game.registry.set('jejuVentReturnX', 12 * 32 + 16);
+  game.registry.set('jejuVentReturnY', 8 * 32 + 16);
+  // READY can fire in the same frame that Phaser is starting TitleScene. Give
+  // that startup transaction a tick to settle, then explicitly remove the
+  // title so it cannot remain underneath the standalone battle window.
+  if (game.scene.isActive('TitleScene')) game.scene.stop('TitleScene');
+  game.scene.start('JejuVentScene');
+}
 
 async function bootGame() {
 // Recover the IndexedDB mirror before TitleScene decides whether Continue is
@@ -211,6 +239,13 @@ initI18n(game);   // load the saved KO/EN language preference before any scene r
 // third-person + cinematic battle cameras) beneath the Phaser canvas, which
 // keeps drawing all UI. Game logic is untouched. Press F3 to toggle 2D ↔ 3D.
 bootstrap3D(game);
+
+// Open the test directly when the popup is launched with ?test=ryeo-battle.
+if (new URLSearchParams(location.search).get('test') === 'ryeo-battle') {
+  game.events.once(Phaser.Core.Events.READY, () => {
+    window.setTimeout(() => launchRyeoBattleTest(game), 0);
+  });
+}
 }
 
 void bootGame().catch(e => showError(e?.stack || e?.message || String(e)));

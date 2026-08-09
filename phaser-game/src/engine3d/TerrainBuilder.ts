@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import {
   InstancedProp, WallBuilder, makeBronzeStatue, makeFlowers, makeGrandObelisk,
   makeCherryTree, makeFlowerBed, makeForestTree, makeGlowPlants, makeGrassTufts, makeIceStatue, makeMineCart, makePineTree, makePines, makePot, makeRailTrack,
-  makeRocks, makeScenicRock, makeGrandPalace, makeHanokPalace, makeMountainRange, makeNosdanHQ, makePalmTree, makePokemonCenter, makePokeMart, makeStall, makeStoneLantern, makeStoreFixture, makeStreetlamp, makeTrees, makeTriumphalArch, makeWater, makeWaterfall, makeWoodBridge, toonRamp,
+  makeRocks, makeScenicRock, makeGrandPalace, makeHanokPalace, makeMountainRange, makeNosdanHQ, makePalmTree, makePokemonCenter, makePokeMart, makeSacredPeakTemple, makeStall, makeStoneLantern, makeStoreFixture, makeStreetlamp, makeTrees, makeTriumphalArch, makeWater, makeWaterfall, makeWoodBridge, toonRamp,
   type StoreFixtureKind,
 } from './Props';
 import { buildCityDetail, CityTileSpec } from './CityDetail3D';
@@ -1056,6 +1056,18 @@ export function buildTerrain(
       holder.position.set(b.x + b.w / 2, 0, b.z + b.d / 2);
       holder.add(makeMountainRange(b.w, b.d));
       group.add(holder);
+      continue;
+    }
+    // The Sacred Peak is an open-air temple, not a solid building. Its low
+    // platform, perimeter columns and distant mountain silhouettes are built
+    // procedurally so the altar remains readable from every camera angle.
+    if (b.model === 'sacred-temple') {
+      const holder = new THREE.Group();
+      holder.position.set(b.x + b.w / 2, 0, b.z + b.d / 2);
+      holder.add(makeSacredPeakTemple(b.w, b.d));
+      group.add(holder);
+      // Deliberately no blocker: the temple is a colonnade with open sightlines,
+      // not a building that should fade over the player or the Hwanung cast.
       continue;
     }
     const def = b.model ? propById(b.model) : null;

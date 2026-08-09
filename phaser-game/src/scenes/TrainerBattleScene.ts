@@ -155,14 +155,19 @@ export class TrainerBattleScene extends Phaser.Scene {
   constructor() { super('TrainerBattleScene'); }
 
   preload() {
+    const queued = new Set<string>();
     STARTERS.forEach(s => {
-      if (!this.textures.exists(s.spriteKey))
+      if (!this.textures.exists(s.spriteKey) && !queued.has(s.spriteKey)) {
         this.load.image(s.spriteKey, s.data.spriteUrl);
+        queued.add(s.spriteKey);
+      }
     });
     // Load sprites for the whole party so any lead Pokémon renders correctly.
     PartySystem.get(this.registry).forEach(e => {
-      if (e.spriteKey && e.spriteUrl && !this.textures.exists(e.spriteKey))
+      if (e.spriteKey && e.spriteUrl && !this.textures.exists(e.spriteKey) && !queued.has(e.spriteKey)) {
         this.load.image(e.spriteKey, e.spriteUrl);
+        queued.add(e.spriteKey);
+      }
     });
   }
 
@@ -1020,6 +1025,7 @@ export class TrainerBattleScene extends Phaser.Scene {
   /** Save badge/progress against the last RESUMABLE overworld scene (the city/route
    *  the player came from) — never the WorldMap default, which strands the player. */
   private saveProgress() {
+    if (this.registry.get('ryeoBattleTest')) return;
     const scene = (this.registry.get('lastScene') as string) ?? this._returnScene;
     const px = (this.registry.get('lastX') as number) ?? this.returnPx;
     const py = (this.registry.get('lastY') as number) ?? this.returnPy;
@@ -1184,6 +1190,11 @@ export class TrainerBattleScene extends Phaser.Scene {
           if (this.trainerKey.startsWith('north-')) this.registry.set('northLeagueRunFailed', true);
           else this.registry.set('leagueRunFailed', true);
           this.cameras.main.fadeOut(500, 0, 0, 0, () => this.scene.start(this._returnScene));
+        } else if (this.registry.get('ryeoBattleTest')) {
+          // A test loss returns to the local test screen instead of sending the
+          // copied party through the normal Pokémon Center flow.
+          PartySystem.healAll(this.registry);
+          this.returnToRoute();
         } else {
           this.typeDialog(blackoutMessage(this.registry), () => blackoutToCenter(this));
         }

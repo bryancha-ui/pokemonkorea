@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { tr, speakerName } from '../systems/i18n';
-import { playBgm, TRACKS } from '../systems/Music';
+import { playBgm, stopBgm, TRACKS } from '../systems/Music';
 import { ENDING_BGM_VOLUME, playEndingCreditsVideo } from '../systems/EndingCreditsVideo';
 import { DialogBox } from '../ui/DialogBox';
 import { SaveManager } from '../utils/SaveManager';
@@ -315,7 +315,7 @@ export class SudoLabScene extends Phaser.Scene {
   }
 
   /** Stream the authored ending movie and mix its original audio with the
-   * looping game credits theme, then return to the title. */
+   * looping game credits theme, then send the Champion home. */
   private rollCredits() {
     this.cameras.main.fadeOut(1000, 0, 0, 0, () => {
       // Free the complete laboratory display list and let Engine3D release its
@@ -368,7 +368,7 @@ export class SudoLabScene extends Phaser.Scene {
     const credits = [
       '🌟  POKÉMON  KOREA  🌟', '', '', 'THE COMPLETE PANTHEON', '환웅 · 풍백 · 우사 · 운사 · 나비할망', '', '— TRUE END —', '', '',
       'You crossed all of Onnuri —', 'south and north, sea and summit —', 'and united a broken peninsula', 'under a single Champion.', '', '',
-      'Thank you for playing.', '', '', 'Press SPACE to return to the title.',
+      'Thank you for playing.', '', '', 'Press SPACE to return home.',
     ].join('\n');
     const text = this.add.text(W / 2, H + 40, credits, {
       fontSize: '20px', color: '#ffe88a', align: 'center', fontStyle: 'bold', stroke: '#000', strokeThickness: 4, lineSpacing: 12,
@@ -383,7 +383,13 @@ export class SudoLabScene extends Phaser.Scene {
     if (!this.ending) return;
     this.ending = false;
     this.endingVideoAction = undefined;
-    this.cameras.main.fadeOut(1000, 0, 0, 0, () => this.scene.start('TitleScene'));
+    // Credits used to drop the player at the title screen. Make the ending an
+    // actual homecoming and persist it first, so Continue also resumes at home
+    // if the browser closes during the final fade.
+    this.registry.set('trueEndingHomecomingPending', true);
+    SaveManager.save(this.registry, 7 * 32 + 16, 11 * 32 + 16, 'PlayerHomeScene');
+    stopBgm(this);
+    this.cameras.main.fadeOut(1000, 0, 0, 0, () => this.scene.start('PlayerHomeScene'));
   }
 
   private destroyDisplayList(): void {

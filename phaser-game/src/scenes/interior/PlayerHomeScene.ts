@@ -1,10 +1,28 @@
 import Phaser from 'phaser';
 import { BaseInteriorScene, NPC } from './BaseInteriorScene';
+import { SaveManager } from '../../utils/SaveManager';
 
 export class PlayerHomeScene extends BaseInteriorScene {
   private momTalked = false;
 
   constructor() { super({ key: 'PlayerHomeScene' }); }
+
+  create() {
+    super.create();
+    if (!this.registry.get('trueEndingHomecomingPending')) return;
+
+    // Consume and immediately persist the one-shot marker. This keeps reloads
+    // at home without replaying the homecoming conversation forever.
+    this.registry.remove('trueEndingHomecomingPending');
+    SaveManager.save(this.registry, this.px, this.py, 'PlayerHomeScene');
+    this.time.delayedCall(450, () => {
+      this.dialog.show([
+        'Mom: Welcome home, Champion. I watched the whole celebration — and I still cannot believe how far you went.',
+        'Mom: 환웅 and all the others are safe, the region is at peace, and now you are finally back where your journey began.',
+        'Mom: You have earned a long rest. Welcome home.',
+      ]);
+    });
+  }
 
   protected drawRoom() {
     const g = this.add.graphics().setDepth(0);

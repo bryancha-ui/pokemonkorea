@@ -6,8 +6,8 @@ import { SaveManager } from '../utils/SaveManager';
 import { PartySystem } from '../systems/PartySystem';
 import { DexTracker } from '../systems/DexTracker';
 import { Inventory } from '../systems/Items';
-import { drawTrainerBody, drawNpcBody, playerDesign } from '../data/CharacterSprite';
-import { markTrainerPortrait } from '../data/BattlePortraits';
+import { drawTrainerBody, drawNpcBody, playerDesign, rivalDesign, rivalTrainerName } from '../data/CharacterSprite';
+import { markRivalPortrait, markTrainerPortrait } from '../data/BattlePortraits';
 import { playHwanungEntranceVideo, preloadHwanungEntranceVideo } from '../systems/HwanungEntranceVideo';
 import { migrateLegacyCheonjiCapture } from '../systems/StoryMigrations';
 
@@ -22,8 +22,8 @@ type Tile = typeof T[keyof typeof T];
 const TILE = 32, COLS = 18, ROWS = 40;
 
 const COLORS: Record<Tile, number> = {
-  [T.ROCK]: 0x4a4a58, [T.WALL]: 0x22222c, [T.DAIS]: 0x6a6a80, [T.BARRIER]: 0x7a6aa0,
-  [T.PATH]: 0x8a8aa0, [T.ALTAR]: 0xcaa84a, [T.SKY]: 0x2a3a6a,
+  [T.ROCK]: 0xb8aa92, [T.WALL]: 0x655b65, [T.DAIS]: 0xd1bf9d, [T.BARRIER]: 0x8d78a6,
+  [T.PATH]: 0xc7b48b, [T.ALTAR]: 0xe1bb62, [T.SKY]: 0x42516f,
 };
 const SOLID = new Set<Tile>([T.WALL]);
 
@@ -47,6 +47,22 @@ const SOVEREIGN = {
 };
 
 export class SacredPeakScene extends Phaser.Scene {
+  /** The summit is an open-air temple: keep the terrain flush and author only
+   * the deliberate 3D architecture below so no auto-generated black walls hide
+   * the player or the Hwanung cast. */
+  public flatTerrain3D = true;
+  public clearSight3D = true;
+  public noRocks3D = true;
+  public buildingPlots = [{ x: 5, y: 2, w: 8, h: 8, model: 'sacred-temple' }];
+  public propPlots = [
+    { x: 5.0, y: 10.0, kind: 'arch' as const, scale: 0.72 },
+    { x: 6.2, y: 10.0, kind: 'lantern' as const, scale: 0.72 },
+    { x: 11.8, y: 10.0, kind: 'lantern' as const, scale: 0.72 },
+    { x: 5.1, y: 3.0, kind: 'glowplant' as const, scale: 0.65 },
+    { x: 12.0, y: 3.0, kind: 'glowplant' as const, scale: 0.65 },
+    { x: 5.0, y: 6.0, kind: 'obelisk' as const, scale: 0.48 },
+    { x: 12.0, y: 6.0, kind: 'obelisk' as const, scale: 0.48 },
+  ];
   private map!: Tile[][];
   private playerG!: Phaser.GameObjects.Graphics;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -68,6 +84,9 @@ export class SacredPeakScene extends Phaser.Scene {
   preload() {
     if (!this.textures.exists('hwanwoong'))   this.load.image('hwanwoong', 'assets/dex/hwanwoong.png');
     if (!this.textures.exists('nabihalmang')) this.load.image('nabihalmang', 'assets/dex/nabihalmang.png');
+    for (const key of ['poongbaek', 'woosa', 'woonsa']) {
+      if (!this.textures.exists(key)) this.load.image(key, `assets/dex/${key}.png`);
+    }
     preloadHwanungEntranceVideo(this);
   }
 
@@ -140,7 +159,7 @@ export class SacredPeakScene extends Phaser.Scene {
       const open = t === T.BARRIER && this.barrierOpen(r);
       const draw = open ? T.PATH : t;
       g.fillStyle(COLORS[draw], 1); g.fillRect(c * TILE, r * TILE, TILE, TILE);
-      if (draw === T.ROCK) { g.fillStyle(0x3a3a46, 0.7); g.fillRect(c*TILE+3, r*TILE+4, 8, 6); g.fillRect(c*TILE+18, r*TILE+18, 8, 6); }
+      if (draw === T.ROCK) { g.fillStyle(0x8d806c, 0.34); g.fillRect(c*TILE+3, r*TILE+4, 8, 4); g.fillRect(c*TILE+18, r*TILE+18, 8, 4); }
       if (draw === T.SKY)  { g.fillStyle(0xffffff, 0.5); g.fillEllipse(c*TILE+16, r*TILE+16, 22, 10); }
       if (draw === T.PATH) { g.fillStyle(0xb0b0c8, 0.6); g.fillRect(c*TILE+1, r*TILE+1, TILE-2, TILE-2); }
       if (draw === T.DAIS) { g.fillStyle(0x8888a4, 0.8); g.fillRect(c*TILE+3, r*TILE+3, TILE-6, TILE-6); }
@@ -168,22 +187,18 @@ export class SacredPeakScene extends Phaser.Scene {
         fontSize: '8px', color: caught ? '#9fe' : '#fff', backgroundColor: '#00000099', padding: { x: 2, y: 1 }, align: 'center',
       }).setOrigin(0.5).setDepth(7);
     }
-    // 노스단's new leader waits at the altar until beaten.
-    if (this.allThree && !this.defeated('nosdan-sovereign')) {
-      const g = this.add.graphics().setDepth(8);
-      drawNpcBody(g, 0x141018, { hair: 0x552266 });
-      g.setPosition(this.ALTAR.col * TILE + 16, this.ALTAR.row * TILE + 16);
-      markTrainerPortrait(g, SOVEREIGN.key);
-      this.add.text(this.ALTAR.col * TILE + 16, this.ALTAR.row * TILE - 16, tr('Sovereign\nClemont'), {
-        fontSize: '8px', color: '#e0a0ff', backgroundColor: '#00000099', padding: { x: 2, y: 1 }, align: 'center',
-      }).setOrigin(0.5).setDepth(9);
-    }
   }
 
-  /** 어사대장 Jinnok (Head of the 어사대) and Prof. Song stand together at the peak —
-   *  both drawn as normalised 2D NPCs so the finale cast is actually present. */
+  /**
+   * Keep the entire summit cast as world-space actors. These objects are created
+   * once when the scene is built and are intentionally not tied to the sovereign
+   * battle's defeated flag or to the short Hwanung reveal tweens. That way the
+   * 3D mirror keeps the same people visible before the battle, after returning
+   * from it, and throughout the final capture dialogue.
+   */
   private drawEscort() {
-    if (this.hwanungCaught) return;   // the trial is over; they've withdrawn by the ending
+    const altarX = this.ALTAR.col * TILE + 16;
+    const altarY = this.ALTAR.row * TILE + 16;
     const npc = (
       col: number, row: number, body: number, hair: number,
       label: string, color: string, trainerKey: string,
@@ -192,12 +207,66 @@ export class SacredPeakScene extends Phaser.Scene {
       drawNpcBody(g, body, { hair });
       g.setPosition(col * TILE + 16, row * TILE + 16);
       markTrainerPortrait(g, trainerKey);
-      this.add.text(col * TILE + 16, row * TILE - 16, label, {
+      g.setData('characterLookAt3D', { x: altarX, y: altarY });
+      const tag = this.add.text(col * TILE + 16, row * TILE - 16, label, {
         fontSize: '8px', color, backgroundColor: '#00000099', padding: { x: 2, y: 1 }, align: 'center',
-      }).setOrigin(0.5).setDepth(9);
+      }).setOrigin(0.5).setDepth(9)
+        .setData('characterLabel3D', true)
+        .setData('characterLabelTarget3D', g);
+      return { g, tag };
     };
-    npc(6, 9, 0x2f6a44, 0xcfd6dc, '어사대장 Jinnok', '#bfe8c8', 'inspector-jinnok');
-    npc(5, 9, 0xf0f0f0, 0x553311, 'Prof. Song', '#cfe3ff', 'prof-song');
+
+    // The fixed summit positions keep the escort in the same camera region as
+    // the altar instead of leaving them behind at the lower entrance.
+    npc(6, 8, 0x2f6a44, 0xcfd6dc, '어사대장 Jinnok', '#bfe8c8', 'inspector-jinnok');
+    // Keep Professor Song inside the summit camera's temple framing. At col 5
+    // her model existed but was clipped by the left edge in the 3D view.
+    npc(7.35, 8.65, 0xf0f0f0, 0x553311, 'Prof. Song', '#cfe3ff', 'prof-song');
+
+    const rival = this.add.graphics().setPosition(11 * TILE + 16, 8 * TILE + 16).setDepth(8);
+    drawTrainerBody(rival, 1, 0, rivalDesign(this.registry));
+    markRivalPortrait(rival, this.registry);
+    rival.setData('characterLookAt3D', { x: altarX, y: altarY });
+    this.add.text(11 * TILE + 16, 8 * TILE - 16, rivalTrainerName(this.registry), {
+      fontSize: '8px', color: '#9ad0ff', backgroundColor: '#00000099', padding: { x: 2, y: 1 }, align: 'center',
+    }).setOrigin(0.5).setDepth(9)
+      .setData('characterLabel3D', true)
+      .setData('characterLabelTarget3D', rival);
+
+    // Once the three attendants have been gathered, keep their world-space
+    // forms around the altar as the living chorus that calls Hwanung down.
+    // Their authored sprites remain a clean 2D fallback and become raised
+    // reliefs in the 3D mirror even on devices without companion GLBs.
+    if (this.allThree) {
+      const attendants = [
+        { key: 'poongbaek', x: altarX - TILE * 2.0, y: altarY + 4, label: '풍백', color: '#cfe9ff' },
+        { key: 'woosa', x: altarX + TILE * 2.0, y: altarY + 4, label: '우사', color: '#bfe6ff' },
+        { key: 'woonsa', x: altarX, y: altarY - TILE * 1.6, label: '운사', color: '#dfeaff' },
+      ];
+      for (const attendant of attendants) {
+        const spirit = this.build3DCreature(attendant.key, attendant.key,
+          attendant.x, attendant.y, 1.35, 52).setDepth(24);
+        spirit.setData('facePlayer3D', true);
+        this.add.text(attendant.x, attendant.y - 34, attendant.label, {
+          fontSize: '8px', color: attendant.color, backgroundColor: '#00000099', padding: { x: 2, y: 1 },
+        }).setOrigin(0.5).setDepth(9)
+          .setData('characterLabel3D', true)
+          .setData('characterLabelTarget3D', spirit);
+      }
+    }
+
+    // Clemont remains on the map after his battle as a defeated but visible
+    // story actor. The previous condition removed him as soon as the battle
+    // flag was set, leaving only his post-battle dialogue.
+    const sovereign = this.add.graphics().setPosition(altarX, this.ALTAR.row * TILE - 16).setDepth(8);
+    drawNpcBody(sovereign, 0x141018, { hair: 0x552266 });
+    markTrainerPortrait(sovereign, SOVEREIGN.key);
+    sovereign.setData('characterLookAt3D', { x: altarX, y: altarY + TILE });
+    this.add.text(altarX, this.ALTAR.row * TILE - 48, tr('Sovereign\nClemont'), {
+      fontSize: '8px', color: '#e0a0ff', backgroundColor: '#00000099', padding: { x: 2, y: 1 }, align: 'center',
+    }).setOrigin(0.5).setDepth(9)
+      .setData('characterLabel3D', true)
+      .setData('characterLabelTarget3D', sovereign);
   }
 
   // ── Player / camera / input ──────────────────────────────────────────────
@@ -338,10 +407,11 @@ export class SacredPeakScene extends Phaser.Scene {
     const flash = this.add.rectangle(W / 2, H / 2, W, H, 0xffffff, 0).setScrollFactor(0).setDepth(140);
     this.tweens.add({ targets: flash, alpha: 0.7, duration: 1400, yoyo: true });
 
-    // 🌟 환웅 (Hwanung) descends onto the altar — a real 2D sprite floating above it.
-    const hwan = this.add.image(this.ALTAR.col * TILE + 16, (this.ALTAR.row - 1) * TILE, 'hwanwoong')
+    // 🌟 환웅 descends onto the altar. The Phaser image is a fallback and the
+    // OverworldMirror promotes it to the shipped hwanwoong.glb in 3D mode.
+    const hwan = this.build3DCreature('hwanwoong', 'hwanwoong',
+      this.ALTAR.col * TILE + 16, (this.ALTAR.row - 1) * TILE, 2.8, 96)
       .setDepth(25).setAlpha(0);
-    this.fitSprite(hwan, 96);
     this.tweens.add({ targets: hwan, alpha: 1, y: this.ALTAR.row * TILE, duration: 1600, ease: 'Sine.out' });
     this.tweens.add({ targets: hwan, y: '+=6', duration: 1600, yoyo: true, repeat: -1, delay: 1600 });   // gentle hover
 
@@ -350,8 +420,8 @@ export class SacredPeakScene extends Phaser.Scene {
       'Prof. Song (at your side, urgent): That awakening energy will tear the peak apart! You need something that can absorb it — 나비할망! Her wings, Champion, NOW!',
     ], () => {
       // 나비할망 is released beside you and spreads her wings to soothe the god.
-      const nabi = this.add.image(this.px - 30, this.py - 6, 'nabihalmang').setDepth(24).setAlpha(0).setFlipX(true);
-      this.fitSprite(nabi, 64);
+      const nabi = this.build3DCreature('nabihalmang', 'nabihalmang', this.px - 30, this.py - 6, 1.8, 64)
+        .setDepth(24).setAlpha(0).setFlipX(true);
       this.tweens.add({ targets: nabi, alpha: 1, duration: 700 });
       this.tweens.add({ targets: hwan, tint: 0xbfe0ff, duration: 1200, delay: 500 });   // rage cools to calm
       this.dialog.show([
@@ -362,6 +432,23 @@ export class SacredPeakScene extends Phaser.Scene {
         this.launchCatch('hwanwoong', 80, 2);
       });
     });
+  }
+
+  /**
+   * Create a world-space creature proxy. The fallback image remains useful in
+   * pure 2D mode, while OverworldMirror can replace it with a real GLB without
+   * changing the scene's tweening, alpha, or lifetime logic.
+   */
+  private build3DCreature(
+    textureKey: string, modelKey: string, x: number, y: number,
+    height3D: number, fallbackSize: number,
+  ): Phaser.GameObjects.Image {
+    const img = this.add.image(x, y, textureKey);
+    this.fitSprite(img, fallbackSize);
+    img.setData('creatureModel3DKey', modelKey);
+    img.setData('creatureHeight3D', height3D);
+    img.setData('facePlayer3D', true);
+    return img;
   }
 
   private launchCatch(key: string, level: number, catchRate: number) {

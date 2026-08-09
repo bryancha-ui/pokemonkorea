@@ -18,12 +18,34 @@ import { playNabihalmangEntranceVideo } from '../systems/NabihalmangEntranceVide
 const T = { ROCK: 0, ASH: 1, TALLGRASS: 2, LAVA: 3, VENT: 4, SUMMIT: 5 } as const;
 type Tile = typeof T[keyof typeof T];
 const TILE = 32, COLS = 24, ROWS = 70;
+// The summit event is staged at a fixed world position. It must not be
+// anchored to the player's current position, otherwise the cast pops into
+// existence only after the player reaches the trigger row.
+const SUMMIT_STAGE_X = 12 * TILE + 16;
+const SUMMIT_STAGE_Y = 6 * TILE + 16;
 const COLORS: Record<Tile, number> = {
   [T.ROCK]: 0x2a2228, [T.ASH]: 0x6a5a52, [T.TALLGRASS]: 0x5a6a3a, [T.LAVA]: 0xd84a1a,
   [T.VENT]: 0x9a4a2a, [T.SUMMIT]: 0x7a6a60,
 };
 const SOLID = new Set<Tile>([T.ROCK, T.LAVA]);
 const ENCOUNTER = new Set<Tile>([T.TALLGRASS]);
+
+type NabihalmangEventVisual = {
+  stageX: number;
+  stageY: number;
+  restraint: Phaser.GameObjects.Graphics;
+  restrainedNabi: Phaser.GameObjects.Image;
+  ryeo: Phaser.GameObjects.Graphics;
+  suri: Phaser.GameObjects.Graphics;
+  operativeL: Phaser.GameObjects.Graphics;
+  operativeR: Phaser.GameObjects.Graphics;
+  rival: Phaser.GameObjects.Graphics;
+  rLabel: Phaser.GameObjects.Text;
+  sLabel: Phaser.GameObjects.Text;
+  vLabel: Phaser.GameObjects.Text;
+  freedNabi?: Phaser.GameObjects.Image;
+  destroy: () => void;
+};
 
 // Volcanic wild Pokémon (fire / rock / poison / ghost), mostly new customs
 const VENT_ENCOUNTERS: EncounterEntry[] = [
@@ -95,8 +117,10 @@ export class JejuVentScene extends Phaser.Scene {
   private cutsceneActive = false;
   private steps = 0; private nextEnc = 10;
   private readonly SPEED = 120; private readonly RUN = 250;
-  private nabiSceneShown = false;
   private nabiEntranceVideoAction?: () => void;
+  private nabiSummitVisual?: NabihalmangEventVisual;
+  private postCaptureRyeoVisual?: { destroy: () => void };
+  private ryeoBattleTestAction?: () => void;
 
   private readonly TRAINERS = [
     {
@@ -122,7 +146,8 @@ export class JejuVentScene extends Phaser.Scene {
   }
 
   private get caught() {
-    return DexTracker.isCaught(this.registry, 'nabihalmang')
+    return !!this.registry.get('ryeoBattleTest')
+      || DexTracker.isCaught(this.registry, 'nabihalmang')
       || PartySystem.get(this.registry).some(e => e.spriteKey === 'nabihalmang')
       || (this.registry.get('box') as string ?? '').includes('nabihalmang');
   }
@@ -130,6 +155,9 @@ export class JejuVentScene extends Phaser.Scene {
   create() {
     this.cutsceneActive = false; this.walkFrame = 0; this.walkTimer = 0; this.steps = 0;
     this.nabiEntranceVideoAction = undefined;
+    this.nabiSummitVisual = undefined;
+    this.postCaptureRyeoVisual = undefined;
+    this.ryeoBattleTestAction = undefined;
     this.input.keyboard?.resetKeys();
     const rx = this.registry.get('jejuVentReturnX') as number | undefined;
     const ry = this.registry.get('jejuVentReturnY') as number | undefined;
@@ -143,6 +171,27 @@ export class JejuVentScene extends Phaser.Scene {
     this.setupCamera();
     this.setupInput();
     this.createUI();
+
+    // Stage the summit confrontation before the player arrives. The actors
+    // are world-space objects, so the approaching camera can reveal the real
+    // 3D models while the player is still climbing below the trigger row.
+    if (!this.caught && this.registry.get('seoraeGymDefeated')) {
+      this.nabiSummitVisual = this.buildNabihalmangEventVisuals();
+    }
+
+    // Create the post-capture Commander Ryeo before the 3D mirror's first
+    // frame for this scene. The dialog is delayed for pacing, but the actor is
+    // already a normal world-space 3D character when the map is rendered.
+    const hasPostCaptureRyeo = !!this.registry.get('ryeoBattleTest') || (this.caught && (
+      !this.registry.get('nabiCaughtBeat')
+      || (
+        !!this.registry.get('trainerDefeated_jeju-ryeo-final')
+        && !this.registry.get('ryeoDefeatScene')
+        && !this.registry.get('commanderRyeoDefeated')
+      )
+    ));
+    if (hasPostCaptureRyeo) this.postCaptureRyeoVisual = this.buildRyeoConfrontation();
+
     this.cameras.main.fadeIn(400);
     SaveManager.save(this.registry, this.px, this.py, 'JejuVentScene');
 
@@ -151,7 +200,9 @@ export class JejuVentScene extends Phaser.Scene {
     if (!(this.caught && !this.registry.get('nabiCaughtBeat'))) playBgm(this, 'vents');
 
     // Returned from the legendary battle having CAUGHT 나비할망 → Commander Ryeo confrontation.
-    if (this.caught && !this.registry.get('nabiCaughtBeat')) {
+    if (this.registry.get('ryeoBattleTest')) {
+      this.setupRyeoBattleTestPreview();
+    } else if (this.caught && !this.registry.get('nabiCaughtBeat')) {
       this.registry.set('nabiCaughtBeat', true);
       this.registry.set('chapter9Done', true);   // Phase 1 legendary acquired
       this.registry.set('phase1Legendary', 'nabihalmang');
@@ -159,7 +210,7 @@ export class JejuVentScene extends Phaser.Scene {
       playBgm(this, 'dancheong');   // The Dancheong Shield — 나비할망's theme for this closing beat
       this.time.delayedCall(300, () => {
         this.cutsceneActive = true;
-        const visual = this.buildRyeoConfrontation();
+        const visual = this.postCaptureRyeoVisual ?? (this.postCaptureRyeoVisual = this.buildRyeoConfrontation());
         this.dialog.show([
           "나비할망 folds her glowing, dancheong-patterned wings and settles beside you at last.",
           "Prof. Song: She's chosen you as her guardian — and the south's. You truly earned her.",
@@ -170,6 +221,7 @@ export class JejuVentScene extends Phaser.Scene {
         ], () => {
           // Battle with Commander Ryeo
           visual.destroy();
+          this.postCaptureRyeoVisual = undefined;
           PartySystem.healAll(this.registry);
           this.registry.set('trainerName', 'Commander Ryeo');
           this.registry.set('trainerKey', 'jeju-ryeo-final');
@@ -194,7 +246,7 @@ export class JejuVentScene extends Phaser.Scene {
         this.registry.set('ryeoDefeatScene', true);
         this.time.delayedCall(300, () => {
           this.cutsceneActive = true;
-          const visual = this.buildRyeoConfrontation();
+          const visual = this.postCaptureRyeoVisual ?? (this.postCaptureRyeoVisual = this.buildRyeoConfrontation());
           this.dialog.show([
             "Commander Ryeo staggers backward, her Pokémon recalled. She looks at the towering moth beside you — at the glow of her wings — and something breaks in her expression.",
             "Commander Ryeo: ...She looks at you like you're not a tool to be used. Like you matter. That's what I never understood about this region. That's what we tried to control.",
@@ -204,7 +256,11 @@ export class JejuVentScene extends Phaser.Scene {
             "나비할망's wings catch the dawn light. You've earned something rare — the choice of a legendary.",
             "Prof. Song: Reach the Onnuri League, prove yourself champion. Then the world opens up. The north has lessons too.",
             `${rivalTrainerName(this.registry)}: To the League, then. 나비할망 will make sure we get there in one piece.`,
-          ], () => { visual.destroy(); this.cutsceneActive = false; });
+          ], () => {
+            visual.destroy();
+            this.postCaptureRyeoVisual = undefined;
+            this.cutsceneActive = false;
+          });
         });
       }
     } else if (!this.registry.get('jejuClimbStarted')) {
@@ -284,6 +340,53 @@ export class JejuVentScene extends Phaser.Scene {
     this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.B).on('down', () => { if (!this.cutsceneActive) this.scene.launch('MenuScene'); });
     // DEBUG: press 0 to (re)stage the Commander Ryeo confrontation as if 나비할망 was just caught.
     this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ZERO).on('down', () => this.debugStageRyeoBattle());
+    // Open a separate browser window for the non-destructive post-capture battle test.
+    this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.F9).on('down', () => this.openRyeoBattleTestWindow());
+    this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.R).on('down', () => this.ryeoBattleTestAction?.());
+  }
+
+  private openRyeoBattleTestWindow() {
+    const url = new URL(window.location.href);
+    url.searchParams.set('test', 'ryeo-battle');
+    const popup = window.open(
+      url.toString(), 'pokemon-korea-ryeo-battle-test',
+      'popup=yes,width=1280,height=720,resizable=yes,scrollbars=no',
+    );
+    if (!popup) console.warn('[JejuVent] Browser blocked the Ryeo battle test popup.');
+  }
+
+  /** Freeze the post-capture map so the 3D Commander Ryeo model can be checked
+   *  before the battle is entered. SPACE/R then continues into the real battle. */
+  private setupRyeoBattleTestPreview() {
+    this.cutsceneActive = true;
+    const W = this.scale.width, H = this.scale.height;
+    this.add.rectangle(W / 2, 56, 610, 58, 0x080b18, 0.82)
+      .setScrollFactor(0).setDepth(100);
+    this.add.text(W / 2, 42, '사령관 려 3D 배틀 직전 확인', {
+      fontSize: '18px', color: '#ffd0e1', fontStyle: 'bold',
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(101);
+    this.add.text(W / 2, 68, '사령관 려와 나비할망의 모델이 보이는지 확인한 뒤 SPACE/R로 배틀 시작', {
+      fontSize: '11px', color: '#e2e8ff',
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(101);
+    this.add.rectangle(W / 2, H - 42, 570, 42, 0x080b18, 0.86)
+      .setScrollFactor(0).setDepth(100);
+    this.add.text(W / 2, H - 42, '현재 화면은 배틀 직전 고정 상태입니다  ·  SPACE/R: 배틀 시작  ·  창 닫기: 테스트 종료', {
+      fontSize: '11px', color: '#c4cbea',
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(101);
+
+    this.ryeoBattleTestAction = () => {
+      this.ryeoBattleTestAction = undefined;
+      this.cutsceneActive = false;
+      this.postCaptureRyeoVisual?.destroy();
+      this.postCaptureRyeoVisual = undefined;
+      PartySystem.healAll(this.registry);
+      this.registry.set('trainerName', 'Commander Ryeo');
+      this.registry.set('trainerKey', 'jeju-ryeo-final');
+      this.registry.set('trainerReturnScene', 'JejuVentScene');
+      this.registry.set('jejuVentReturnX', 12 * TILE + 16);
+      this.registry.set('jejuVentReturnY', 8 * TILE + 16);
+      this.cameras.main.fadeOut(400, 0, 0, 0, () => this.scene.start('TrainerBattleScene'));
+    };
   }
 
   /** Test hook — jump straight to the post-capture Commander Ryeo battle.
@@ -306,7 +409,7 @@ export class JejuVentScene extends Phaser.Scene {
     this.add.text(this.scale.width / 2, 22, tr('🌋 Jeju Vents — The Ascent (제주 분화구)'), {
       fontSize: '13px', color: '#fff', fontStyle: 'bold',
     }).setOrigin(0.5).setScrollFactor(0).setDepth(51);
-    this.add.text(this.scale.width / 2, this.scale.height - 8, tr('WASD: move  SHIFT: run  SPACE: talk  M: menu'), {
+    this.add.text(this.scale.width / 2, this.scale.height - 8, tr('WASD: move  SHIFT: run  SPACE: talk  M: menu  F9: Ryeo test'), {
       fontSize: '10px', color: '#ccc', backgroundColor: '#00000088', padding: { x: 5, y: 2 },
     }).setOrigin(0.5, 1).setScrollFactor(0).setDepth(51);
   }
@@ -316,6 +419,8 @@ export class JejuVentScene extends Phaser.Scene {
     if (this.cutsceneActive) {
       if (this.nabiEntranceVideoAction) {
         if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) this.nabiEntranceVideoAction();
+      } else if (this.ryeoBattleTestAction) {
+        if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) this.ryeoBattleTestAction();
       } else if (this.dialog.isInChoice()) {
         if (Phaser.Input.Keyboard.JustDown(this.cursors.up)) this.dialog.navigateChoice(-1);
         if (Phaser.Input.Keyboard.JustDown(this.cursors.down)) this.dialog.navigateChoice(1);
@@ -407,6 +512,14 @@ export class JejuVentScene extends Phaser.Scene {
       return;
     }
 
+    // The cast was staged in create() at the fixed summit location, before
+    // the player reached this trigger. Reuse those same 3D objects instead of
+    // spawning a second set at the player's current coordinates.
+    const summitVisual = this.nabiSummitVisual ?? (this.nabiSummitVisual = this.buildNabihalmangEventVisuals());
+    this.playerG.setData('characterLookAt3D', {
+      x: summitVisual.stageX, y: summitVisual.stageY - TILE,
+    });
+
     // ── After the 7th badge: the 노스단 confrontation + the capture. ─────────
     const launchBattle = () => {
       PartySystem.healAll(this.registry);
@@ -420,8 +533,8 @@ export class JejuVentScene extends Phaser.Scene {
       this.registry.set('jejuVentReturnY', 10 * TILE + 16);
       this.cameras.main.fadeOut(500, 0, 0, 0, () => this.scene.start('WildBattleScene'));
     };
-    const playAppearance = (afterAppearance: () => void) => {
-      const playInEngine = () => this.playNabihalmangScene(afterAppearance);
+    const playAppearance = (visual: NabihalmangEventVisual, afterAppearance: () => void) => {
+      const playInEngine = () => this.playNabihalmangScene(visual, afterAppearance);
       if (this.registry.get('nabiEntranceMovieSeen')) {
         playInEngine();
         return;
@@ -436,23 +549,26 @@ export class JejuVentScene extends Phaser.Scene {
     if (!this.registry.get('jejuSummitSeen')) {
       this.registry.set('jejuSummitSeen', true);
       DexTracker.markSeen(this.registry, 'nabihalmang');
+      // Put the entire confrontation into the world before the release
+      // animation starts. These objects stay alive through both dialog blocks
+      // and are destroyed only when the capture battle is launched.
       this.dialog.show([
         'You crest the black-rock summit. 나비할망 — wings of hammered, dancheong-patterned metal, dusted in luminous fairy scales — thrashes inside a straining 노스단 rig.',
-        "Commander Ryeo: Tighten the restraint field! Her wings can neutralize the Cheonji energy — secure her and the weapon completes itself even without the lake!",
+        "Commander Ryeo: Tighten the restraint field! Her wings can regulate the Jeju crater energy — secure her and the weapon completes itself even without the lake!",
         "노스단 Operative: Commander, her output is climbing—",
         "Commander Ryeo: Hold it. HOLD IT.",
-      ], () => playAppearance(() => {
+      ], () => playAppearance(summitVisual, () => {
         this.dialog.show([
           "나비할망's metallic wings flare — and the restraint field SHATTERS. The 노스단 equipment overloads in a cascade of sparks; operatives are thrown back.",
           "Commander Ryeo: ...Impossible. She was never going to be a battery. She's not a tool. We were wrong about what she was. (She orders a retreat.)",
           "Prof. Song (comms): She's frightened, and testing you. The old texts say she binds only to a guardian she deems worthy of protecting the south.",
           "Prof. Song: Your Master Ball — this is the moment Dosik meant. Weaken her first, then throw it.",
           `${rivalTrainerName(this.registry)}: Go on. She's been waiting longer than either of us has been alive.`,
-        ], launchBattle);
+        ], () => { summitVisual.destroy(); launchBattle(); });
       }));
     } else {
       this.dialog.show(["나비할망 still thrashes at the summit, testing you. Steady your team and try again."], () => {
-        playAppearance(launchBattle);
+        playAppearance(summitVisual, () => { summitVisual.destroy(); launchBattle(); });
       });
     }
   }
@@ -581,15 +697,104 @@ export class JejuVentScene extends Phaser.Scene {
     return g;
   }
 
+  /** The visible restraint field around 나비할망 before the release cue.
+   *  It is authored as a world-space Graphics object, so OverworldMirror
+   *  presents the field as an extruded 3D prop while the creature itself uses
+   *  the real generated GLB below. */
+  private buildNabihalmangRestraint(): Phaser.GameObjects.Graphics {
+    const g = this.add.graphics().setDepth(18);
+    g.fillStyle(0x160f2c, 0.34);
+    g.fillRect(-98, -120, 196, 150);
+    g.lineStyle(3, 0x7f55ff, 0.9);
+    g.strokeRect(-98, -120, 196, 150);
+    g.lineStyle(2, 0xd8b4ff, 0.7);
+    g.strokeCircle(0, -52, 76);
+    g.lineStyle(1.5, 0x62d9ff, 0.9);
+    g.lineBetween(-76, -52, 76, -52);
+    g.lineBetween(0, -128, 0, 24);
+    g.lineBetween(-66, -112, 66, 8);
+    g.lineBetween(66, -112, -66, 8);
+    for (const [x, y] of [[-98, -120], [98, -120], [-98, 30], [98, 30]] as [number, number][]) {
+      g.fillStyle(0xcfa8ff, 1);
+      g.fillCircle(x, y, 5);
+      g.fillStyle(0x6f45d8, 1);
+      g.fillCircle(x, y, 2);
+    }
+    return g;
+  }
+
+  /** Build every required actor for the complete summit confrontation up
+   *  front. The returned objects are deliberately not tied to the short
+   *  release animation: they remain in the world during the preceding
+   *  restraint dialog, the release dialog and the capture hand-off. */
+  private buildNabihalmangEventVisuals(): NabihalmangEventVisual {
+    const stageX = SUMMIT_STAGE_X;
+    const stageY = SUMMIT_STAGE_Y;
+
+    const restraint = this.buildNabihalmangRestraint()
+      .setPosition(stageX, stageY - 50);
+    // No generated appearance animation yet: this is the restrained, static
+    // 3D map presentation that must be visible before the release cue.
+    const restrainedNabi = this.buildNabihalmangModel(
+      stageX, stageY - TILE * 0.65, 3.2, false,
+    ).setDepth(19);
+
+    const ryeo = this.buildCommanderRyeo(false)
+      .setPosition(stageX - TILE * 2.8, stageY).setDepth(19);
+    const suri = this.buildDirectorSuri()
+      .setPosition(stageX + TILE * 2.8, stageY).setDepth(19);
+    const operativeL = this.buildSuriOperative(stageX - TILE * 4.0, stageY + TILE * 0.9);
+    const operativeR = this.buildSuriOperative(stageX + TILE * 4.0, stageY + TILE * 0.9);
+    const rival = this.add.graphics()
+      .setPosition(stageX - TILE * 1.15, stageY + TILE * 1.1).setDepth(19);
+    drawTrainerBody(rival, 1, 0, rivalDesign(this.registry));
+    markRivalPortrait(rival, this.registry);
+
+    for (const human of [ryeo, suri, operativeL, operativeR, rival]) {
+      human.setData('characterLookAt3D', { x: stageX, y: stageY - TILE });
+    }
+
+    const rLabel = this.add.text(stageX - TILE * 2.8, stageY - 28, speakerName('Cmdr Ryeo'), {
+      fontSize: '9px', color: '#ff99bb', backgroundColor: '#00000099', padding: { x: 2, y: 1 }, align: 'center',
+    }).setOrigin(0.5).setDepth(20);
+    const sLabel = this.add.text(stageX + TILE * 2.8, stageY - 28, speakerName('Dir. Suri'), {
+      fontSize: '9px', color: '#ffdd88', backgroundColor: '#00000099', padding: { x: 2, y: 1 }, align: 'center',
+    }).setOrigin(0.5).setDepth(20);
+    const vLabel = this.add.text(stageX - TILE * 1.15, stageY + TILE * 1.1 - 24, rivalTrainerName(this.registry), {
+      fontSize: '8px', color: '#9ad0ff', backgroundColor: '#00000099', padding: { x: 2, y: 1 }, align: 'center',
+    }).setOrigin(0.5).setDepth(20);
+
+    const objects: Phaser.GameObjects.GameObject[] = [
+      restraint, restrainedNabi, ryeo, suri, operativeL, operativeR, rival,
+      rLabel, sLabel, vLabel,
+    ];
+    let destroyed = false;
+    const visual: NabihalmangEventVisual = {
+      stageX, stageY, restraint, restrainedNabi, ryeo, suri, operativeL, operativeR, rival,
+      rLabel, sLabel, vLabel,
+      destroy: () => {
+        if (destroyed) return;
+        destroyed = true;
+        this.playerG.setData('characterLookAt3D', null);
+        if (visual.freedNabi?.scene) visual.freedNabi.destroy();
+        for (const object of objects) object.destroy();
+        this.tweens.killTweensOf([...objects, visual.freedNabi].filter(Boolean));
+      },
+    };
+    return visual;
+  }
+
   /** Phaser image fallback backed by the generated true-3D 나비할망 GLB. */
-  private buildNabihalmangModel(x: number, footY: number, height3D: number): Phaser.GameObjects.Image {
+  private buildNabihalmangModel(
+    x: number, footY: number, height3D: number, animateAppearance = true,
+  ): Phaser.GameObjects.Image {
     const src = this.textures.get('nabihalmang').getSourceImage() as { width?: number; height?: number };
     const displayH = height3D * TILE;
     const img = this.add.image(x, footY - displayH / 2, 'nabihalmang').setDepth(19);
     img.setScale(displayH / Math.max(1, src.height ?? 1));
     img.setData('creatureModel3DKey', 'nabihalmang');
     img.setData('creatureHeight3D', height3D);
-    img.setData('creatureAnimation3D', 'nabihalmang-appearance');
+    if (animateAppearance) img.setData('creatureAnimation3D', 'nabihalmang-appearance');
     img.setData('facePlayer3D', true);
     return img;
   }
@@ -660,11 +865,9 @@ export class JejuVentScene extends Phaser.Scene {
   }
 
   /** The capture intro — 나비할망 breaks the restraint field as 노스단 recoils. */
-  private playNabihalmangScene(onComplete: () => void) {
-    if (this.nabiSceneShown) return onComplete();
-    this.nabiSceneShown = true;
+  private playNabihalmangScene(visual: NabihalmangEventVisual, onComplete: () => void) {
     const W = this.scale.width, H = this.scale.height;
-    const stageX = this.px, stageY = this.py - TILE * 0.45;
+    const { stageX, stageY } = visual;
 
     // Atmosphere stays a 2D overlay; every actual person/creature below lives
     // in world space so OverworldMirror can replace it with a true 3D model.
@@ -674,52 +877,43 @@ export class JejuVentScene extends Phaser.Scene {
     const flash = this.add.rectangle(W / 2, H / 2, W, H, 0xffffff, 0)
       .setOrigin(0.5).setScrollFactor(0).setDepth(121);
 
-    const nabi = this.buildNabihalmangModel(stageX, stageY - TILE * 0.65, 3.2).setAlpha(0);
-    const ryeo = this.buildCommanderRyeo(false).setPosition(stageX - TILE * 2.8, stageY).setDepth(19).setAlpha(0);
-    const suri = this.buildDirectorSuri().setPosition(stageX + TILE * 2.8, stageY).setDepth(19).setAlpha(0);
-    const operativeL = this.buildSuriOperative(stageX - TILE * 4.0, stageY + TILE * 0.9).setAlpha(0);
-    const operativeR = this.buildSuriOperative(stageX + TILE * 4.0, stageY + TILE * 0.9).setAlpha(0);
-    const rival = this.add.graphics().setPosition(stageX - TILE * 1.15, stageY + TILE * 1.1).setDepth(19).setAlpha(0);
-    drawTrainerBody(rival, 1, 0, rivalDesign(this.registry));
-    markRivalPortrait(rival, this.registry);
-
-    for (const human of [ryeo, suri, operativeL, operativeR, rival]) {
-      human.setData('characterLookAt3D', { x: stageX, y: stageY - TILE });
-    }
-    this.playerG.setData('characterLookAt3D', { x: stageX, y: stageY - TILE });
+    // The restrained model was already visible during the opening dialog. At
+    // the release cue, swap it for a second tagged image so OverworldMirror
+    // can start the generated 3D entrance animation exactly here, rather than
+    // consuming that animation while the creature is still in the rig.
+    const freedNabi = this.buildNabihalmangModel(
+      stageX, stageY - TILE * 0.65, 3.2, true,
+    ).setDepth(19).setAlpha(0);
+    visual.freedNabi = freedNabi;
 
     const label = this.add.text(W / 2, H * 0.22, '🦋 나비할망', {
       fontSize: '18px', color: '#aee9ff', fontStyle: 'bold', stroke: '#000', strokeThickness: 5,
     }).setOrigin(0.5).setAlpha(0).setScrollFactor(0).setDepth(120);
-    const rLabel = this.add.text(stageX - TILE * 2.8, stageY - 28, speakerName('Cmdr Ryeo'), {
-      fontSize: '9px', color: '#ff99bb', backgroundColor: '#00000099', padding: { x: 2, y: 1 }, align: 'center',
-    }).setOrigin(0.5).setAlpha(0);
-    const sLabel = this.add.text(stageX + TILE * 2.8, stageY - 28, speakerName('Dir. Suri'), {
-      fontSize: '9px', color: '#ffdd88', backgroundColor: '#00000099', padding: { x: 2, y: 1 }, align: 'center',
-    }).setOrigin(0.5).setAlpha(0);
 
-    const visuals: Phaser.GameObjects.GameObject[] = [dim, embers, flash, nabi, ryeo, suri, operativeL, operativeR, rival, label, rLabel, sLabel];
+    const transientVisuals: Phaser.GameObjects.GameObject[] = [dim, embers, flash, label];
 
-    // Entrance: gloom gathers, the villains appear, then the moth rises free
+    // The actors and the restraint are already visible. Only the atmosphere,
+    // restraint fade, and liberated 3D model animate at this point.
     this.tweens.add({ targets: dim, alpha: 0.6, duration: 800 });
     this.tweens.add({ targets: embers, alpha: 1, duration: 800, delay: 200 });
-    this.tweens.add({ targets: [ryeo, suri, operativeL, operativeR, rival, rLabel, sLabel], alpha: 1, duration: 700, delay: 200 });
-    this.tweens.add({ targets: nabi, alpha: 1, y: `-=${TILE * 1.4}`, duration: 1500, delay: 500, ease: 'Cubic.Out' });
+    this.tweens.add({ targets: [visual.restrainedNabi, visual.restraint], alpha: 0, duration: 500, delay: 350 });
+    this.tweens.add({ targets: freedNabi, alpha: 1, y: `-=${TILE * 1.4}`, duration: 1500, delay: 500, ease: 'Cubic.Out' });
     this.tweens.add({ targets: label, alpha: 1, duration: 900, delay: 900 });
 
     // The restraint field SHATTERS — a bright flash + shockwave
     this.time.delayedCall(1900, () => {
       this.cameras.main.shake(320, 0.006);
       this.tweens.add({ targets: flash, alpha: 0.85, duration: 90, yoyo: true });
-      this.tweens.add({ targets: [ryeo, operativeL], x: `-=${TILE * 0.8}`, duration: 420, ease: 'Cubic.Out' });
-      this.tweens.add({ targets: [suri, operativeR], x: `+=${TILE * 0.8}`, duration: 420, ease: 'Cubic.Out' });
+      this.tweens.add({ targets: [visual.ryeo, visual.operativeL], x: `-=${TILE * 0.8}`, duration: 420, ease: 'Cubic.Out' });
+      this.tweens.add({ targets: [visual.suri, visual.operativeR], x: `+=${TILE * 0.8}`, duration: 420, ease: 'Cubic.Out' });
     });
 
     this.time.delayedCall(3000, () => {
-      this.tweens.add({ targets: visuals, alpha: 0, duration: 600 });
+      // Do not fade the essential actors or the freed moth. They must remain
+      // on the map while the post-release dialog is being advanced.
+      this.tweens.add({ targets: transientVisuals, alpha: 0, duration: 600 });
       this.time.delayedCall(700, () => {
-        this.playerG.setData('characterLookAt3D', null);
-        for (const visual of visuals) visual.destroy();
+        for (const transient of transientVisuals) transient.destroy();
         onComplete();
       });
     });

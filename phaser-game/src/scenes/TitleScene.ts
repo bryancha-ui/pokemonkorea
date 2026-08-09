@@ -30,6 +30,7 @@ export class TitleScene extends Phaser.Scene {
   constructor() { super('TitleScene'); }
 
   preload() {
+    if (new URLSearchParams(location.search).get('test') === 'ryeo-battle') return;
     if (!this.textures.exists(TITLE_BG_KEY)) this.load.image(TITLE_BG_KEY, TITLE_BG_URL);
     STARTERS.forEach(s => {
       if (!this.textures.exists(s.spriteKey))
@@ -39,6 +40,10 @@ export class TitleScene extends Phaser.Scene {
   }
 
   create() {
+    // The dedicated Commander Ryeo test window is launched by main.ts. Keep
+    // the automatically booted title scene visually empty during that handoff
+    // so its menu cannot remain underneath the battle canvas.
+    if (new URLSearchParams(location.search).get('test') === 'ryeo-battle') return;
     this.hasSave = SaveManager.exists();
     this.cameras.main.fadeIn(900);
     playBgm(this, 'title');   // starts once the browser unlocks audio on first input

@@ -83,6 +83,9 @@ const ANCHORS = {
 // clamps source-image size so high-resolution art cannot become enormous.
 // Restore the authored stage presence after that safety clamp.
 const BATTLE_SIZE_OVERRIDES: Record<string, number> = {
+  // Nabihalmang's wingspan was crowding the opposing battler in the 3D arena;
+  // keep the 2D battle art unchanged and use a slightly smaller 3D stage size.
+  nabihalmang: 1.05,
   palmcockatoo: 1.45,
   bosongnun: 0.72,
   yeomtaeja: 0.78,
