@@ -64,6 +64,7 @@ const NUMERIC_SPECIES_SCALE: Record<number, number> = {
   484: 1.55,  // Palkia
   486: 1.60,  // Regigigas
   646: 1.55,  // Kyurem
+  699: 1.50,  // Aurorus (아마루르가)
 };
 
 /** Display-size multiplier for a battle sprite key (default 1). */

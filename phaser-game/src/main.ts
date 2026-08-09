@@ -147,7 +147,7 @@ import { NorthernBuildingScene } from './scenes/interior/NorthernBuildingScene';
 import { SeolbongInnScene } from './scenes/SeolbongInnScene';
 import { setupMobileShell } from './systems/TouchControls';
 import { installFontScaling } from './systems/UiScale';
-import { initI18n } from './systems/i18n';
+import { initI18n, setLang } from './systems/i18n';
 import { PokemonFxPlugin } from './systems/PokemonFx';
 import { BreedingTrackerPlugin } from './systems/BreedingTracker';
 import { bootstrap3D } from './engine3d';
@@ -207,6 +207,62 @@ function launchTrueEndingTest(game: Phaser.Game): void {
   game.registry.set('trueEndDone', true);
   if (game.scene.isActive('TitleScene')) game.scene.stop('TitleScene');
   game.scene.start('SudoLabScene');
+}
+
+/**
+ * Deterministic mobile regression fixture for the Route 2 level cap and
+ * voluntary-switch confirmation. It never restores or writes the real save.
+ */
+function launchBattleRegressionTest(game: Phaser.Game): void {
+  game.registry.set('sceneFlowTest', true);
+  game.registry.set('party', '[]');
+  game.registry.set('box', '[]');
+  game.registry.set('dexCaught', '[]');
+  game.registry.set('starterName', 'Vipour');
+  game.registry.set('starterKey', 'vipour');
+  game.registry.set('starterLevel', 20);
+  game.registry.set('starterExp', 0);
+  PartySystem.initFromStarter(game.registry);
+
+  const lead = PartySystem.get(game.registry)[0];
+  if (lead) {
+    PartySystem.set(game.registry, [
+      { ...lead, breedingId: 'battle-regression-lead' },
+      { ...lead, name: 'Vipour B', breedingId: 'battle-regression-bench' },
+    ]);
+  }
+
+  // Deliberately inject the reported bad value. WildBattleScene must clamp it
+  // to Route 2's authored Lv.13–16 range before drawing the HUD.
+  // Ampere exercises the heavy local GLB path as well as the common enemy-facing
+  // alignment; the intentionally invalid level still validates Route 2's cap.
+  game.registry.set('wildId', 'ampere');
+  game.registry.set('wildLevel', 35);
+  game.registry.set('wildCustom', true);
+  game.registry.set('wildCatchRate', 200);
+  game.registry.set('wildReturnScene', 'Route2Scene');
+  if (game.scene.isActive('TitleScene')) game.scene.stop('TitleScene');
+  game.scene.start('WildBattleScene');
+}
+
+/** Korean bag and old-save badge reconciliation fixture. */
+function launchUiLocalizationTest(game: Phaser.Game): void {
+  game.registry.set('sceneFlowTest', true);
+  setLang('ko', false);
+  game.registry.set('party', '[]');
+  game.registry.set('starterName', 'Vipour');
+  game.registry.set('starterKey', 'vipour');
+  game.registry.set('starterLevel', 20);
+  game.registry.set('starterExp', 0);
+  game.registry.set('starterChosen', true);
+  game.registry.set('hasPokedex', true);
+  game.registry.set('hasRunningShoes', true);
+  // Reproduce the old-save gap: only the seventh story badge remains set.
+  // Opening the bag must reconcile this to seven earned badges.
+  game.registry.set('seoraeGymDefeated', true);
+  PartySystem.initFromStarter(game.registry);
+  if (game.scene.isActive('TitleScene')) game.scene.stop('TitleScene');
+  game.scene.start('MenuScene');
 }
 
 async function bootGame() {
@@ -282,6 +338,14 @@ if (testMode === 'ryeo-battle') {
 } else if (testMode === 'true-ending') {
   game.events.once(Phaser.Core.Events.READY, () => {
     window.setTimeout(() => launchTrueEndingTest(game), 350);
+  });
+} else if (testMode === 'battle-regressions') {
+  game.events.once(Phaser.Core.Events.READY, () => {
+    window.setTimeout(() => launchBattleRegressionTest(game), 350);
+  });
+} else if (testMode === 'ui-localization') {
+  game.events.once(Phaser.Core.Events.READY, () => {
+    window.setTimeout(() => launchUiLocalizationTest(game), 350);
   });
 }
 }

@@ -1039,10 +1039,15 @@ export class TrainerBattleScene extends Phaser.Scene {
 
   private onSwitchPokemon() {
     if (this.state !== 'playerAction') return;
+    this.state = 'busy';
     this.hideAllPanels();
     openSwitchPanel(
       this, this.activeSlot,
-      () => { this.showActionPanel(); this.typeDialog(`What will ${pokeNameEn(this.player.name).toUpperCase()} do?`); },
+      () => {
+        this.state = 'playerAction';
+        this.showActionPanel();
+        this.typeDialog(`What will ${pokeNameEn(this.player.name).toUpperCase()} do?`);
+      },
       (idx) => this.voluntarySwitch(idx),
     );
   }

@@ -43,7 +43,10 @@
     "onnurian",
     "thanatoat",
     "banderado",
-    "ampere",
+    {
+      "key": "ampere",
+      "rotY": 180
+    },
     "bosongnun",
     "camerghoost",
     "hambillet",

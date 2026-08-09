@@ -136,7 +136,14 @@ export class WildBattleScene extends Phaser.Scene {
 
   private async buildPokemon() {
     const wildId     = this.registry.get('wildId') as string | number;
-    const wildLevel  = (this.registry.get('wildLevel')  as number) ?? 5;
+    const requestedWildLevel = (this.registry.get('wildLevel') as number) ?? 5;
+    // Route 2 is capped at Lv.16. Validate here as well as in the encounter
+    // scene because the registry survives scene changes and old sessions can
+    // otherwise carry a late-game wild level into this early road.
+    const wildLevel = this.registry.get('wildReturnScene') === 'Route2Scene'
+      ? Phaser.Math.Clamp(requestedWildLevel, 13, 16)
+      : requestedWildLevel;
+    if (wildLevel !== requestedWildLevel) this.registry.set('wildLevel', wildLevel);
     const wildCustom = !!(this.registry.get('wildCustom'));
 
     // Pokédex: mark this wild Pokémon as seen
@@ -871,11 +878,19 @@ export class WildBattleScene extends Phaser.Scene {
 
   private onSwitchPokemon() {
     if (this.state !== 'playerAction') return;
+    // Lock the turn before the modal opens. Touch input can emit both a direct
+    // action and a synthetic key event; neither may open or commit a second
+    // switch while the first choice is pending.
+    this.state = 'busy';
     this.hideAllPanels();
     openSwitchPanel(
       this,
       this.activeSlot,
-      () => { this.showActionPanel(); this.typeDialog(`What will ${pokeNameEn(this.player.name).toUpperCase()} do?`); },
+      () => {
+        this.state = 'playerAction';
+        this.showActionPanel();
+        this.typeDialog(`What will ${pokeNameEn(this.player.name).toUpperCase()} do?`);
+      },
       (idx) => this.voluntarySwitch(idx),
     );
   }

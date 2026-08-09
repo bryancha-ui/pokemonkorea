@@ -191,9 +191,11 @@ export function initI18n(game: Phaser.Game): void {
 
 export function getLang(): Lang { return currentLang; }
 
-export function setLang(l: Lang): void {
+export function setLang(l: Lang, persist = true): void {
   currentLang = l;
-  try { localStorage.setItem(LS_KEY, l); } catch { /* ignore */ }
+  if (persist) {
+    try { localStorage.setItem(LS_KEY, l); } catch { /* ignore */ }
+  }
   gameRef?.registry.set('lang', l);
 }
 

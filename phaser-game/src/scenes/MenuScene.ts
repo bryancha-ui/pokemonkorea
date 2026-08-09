@@ -21,7 +21,7 @@ const HM_MOVE_DATA: Record<string, MoveData> = {
 import { DexTracker } from '../systems/DexTracker';
 import { ITEMS, Inventory, itemDef, itemDescription, itemName, useItemOnSlot, teachHM, canLearnMove, formatMoney } from '../systems/Items';
 import { TMS } from '../data/TMs';
-import { BADGES } from '../data/Badges';
+import { BADGES, reconcileBadgeProgress } from '../data/Badges';
 
 export class MenuScene extends Phaser.Scene {
   private tab: 'pokemon' | 'bag' = 'pokemon';
@@ -133,7 +133,7 @@ export class MenuScene extends Phaser.Scene {
       const ok = SaveManager.save(this.registry, px, py, scene);
       if (ok) saveBtn.setText(tr('💾 SAVED!')).setColor('#aaffaa');
       else    saveBtn.setText(tr('⚠ SAVE FAILED')).setColor('#ff8888');
-      this.time.delayedCall(1800, () => saveBtn.setText('💾 SAVE').setColor('#ffe44e'));
+      this.time.delayedCall(1800, () => saveBtn.setText(t('💾 SAVE', '💾 저장')).setColor('#ffe44e'));
     });
 
     // ── Close button ─────────────────────────────────────────────────────────
@@ -771,22 +771,23 @@ export class MenuScene extends Phaser.Scene {
 
     // Town Map — always available; view the whole region and (post-League) Fly.
     rows.push({
-      name: 'Town Map', icon: '🗺️',
-      desc: 'See the region and where you are.' + (this.registry.get('hasFlyHM') ? ' Fly between cities.' : ''),
+      name: tr('Town Map'), icon: '🗺️',
+      desc: tr('See the region and where you are.')
+        + (this.registry.get('hasFlyHM') ? tr(' Fly between cities.') : ''),
       onClick: () => { this.scene.launch('RegionMapScene', { parentKey: 'MenuScene' }); this.scene.pause(); },
     });
 
     if (hasDex) rows.push({
-      name: 'Pokémon Encyclopedia', icon: '📖',
-      desc: 'Browse every Pokémon you have seen and caught.',
+      name: tr('Pokémon Encyclopedia'), icon: '📖',
+      desc: tr('Browse every Pokémon you have seen and caught.'),
       onClick: () => { this.scene.launch('PokedexScene', { parentKey: 'MenuScene' }); this.scene.pause(); },
     });
 
     // Gym Badges — showcase every badge earned so far.
-    const badgeCount = BADGES.filter(b => this.registry.get(b.flag)).length;
+    const badgeCount = reconcileBadgeProgress(this.registry);
     rows.push({
-      name: 'Gym Badges', icon: '🏅',
-      desc: `${badgeCount} of ${BADGES.length} badges collected. Tap to view your case.`,
+      name: tr('Gym Badges'), icon: '🏅',
+      desc: tr(`${badgeCount} of ${BADGES.length} badges collected. Tap to view your case.`),
       onClick: () => this.showBadgeCase(),
     });
 
@@ -813,7 +814,9 @@ export class MenuScene extends Phaser.Scene {
       });
     }
 
-    if (hasShoes) rows.push({ name: 'Running Shoes', desc: 'Hold SHIFT to run fast.', icon: '👟' });
+    if (hasShoes) rows.push({
+      name: tr('Running Shoes'), desc: tr('Hold SHIFT to run fast.'), icon: '👟',
+    });
 
     // Seven items per page. The previous one-row scrolling used a final
     // overlapping window and tiny arrows, so mobile players reasonably read
@@ -898,18 +901,25 @@ export class MenuScene extends Phaser.Scene {
   /** Badge case — an 8-slot showcase of every Gym Badge, earned ones lit up. */
   private showBadgeCase() {
     const cx = this.W / 2, cy = this.H / 2;
-    const earned = BADGES.filter(b => this.registry.get(b.flag)).length;
+    const earned = reconcileBadgeProgress(this.registry);
+    const caseW = this.mobileMenu ? Math.min(this.W - 48, 1180) : 620;
+    const caseH = this.mobileMenu ? Math.min(this.H - 40, 680) : 470;
 
     const overlay = this.add.container(0, 0).setDepth(60);
     overlay.add(this.add.rectangle(cx, cy, this.W, this.H, 0x000000, 0.7));
-    overlay.add(this.add.rectangle(cx, cy, 620, 470, 0x10142a, 0.99).setStrokeStyle(2, 0xffe44e));
-    overlay.add(this.add.text(cx, cy - 205, t('— GYM BADGES —', '— 체육관 배지 —'), { fontSize: '18px', color: '#ffe44e', fontStyle: 'bold' }).setOrigin(0.5));
-    overlay.add(this.add.text(cx, cy - 180, `${earned} / ${BADGES.length} collected`, { fontSize: '13px', color: '#9ab' }).setOrigin(0.5));
+    overlay.add(this.add.rectangle(cx, cy, caseW, caseH, 0x10142a, 0.99).setStrokeStyle(2, 0xffe44e));
+    const caseTop = cy - caseH / 2;
+    overlay.add(this.add.text(cx, caseTop + 30, t('— GYM BADGES —', '— 체육관 배지 —'), { fontSize: '18px', color: '#ffe44e', fontStyle: 'bold' }).setOrigin(0.5));
+    overlay.add(this.add.text(cx, caseTop + 58,
+      t(`${earned} / ${BADGES.length} collected`, `${earned} / ${BADGES.length} 획득`),
+      { fontSize: '13px', color: '#9ab' }).setOrigin(0.5));
 
     // 4 columns × 2 rows
-    const cols = 4, cellW = 142, cellH = 150;
+    const cols = 4;
+    const cellW = this.mobileMenu ? (caseW - 56) / cols : 142;
+    const cellH = this.mobileMenu ? 205 : 150;
     const startX = cx - ((cols - 1) / 2) * cellW;
-    const startY = cy - 70;
+    const startY = this.mobileMenu ? cy - 105 : cy - 70;
     BADGES.forEach((b, i) => {
       const col = i % cols, row = Math.floor(i / cols);
       const x = startX + col * cellW;
@@ -927,12 +937,12 @@ export class MenuScene extends Phaser.Scene {
 
       // Labels
       overlay.add(this.add.text(x, y + 24, has ? b.name : '? ? ?',
-        { fontSize: '11px', color: has ? '#ffffff' : '#556', fontStyle: 'bold', align: 'center', wordWrap: { width: cellW - 8 } }).setOrigin(0.5, 0));
-      overlay.add(this.add.text(x, y + 52, has ? `${b.leader} · ${b.city}` : '',
-        { fontSize: '9px', color: '#8899bb', align: 'center', wordWrap: { width: cellW - 8 } }).setOrigin(0.5, 0));
+        { fontSize: '11px', color: has ? '#ffffff' : '#556', fontStyle: 'bold', align: 'center', wordWrap: { width: cellW - 20 } }).setOrigin(0.5, 0));
+      overlay.add(this.add.text(x, y + (this.mobileMenu ? 66 : 52), has ? `${b.leader} · ${b.city}` : '',
+        { fontSize: '9px', color: '#8899bb', align: 'center', wordWrap: { width: cellW - 20 } }).setOrigin(0.5, 0));
     });
 
-    const close = this.add.text(cx, cy + 205, tr('✕ Close'), { fontSize: '14px', color: '#aaa' })
+    const close = this.add.text(cx, cy + caseH / 2 - 28, tr('✕ Close'), { fontSize: '14px', color: '#aaa' })
       .setOrigin(0.5).setInteractive({ useHandCursor: true });
     close.on('pointerover', () => close.setColor('#fff'));
     close.on('pointerout',  () => close.setColor('#aaa'));

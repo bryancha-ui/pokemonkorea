@@ -565,10 +565,15 @@ export class RivalBattleScene extends Phaser.Scene {
 
   private onSwitchPokemon() {
     if (this.state !== 'playerAction') return;
+    this.state = 'busy';
     this.hideAllPanels();
     openSwitchPanel(
       this, this.activeSlot,
-      () => { this.showActionPanel(); this.typeDialog(`What will ${this.player.name} do?`); },
+      () => {
+        this.state = 'playerAction';
+        this.showActionPanel();
+        this.typeDialog(`What will ${this.player.name} do?`);
+      },
       (idx) => this.voluntarySwitch(idx),
     );
   }

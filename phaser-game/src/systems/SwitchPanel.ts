@@ -39,6 +39,10 @@ export function openSwitchPanel(
   const panelW = 740;
   const rowH   = 58;
   const party  = PartySystem.get(scene.sys.game.registry);
+  // Voluntary battle switches require an explicit confirmation. Item targets,
+  // full-party capture swaps, and forced replacements retain their own flows.
+  const confirmSelection = allowCancel && activeSlot >= 0 && !canSelectFn
+    && title === 'Choose a Pokémon';
 
   // Keep the picker above battle particles and the global post-FX overlay.
   const overlay = scene.add.container(0, 0).setDepth(100_100);
@@ -48,6 +52,9 @@ export function openSwitchPanel(
   let focusedSlot = -1;
   let finished = false;
   let cleaned = false;
+  let pendingConfirmationSlot = -1;
+  let confirmationOpenedAt = -Infinity;
+  let confirmationLayer: Phaser.GameObjects.Container | undefined;
 
   const keyboard = scene.input.keyboard;
 
@@ -77,7 +84,57 @@ export function openSwitchPanel(
     onSelect(slotIdx);
   };
 
+  const dismissConfirmation = () => {
+    if (pendingConfirmationSlot < 0) return;
+    pendingConfirmationSlot = -1;
+    confirmationLayer?.destroy(true);
+    confirmationLayer = undefined;
+    showDeckPicker();
+  };
+
+  const confirmPendingSelection = (explicitChoice = false) => {
+    if (pendingConfirmationSlot < 0
+      || (!explicitChoice && scene.time.now - confirmationOpenedAt < 320)) return;
+    closeAndSelect(pendingConfirmationSlot);
+  };
+
+  const requestSelection = (slotIdx: number) => {
+    if (finished || pendingConfirmationSlot >= 0 || !selectableSlots.includes(slotIdx)) return;
+    if (!confirmSelection) { closeAndSelect(slotIdx); return; }
+
+    const entry = party[slotIdx];
+    if (!entry) return;
+    pendingConfirmationSlot = slotIdx;
+    confirmationOpenedAt = scene.time.now;
+    const name = pokeNameEn(entry.name).toUpperCase();
+    const layer = scene.add.container(0, 0);
+    confirmationLayer = layer;
+    overlay.add(layer);
+
+    layer.add(scene.add.rectangle(cx, cy, W, H, 0x000000, 0.68).setInteractive());
+    layer.add(scene.add.rectangle(cx, cy, 470, 190, 0x121938, 0.99)
+      .setStrokeStyle(3, 0xffe44e));
+    layer.add(scene.add.text(cx, cy - 48,
+      t(`Switch to ${name}?`, `${name}(으)로 교체하시겠습니까?`), {
+        fontSize: '20px', color: '#ffffff', fontStyle: 'bold', align: 'center',
+        wordWrap: { width: 420 },
+      }).setOrigin(0.5));
+
+    const button = (x: number, label: string, color: string, action: () => void) => {
+      const control = scene.add.text(x, cy + 46, label, {
+        fontSize: '18px', color: '#ffffff', backgroundColor: color,
+        padding: { x: 24, y: 12 },
+      }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      control.on('pointerdown', action);
+      layer.add(control);
+    };
+    button(cx - 105, t('NO', '아니요'), '#4b526d', dismissConfirmation);
+    button(cx + 105, t('YES', '예'), '#2e6f4d', () => confirmPendingSelection(true));
+    showConfirmationDeck(name);
+  };
+
   const cancelSelection = () => {
+    if (pendingConfirmationSlot >= 0) { dismissConfirmation(); return; }
     if (finished || !allowCancel) return;
     finished = true;
     cleanup();
@@ -92,7 +149,7 @@ export function openSwitchPanel(
   }
 
   function moveFocus(delta: number) {
-    if (!selectableSlots.length) return;
+    if (pendingConfirmationSlot >= 0 || !selectableSlots.length) return;
     const current = selectableSlots.indexOf(focusedSlot);
     const start = current < 0 ? 0 : current;
     focusedSlot = selectableSlots[
@@ -104,7 +161,8 @@ export function openSwitchPanel(
   function focusPrevious() { moveFocus(-1); }
   function focusNext() { moveFocus(1); }
   function confirmFocused() {
-    if (focusedSlot >= 0) closeAndSelect(focusedSlot);
+    if (pendingConfirmationSlot >= 0) { confirmPendingSelection(); return; }
+    if (focusedSlot >= 0) requestSelection(focusedSlot);
   }
 
   // Dim + panel background
@@ -234,7 +292,7 @@ export function openSwitchPanel(
         ) => {
           event.stopPropagation();
           focusedSlot = i;
-          closeAndSelect(i);
+          requestSelection(i);
         });
       overlay.add(hitTarget);
     }
@@ -275,9 +333,28 @@ export function openSwitchPanel(
           : `Lv.${entry.level} · HP ${entry.hp}/${entry.maxHp}`,
     };
   });
-  deckShowLeadPicker(
-    deckChoices,
-    (choiceIdx) => closeAndSelect(deckSlots[choiceIdx]),
-    { title: tr(title), allowClose: allowCancel },
-  );
+  function showDeckPicker() {
+    deckShowLeadPicker(
+      deckChoices,
+      (choiceIdx) => requestSelection(deckSlots[choiceIdx]),
+      { title: tr(title), allowClose: allowCancel },
+    );
+  }
+
+  function showConfirmationDeck(name: string) {
+    deckShowLeadPicker([
+      { name: t('YES', '예'), level: 0, hp: 1, maxHp: 1, isLead: false,
+        status: t(`Switch to ${name}`, `${name}(으)로 교체`) },
+      { name: t('NO', '아니요'), level: 0, hp: 1, maxHp: 1, isLead: false,
+        status: t('Keep choosing', '선택 화면으로 돌아가기') },
+    ], choiceIdx => {
+      if (choiceIdx === 0) confirmPendingSelection(true);
+      else dismissConfirmation();
+    }, {
+      title: t(`Switch to ${name}?`, `${name}(으)로 교체하시겠습니까?`),
+      allowClose: false,
+    });
+  }
+
+  showDeckPicker();
 }

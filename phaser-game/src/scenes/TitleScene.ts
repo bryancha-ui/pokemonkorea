@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { tr } from '../systems/i18n';
+import { tr, pokeNameEn } from '../systems/i18n';
 import { SaveManager } from '../utils/SaveManager';
 import { STARTERS } from '../data/StarterData';
 import { playBgm, stopBgm } from '../systems/Music';
@@ -351,8 +351,9 @@ export class TitleScene extends Phaser.Scene {
       if (typeof party[0]?.level === 'number') level = party[0].level;
     } catch { /* keep the stored values */ }
 
-    const info = name
-      ? `${name}  Lv.${level}  ·  ${SaveManager.formatDate(save.timestamp)}`
+    const localizedName = name ? pokeNameEn(name) : name;
+    const info = localizedName
+      ? `${localizedName}  Lv.${level}  ·  ${SaveManager.formatDate(save.timestamp)}`
       : SaveManager.formatDate(save.timestamp);
 
     this.add.text(this.W / 2, this.H * 0.785, t(`Save data: ${info}`, `저장 데이터: ${info}`), {

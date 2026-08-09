@@ -18,6 +18,8 @@ type Tile = typeof T[keyof typeof T];
 const TILE = 32;
 const COLS = 24;
 const ROWS = 60;
+const ROUTE_2_WILD_LEVEL_MIN = 13;
+const ROUTE_2_WILD_LEVEL_MAX = 16;
 
 // Stone-lantern positions (tile col,row) lining the path — now placed as real 3D
 // props instead of painted 2D tiles. Shared by the map builder and propPlots.
@@ -334,7 +336,12 @@ export class Route2Scene extends Phaser.Scene {
     this.steps = 0; this.nextEnc = 8 + Math.floor(Math.random() * 8);
     const e = pickEncounter(R2_ENCOUNTERS);
     this.registry.set('wildId', e.id);
-    this.registry.set('wildLevel', randomLevel(e));
+    // Route 2 is an early-game area. Clamp again at the hand-off boundary so
+    // stale registry data or a future malformed table entry can never leak a
+    // level-35 encounter into this road.
+    this.registry.set('wildLevel', Phaser.Math.Clamp(
+      randomLevel(e), ROUTE_2_WILD_LEVEL_MIN, ROUTE_2_WILD_LEVEL_MAX,
+    ));
     this.registry.set('wildCustom', e.isCustom);
     this.registry.set('wildCatchRate', e.catchRate);
     this.registry.set('wildReturnScene', 'Route2Scene');

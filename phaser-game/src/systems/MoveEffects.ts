@@ -198,6 +198,15 @@ function canHit(user: Pokemon, target: Pokemon, move: MoveData): boolean {
   return Math.random() * 100 < Math.min(100, accuracy);
 }
 
+/** A ground shock that connects with a burrowed target also forces it back to
+ * the surface. Without this, Earthquake dealt damage but left both the pending
+ * Dig state and its underground model transform active for another turn. */
+function breaksUndergroundCharge(target: Pokemon, move: MoveData): boolean {
+  const targetCharge = charging.get(target);
+  return targetCharge?.mode === 'underground'
+    && /^(earthquake|magnitude|fissure)$/.test(moveKey(move.name));
+}
+
 const STAT_LABEL: Record<BattleStat, string> = {
   atk: 'Attack', def: 'Defense', spAtk: 'Sp. Atk', spDef: 'Sp. Def',
   spd: 'Speed', accuracy: 'Accuracy', evasion: 'Evasion',
@@ -367,6 +376,9 @@ export function executeBattleMove(ctx: BattleMoveContext): void {
       }
 
       if (ctx.move.data.power > 0) {
+        if (breaksUndergroundCharge(ctx.target, ctx.move.data)) {
+          cancelCharge(ctx.scene, ctx.target, ctx.targetSprite);
+        }
         const hit = ctx.target.takeDamage(ctx.move, ctx.user);
         // Reactive abilities such as Cursed Body can alter the used move's PP
         // after impact; persist that final value for player-owned Pokémon.
