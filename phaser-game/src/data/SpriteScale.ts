@@ -18,7 +18,7 @@ export const SPRITE_SCALE: Record<string, number> = {
   woosa:        1.35,
   woonsa:       1.35,
   // ── Tuned-down designs ──
-  disguijar:    1.20,  // 
+  disguijar:    1.4,   // enlarged authored sprite
   vipour:       0.6,   // shrink the starter to 60%
   bosongnun:    0.72,  // small snow spirit; keep both GLB and 2D fallback compact
   // ── Big final-stage designs ──
@@ -41,6 +41,7 @@ export const SPRITE_SCALE: Record<string, number> = {
   tyranitar:     1.45,
   garchomp:      1.45,
   palmcockatoo: 2.2,   // large crest/body; clears the 3D size-bias floor visibly
+  ssangdungori: 1.4,
 };
 
 /** PokéAPI species use different texture prefixes depending on whether they are

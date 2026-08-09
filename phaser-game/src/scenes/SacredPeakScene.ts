@@ -75,6 +75,14 @@ export class SacredPeakScene extends Phaser.Scene {
   private readonly SPEED = 120;
   private readonly ALTAR = { col: 9, row: 6 };
 
+  /** One world-space anchor shared by the altar art, cast and summon. */
+  private altarCenter(): { x: number; y: number } {
+    return {
+      x: this.ALTAR.col * TILE + TILE / 2,
+      y: this.ALTAR.row * TILE + TILE / 2,
+    };
+  }
+
   constructor() { super('SacredPeakScene'); }
 
   preload() {
@@ -173,7 +181,8 @@ export class SacredPeakScene extends Phaser.Scene {
     // The Higgsfield-authored courtyard replaces the former procedural temple.
     // Tagging it as a terrain decal lets OverworldMirror bake the same art into
     // the horizontal 3D ground instead of raising it as a duplicate billboard.
-    this.add.image(this.ALTAR.col * TILE + 16, this.ALTAR.row * TILE + 16, SACRED_PEAK_ALTAR_KEY)
+    const altar = this.altarCenter();
+    this.add.image(altar.x, altar.y, SACRED_PEAK_ALTAR_KEY)
       .setDisplaySize(TILE * 7, TILE * 7)
       .setDepth(1)
       .setData('terrainDecal3D', true);
@@ -204,8 +213,7 @@ export class SacredPeakScene extends Phaser.Scene {
    * from it, and throughout the final capture dialogue.
    */
   private drawEscort() {
-    const altarX = this.ALTAR.col * TILE + 16;
-    const altarY = this.ALTAR.row * TILE + 16;
+    const { x: altarX, y: altarY } = this.altarCenter();
     const npc = (
       col: number, row: number, body: number, hair: number,
       label: string, color: string, trainerKey: string,
@@ -225,16 +233,18 @@ export class SacredPeakScene extends Phaser.Scene {
 
     // The fixed summit positions keep the escort in the same camera region as
     // the altar instead of leaving them behind at the lower entrance.
-    npc(6, 8, 0x2f6a44, 0xcfd6dc, '어사대장 Jinnok', '#bfe8c8', 'inspector-jinnok');
+    npc(6, 8.5, 0x2f6a44, 0xcfd6dc, '어사대장 Jinnok', '#bfe8c8', 'inspector-jinnok');
     // Keep Professor Song inside the summit camera's temple framing. At col 5
     // her model existed but was clipped by the left edge in the 3D view.
-    npc(7.35, 8.65, 0xf0f0f0, 0x553311, 'Prof. Song', '#cfe3ff', 'prof-song');
+    npc(8, 9, 0xf0f0f0, 0x553311, 'Prof. Song', '#cfe3ff', 'prof-song');
 
-    const rival = this.add.graphics().setPosition(11 * TILE + 16, 8 * TILE + 16).setDepth(8);
+    const rivalX = 12.5 * TILE + 16;
+    const rivalY = 8.5 * TILE + 16;
+    const rival = this.add.graphics().setPosition(rivalX, rivalY).setDepth(8);
     drawTrainerBody(rival, 1, 0, rivalDesign(this.registry));
     markRivalPortrait(rival, this.registry);
     rival.setData('characterLookAt3D', { x: altarX, y: altarY });
-    this.add.text(11 * TILE + 16, 8 * TILE - 16, rivalTrainerName(this.registry), {
+    this.add.text(rivalX, rivalY - TILE, rivalTrainerName(this.registry), {
       fontSize: '8px', color: '#9ad0ff', backgroundColor: '#00000099', padding: { x: 2, y: 1 }, align: 'center',
     }).setOrigin(0.5).setDepth(9)
       .setData('characterLabel3D', true)
@@ -245,15 +255,22 @@ export class SacredPeakScene extends Phaser.Scene {
     // Their authored sprites remain a clean 2D fallback and become raised
     // reliefs in the 3D mirror even on devices without companion GLBs.
     if (this.allThree) {
+      // Equilateral triangle centred on Hwanung's exact landing point.
+      const radius = TILE * 2.25;
+      const halfWidth = radius * Math.sqrt(3) / 2;
       const attendants = [
-        { key: 'poongbaek', x: altarX - TILE * 2.0, y: altarY + 4, label: '풍백', color: '#cfe9ff' },
-        { key: 'woosa', x: altarX + TILE * 2.0, y: altarY + 4, label: '우사', color: '#bfe6ff' },
-        { key: 'woonsa', x: altarX, y: altarY - TILE * 1.6, label: '운사', color: '#dfeaff' },
+        { key: 'woonsa', x: altarX, y: altarY - radius, label: '운사', color: '#dfeaff' },
+        { key: 'poongbaek', x: altarX - halfWidth, y: altarY + radius / 2, label: '풍백', color: '#cfe9ff' },
+        { key: 'woosa', x: altarX + halfWidth, y: altarY + radius / 2, label: '우사', color: '#bfe6ff' },
       ];
       for (const attendant of attendants) {
-        const spirit = this.build3DCreature(attendant.key, attendant.key,
-          attendant.x, attendant.y, 1.35, 52).setDepth(24);
-        spirit.setData('facePlayer3D', true);
+        // These three currently have no local production GLB. Leave them as
+        // ordinary Images so OverworldMirror turns the authored art into an
+        // upright world-space relief at the triangle vertex. Tagging them as
+        // unavailable GLB creatures kept the 2D fallback camera-aligned and
+        // made it overlap Hwanung instead of occupying the altar position.
+        const spirit = this.add.image(attendant.x, attendant.y, attendant.key).setDepth(24);
+        this.fitSprite(spirit, 52);
         this.add.text(attendant.x, attendant.y - 34, attendant.label, {
           fontSize: '8px', color: attendant.color, backgroundColor: '#00000099', padding: { x: 2, y: 1 },
         }).setOrigin(0.5).setDepth(9)
@@ -265,11 +282,13 @@ export class SacredPeakScene extends Phaser.Scene {
     // Clemont remains on the map after his battle as a defeated but visible
     // story actor. The previous condition removed him as soon as the battle
     // flag was set, leaving only his post-battle dialogue.
-    const sovereign = this.add.graphics().setPosition(altarX, this.ALTAR.row * TILE - 16).setDepth(8);
+    const sovereignX = altarX - TILE * 3;
+    const sovereignY = altarY - TILE;
+    const sovereign = this.add.graphics().setPosition(sovereignX, sovereignY).setDepth(8);
     drawNpcBody(sovereign, 0x141018, { hair: 0x552266 });
     markTrainerPortrait(sovereign, SOVEREIGN.key);
     sovereign.setData('characterLookAt3D', { x: altarX, y: altarY + TILE });
-    this.add.text(altarX, this.ALTAR.row * TILE - 48, tr('Sovereign\nClemont'), {
+    this.add.text(sovereignX, sovereignY - TILE, tr('Sovereign\nClemont'), {
       fontSize: '8px', color: '#e0a0ff', backgroundColor: '#00000099', padding: { x: 2, y: 1 }, align: 'center',
     }).setOrigin(0.5).setDepth(9)
       .setData('characterLabel3D', true)
@@ -361,7 +380,8 @@ export class SacredPeakScene extends Phaser.Scene {
 
   private checkPeak() {
     if (!this.allThree) return;
-    if (Math.hypot(this.px - (this.ALTAR.col * TILE + 16), this.py - (this.ALTAR.row * TILE + 16)) > TILE * 1.7) return;
+    const altar = this.altarCenter();
+    if (Math.hypot(this.px - altar.x, this.py - altar.y) > TILE * 1.7) return;
 
     if (!this.defeated('nosdan-sovereign')) {
       this.cutsceneActive = true;
@@ -376,7 +396,7 @@ export class SacredPeakScene extends Phaser.Scene {
         this.registry.set('trainerPokemon', JSON.stringify(SOVEREIGN.pokemon));
         this.registry.set('trainerExpPool', SOVEREIGN.expPool);
         this.registry.set('trainerReturnScene', 'SacredPeakScene');
-        this.registry.set('sacredPeakReturnX', this.ALTAR.col * TILE + 16);
+        this.registry.set('sacredPeakReturnX', altar.x);
         this.registry.set('sacredPeakReturnY', (this.ALTAR.row + 2) * TILE + 16);
         this.cameras.main.fadeOut(500, 0, 0, 0, () => this.scene.start('TrainerBattleScene'));
       });
@@ -416,10 +436,15 @@ export class SacredPeakScene extends Phaser.Scene {
 
     // 🌟 환웅 descends onto the altar. The Phaser image is a fallback and the
     // OverworldMirror promotes it to the shipped hwanwoong.glb in 3D mode.
+    const altar = this.altarCenter();
     const hwan = this.build3DCreature('hwanwoong', 'hwanwoong',
-      this.ALTAR.col * TILE + 16, (this.ALTAR.row - 1) * TILE, 2.8, 96)
-      .setDepth(25).setAlpha(0);
-    this.tweens.add({ targets: hwan, alpha: 1, y: this.ALTAR.row * TILE, duration: 1600, ease: 'Sine.out' });
+      altar.x, altar.y - TILE * 2.5, 2.8, 96)
+      .setDepth(25).setAlpha(0)
+      // The mobile 2D fallback has a wide golden aura on its right, leaving
+      // Hwanung's body visibly left of the object's midpoint. Moving only the
+      // image origin centres the body while the 3D holder stays at altar.x.
+      .setOrigin(0.24, 0.5);
+    this.tweens.add({ targets: hwan, alpha: 1, y: altar.y, duration: 1600, ease: 'Sine.out' });
     this.tweens.add({ targets: hwan, y: '+=6', duration: 1600, yoyo: true, repeat: -1, delay: 1600 });   // gentle hover
 
     this.dialog.show([

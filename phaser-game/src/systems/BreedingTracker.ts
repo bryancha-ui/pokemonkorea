@@ -16,6 +16,8 @@ export class BreedingTrackerPlugin extends Phaser.Plugins.ScenePlugin {
   private widgetBg?: Phaser.GameObjects.Rectangle;
   private widgetText?: Phaser.GameObjects.Text;
   private widgetSignature = '';
+  private widgetRefreshMs = 0;
+  private widgetVisible = false;
 
   constructor(scene: Phaser.Scene, pluginManager: Phaser.Plugins.PluginManager, pluginKey: string) {
     super(scene, pluginManager, pluginKey);
@@ -27,7 +29,7 @@ export class BreedingTrackerPlugin extends Phaser.Plugins.ScenePlugin {
     this.systems!.events.once('destroy', this.cleanup, this);
   }
 
-  private track(): void {
+  private track(_time = 0, delta = 16.67): void {
     const scene = this.scene as (Phaser.Scene & {
       px?: number; py?: number;
       playerG?: Phaser.GameObjects.GameObject & { x?: number; y?: number };
@@ -50,7 +52,14 @@ export class BreedingTrackerPlugin extends Phaser.Plugins.ScenePlugin {
     }
     this.ensureWidget();
     this.setWidgetVisible(true);
-    this.refreshWidget();
+    // Registry-backed nursery state is serialized JSON. Parsing it every frame
+    // in every active scene is wasted work because the value changes only when
+    // a full map step is earned; a short HUD cadence is visually identical.
+    this.widgetRefreshMs -= Math.max(0, delta);
+    if (this.widgetRefreshMs <= 0) {
+      this.widgetRefreshMs = 250;
+      this.refreshWidget();
+    }
 
     const position = this.explorationPosition(scene);
     if (!position) {
@@ -116,6 +125,8 @@ export class BreedingTrackerPlugin extends Phaser.Plugins.ScenePlugin {
   }
 
   private setWidgetVisible(visible: boolean): void {
+    if (this.widgetVisible === visible) return;
+    this.widgetVisible = visible;
     this.widgetBg?.setVisible(visible);
     this.widgetText?.setVisible(visible);
   }
@@ -169,5 +180,7 @@ export class BreedingTrackerPlugin extends Phaser.Plugins.ScenePlugin {
     this.widgetBg = undefined;
     this.widgetText = undefined;
     this.widgetSignature = '';
+    this.widgetRefreshMs = 0;
+    this.widgetVisible = false;
   }
 }

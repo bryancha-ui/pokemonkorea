@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as skeletonClone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { applyProductionMaterials } from './ModelMaterials';
+import { performanceProfile } from './PerformanceProfile';
 
 // Small hero/boss GLBs that are allowed even on mobile, where
 // `allowsHeavy3DAssets()` otherwise keeps the authored 2D presentation. The
@@ -97,6 +98,10 @@ function markModelFailure(key: string, permanent: boolean): void {
  * sprites remain visible instead. */
 export function allowsHeavy3DAssets(): boolean {
   if (typeof navigator === 'undefined') return true;
+  // `?touch=1` is the project's deterministic mobile QA shell; honour the same
+  // heavy-model gate there as on a physical phone so performance tests exercise
+  // the real authored-2D fallback path instead of decoding an 800k-poly GLB.
+  if (performanceProfile().mobile) return false;
   const nav = navigator as Navigator & { deviceMemory?: number };
   if (nav.deviceMemory !== undefined && nav.deviceMemory <= 4) return false;
   const ipadDesktopMode = /Macintosh/i.test(nav.userAgent) && nav.maxTouchPoints > 1;

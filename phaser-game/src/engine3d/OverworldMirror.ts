@@ -134,6 +134,8 @@ export class OverworldMirror {
     spec: InteriorModel3D;
     wait: number;
   } | null = null;
+  private readonly playerPosition = new THREE.Vector3();
+  private readonly localPlayerPosition = new THREE.Vector3();
 
   constructor(scene: Phaser.Scene, stage: ThreeStage, rig: CameraRig) {
     this.scene = scene;
@@ -383,6 +385,7 @@ export class OverworldMirror {
       : pending.spec.entranceZ - fitted.max.z;
     model.position.y += 0.035 - fitted.min.y; // avoid floor z-fighting
     pending.holder.add(model);
+    this.stage.requestMeshPreparation();
 
     // Full authored interiors must not sit on top of the legacy room decal,
     // diorama skirt, inferred water or generated wall meshes. Keep those pieces
@@ -1021,6 +1024,7 @@ export class OverworldMirror {
         if (loaded) {
           t.creature = loaded.group;
           t.mesh.add(t.creature);
+          this.stage.requestMeshPreparation();
           if (o.getData?.('creatureAnimation3D') === 'nabihalmang-appearance') {
             t.creatureAnimation = generateNabihalmangAppearance(t.creature);
           }
@@ -1066,9 +1070,10 @@ export class OverworldMirror {
         }
       }
       if (t.kind === 'character' && t.character) {
-        const last = t.characterLast ?? { x, z };
-        const dx = x - last.x, dz = z - last.z;
-        t.characterLast = { x, z };
+        const last = t.characterLast;
+        const dx = last ? x - last.x : 0, dz = last ? z - last.z : 0;
+        if (last) { last.x = x; last.z = z; }
+        else t.characterLast = { x, z };
         const speed = Math.hypot(dx, dz) / Math.max(dt, 0.001);
         const moving = speed > 0.35;
         t.characterPhase = (t.characterPhase ?? 0) + (moving ? Math.min(15, 6 + speed * 1.5) : 2.1) * dt;
@@ -1103,7 +1108,7 @@ export class OverworldMirror {
         t.mesh.quaternion.copy(this.stage.camera.quaternion);
       }
       if (o === followT) {
-        playerPos = t.mesh.position.clone();
+        playerPos = this.playerPosition.copy(t.mesh.position);
         this.updateHero(t, dt);
       }
     }
@@ -1118,13 +1123,13 @@ export class OverworldMirror {
 
     // The follow target might be untracked (e.g. a Container player) — derive from raw coords.
     if (!playerPos && followT && followT.x !== undefined) {
-      playerPos = new THREE.Vector3((followT.x ?? 0) / PX, 0, ((followT.y ?? 0) + 14) / PX);
+      playerPos = this.playerPosition.set((followT.x ?? 0) / PX, 0, ((followT.y ?? 0) + 14) / PX);
     }
 
     // Terrain props are authored in group-local tile coordinates. Passing the
     // live hero position lets nearby tall-grass instances react to footsteps.
     if (this.terrain) {
-      const localPlayer = playerPos?.clone().sub(this.terrain.group.position) ?? null;
+      const localPlayer = playerPos ? this.localPlayerPosition.copy(playerPos).sub(this.terrain.group.position) : null;
       this.terrain.update(this.time, localPlayer);
     }
 
@@ -1219,9 +1224,10 @@ export class OverworldMirror {
     if (inner) inner.visible = false;
 
     const p = t.mesh.position;
-    const last = this.heroLast ?? { x: p.x, z: p.z };
-    const dx = p.x - last.x, dz = p.z - last.z;
-    this.heroLast = { x: p.x, z: p.z };
+    const last = this.heroLast;
+    const dx = last ? p.x - last.x : 0, dz = last ? p.z - last.z : 0;
+    if (last) { last.x = p.x; last.z = p.z; }
+    else this.heroLast = { x: p.x, z: p.z };
     const speed = Math.hypot(dx, dz) / Math.max(dt, 0.001);
     const moving = speed > 0.4;
     this.heroWalkPhase += (moving ? Math.min(16, 6 + speed * 1.6) : 2.2) * dt;

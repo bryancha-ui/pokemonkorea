@@ -29,6 +29,11 @@ export class CameraRig {
   private battleBase = new THREE.Vector3(-2.35, 2.5, 5.65);
   private battleLook = new THREE.Vector3(0.28, 1.08, -0.58);
   private focus = new THREE.Vector3();
+  private desired = new THREE.Vector3();
+  private desiredLook = new THREE.Vector3();
+  private battleFrame = new THREE.Vector3();
+  private battleLookFrame = new THREE.Vector3();
+  private toward = new THREE.Vector3();
   private focusAmt = 0;                // 0..1 punch-in toward focus point
   private shake = 0;
   private t = 0;
@@ -67,12 +72,12 @@ export class CameraRig {
     if (!target) return;
     const p = PRESET[this.mode];
 
-    const desired = new THREE.Vector3(target.x, target.y + p.up, target.z + p.back);
+    const desired = this.desired.set(target.x, target.y + p.up, target.z + p.back);
     // Gentle horizontal clamp so edges of small maps still frame nicely.
     const cx = Math.min(Math.max(desired.x, this.boundsMin.x + 4), Math.max(this.boundsMin.x + 4, this.boundsMax.x - 4));
     desired.x = isFinite(cx) ? cx : desired.x;
 
-    const desiredLook = new THREE.Vector3(target.x, target.y + p.lookUp, target.z - p.lookAhead);
+    const desiredLook = this.desiredLook.set(target.x, target.y + p.lookUp, target.z - p.lookAhead);
 
     if (!this.hasSnapped) {
       this.pos.copy(desired);
@@ -95,18 +100,19 @@ export class CameraRig {
     // Idle drift: slow orbital sway like modern battle cameras.
     const sway = Math.sin(this.t * 0.35) * 0.55;
     const bob = Math.sin(this.t * 0.22) * 0.18;
-    const base = new THREE.Vector3(
+    const base = this.battleFrame.set(
       this.battleBase.x + sway,
       this.battleBase.y + bob,
       this.battleBase.z - Math.abs(sway) * 0.3,
     );
-    const look = this.battleLook.clone();
+    const look = this.battleLookFrame.copy(this.battleLook);
 
     // Punch-in toward the focused creature during attacks, then relax.
     if (this.focusAmt > 0.01) {
-      const toward = this.focus.clone().sub(base).multiplyScalar(0.22 * this.focusAmt);
+      const toward = this.toward.copy(this.focus).sub(base).multiplyScalar(0.22 * this.focusAmt);
       base.add(toward);
-      look.lerp(new THREE.Vector3(this.focus.x, this.focus.y + 0.7, this.focus.z), 0.45 * this.focusAmt);
+      this.desiredLook.set(this.focus.x, this.focus.y + 0.7, this.focus.z);
+      look.lerp(this.desiredLook, 0.45 * this.focusAmt);
       this.focusAmt = Math.max(0, this.focusAmt - dt * 1.1);
     }
 

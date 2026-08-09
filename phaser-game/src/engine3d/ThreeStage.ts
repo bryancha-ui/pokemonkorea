@@ -4,6 +4,7 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import { clearReliefCache } from './Extruder';
 import { allowsHeavy3DAssets, releaseModelGpuResources } from './GlbModels';
 import { tuneModelTextures } from './ModelMaterials';
+import { performanceProfile, type PerformanceProfile } from './PerformanceProfile';
 import { releasePropGpuResources } from './PropModels';
 
 // ── Three.js stage ───────────────────────────────────────────────────────────
@@ -56,24 +57,42 @@ export class ThreeStage {
   private readonly rimOffset = new THREE.Vector3(11, 8, -12);
   private readonly fillOffset = new THREE.Vector3(8, 5, 10);
   private readonly maxAnisotropy: number;
+  readonly performance: PerformanceProfile;
   private game: Phaser.Game;
   private rectTimer = 0;
   private contextLost = false;
+  private visible = false;
+  private qualityScale = 1;
+  private currentPixelRatio = 1;
+  private lastRect = { left: NaN, top: NaN, width: 0, height: 0 };
+  private nextMeshPreparationAt = 0;
+  private meshWarmUntil = 0;
+  private lastShadowAt = -Infinity;
 
   constructor(game: Phaser.Game) {
     this.game = game;
     this.canvas = document.createElement('canvas');
     this.canvas.style.cssText = 'position:absolute;pointer-events:none;display:none;';
     const highGpuBudget = allowsHeavy3DAssets();
+    this.performance = performanceProfile();
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.0;
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    this.renderer.shadowMap.autoUpdate = true;
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, highGpuBudget ? 2 : 1.5));
-    this.maxAnisotropy = this.renderer.capabilities.getMaxAnisotropy();
+    // Three r185 aliases the removed PCFSoft mode to PCF and emits a warning;
+    // selecting the effective mode directly keeps the same result without log churn.
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    // Shadow maps are expensive render passes of the entire scene. They remain
+    // enabled at the same resolution, but are refreshed at a bounded cadence;
+    // static terrain no longer pays for an identical shadow map 60 times/sec.
+    this.renderer.shadowMap.autoUpdate = false;
+    this.currentPixelRatio = this.performance.maxPixelRatio;
+    this.renderer.setPixelRatio(this.currentPixelRatio);
+    this.maxAnisotropy = Math.min(
+      this.performance.textureAnisotropy,
+      this.renderer.capabilities.getMaxAnisotropy(),
+    );
 
     // A mobile browser is allowed to evict a WebGL context when GPU memory is
     // tight.  Previously the transparent Phaser canvas remained enabled after
@@ -157,6 +176,7 @@ export class ThreeStage {
     this.scene.add(this.clouds);
 
     this.setEnvironment('day');
+    this.meshWarmUntil = performance.now() + 10_000;
 
     // Keep our canvas glued to the Phaser canvas through FIT-scale changes.
     this.game.scale.on(Phaser.Scale.Events.RESIZE, () => this.syncRect());
@@ -191,14 +211,22 @@ export class ThreeStage {
       return;
     }
     const host = pc.parentElement.getBoundingClientRect();
-    this.canvas.style.left = `${rect.left - host.left + pc.parentElement.scrollLeft}px`;
-    this.canvas.style.top = `${rect.top - host.top + pc.parentElement.scrollTop}px`;
-    this.canvas.style.width = `${rect.width}px`;
-    this.canvas.style.height = `${rect.height}px`;
+    const left = rect.left - host.left + pc.parentElement.scrollLeft;
+    const top = rect.top - host.top + pc.parentElement.scrollTop;
+    if (!Number.isFinite(this.lastRect.left) || Math.abs(left - this.lastRect.left) > 0.1) this.canvas.style.left = `${left}px`;
+    if (!Number.isFinite(this.lastRect.top) || Math.abs(top - this.lastRect.top) > 0.1) this.canvas.style.top = `${top}px`;
+    if (Math.abs(rect.width - this.lastRect.width) > 0.1) this.canvas.style.width = `${rect.width}px`;
+    if (Math.abs(rect.height - this.lastRect.height) > 0.1) this.canvas.style.height = `${rect.height}px`;
     const w = Math.max(2, Math.round(rect.width)), h = Math.max(2, Math.round(rect.height));
-    this.renderer.setSize(w, h, false);
-    this.camera.aspect = rect.width / Math.max(1, rect.height);
-    this.camera.updateProjectionMatrix();
+    if (Math.round(this.lastRect.width) !== w || Math.round(this.lastRect.height) !== h) {
+      this.renderer.setSize(w, h, false);
+    }
+    const aspect = rect.width / Math.max(1, rect.height);
+    if (Math.abs(this.camera.aspect - aspect) > 0.0001) {
+      this.camera.aspect = aspect;
+      this.camera.updateProjectionMatrix();
+    }
+    this.lastRect = { left, top, width: rect.width, height: rect.height };
   }
 
   setEnvironment(profile: EnvProfile): void {
@@ -230,8 +258,44 @@ export class ThreeStage {
   }
 
   setVisible(v: boolean): void {
+    if (this.visible === v) return;
+    this.visible = v;
     this.canvas.style.display = v ? 'block' : 'none';
   }
+
+  /** Dynamically tune only the 3D render-buffer density. Scene geometry, PBR
+   * materials, shadows, effects and the full-resolution Phaser UI are unchanged. */
+  setQualityScale(scale: number): boolean {
+    const nextScale = Math.max(0.67, Math.min(1, scale));
+    const nextRatio = Math.max(
+      this.performance.minPixelRatio,
+      this.performance.maxPixelRatio * nextScale,
+    );
+    if (Math.abs(nextRatio - this.currentPixelRatio) < 0.04) return false;
+    this.qualityScale = nextScale;
+    this.currentPixelRatio = nextRatio;
+    this.renderer.setPixelRatio(nextRatio);
+    // setPixelRatio resizes the drawing buffer; reassert the FIT-aligned CSS
+    // rectangle and projection while preserving the logical viewport.
+    this.lastRect.width = 0;
+    this.lastRect.height = 0;
+    this.syncRect();
+    return true;
+  }
+
+  getQualityScale(): number { return this.qualityScale; }
+
+  getRenderStats(): { calls: number; triangles: number; pixelRatio: number } {
+    return {
+      calls: this.renderer.info.render.calls,
+      triangles: this.renderer.info.render.triangles,
+      pixelRatio: this.currentPixelRatio,
+    };
+  }
+
+  /** Async GLBs can arrive long after the first world scan. Mirrors call this
+   * when one is attached so texture/shadow preparation happens on the next frame. */
+  requestMeshPreparation(): void { this.nextMeshPreparationAt = 0; }
 
   /** Whether it is safe to make the Phaser canvas transparent this frame. */
   isHealthy(): boolean {
@@ -253,21 +317,23 @@ export class ThreeStage {
     this.worldRoot = new THREE.Group();
     this.scene.add(this.worldRoot);
     this.preparedMeshes = new WeakSet<THREE.Mesh>();
+    this.nextMeshPreparationAt = 0;
+    this.meshWarmUntil = performance.now() + 10_000;
+    this.lastShadowAt = -Infinity;
     return this.worldRoot;
   }
 
   render(): boolean {
     if (!this.isHealthy()) return false;
-    const cameraValues = [
-      this.camera.position.x, this.camera.position.y, this.camera.position.z,
-      this.camera.quaternion.x, this.camera.quaternion.y, this.camera.quaternion.z, this.camera.quaternion.w,
-      this.camera.aspect, this.camera.near, this.camera.far,
-    ];
-    if (!cameraValues.every(Number.isFinite) || this.camera.aspect <= 0 || this.camera.near <= 0 || this.camera.far <= this.camera.near) {
+    const p = this.camera.position, q = this.camera.quaternion;
+    if (!(Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z)
+      && Number.isFinite(q.x) && Number.isFinite(q.y) && Number.isFinite(q.z) && Number.isFinite(q.w)
+      && Number.isFinite(this.camera.aspect) && Number.isFinite(this.camera.near) && Number.isFinite(this.camera.far))
+      || this.camera.aspect <= 0 || this.camera.near <= 0 || this.camera.far <= this.camera.near) {
       return false;
     }
     // Periodic safety re-sync (layout can shift without a resize event, e.g. fonts).
-    if (++this.rectTimer >= 90) { this.rectTimer = 0; this.syncRect(); }
+    if (++this.rectTimer >= 180) { this.rectTimer = 0; this.syncRect(); }
     this.sky.position.copy(this.camera.position);
     this.clouds.position.copy(this.camera.position);
     // Keep the sun and its compact shadow camera centred on the visible action.
@@ -284,22 +350,33 @@ export class ThreeStage {
     this.sun.target.updateMatrixWorld();
     this.rim.target.updateMatrixWorld();
     this.fill.target.updateMatrixWorld();
-    if (this.rectTimer % 30 === 0) this.prepareWorldMeshes();
+    const now = performance.now();
+    if (now >= this.nextMeshPreparationAt) {
+      const prepared = this.prepareWorldMeshes();
+      this.nextMeshPreparationAt = now + (prepared > 0 ? 700 : now < this.meshWarmUntil ? 1_500 : 6_000);
+    }
+    if (now - this.lastShadowAt >= 1000 / this.performance.shadowFps) {
+      this.renderer.shadowMap.needsUpdate = true;
+      this.lastShadowAt = now;
+    }
     this.renderer.render(this.scene, this.camera);
     return this.isHealthy();
   }
 
-  private prepareWorldMeshes(): void {
+  private prepareWorldMeshes(): number {
+    let prepared = 0;
     this.worldRoot.traverse(obj => {
       const mesh = obj as THREE.Mesh;
       if (!mesh.isMesh || this.preparedMeshes.has(mesh)) return;
       this.preparedMeshes.add(mesh);
+      prepared++;
       tuneModelTextures(mesh, this.maxAnisotropy);
       const mats = (Array.isArray(mesh.material) ? mesh.material : [mesh.material]) as THREE.Material[];
       const translucent = mats.some(m => m.transparent || m.opacity < 0.98);
       mesh.castShadow = !translucent;
       mesh.receiveShadow = !translucent;
     });
+    return prepared;
   }
 
   private makeCloudTexture(): THREE.CanvasTexture {

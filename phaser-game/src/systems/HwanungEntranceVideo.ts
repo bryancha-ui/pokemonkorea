@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { tr } from './i18n';
+import { fitCutsceneVideo } from './CutsceneVideoLayout';
 
 export const HWANUNG_ENTRANCE_VIDEO_KEY = 'hwanung-entrance-final';
 const HWANUNG_ENTRANCE_VIDEO_URL = 'assets/cutscenes/hwanung_entrance_final.mp4';
@@ -61,7 +62,7 @@ export function playHwanungEntranceVideo(
   const screenScale = 1 / zoom;
 
   const backdrop = scene.add.rectangle(cx, cy, W, H, 0x000000, 1);
-  const video = scene.add.video(cx, cy, HWANUNG_ENTRANCE_VIDEO_KEY).setDisplaySize(W, H);
+  const video = scene.add.video(cx, cy, HWANUNG_ENTRANCE_VIDEO_KEY);
   const touchLayer = scene.add.rectangle(cx, cy, W, H, 0xffffff, 0.001)
     .setInteractive({ useHandCursor: true });
   const hint = scene.add.text(W - 24, H - 22, tr('탭 / SPACE: 건너뛰기'), {
@@ -89,6 +90,8 @@ export function playHwanungEntranceVideo(
     video.off(Phaser.GameObjects.Events.VIDEO_UNSUPPORTED, finish);
     video.off(Phaser.GameObjects.Events.VIDEO_LOCKED, showUnlockHint);
     video.off(Phaser.GameObjects.Events.VIDEO_PLAY, showSkipHint);
+    video.off(Phaser.GameObjects.Events.VIDEO_PLAYING, showSkipHint);
+    video.off(Phaser.GameObjects.Events.VIDEO_CREATED, fitVideo);
     touchLayer.off('pointerdown', handleAction);
     if (video.isPlaying()) video.stop();
     root.destroy(true);
@@ -101,9 +104,11 @@ export function playHwanungEntranceVideo(
     onComplete();
   };
   const abort = () => { dispose(); };
+  const fitVideo = () => fitCutsceneVideo(scene, video);
   const showUnlockHint = () => hint.setText(tr('탭하여 영상 재생'));
   const showSkipHint = () => {
     startupTimer?.remove(false);
+    fitVideo();
     hint.setText(tr('탭 / SPACE: 건너뛰기'));
   };
   const handleAction = () => {
@@ -127,6 +132,8 @@ export function playHwanungEntranceVideo(
   });
   video.on(Phaser.GameObjects.Events.VIDEO_LOCKED, showUnlockHint);
   video.on(Phaser.GameObjects.Events.VIDEO_PLAY, showSkipHint);
+  video.on(Phaser.GameObjects.Events.VIDEO_PLAYING, showSkipHint);
+  video.on(Phaser.GameObjects.Events.VIDEO_CREATED, fitVideo);
   touchLayer.on('pointerdown', handleAction);
   scene.events.once(Phaser.Scenes.Events.SHUTDOWN, abort);
 

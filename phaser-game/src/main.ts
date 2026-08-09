@@ -150,7 +150,6 @@ import { installFontScaling } from './systems/UiScale';
 import { initI18n, setLang } from './systems/i18n';
 import { PokemonFxPlugin } from './systems/PokemonFx';
 import { BreedingTrackerPlugin } from './systems/BreedingTracker';
-import { bootstrap3D } from './engine3d';
 import { SaveManager } from './utils/SaveManager';
 import { PartySystem } from './systems/PartySystem';
 import { standaloneTestMode } from './systems/StandaloneTestMode';
@@ -197,6 +196,21 @@ function launchNabihalmangEntranceTest(game: Phaser.Game): void {
   game.registry.set('jejuVentReturnY', 8 * 32 + 16);
   if (game.scene.isActive('TitleScene')) game.scene.stop('TitleScene');
   game.scene.start('JejuVentScene');
+}
+
+/** Open the fully assembled summit and Hwanung descent without changing saves. */
+function launchHwanungEntranceTest(game: Phaser.Game): void {
+  game.registry.set('sceneFlowTest', true);
+  game.registry.set('party', '[]');
+  game.registry.set('box', '[]');
+  game.registry.set('dexCaught', JSON.stringify(['poongbaek', 'woosa', 'woonsa']));
+  game.registry.set('sacredPeakSeen', true);
+  game.registry.set('trainerDefeated_nosdan-sovereign', true);
+  game.registry.set('trueEndDone', false);
+  game.registry.set('sacredPeakReturnX', 9 * 32 + 16);
+  game.registry.set('sacredPeakReturnY', 7 * 32 + 16);
+  if (game.scene.isActive('TitleScene')) game.scene.stop('TitleScene');
+  game.scene.start('SacredPeakScene');
 }
 
 /** Open the true-ending celebration, movie and homecoming without saving. */
@@ -322,8 +336,19 @@ initI18n(game);   // load the saved KO/EN language preference before any scene r
 // ── 3D rendering layer ───────────────────────────────────────────────────────
 // Renders the game world in 3D (terrain, characters and approved local GLBs,
 // third-person + cinematic battle cameras) beneath the Phaser canvas, which
-// keeps drawing all UI. Game logic is untouched. Press F3 to toggle 2D ↔ 3D.
-bootstrap3D(game);
+// keeps drawing all UI. Three.js is a separate lazy chunk so the title can
+// become interactive without first parsing the full 3D engine on a phone.
+const start3D = () => {
+  void import('./engine3d')
+    .then(({ bootstrap3D }) => bootstrap3D(game))
+    .catch((err) => console.warn('[engine3d] lazy bootstrap failed; game remains 2D:', err));
+};
+if (standaloneTestMode()) start3D();
+else {
+  const idleWindow = window as Window & { requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number };
+  if (typeof idleWindow.requestIdleCallback === 'function') idleWindow.requestIdleCallback(start3D, { timeout: 1200 });
+  else globalThis.setTimeout(start3D, 0);
+}
 
 // Open isolated scene-flow checks directly from their dedicated URLs.
 const testMode = standaloneTestMode();
@@ -334,6 +359,10 @@ if (testMode === 'ryeo-battle') {
 } else if (testMode === 'nabi-entrance') {
   game.events.once(Phaser.Core.Events.READY, () => {
     window.setTimeout(() => launchNabihalmangEntranceTest(game), 350);
+  });
+} else if (testMode === 'hwanung-entrance') {
+  game.events.once(Phaser.Core.Events.READY, () => {
+    window.setTimeout(() => launchHwanungEntranceTest(game), 350);
   });
 } else if (testMode === 'true-ending') {
   game.events.once(Phaser.Core.Events.READY, () => {

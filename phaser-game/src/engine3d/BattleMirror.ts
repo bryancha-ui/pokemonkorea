@@ -162,6 +162,8 @@ export class BattleMirror {
   }) => void;
   private onScreenTarget: (d: ScreenTargetRequest) => void;
   private onChargeFx: (d: ChargeFxRequest) => void;
+  private readonly projectionPoint = new THREE.Vector3();
+  private readonly facingVector = new THREE.Vector3();
 
   constructor(scene: Phaser.Scene, stage: ThreeStage, rig: CameraRig) {
     this.scene = scene;
@@ -210,7 +212,7 @@ export class BattleMirror {
     const cb = this.combatants.get(d.target);
     if (!cb) return;                  // 2D mode / unmirrored object keeps fallback
 
-    const p = cb.holder.position.clone();
+    const p = this.projectionPoint.copy(cb.holder.position);
     const heightRatio = Math.min(1, Math.max(0, d.heightRatio ?? 0.52));
     p.y += cb.targetH * heightRatio;  // aim at the torso, not above the head
 
@@ -512,7 +514,8 @@ export class BattleMirror {
     const dx = x - cb.lastPos.x;
     const dy = y - cb.lastPos.y;
     cb.speed = cb.speed * 0.82 + (Math.abs(dx) + Math.abs(dy)) * 0.18;
-    cb.lastPos = { x, y };
+    cb.lastPos.x = x;
+    cb.lastPos.y = y;
     const visibleAndSettled = source.visible !== false && (source.alpha ?? 1) > 0.85;
     if (visibleAndSettled && Math.abs(dx) + Math.abs(dy) < 0.6) {
       cb.settleTimer += dt;
@@ -523,7 +526,7 @@ export class BattleMirror {
 
     const camera = this.stage.camera;
     camera.updateMatrixWorld();
-    const feet = ANCHORS[cb.side][cb.slot].clone().project(camera);
+    const feet = this.projectionPoint.copy(ANCHORS[cb.side][cb.slot]).project(camera);
     if (!Number.isFinite(feet.x) || !Number.isFinite(feet.y) || feet.z < -1 || feet.z > 1) {
       im.setVisible(false);
       return;
@@ -581,7 +584,7 @@ export class BattleMirror {
   /** Local yaw that points a battler's +Z/front axis straight at the live
    *  battle camera. Model-specific axis fixes remain baked inside the GLB. */
   private cameraFacingYaw(holder: THREE.Group): number {
-    const toCamera = this.stage.camera.position.clone().sub(holder.position);
+    const toCamera = this.facingVector.copy(this.stage.camera.position).sub(holder.position);
     return Math.atan2(toCamera.x, toCamera.z) - holder.rotation.y;
   }
 
@@ -636,8 +639,8 @@ export class BattleMirror {
       else w.phase += dt * 2.1;
       w.model.setWalk(w.phase, moving, dt);     // sets group.position.y (bob)
       const facing = moving
-        ? w.end.clone().sub(w.start)
-        : ANCHORS[w.side === 'player' ? 'enemy' : 'player'][0].clone().sub(w.end);
+        ? this.facingVector.copy(w.end).sub(w.start)
+        : this.facingVector.copy(ANCHORS[w.side === 'player' ? 'enemy' : 'player'][0]).sub(w.end);
       w.model.face(facing.x, facing.z, dt);
     }
   }
@@ -654,7 +657,7 @@ export class BattleMirror {
         this.pinned2DTrainers.delete(im);
         continue;
       }
-      const feet = ANCHORS[pinned.side][0].clone().project(camera);
+      const feet = this.projectionPoint.copy(ANCHORS[pinned.side][0]).project(camera);
       if (!Number.isFinite(feet.x) || !Number.isFinite(feet.y) || feet.z < -1 || feet.z > 1) continue;
       const anchorX = (feet.x + 1) * 0.5 * this.scene.scale.width;
       const anchorY = (1 - feet.y) * 0.5 * this.scene.scale.height;
@@ -725,13 +728,14 @@ export class BattleMirror {
           // Cerrapin appeared side-on in the diagonal battle composition.
           // The player's own model faces the opponent across the field.
           if (cb.side === 'player') {
-            const dir = ANCHORS.enemy[0].clone().sub(ANCHORS.player[cb.slot]);
+            const dir = this.facingVector.copy(ANCHORS.enemy[0]).sub(ANCHORS.player[cb.slot]);
             model.rotation.y = Math.atan2(dir.x, dir.z) - cb.holder.rotation.y;
           } else {
             model.rotation.y = this.cameraFacingYaw(cb.holder);
           }
           cb.glb = model;
           cb.holder.add(model);
+          this.stage.requestMeshPreparation();
           // Any clips inside the GLB drive the model; otherwise the animator
           // moves the whole mesh procedurally.
           cb.anim = new CreatureAnimator(model, loaded.animations);
@@ -758,7 +762,8 @@ export class BattleMirror {
       const x = o.x ?? 0, y = o.y ?? 0;
       const dx = x - cb.lastPos.x, dy = y - cb.lastPos.y;
       cb.speed = cb.speed * 0.82 + (Math.abs(dx) + Math.abs(dy)) * 0.18;
-      cb.lastPos = { x, y };
+      cb.lastPos.x = x;
+      cb.lastPos.y = y;
 
       // Capture the "settled" position once the sprite is visible and still.
       const vis = (o.visible !== false) && ((o.alpha ?? 1) > 0.85);

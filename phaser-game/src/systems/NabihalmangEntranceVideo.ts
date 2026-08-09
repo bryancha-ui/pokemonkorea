@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { t } from './i18n';
 import { MOBILE_ACTION_EVENT } from './TouchControls';
+import { fitCutsceneVideo } from './CutsceneVideoLayout';
 
 export const NABIHALMANG_ENTRANCE_VIDEO_URL =
   'assets/cutscenes/nabihalmang_jeju_crater_entrance_final.mp4';
@@ -67,7 +68,7 @@ export function playNabihalmangEntranceVideo(
     onComplete();
   };
   const abort = () => { dispose(); };
-  const fitVideo = () => video.setDisplaySize(w, h);
+  const fitVideo = () => fitCutsceneVideo(scene, video);
   const showUnlockHint = () => {
     hint.setAlpha(1).setText(t('Tap or press A to play with sound', '탭 또는 A 버튼을 눌러 소리와 함께 재생'));
   };

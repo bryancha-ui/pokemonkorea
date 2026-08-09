@@ -1,11 +1,9 @@
 import Phaser from 'phaser';
 import { tr, pokeNameEn } from '../systems/i18n';
 import { SaveManager } from '../utils/SaveManager';
-import { STARTERS } from '../data/StarterData';
 import { playBgm, stopBgm } from '../systems/Music';
 import { t, getLang, setLang } from '../systems/i18n';
 import { fontScaleForScene } from '../systems/UiScale';
-import { preloadBattleFallbackSprites } from '../data/BattleFallbackSprites';
 import { standaloneTestMode } from '../systems/StandaloneTestMode';
 
 const TITLE_BACKGROUNDS = {
@@ -34,14 +32,11 @@ export class TitleScene extends Phaser.Scene {
 
   preload() {
     if (standaloneTestMode()) return;
-    for (const background of Object.values(TITLE_BACKGROUNDS)) {
-      if (!this.textures.exists(background.key)) this.load.image(background.key, background.url);
-    }
-    STARTERS.forEach(s => {
-      if (!this.textures.exists(s.spriteKey))
-        this.load.image(s.spriteKey, s.data.spriteUrl);
-    });
-    preloadBattleFallbackSprites(this);
+    // Load only the selected localized splash. The other 2.9 MB image is queued
+    // if the player switches language and the scene restarts. Starter and battle
+    // fallback art already load on demand in the scenes that actually use them.
+    const background = TITLE_BACKGROUNDS[getLang()];
+    if (!this.textures.exists(background.key)) this.load.image(background.key, background.url);
   }
 
   create() {

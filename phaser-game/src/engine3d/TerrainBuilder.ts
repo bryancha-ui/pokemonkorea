@@ -964,6 +964,19 @@ export function buildTerrain(
     pitch: 0,
     roll: 0,
   }));
+  // Grass interaction is local to the player, so index clumps in coarse cells
+  // instead of running trigonometry across every tuft on a large route each
+  // frame. Recently kicked clumps remain active until they settle naturally.
+  const grassBucketSize = 3;
+  const grassBuckets = new Map<string, number[]>();
+  const grassBucketKey = (x: number, z: number) => `${Math.floor(x / grassBucketSize)}:${Math.floor(z / grassBucketSize)}`;
+  grass.placements.forEach((p, i) => {
+    const key = grassBucketKey(p.x, p.z);
+    const bucket = grassBuckets.get(key);
+    if (bucket) bucket.push(i);
+    else grassBuckets.set(key, [i]);
+  });
+  const activeGrass = new Set<number>();
   let lastGrassPlayer: { x: number; z: number } | null = null;
   const wallMesh = walls.build();
   if (wallMesh) group.add(wallMesh);
@@ -1248,8 +1261,19 @@ export function buildTerrain(
       const moved = Math.hypot(dx, dz);
       const moving = moved > 0.002;
       const invMove = moving ? 1 / moved : 0;
+      if (playerPos) {
+        const bx = Math.floor(playerPos.x / grassBucketSize);
+        const bz = Math.floor(playerPos.z / grassBucketSize);
+        for (let oz = -1; oz <= 1; oz++) {
+          for (let ox = -1; ox <= 1; ox++) {
+            const bucket = grassBuckets.get(`${bx + ox}:${bz + oz}`);
+            if (bucket) for (const index of bucket) activeGrass.add(index);
+          }
+        }
+      }
+
       let grassDirty = false;
-      for (let i = 0; i < grassMotion.length; i++) {
+      for (const i of activeGrass) {
         const motion = grassMotion[i];
         const p = grass.placements[i];
         const pdx = playerPos ? playerPos.x - p.x : 99;
@@ -1265,6 +1289,10 @@ export function buildTerrain(
         motion.near = near;
 
         const energy = Math.exp(-motion.age * 3.8);
+        if (!near && energy < 0.0008 && Math.abs(motion.pitch) < 0.001 && Math.abs(motion.roll) < 0.001) {
+          activeGrass.delete(i);
+          continue;
+        }
         const kick = Math.sin(motion.age * 19) * 0.34 * energy;
         const breeze = distSq < 2.4 * 2.4 ? Math.sin(t * 3.1 + motion.phase) * 0.025 : 0;
         const pitch = -motion.dirZ * kick + breeze;
@@ -1277,7 +1305,12 @@ export function buildTerrain(
         }
       }
       if (grassDirty) grass.commit();
-      lastGrassPlayer = playerPos ? { x: playerPos.x, z: playerPos.z } : null;
+      if (playerPos) {
+        if (lastGrassPlayer) { lastGrassPlayer.x = playerPos.x; lastGrassPlayer.z = playerPos.z; }
+        else lastGrassPlayer = { x: playerPos.x, z: playerPos.z };
+      } else {
+        lastGrassPlayer = null;
+      }
 
       // Generated building/vehicle models stream in asynchronously — attach and
       // fit each one to its plot as soon as its GLB finishes loading.

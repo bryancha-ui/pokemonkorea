@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { t } from './i18n';
 import { MOBILE_ACTION_EVENT } from './TouchControls';
+import { fitCutsceneVideo } from './CutsceneVideoLayout';
 
 export const ENDING_CREDITS_VIDEO_URL =
   'assets/cutscenes/pokemon_korea_ending_credits_original_audio_bug_backup.mp4';
@@ -132,7 +133,7 @@ export function playEndingCreditsVideo(
     onUnavailable();
   };
   const abort = () => { dispose(); };
-  const fitVideo = () => video.setDisplaySize(w, h);
+  const fitVideo = () => fitCutsceneVideo(scene, video);
   const showUnlockHint = () => {
     hint.setAlpha(1).setText(t('Tap or press A to play', '탭 또는 A 버튼을 눌러 재생'));
   };

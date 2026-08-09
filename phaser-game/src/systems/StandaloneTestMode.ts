@@ -1,5 +1,6 @@
 export const STANDALONE_TEST_MODES = [
-  'ryeo-battle', 'nabi-entrance', 'true-ending', 'battle-regressions', 'ui-localization',
+  'ryeo-battle', 'nabi-entrance', 'hwanung-entrance', 'true-ending',
+  'battle-regressions', 'ui-localization',
 ] as const;
 export type StandaloneTestMode = typeof STANDALONE_TEST_MODES[number];
 

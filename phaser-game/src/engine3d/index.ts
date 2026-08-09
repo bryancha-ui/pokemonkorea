@@ -4,6 +4,7 @@ import { CameraRig } from './CameraRig';
 import type { HatchEffectProfile3D } from './HatchEffect3D';
 import { primeManifest } from './GlbModels';
 import { OverworldMirror } from './OverworldMirror';
+import { performanceProfile, type PerformanceProfile } from './PerformanceProfile';
 import { primeProps } from './PropModels';
 import { ThreeStage } from './ThreeStage';
 
@@ -37,9 +38,18 @@ class Engine3D {
   private blockedScene: Phaser.Scene | null = null;
   private mirrorApplied = false;
   private camPatched = new WeakSet<Phaser.Cameras.Scene2D.Camera>();
+  private readonly performance: PerformanceProfile;
+  private renderAccumulator = 1;
+  private frameMsEma = 1000 / 60;
+  private qualityCheckTimer = 0;
+  private qualityRecoveryTimer = 0;
+  private telemetryTimer = 0;
+  private telemetryStartedAt = performance.now();
+  private telemetryFrames = 0;
 
   constructor(game: Phaser.Game) {
     this.game = game;
+    this.performance = performanceProfile();
     this.enabled = (localStorage.getItem(STORE_KEY) ?? '1') === '1';
     // Load the approved local-asset registries up front so the first scene already
     // knows which creature models and city props exist.
@@ -151,16 +161,92 @@ class Engine3D {
 
   private setCamTransparent(scene: Phaser.Scene, on: boolean): void {
     const cam = scene.cameras?.main as (Phaser.Cameras.Scene2D.Camera & { transparent: boolean }) | undefined;
-    if (cam) cam.transparent = on;
+    if (!cam) return;
+    if (on) {
+      if (this.camPatched.has(cam)) return;
+      cam.transparent = true;
+      this.camPatched.add(cam);
+    } else {
+      if (!this.camPatched.has(cam) && !cam.transparent) return;
+      cam.transparent = false;
+      this.camPatched.delete(cam);
+    }
   }
 
   private step(dt: number): void {
     try {
-      this.stepSafe(dt);
+      const safeDt = Math.max(0, Math.min(dt, 0.1));
+      this.sampleFrameBudget(safeDt);
+      if (!this.enabled || this.failed) return;
+
+      // Keep the authoritative Phaser loop at 60 Hz for input, movement, UI and
+      // battle rules. On constrained devices the mirrored Three.js underlay is
+      // updated/rendered less often with accumulated delta, so animation speed
+      // remains correct while GPU work drops substantially.
+      this.renderAccumulator += safeDt;
+      const heldPaused = !!this.mirrorScene?.scene.isPaused();
+      const targetFps = heldPaused ? this.performance.paused3DFps : this.performance.target3DFps;
+      const interval = 1 / targetFps;
+      if (this.renderAccumulator + 0.0005 < interval) return;
+      const renderDt = Math.min(this.renderAccumulator, 0.1);
+      this.renderAccumulator = Math.max(0, this.renderAccumulator - interval);
+      if (this.renderAccumulator > interval * 2) this.renderAccumulator = 0;
+      this.stepSafe(renderDt);
     } catch (err) {
       this.fallbackTo2D(this.mirrorScene, err);
     }
   }
+
+  /** Observe Phaser's real frame cadence and lower only the 3D drawing-buffer
+   * density when a constrained browser remains below budget. Recovery is slow
+   * and hysteretic so resolution never pulses during a short battle effect. */
+  private sampleFrameBudget(dt: number): void {
+    if (dt <= 0 || dt >= 0.1) return;
+    const frameMs = dt * 1000;
+    this.frameMsEma += (frameMs - this.frameMsEma) * 0.06;
+    this.qualityCheckTimer += dt;
+    this.telemetryTimer += dt;
+
+    if (this.performance.constrained && this.stage && this.qualityCheckTimer >= 2) {
+      const actualFps = Number(this.game.loop.actualFps) || (1000 / this.frameMsEma);
+      const overloaded = this.frameMsEma > 24 || actualFps < 43;
+      const hasHeadroom = this.frameMsEma < 18.8 && actualFps > 53;
+      this.qualityCheckTimer = 0;
+      if (overloaded) {
+        this.qualityRecoveryTimer = 0;
+        this.stage.setQualityScale(this.stage.getQualityScale() - 0.1);
+      } else if (hasHeadroom && this.stage.getQualityScale() < 1) {
+        this.qualityRecoveryTimer += 2;
+        if (this.qualityRecoveryTimer >= 8) {
+          this.stage.setQualityScale(this.stage.getQualityScale() + 0.05);
+          this.qualityRecoveryTimer = 0;
+        }
+      } else {
+        this.qualityRecoveryTimer = Math.max(0, this.qualityRecoveryTimer - 1);
+      }
+    }
+
+    if (this.stage && this.telemetryTimer >= 1) {
+      const now = performance.now();
+      const seconds = Math.max(0.001, (now - this.telemetryStartedAt) / 1000);
+      const stats = this.stage.getRenderStats();
+      const data = this.stage.canvas.dataset;
+      data.pk3dProfile = this.performance.mobile ? 'mobile' : this.performance.constrained ? 'constrained' : 'desktop';
+      data.pk3dTargetFps = String(this.performance.target3DFps);
+      data.pk3dPhaserFps = (Number(this.game.loop.actualFps) || (1000 / this.frameMsEma)).toFixed(1);
+      data.pk3dRenderFps = (this.telemetryFrames / seconds).toFixed(1);
+      data.pk3dQuality = this.stage.getQualityScale().toFixed(2);
+      data.pk3dPixelRatio = stats.pixelRatio.toFixed(2);
+      data.pk3dCalls = String(stats.calls);
+      data.pk3dTriangles = String(stats.triangles);
+      data.pk3dScene = this.mirrorScene?.scene.key ?? '';
+      this.telemetryTimer = 0;
+      this.telemetryStartedAt = now;
+      this.telemetryFrames = 0;
+    }
+  }
+
+  private noteRenderedFrame(): void { this.telemetryFrames++; }
 
   private stepSafe(dt: number): void {
     if (!this.enabled || this.failed) return;
@@ -187,6 +273,7 @@ class Engine3D {
         if (!this.stage.isHealthy()) throw new Error('Three.js WebGL context was lost');
         this.mirror.update(Math.min(dt, 0.1));   // idle animations keep breathing
         if (!this.stage.render()) throw new Error('Three.js frame could not be rendered');
+        this.noteRenderedFrame();
         if (!this.mirrorApplied) {
           this.mirror.apply3D();
           this.mirrorApplied = true;
@@ -238,6 +325,7 @@ class Engine3D {
     // field/battlers and expose the Three canvas.
     this.mirror!.update(Math.min(dt, 0.1));
     if (!stage.render()) throw new Error('Three.js frame could not be rendered');
+    this.noteRenderedFrame();
     if (!this.mirrorApplied) {
       this.mirror!.apply3D();
       this.mirrorApplied = true;

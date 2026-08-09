@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { performanceProfile } from '../engine3d/PerformanceProfile';
 
 // ── Global "Pokémon-like" graphics layer ─────────────────────────────────────
 // A scene plugin (booted for every scene) that lays a soft vignette + a warm,
@@ -43,7 +44,12 @@ export class PokemonFxPlugin extends Phaser.Plugins.ScenePlugin {
     if (!(obj instanceof Phaser.GameObjects.Text)) return;
     const current = obj.style.fontFamily ?? '';
     if (!current || /courier|monospace/i.test(current)) obj.setFontFamily(REMASTER_FONT);
-    obj.setResolution(Math.min(2, Math.max(1, window.devicePixelRatio || 1)));
+    // The mobile 1280×720 game canvas is already downscaled into a much smaller
+    // physical pane. A second 2× text backing store adds memory/upload cost but
+    // no visible pixels there; desktop retains the existing supersampling.
+    obj.setResolution(performanceProfile().mobile
+      ? 1
+      : Math.min(2, Math.max(1, window.devicePixelRatio || 1)));
   }
 
   private apply(): void {
