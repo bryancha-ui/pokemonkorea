@@ -8,6 +8,9 @@ const HWANUNG_ENTRANCE_VIDEO_URL = 'assets/cutscenes/hwanung_entrance_final.mp4'
 export function preloadHwanungEntranceVideo(scene: Phaser.Scene) {
   if (!scene.cache.video.exists(HWANUNG_ENTRANCE_VIDEO_KEY)) {
     scene.load.video(HWANUNG_ENTRANCE_VIDEO_KEY, HWANUNG_ENTRANCE_VIDEO_URL);
+    console.log('Loading Hwanung entrance video from:', HWANUNG_ENTRANCE_VIDEO_URL);
+  } else {
+    console.log('Hwanung entrance video already cached');
   }
 }
 
@@ -24,9 +27,11 @@ export function playHwanungEntranceVideo(
   onDisposed?: () => void,
 ): (() => void) | undefined {
   if (!scene.cache.video.exists(HWANUNG_ENTRANCE_VIDEO_KEY)) {
+    console.error('Hwanung entrance video not found in cache:', HWANUNG_ENTRANCE_VIDEO_KEY);
     scene.time.delayedCall(0, onComplete);
     return undefined;
   }
+  console.log('Playing Hwanung entrance video:', HWANUNG_ENTRANCE_VIDEO_KEY);
 
   const W = scene.scale.width, H = scene.scale.height;
   const cx = W / 2, cy = H / 2;
@@ -85,8 +90,14 @@ export function playHwanungEntranceVideo(
   };
 
   video.once(Phaser.GameObjects.Events.VIDEO_COMPLETE, finish);
-  video.once(Phaser.GameObjects.Events.VIDEO_ERROR, finish);
-  video.once(Phaser.GameObjects.Events.VIDEO_UNSUPPORTED, finish);
+  video.once(Phaser.GameObjects.Events.VIDEO_ERROR, (error) => {
+    console.error('Hwanung entrance video error:', error);
+    finish();
+  });
+  video.once(Phaser.GameObjects.Events.VIDEO_UNSUPPORTED, () => {
+    console.error('Hwanung entrance video unsupported');
+    finish();
+  });
   video.on(Phaser.GameObjects.Events.VIDEO_LOCKED, showUnlockHint);
   video.on(Phaser.GameObjects.Events.VIDEO_PLAY, showSkipHint);
   touchLayer.on('pointerdown', handleAction);
@@ -94,7 +105,15 @@ export function playHwanungEntranceVideo(
 
   scene.sound.pauseAll();
   musicPaused = true;
-  video.play(false);
+  
+  // Add error handling for mobile devices
+  try {
+    video.play(false);
+  } catch (error) {
+    console.error('Error playing Hwanung entrance video:', error);
+    finish();
+  }
+  
   fallbackTimer = scene.time.delayedCall(30000, finish);
   return handleAction;
 }
