@@ -145,6 +145,7 @@ import { FogboundManorScene } from './scenes/FogboundManorScene';
 import { HamhungNaengmyeonScene } from './scenes/interior/HamhungNaengmyeonScene';
 import { NorthernBuildingScene } from './scenes/interior/NorthernBuildingScene';
 import { SeolbongInnScene } from './scenes/SeolbongInnScene';
+import { WaterfallFinaleScene } from './scenes/WaterfallFinaleScene';
 import { setupMobileShell } from './systems/TouchControls';
 import { installFontScaling } from './systems/UiScale';
 import { initI18n, setLang } from './systems/i18n';
@@ -381,6 +382,35 @@ function launchStatusEffectsTest(game: Phaser.Game): void {
   game.scene.start('WildBattleScene');
 }
 
+/** Korean starter picker dialogue pagination and Enter prompt fixture. */
+function launchStarterSelectTest(game: Phaser.Game): void {
+  game.registry.set('sceneFlowTest', true);
+  setLang('ko', false);
+  game.registry.set('starterChosen', false);
+  game.registry.set('party', '[]');
+  if (game.scene.isActive('TitleScene')) game.scene.stop('TitleScene');
+  game.scene.start('StarterSelectScene');
+}
+
+/** Opening rival battle when the player chose Vipour/염혈목이. */
+function launchStarterRivalVipourTest(game: Phaser.Game): void {
+  game.registry.set('sceneFlowTest', true);
+  setLang('ko', false);
+  game.registry.set('party', '[]');
+  game.registry.set('box', '[]');
+  game.registry.set('dexCaught', '[]');
+  game.registry.set('starterChosen', true);
+  game.registry.set('starterName', 'Vipour');
+  game.registry.set('starterKey', 'vipour');
+  game.registry.set('starterLevel', 5);
+  game.registry.set('starterExp', 0);
+  game.registry.set('rivalKey', 'onnurian');
+  game.registry.set('rivalIntroSeen', true);
+  PartySystem.initFromStarter(game.registry);
+  if (game.scene.isActive('TitleScene')) game.scene.stop('TitleScene');
+  game.scene.start('RivalBattleScene');
+}
+
 /** Open the true-ending celebration, movie and homecoming without saving. */
 function launchTrueEndingTest(game: Phaser.Game): void {
   game.registry.set('sceneFlowTest', true);
@@ -389,6 +419,22 @@ function launchTrueEndingTest(game: Phaser.Game): void {
   game.registry.set('trueEndDone', true);
   if (game.scene.isActive('TitleScene')) game.scene.stop('TitleScene');
   game.scene.start('SudoLabScene');
+}
+
+/** Open one deterministic chapter of the post-credit Waterfall City finale. */
+function launchWaterfallFinaleTest(
+  game: Phaser.Game,
+  phase: 'party' | 'night' | 'logo',
+  gender: 'boy' | 'girl' = 'boy',
+): void {
+  game.registry.set('sceneFlowTest', true);
+  game.registry.set('playerGender', gender);
+  game.registry.set('playerName', gender === 'girl' ? 'Hana' : 'Jun');
+  game.registry.set('rivalName', gender === 'girl' ? 'Minhyuk' : 'Soohyun');
+  game.registry.set('finaleResumePhase', phase);
+  game.registry.set('trueEndDone', true);
+  if (game.scene.isActive('TitleScene')) game.scene.stop('TitleScene');
+  game.scene.start('WaterfallFinaleScene', { phase });
 }
 
 /**
@@ -468,7 +514,7 @@ const game = new Phaser.Game({
   height: 720,
   backgroundColor: '#000000',
   parent: shell.parent,
-  scene: [TitleScene, WorldMapScene, BattleScene, PlayerHomeScene, PokemonCenterScene, RivalHomeScene, StarterSelectScene, RivalBattleScene, MenuScene, RouteScene, WildBattleScene, SeoulScene, TrainerBattleScene, CapitolCityScene, CapitolTowerScene, CapitolGymScene, GymLeaderBattleScene, CapitolPCScene, CapitolPalaceScene, CapitolAssemblyScene, CapitolLibraryScene, CapitolMarketScene, EvolutionScene, EggHatchScene, Route2Scene, PineNeedleTownScene, PineNeedlePCScene, PineNeedleStudioScene, NurseryScene, NurseryManageScene, PokedexScene, ShopScene, BoxScene, BaekduPassScene, BaekduCityScene, BaekduPCScene, BaekduGymScene, Route3Scene, GeumgangCityScene, GeumgangPCScene, GeumgangGymScene, Route4Scene, HaeanCityScene, HaeanPCScene, HaeanGymScene, SudoLabScene, Route5Scene, ForestCityScene, ForestPCScene, ForestGymScene, ForestShrineScene, FerryScene, FerryDepartScene, FerryCorridorScene, FerryRoomAScene, FerryRoomBScene, FerryRoomCScene, JejuPortScene, JejuCityScene, JejuVentsPortScene, JejuPCScene, JejuVentScene, Route6Scene, SunriseCityScene, SunrisePCScene, SunriseGymScene, SunriseCliff1Scene, SunriseCliff2Scene, SunriseCliff3Scene, BaekduCheckpointScene, BaekduSummitScene, ScholarsRoadScene, LeaguePlazaScene, PokemonLeagueScene, RegionMapScene, NorthernColiseumScene, NorthernPlazaScene, PyeongyangCityScene, NorthernReachesScene, SacredPeakScene, DolmoeCityScene, DolmoeGymScene, DolmoeRuinsScene, DolmoePCScene, DolmoeMineScene, SeoraePassScene, OceanScene, MartScene, DeptStoreScene, SeoraeTownScene, SeoraePCScene, SeoraeBuildingScene, SeoraeGymScene, GenderSelectScene, IntroScene, HaenyeoHotSpringScene, HallasanGardensScene, HarborTavernScene, JejuLibraryScene, JejuMarketScene, BeachPavilionScene, SanbangsanShrineScene, CheonjiyeonWaterfallScene, KaesongCityScene, HanRiverParkScene, BikeShopScene, ConvenienceStoreScene, NampoCityScene, WonsanCityScene, HamhungCityScene, ChongjinCityScene, SinuijuCityScene, SamjiyonCityScene, RyesongValleyScene, PokemonLabScene, NampoBeachScene, AhobiryongPassScene, WonsanBeachScene, SijungCoastScene, HamhungMineScene, ChilboHighlandsScene, KaemaPlateauScene, RangrimFoothillsScene, RangrimCavernScene, RangrimAltarScene, RangrimSnowfieldScene, RangrimSummitScene, SamjiyonAjitRoadScene, NosdanHideoutScene, CheonjiScene, PyeongseongCheckpointScene, SinuijuIceCaveScene, FogboundManorScene, HamhungNaengmyeonScene, NorthernBuildingScene, SeolbongInnScene],
+  scene: [TitleScene, WorldMapScene, BattleScene, PlayerHomeScene, PokemonCenterScene, RivalHomeScene, StarterSelectScene, RivalBattleScene, MenuScene, RouteScene, WildBattleScene, SeoulScene, TrainerBattleScene, CapitolCityScene, CapitolTowerScene, CapitolGymScene, GymLeaderBattleScene, CapitolPCScene, CapitolPalaceScene, CapitolAssemblyScene, CapitolLibraryScene, CapitolMarketScene, EvolutionScene, EggHatchScene, Route2Scene, PineNeedleTownScene, PineNeedlePCScene, PineNeedleStudioScene, NurseryScene, NurseryManageScene, PokedexScene, ShopScene, BoxScene, BaekduPassScene, BaekduCityScene, BaekduPCScene, BaekduGymScene, Route3Scene, GeumgangCityScene, GeumgangPCScene, GeumgangGymScene, Route4Scene, HaeanCityScene, HaeanPCScene, HaeanGymScene, SudoLabScene, Route5Scene, ForestCityScene, ForestPCScene, ForestGymScene, ForestShrineScene, FerryScene, FerryDepartScene, FerryCorridorScene, FerryRoomAScene, FerryRoomBScene, FerryRoomCScene, JejuPortScene, JejuCityScene, JejuVentsPortScene, JejuPCScene, JejuVentScene, Route6Scene, SunriseCityScene, SunrisePCScene, SunriseGymScene, SunriseCliff1Scene, SunriseCliff2Scene, SunriseCliff3Scene, BaekduCheckpointScene, BaekduSummitScene, ScholarsRoadScene, LeaguePlazaScene, PokemonLeagueScene, RegionMapScene, NorthernColiseumScene, NorthernPlazaScene, PyeongyangCityScene, NorthernReachesScene, SacredPeakScene, DolmoeCityScene, DolmoeGymScene, DolmoeRuinsScene, DolmoePCScene, DolmoeMineScene, SeoraePassScene, OceanScene, MartScene, DeptStoreScene, SeoraeTownScene, SeoraePCScene, SeoraeBuildingScene, SeoraeGymScene, GenderSelectScene, IntroScene, HaenyeoHotSpringScene, HallasanGardensScene, HarborTavernScene, JejuLibraryScene, JejuMarketScene, BeachPavilionScene, SanbangsanShrineScene, CheonjiyeonWaterfallScene, KaesongCityScene, HanRiverParkScene, BikeShopScene, ConvenienceStoreScene, NampoCityScene, WonsanCityScene, HamhungCityScene, ChongjinCityScene, SinuijuCityScene, SamjiyonCityScene, RyesongValleyScene, PokemonLabScene, NampoBeachScene, AhobiryongPassScene, WonsanBeachScene, SijungCoastScene, HamhungMineScene, ChilboHighlandsScene, KaemaPlateauScene, RangrimFoothillsScene, RangrimCavernScene, RangrimAltarScene, RangrimSnowfieldScene, RangrimSummitScene, SamjiyonAjitRoadScene, NosdanHideoutScene, CheonjiScene, PyeongseongCheckpointScene, SinuijuIceCaveScene, FogboundManorScene, HamhungNaengmyeonScene, NorthernBuildingScene, SeolbongInnScene, WaterfallFinaleScene],
   // CORS-enabled loads keep remote authored 2D fallback art readable while
   // approved local GLBs load. Visual pipeline only.
   loader: { crossOrigin: 'anonymous' },
@@ -540,6 +586,22 @@ if (testMode === 'ryeo-battle') {
   game.events.once(Phaser.Core.Events.READY, () => {
     window.setTimeout(() => launchTrueEndingTest(game), 350);
   });
+} else if (testMode === 'finale-party') {
+  game.events.once(Phaser.Core.Events.READY, () => {
+    window.setTimeout(() => launchWaterfallFinaleTest(game, 'party'), 350);
+  });
+} else if (testMode === 'finale-night-boy') {
+  game.events.once(Phaser.Core.Events.READY, () => {
+    window.setTimeout(() => launchWaterfallFinaleTest(game, 'night', 'boy'), 350);
+  });
+} else if (testMode === 'finale-night-girl') {
+  game.events.once(Phaser.Core.Events.READY, () => {
+    window.setTimeout(() => launchWaterfallFinaleTest(game, 'night', 'girl'), 350);
+  });
+} else if (testMode === 'finale-logo') {
+  game.events.once(Phaser.Core.Events.READY, () => {
+    window.setTimeout(() => launchWaterfallFinaleTest(game, 'logo'), 350);
+  });
 } else if (testMode === 'battle-regressions') {
   game.events.once(Phaser.Core.Events.READY, () => {
     window.setTimeout(() => launchBattleRegressionTest(game), 350);
@@ -563,6 +625,14 @@ if (testMode === 'ryeo-battle') {
 } else if (testMode === 'status-effects') {
   game.events.once(Phaser.Core.Events.READY, () => {
     window.setTimeout(() => launchStatusEffectsTest(game), 350);
+  });
+} else if (testMode === 'starter-select') {
+  game.events.once(Phaser.Core.Events.READY, () => {
+    window.setTimeout(() => launchStarterSelectTest(game), 350);
+  });
+} else if (testMode === 'starter-rival-vipour') {
+  game.events.once(Phaser.Core.Events.READY, () => {
+    window.setTimeout(() => launchStarterRivalVipourTest(game), 350);
   });
 }
 }

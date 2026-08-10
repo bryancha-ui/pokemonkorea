@@ -62,12 +62,31 @@ export class SudoLabScene extends Phaser.Scene {
     this.ending = false;
     this.endingVideoAction = undefined;
     this.stopEndingBgm = undefined;
-    playBgm(this, 'sudo');
     this.input.keyboard?.resetKeys();
+    this.spaceKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+
+    const finalePending = !!this.registry.get('finalePartyPending');
+    if (finalePending) {
+      // Catching Hwanung now cuts straight to the ending credits. The Waterfall
+      // City party and rival epilogue are separate scenes that begin only after
+      // the movie has completed (or the player deliberately skips it).
+      this.disable3D = true;
+      this.ending = true;
+      this.busy = true;
+      stopBgm(this);
+      this.cameras.main.setBackgroundColor('#000000');
+      // Keep the pending marker in the save until playback completes, so a
+      // closed tab resumes the credits instead of losing the ending sequence.
+      SaveManager.save(this.registry, 0, 0, 'SudoLabScene');
+      this.cameras.main.fadeIn(250);
+      this.time.delayedCall(180, () => this.rollCredits());
+      return;
+    }
+
+    playBgm(this, 'sudo');
     this.cameras.main.fadeIn(400);
     this.drawLab();
     this.dialog = new DialogBox(this, this.scale.width, this.scale.height);
-    this.spaceKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     this.cursors = this.input.keyboard!.createCursorKeys();
     this.wasd = {
       up: this.input.keyboard!.addKey('W'), down: this.input.keyboard!.addKey('S'),
@@ -77,28 +96,6 @@ export class SudoLabScene extends Phaser.Scene {
 
     const rivalDone = !!this.registry.get('trainerDefeated_rival-3');
     const partyPending = !!this.registry.get('sudoPartyPending');
-    const finalePending = !!this.registry.get('finalePartyPending');
-
-    if (finalePending) {
-      // THE ENDING — one last celebration in Sudo City after catching 환웅, then credits.
-      this.busy = true;
-      this.registry.remove('finalePartyPending');
-      SaveManager.save(this.registry, 0, 0, 'SudoLabScene');
-      this.dialog.show([
-        'You beat 노스단 to the summit, defeated Sovereign Clemont, and 환웅 itself descended to your side. The threat is over.',
-        'You come home to a hero\'s welcome — and the party the alarm cut short picks up right where it left off, louder than ever.',
-        'The whole region floods the streets. Lanterns, music, confetti; north and south celebrating as one people for the first time in living memory.',
-        'Prof. Song: 노스단 is finished. 환웅, 풍백, 우사, 운사, 나비할망 — the entire pantheon, at peace and in your care.',
-        'Prof. Song: Whatever legend they tell of this region a thousand years from now, it starts with you. Thank you, Champion.',
-        '🎉 The city celebrates deep into the night in your honour.',
-        '— Later, when the lanterns have burned low, the Rival finds you alone. —',
-        'Rival: ...We really did it. Every gym, both leagues, a whole syndicate, and a god at the end of it.',
-        'Rival: So — what now? Are you going to keep adventuring from here?',
-        '(You look out over the sleeping region — north and south, whole at last. Wherever the road goes next... it\'s yours to walk.)',
-      ], () => { this.busy = false; this.rollCredits(); });
-      return;
-    }
-
     if (partyPending) {
       // Northern League victory celebration party
       this.busy = true;
@@ -323,7 +320,7 @@ export class SudoLabScene extends Phaser.Scene {
   }
 
   /** Stream the muted ending movie with the two-part local soundtrack, then
-   * send the Champion home. */
+   * send the Champion to Waterfall City's celebration. */
   private rollCredits() {
     this.cameras.main.fadeOut(1000, 0, 0, 0, () => {
       // Free the complete laboratory display list and let Engine3D release its
@@ -379,7 +376,7 @@ export class SudoLabScene extends Phaser.Scene {
     const credits = [
       '🌟  POKÉMON  KOREA  🌟', '', '', 'THE COMPLETE PANTHEON', '환웅 · 풍백 · 우사 · 운사 · 나비할망', '', '— TRUE END —', '', '',
       'You crossed all of Onnuri —', 'south and north, sea and summit —', 'and united a broken peninsula', 'under a single Champion.', '', '',
-      'Thank you for playing.', '', '', 'Press SPACE to return home.',
+      'Thank you for playing.', '', '', 'Press SPACE to continue to Waterfall City.',
     ].join('\n');
     const text = this.add.text(W / 2, H + 40, credits, {
       fontSize: '20px', color: '#ffe88a', align: 'center', fontStyle: 'bold', stroke: '#000', strokeThickness: 4, lineSpacing: 12,
@@ -396,13 +393,14 @@ export class SudoLabScene extends Phaser.Scene {
     this.endingVideoAction = undefined;
     this.stopEndingBgm?.();
     this.stopEndingBgm = undefined;
-    // Credits used to drop the player at the title screen. Make the ending an
-    // actual homecoming and persist it first, so Continue also resumes at home
-    // if the browser closes during the final fade.
-    this.registry.set('trueEndingHomecomingPending', true);
-    SaveManager.save(this.registry, 7 * 32 + 16, 11 * 32 + 16, 'PlayerHomeScene');
+    this.registry.remove('finalePartyPending');
+    this.registry.remove('trueEndingHomecomingPending');
+    this.registry.set('finaleResumePhase', 'party');
+    // If the browser closes during the transition, Continue resumes at the
+    // Waterfall City party instead of replaying the five-minute credits.
+    SaveManager.save(this.registry, 15 * 32 + 16, 14 * 32 + 16, 'WaterfallFinaleScene');
     stopBgm(this);
-    this.cameras.main.fadeOut(1000, 0, 0, 0, () => this.scene.start('PlayerHomeScene'));
+    this.cameras.main.fadeOut(1000, 0, 0, 0, () => this.scene.start('WaterfallFinaleScene'));
   }
 
   private destroyDisplayList(): void {

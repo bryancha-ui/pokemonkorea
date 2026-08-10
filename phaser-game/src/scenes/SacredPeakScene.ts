@@ -545,11 +545,12 @@ export class SacredPeakScene extends Phaser.Scene {
       '어사대장 Jinnok: Carry this 마패. Any 어사대 in any northern city will aid you on sight. The north will remember your name as long as the mountains stand.',
       'Professor Song: The region is whole. North and south, spirit and sovereign — all at peace, all in your care. Whatever comes next for Onnuri... it\'s in good hands.',
       '🏆 You hold 환웅, 풍백, 우사, 운사, 나비할망 — the complete mythological pantheon of Onnuri.',
-      'Prof. Song: Come home, Champion. All of Sudo City is waiting to celebrate you one last time.',
+      'Prof. Song: Your journey belongs to history now, Champion. Let its story be told from the beginning.',
     ], () => {
       this.cameras.main.fadeOut(1200, 0, 0, 0, () => {
         kids.forEach(k => k.destroy());
-        // The finale: one last party back in Sudo City, then the ending credits.
+        // Final order: credits first, then the Waterfall City celebration,
+        // the gender-aware midnight rival scene, and the last title logo.
         this.registry.set('finalePartyPending', true);
         this.scene.start('SudoLabScene');
       });

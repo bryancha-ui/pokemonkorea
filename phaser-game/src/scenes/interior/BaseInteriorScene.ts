@@ -25,6 +25,7 @@ export abstract class BaseInteriorScene extends Phaser.Scene {
   protected px = 0; protected py = 0;
   protected cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   protected spaceKey!: Phaser.Input.Keyboard.Key;
+  protected enterKey!: Phaser.Input.Keyboard.Key;
   protected upKey!: Phaser.Input.Keyboard.Key;
   protected downKey!: Phaser.Input.Keyboard.Key;
   protected interactPrompt!: Phaser.GameObjects.Text;
@@ -89,6 +90,7 @@ export abstract class BaseInteriorScene extends Phaser.Scene {
   protected setupInput() {
     this.cursors  = this.input.keyboard!.createCursorKeys();
     this.spaceKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    this.enterKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
     this.upKey    = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.UP);
     this.downKey  = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN);
     // Open the party/bag menu (to check Pokémon status) from inside any interior —
@@ -104,12 +106,14 @@ export abstract class BaseInteriorScene extends Phaser.Scene {
   }
 
   private handleDialogInput() {
+    const advancePressed = Phaser.Input.Keyboard.JustDown(this.spaceKey)
+      || Phaser.Input.Keyboard.JustDown(this.enterKey);
     if (this.dialog.isInChoice()) {
       if (Phaser.Input.Keyboard.JustDown(this.upKey))    this.dialog.navigateChoice(-1);
       if (Phaser.Input.Keyboard.JustDown(this.downKey))  this.dialog.navigateChoice(1);
-      if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) this.dialog.confirmChoice();
+      if (advancePressed) this.dialog.confirmChoice();
     } else {
-      if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) this.dialog.advance();
+      if (advancePressed) this.dialog.advance();
     }
   }
 
@@ -163,7 +167,8 @@ export abstract class BaseInteriorScene extends Phaser.Scene {
 
     if (nearest) {
       this.interactPrompt.setVisible(true);
-      if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) this.onInteract(nearest);
+      if (Phaser.Input.Keyboard.JustDown(this.spaceKey)
+        || Phaser.Input.Keyboard.JustDown(this.enterKey)) this.onInteract(nearest);
     } else {
       this.interactPrompt.setVisible(false);
     }

@@ -11,6 +11,7 @@ const BASE = 'assets/bgm/';   // relative so BGM resolves under the GitHub Pages
 export const TRACKS: Record<string, string> = {
   // ── Towns & cities ──
   waterfall:  BASE + 'waterfallcity3.mp3',   // Waterfall City (world hub)
+  waterfallnight: BASE + 'bgm_waterfall2.mp3', // Waterfall City midnight finale
   pineneedle: BASE + 'bgm_pineneedle.mp3',  // Pine Needle Town
   sudo:       BASE + 'bgm_sudo.mp3',        // Sudo / Capital City
   deptstore:  BASE + 'bgm_deptstore.mp3',   // Department Store

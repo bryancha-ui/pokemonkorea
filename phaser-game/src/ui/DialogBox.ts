@@ -37,7 +37,7 @@ export class DialogBox {
     const S = fontScaleForScene(scene);
     const boxX = Math.max(16, Math.round(W * 0.055));
     const boxW = W - boxX * 2;
-    const boxH = Math.min(Math.round(148 + 68 * (S - 1)), Math.round(H * 0.3));
+    const boxH = Math.min(Math.round(176 + 72 * (S - 1)), Math.round(H * 0.34));
     const boxTop = H - boxH - 12;
     const textInset = Math.round(16 + 4 * (S - 1));
     this.maxTextLines = Math.max(2, Math.floor((boxH - 24) / (30 * S)));
@@ -48,8 +48,9 @@ export class DialogBox {
       wordWrap: { width: boxW - textInset * 2, useAdvancedWrap: true }, lineSpacing: 8,
     }).setVisible(false);
 
-    this.arrow = scene.add.text(boxX + boxW - Math.round(22 + 6 * (S - 1)), H - 30, '▼', { fontSize: '18px', color: '#ffe44e' })
-      .setVisible(false);
+    this.arrow = scene.add.text(boxX + boxW - Math.round(18 + 4 * (S - 1)), H - 38, '▼  ENTER', {
+      fontSize: '15px', color: '#ffe44e', fontStyle: 'bold',
+    }).setOrigin(1, 0).setVisible(false);
 
     const chW = Math.min(Math.round(150 * S), 210);
     const chH = Math.min(Math.round(84 * S), 124);

@@ -6,6 +6,7 @@ import { cachedPokemon } from '../data/PokeAPI';
 import type { PokemonData } from '../battle/Pokemon';
 import { genderForPokemon } from '../data/PokemonGender';
 import { dexEntry, dexKeyFor, remasteredSpriteUrl } from '../data/Pokedex';
+import { levelUpMoves } from '../data/Learnsets';
 
 export interface PartyBaseStats {
   hp: number;
@@ -114,10 +115,15 @@ function ensureAllBaseStats(entries: PartyEntry[]): boolean {
     // at level 5. Migrate only uncurated pre-level-7 local Pokémon; TM choices
     // already have battleMoves and are deliberately preserved.
     const earlyForm = findForm(entry.spriteKey);
-    const earlySeed = earlyForm?.startingMoves[0]?.name;
-    if (entry.level < 7 && earlySeed && !entry.battleMoves?.length
-      && (entry.moves.length !== 1 || entry.moves[0]?.toLowerCase() !== earlySeed.toLowerCase())) {
-      entry.moves = [earlySeed];
+    const earlySeeds = earlyForm ? [
+      earlyForm.startingMoves[0],
+      ...levelUpMoves(earlyForm.spriteKey, earlyForm.data.type1, earlyForm.data.type2, entry.level),
+    ].filter((move, index, all) => move && all.findIndex(other => other.name.toLowerCase() === move.name.toLowerCase()) === index)
+      .map(move => move.name) : [];
+    if (entry.level < 7 && earlySeeds.length && !entry.battleMoves?.length
+      && (entry.moves.length !== earlySeeds.length
+        || entry.moves.some((move, i) => move.toLowerCase() !== earlySeeds[i].toLowerCase()))) {
+      entry.moves = earlySeeds;
       changed = true;
     }
     if (!entry.gender) {
@@ -172,7 +178,11 @@ export const PartySystem = {
       spriteKey: key,
       spriteUrl: `assets/${key}.jpg`,
       isCustom: true,
-      moves: def?.startingMoves[0] ? [def.startingMoves[0].name] : [],
+      moves: def?.startingMoves[0] ? [
+        def.startingMoves[0],
+        ...levelUpMoves(def.spriteKey, def.data.type1, def.data.type2, level),
+      ].filter((move, index, all) => all.findIndex(other => other.name.toLowerCase() === move.name.toLowerCase()) === index)
+        .map(move => move.name) : [],
       ability: def?.ability,
       caughtAt: "Prof. Song's Lab",
       baseStats: def ? baseStatsFromData(def.data) : { hp: baseHp, atk: 45, def: 45, spAtk: 45, spDef: 45, spd: 45 },

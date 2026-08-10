@@ -10,6 +10,7 @@ export class StarterSelectScene extends Phaser.Scene {
   private cards: Phaser.GameObjects.Container[] = [];
   private flavText!: Phaser.GameObjects.Text;
   private profText!: Phaser.GameObjects.Text;
+  private profAdvance!: Phaser.GameObjects.Text;
   private confirmPanel!: Phaser.GameObjects.Container;
   private confirmIdx = 0;
   private confirming = false;
@@ -18,8 +19,18 @@ export class StarterSelectScene extends Phaser.Scene {
   private leftKey!: Phaser.Input.Keyboard.Key;
   private rightKey!: Phaser.Input.Keyboard.Key;
   private spaceKey!: Phaser.Input.Keyboard.Key;
+  private enterKey!: Phaser.Input.Keyboard.Key;
   private upKey!: Phaser.Input.Keyboard.Key;
   private downKey!: Phaser.Input.Keyboard.Key;
+
+  private professorPages: string[] = [];
+  private professorPageIdx = -1;
+  private professorDialogueActive = false;
+  private professorTyping = false;
+  private professorFullPage = '';
+  private professorTimer?: Phaser.Time.TimerEvent;
+  private professorArrowTween?: Phaser.Tweens.Tween;
+  private professorOnDone?: () => void;
 
   constructor() { super('StarterSelectScene'); }
 
@@ -42,11 +53,9 @@ export class StarterSelectScene extends Phaser.Scene {
 
     // Prof speech bubble — animated
     this.time.delayedCall(300, () => {
-      this.typewriterText(
-        this.profText,
+      this.showProfessorDialogue([
         'Prof. Song: Welcome! Three Pokémon from this region are waiting for a trainer.\nChoose the one who calls to you.',
-        22,
-      );
+      ]);
     });
   }
 
@@ -113,14 +122,18 @@ export class StarterSelectScene extends Phaser.Scene {
     g.strokeRect(x - 8, y - 26, 6, 5); g.strokeRect(x + 2, y - 26, 6, 5);
     g.lineBetween(x - 2, y - 24, x + 2, y - 24);
     // Speech bubble
-    const bx = 165, by = 65;
-    g.fillStyle(0xffffff, 0.95); g.fillRoundedRect(bx, by, 460, 75, 10);
-    g.lineStyle(2, 0x334466, 1); g.strokeRoundedRect(bx, by, 460, 75, 10);
+    const bx = 150, by = 48, bw = 630, bh = 122;
+    g.fillStyle(0xffffff, 0.97); g.fillRoundedRect(bx, by, bw, bh, 12);
+    g.lineStyle(3, 0x334466, 1); g.strokeRoundedRect(bx, by, bw, bh, 12);
     g.fillStyle(0xffffff, 0.95);
-    g.fillTriangle(bx + 8, by + 65, bx - 18, by + 80, bx + 30, by + 65);
-    this.profText = this.add.text(bx + 12, by + 10, '', {
-      fontSize: '12px', color: '#1a2a4a', wordWrap: { width: 436 }, lineSpacing: 4,
+    g.fillTriangle(bx + 12, by + bh - 18, bx - 18, by + bh + 4, bx + 42, by + bh - 18);
+    this.profText = this.add.text(bx + 18, by + 14, '', {
+      fontSize: '14px', color: '#1a2a4a',
+      wordWrap: { width: bw - 36, useAdvancedWrap: true }, lineSpacing: 6,
     }).setDepth(6);
+    this.profAdvance = this.add.text(bx + bw - 18, by + bh - 14, '▼  ENTER', {
+      fontSize: '11px', color: '#315886', fontStyle: 'bold',
+    }).setOrigin(1, 1).setDepth(7).setVisible(false).setData('baseY', by + bh - 14);
   }
 
   // ── Cards ─────────────────────────────────────────────────────────────────
@@ -134,6 +147,7 @@ export class StarterSelectScene extends Phaser.Scene {
         Phaser.Geom.Rectangle.Contains,
       );
       card.on('pointerdown', () => {
+        if (this.professorDialogueActive || this.transitioning) return;
         this.selectedIdx = i;
         this.refreshSelection(false);
       });
@@ -193,7 +207,7 @@ export class StarterSelectScene extends Phaser.Scene {
     this.flavText = this.add.text(400, 460, '', {
       fontSize: '12px', color: '#e8e0cc', wordWrap: { width: 760 }, align: 'center',
     }).setOrigin(0.5).setDepth(9);
-    this.add.text(400, 492, tr('◀ ▶ to browse     SPACE to choose'), {
+    this.add.text(400, 492, t('◀ ▶ to browse     SPACE / ENTER to choose', '◀ ▶ 둘러보기     SPACE / ENTER 선택'), {
       fontSize: '11px', color: '#ffe44e',
     }).setOrigin(0.5).setDepth(9);
   }
@@ -222,17 +236,24 @@ export class StarterSelectScene extends Phaser.Scene {
     this.leftKey  = kb.addKey(Phaser.Input.Keyboard.KeyCodes.LEFT);
     this.rightKey = kb.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT);
     this.spaceKey = kb.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    this.enterKey = kb.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
     this.upKey    = kb.addKey(Phaser.Input.Keyboard.KeyCodes.UP);
     this.downKey  = kb.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN);
   }
 
   update() {
+    const advancePressed = Phaser.Input.Keyboard.JustDown(this.spaceKey)
+      || Phaser.Input.Keyboard.JustDown(this.enterKey);
+    if (this.professorDialogueActive) {
+      if (advancePressed) this.advanceProfessorDialogue();
+      return;
+    }
     if (this.confirming) {
       if (Phaser.Input.Keyboard.JustDown(this.leftKey) || Phaser.Input.Keyboard.JustDown(this.rightKey)) {
         this.confirmIdx = this.confirmIdx === 0 ? 1 : 0;
         this.refreshConfirm();
       }
-      if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) this.handleConfirm();
+      if (advancePressed) this.handleConfirm();
       return;
     }
     if (Phaser.Input.Keyboard.JustDown(this.leftKey)) {
@@ -243,7 +264,7 @@ export class StarterSelectScene extends Phaser.Scene {
       this.selectedIdx = Math.min(STARTERS.length - 1, this.selectedIdx + 1);
       this.refreshSelection(true);
     }
-    if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) this.openConfirm();
+    if (advancePressed) this.openConfirm();
   }
 
   // ── Selection refresh ─────────────────────────────────────────────────────
@@ -272,6 +293,7 @@ export class StarterSelectScene extends Phaser.Scene {
   }
 
   private openConfirm() {
+    if (this.professorDialogueActive || this.transitioning) return;
     const s = STARTERS[this.selectedIdx];
     this.confirming = true;
     this.confirmIdx = 0;
@@ -329,10 +351,8 @@ export class StarterSelectScene extends Phaser.Scene {
     this.registry.set('rivalKey',  rival.spriteKey);
     this.registry.set('rivalName', rivalTrainerName(this.registry));   // 'Minhyuk' (male) / 'Soohyun' (female)
 
-    this.typewriterText(
-      this.profText,
-      `Prof. Song: Excellent choice! ${chosen.data.name} is happy to travel with you.\nAnd take this — your very own Pokédex! Press M, open your BAG,\nand select the Pokémon Encyclopedia to study every Pokémon you meet.`,
-      22,
+    this.showProfessorDialogue(
+      [`Prof. Song: Excellent choice! ${chosen.data.name} is happy to travel with you.\nAnd take this — your very own Pokédex! Press M, open your BAG,\nand select the Pokémon Encyclopedia to study every Pokémon you meet.`],
       () => {
         this.cameras.main.fadeOut(400, 0, 0, 0, () => {
           this.scene.start('PokemonLabScene');   // back into the lab — Song is right there
@@ -343,20 +363,89 @@ export class StarterSelectScene extends Phaser.Scene {
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
-  private typewriterText(target: Phaser.GameObjects.Text, text: string, delay: number, onDone?: () => void) {
-    text = tr(text);
-    target.setText('');
-    let i = 0;
-    const ev = this.time.addEvent({
-      delay,
-      repeat: text.length - 1,
+  private showProfessorDialogue(lines: string[], onDone?: () => void): void {
+    this.professorTimer?.destroy();
+    this.hideProfessorAdvance();
+    this.professorPages = lines.map(tr).flatMap(line => this.paginateProfessorLine(line));
+    this.professorPageIdx = -1;
+    this.professorDialogueActive = true;
+    this.professorTyping = false;
+    this.professorOnDone = onDone;
+    this.showNextProfessorPage();
+  }
+
+  private paginateProfessorLine(line: string): string[] {
+    const wrapped = this.profText.getWrappedText(line);
+    const maxLines = 4;
+    const pages: string[] = [];
+    for (let i = 0; i < wrapped.length; i += maxLines) {
+      pages.push(wrapped.slice(i, i + maxLines).join('\n'));
+    }
+    return pages.length ? pages : [''];
+  }
+
+  private showNextProfessorPage(): void {
+    this.hideProfessorAdvance();
+    this.professorPageIdx++;
+    if (this.professorPageIdx >= this.professorPages.length) {
+      this.professorDialogueActive = false;
+      this.professorTyping = false;
+      const done = this.professorOnDone;
+      this.professorOnDone = undefined;
+      done?.();
+      return;
+    }
+
+    this.professorFullPage = this.professorPages[this.professorPageIdx];
+    this.professorTyping = true;
+    this.profText.setText('');
+    let charIdx = 0;
+    this.professorTimer?.destroy();
+    this.professorTimer = this.time.addEvent({
+      delay: 22,
+      repeat: Math.max(0, this.professorFullPage.length - 1),
       callback: () => {
-        target.setText(text.slice(0, ++i));
-        if (i >= text.length && onDone) {
-          ev.destroy();
-          this.time.delayedCall(500, onDone); // short pause after last char
+        this.profText.setText(this.professorFullPage.slice(0, ++charIdx));
+        if (charIdx >= this.professorFullPage.length) {
+          this.professorTimer?.destroy();
+          this.professorTyping = false;
+          this.showProfessorAdvance();
         }
       },
     });
+  }
+
+  private advanceProfessorDialogue(): void {
+    if (this.professorTyping) {
+      this.professorTimer?.destroy();
+      this.profText.setText(this.professorFullPage);
+      this.professorTyping = false;
+      this.showProfessorAdvance();
+      return;
+    }
+    this.showNextProfessorPage();
+  }
+
+  private showProfessorAdvance(): void {
+    const baseY = this.profAdvance.getData('baseY') as number;
+    this.profAdvance.setY(baseY).setVisible(true).setAlpha(1);
+    this.professorArrowTween?.destroy();
+    this.professorArrowTween = this.tweens.add({
+      targets: this.profAdvance,
+      y: this.profAdvance.y + 3,
+      alpha: 0.55,
+      duration: 420,
+      yoyo: true,
+      repeat: -1,
+    });
+  }
+
+  private hideProfessorAdvance(): void {
+    this.professorArrowTween?.destroy();
+    this.professorArrowTween = undefined;
+    if (this.profAdvance) {
+      const baseY = this.profAdvance.getData('baseY') as number;
+      this.profAdvance.setY(baseY).setVisible(false).setAlpha(1);
+    }
   }
 }

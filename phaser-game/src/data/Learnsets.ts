@@ -112,7 +112,13 @@ export interface LearnEntry { level: number; move: MoveData; }
 const OVERRIDES: Record<string, LearnEntry[]> = {
   // Starter utility moves arrive only after their first low-power STAB.
   munkain:    [{ level: 9, move: S('Synthesis', 'grass', 5) }],
-  vipour:     [{ level: 9, move: S('Smokescreen', 'normal', 20) }],
+  // Vipour must be able to damage the rival's Ghost-type Onnurian in the
+  // opening battle. Poison Sting is deliberately weak, but gives it a legal
+  // STAB attack from Lv.1 instead of leaving it with immune Normal-only damage.
+  vipour:     [
+    { level: 1, move: M('Poison Sting', 'poison', 'physical', 35, 100, 30) },
+    { level: 9, move: S('Smokescreen', 'normal', 20) },
+  ],
   onnurian:   [{ level: 9, move: S('Mist', 'ice', 30) }],
   feldaconda: [{ level: 38, move: M('Earth Power', 'ground', 'special', 90, 100) }], // extra Ground coverage
   // The three final starter evolutions unlock their signature moves together at
