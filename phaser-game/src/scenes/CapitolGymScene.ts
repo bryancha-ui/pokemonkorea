@@ -193,9 +193,9 @@ export class CapitolGymScene extends Phaser.Scene {
   }
 
   private drawTrainers() {
-    for (const tr of this.trainers) {
-      if (tr.defeated && vanishesAfterDefeat(tr.key)) continue;
-      const x = tr.col * IT + IT / 2, y = tr.row * IT + IT / 2;
+    for (const t of this.trainers) {
+      if (t.defeated && vanishesAfterDefeat(t.key)) continue;
+      const x = t.col * IT + IT / 2, y = t.row * IT + IT / 2;
       const g = this.add.graphics().setDepth(10);
       g.setPosition(x, y);
       // Shadow-styled trainer
@@ -211,7 +211,8 @@ export class CapitolGymScene extends Phaser.Scene {
         footY: 13, outfitStyle: 'uniform',
       });
 
-      this.add.text(x, y - 28, tr.name.split(' ').pop() ?? tr.name, {
+      // Translate the short name (e.g. Jaemin → 재민) via the i18n table.
+      this.add.text(x, y - 28, tr(t.name.split(' ').pop() ?? t.name), {
         fontSize: '8px', color: '#cc88ff', backgroundColor: '#00000088', padding: { x: 2, y: 1 },
       }).setOrigin(0.5).setDepth(11);
     }
@@ -280,23 +281,23 @@ export class CapitolGymScene extends Phaser.Scene {
 
   private checkTrainers() {
     // ── Sync defeated flags FIRST so the distance check sees up-to-date state ──
-    for (const tr of this.trainers) {
-      if (!tr.defeated && !!this.registry.get(`trainerDefeated_${tr.key}`)) {
-        tr.defeated = true;
+    for (const t of this.trainers) {
+      if (!t.defeated && !!this.registry.get(`trainerDefeated_${t.key}`)) {
+        t.defeated = true;
       }
     }
 
     // ── Then check proximity ──
-    for (const tr of this.trainers) {
-      if (tr.defeated) continue;
-      const tx = tr.col * IT + IT / 2, ty = tr.row * IT + IT / 2;
+    for (const t of this.trainers) {
+      if (t.defeated) continue;
+      const tx = t.col * IT + IT / 2, ty = t.row * IT + IT / 2;
       if (Math.hypot(this.px - tx, this.py - ty) < IT * 1.4) {
         this.cutsceneActive = true;
-        this.dialog.show([tr.line, `${tr.name}: Prepare yourself!`], () => {
-          this.registry.set('trainerName',        tr.name);
-          this.registry.set('trainerKey',         tr.key);
-          this.registry.set('trainerPokemon',     JSON.stringify(tr.pokemon));
-          this.registry.set('trainerExpPool',     tr.expPool);
+        this.dialog.show([t.line, `${tr(t.name)}: Prepare yourself!`], () => {
+          this.registry.set('trainerName',        tr(t.name));
+          this.registry.set('trainerKey',         t.key);
+          this.registry.set('trainerPokemon',     JSON.stringify(t.pokemon));
+          this.registry.set('trainerExpPool',     t.expPool);
           this.registry.set('trainerReturnScene', 'CapitolGymScene');
           this.registry.set('gymPosX', this.px); this.registry.set('gymPosY', this.py);
           this.registry.set('capitalReturnX',     this.px);
