@@ -152,10 +152,17 @@ export function releasePropGpuResources(): void {
 }
 
 function propAllowed(def: PropDef): boolean {
-  // The authored dolmen is a repeated landmark rather than a disposable city
-  // decoration. Keep the existing GLB enabled on phones as well; getProp caches
-  // one normalized model and clones it for the remaining placements.
-  return allowsHeavy3DAssets() || def.id === 'dolmen' || !/^https?:/i.test(def.url ?? '');
+  // Vendored local assets always load.
+  if (!/^https?:/i.test(def.url ?? '')) return true;
+  // Authored building / scenery props are only ~1–5 MB each (versus the 40–59 MB
+  // creature GLBs the mobile heavy-asset gate really protects against), and
+  // getProp caches one normalized model per id, clones it for every placement
+  // (shared geometry/material) and LRU-caps distinct props at 10. Gating them off
+  // on phones left cities showing only the grey procedural-extrusion fallback,
+  // so keep the Higgsfield buildings/scenery on mobile too. Only heavier remote
+  // roles (e.g. vehicles) stay behind the memory gate.
+  if (def.role === 'building' || def.role === 'scenery') return true;
+  return allowsHeavy3DAssets() || def.id === 'dolmen';
 }
 
 function trimPropCache(except: string): void {
