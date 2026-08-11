@@ -37,6 +37,10 @@ export class GymLeaderBattleScene extends Phaser.Scene {
   private enemy!: Pokemon;
   private activeSlot = 0;
   private participants = new Set<number>([0]);
+  // Guards playerFainted against a duplicate trigger for the same KO (e.g. a
+  // double-fired dialog advance). Without it, the second call runs after the
+  // switch-in, zeroes the freshly sent-in Pokémon and falsely reports a wipe.
+  private resolvingFaint = false;
 
   // Leader's team (Umbreon → Murkrow → Corrpanda)
   private leaderTeam: Pokemon[] = [];
@@ -600,6 +604,8 @@ export class GymLeaderBattleScene extends Phaser.Scene {
   }
 
   private playerFainted() {
+    if (this.resolvingFaint) return;   // a duplicate trigger for the same KO — ignore
+    this.resolvingFaint = true;
     const party = PartySystem.get(this.registry);
     if (party[this.activeSlot]) { party[this.activeSlot].hp = 0; PartySystem.set(this.registry, party); }
     const nextIdx = party.findIndex((e, i) => i !== this.activeSlot && e && e.hp > 0);
@@ -628,6 +634,7 @@ export class GymLeaderBattleScene extends Phaser.Scene {
     this.tweens.add({
       targets: this.playerSprite, alpha: 1, x: 220, y: 310, duration: 400,
       onComplete: () => {
+        this.resolvingFaint = false;   // switch-in done — ready for the next KO
         this.typeDialog(`Go, ${pokeNameEn(this.player.name).toUpperCase()}!`, () => this.playerAction());
       },
     });

@@ -63,6 +63,9 @@ export class RivalBattleScene extends Phaser.Scene {
   private HP_BAR_W = 200;   // widened on mobile to fill the enlarged name box
   private activeSlot = 0;
   private participants = new Set<number>([0]);
+  // Guards rivalSendNextOrLose against a duplicate trigger for the same KO, which
+  // would otherwise zero the freshly sent-in Pokémon and falsely report a wipe.
+  private resolvingFaint = false;
 
   constructor() { super('RivalBattleScene'); }
 
@@ -614,6 +617,8 @@ export class RivalBattleScene extends Phaser.Scene {
   }
 
   private rivalSendNextOrLose() {
+    if (this.resolvingFaint) return;   // a duplicate trigger for the same KO — ignore
+    this.resolvingFaint = true;
     const party = PartySystem.get(this.registry);
     if (party[this.activeSlot]) { party[this.activeSlot].hp = 0; PartySystem.set(this.registry, party); }
 
@@ -638,6 +643,7 @@ export class RivalBattleScene extends Phaser.Scene {
     this.tweens.add({
       targets: this.playerSprite, alpha: 1, x: 200, y: 258, duration: 400,
       onComplete: () => {
+        this.resolvingFaint = false;   // switch-in done — ready for the next KO
         this.typeDialog(`Go, ${this.player.name}!`, () => this.playerAction());
       },
     });
