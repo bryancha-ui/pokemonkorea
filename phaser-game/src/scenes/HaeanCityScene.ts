@@ -286,10 +286,18 @@ export class HaeanCityScene extends Phaser.Scene {
     if (!Phaser.Input.Keyboard.JustDown(this.spaceKey)) return;
     if (nearRival) {
       this.cutsceneActive = true;
-      this.dialog.show([
-        "Rival: Haggling for a fresh-caught water Pokémon. The market here is unreal.",
-        "Rival: Win the Tidal Arena badge — then we figure out where 노스단 hauled those sealed containers.",
-      ], () => { this.cutsceneActive = false; });
+      // Post-league the 노스단 container hunt is long resolved, so drop the stale
+      // "win the Tidal badge" quest hint for a Champion-era line instead.
+      const rivalLines = this.registry.get('championDefeated')
+        ? [
+            "Rival: The Champion, back haggling at the Haean market like old times.",
+            "Rival: 노스단, the vents, all of it — we saw it through. Nothing left to chase but a rematch someday.",
+          ]
+        : [
+            "Rival: Haggling for a fresh-caught water Pokémon. The market here is unreal.",
+            "Rival: Win the Tidal Arena badge — then we figure out where 노스단 hauled those sealed containers.",
+          ];
+      this.dialog.show(rivalLines, () => { this.cutsceneActive = false; });
       return;
     }
     if (nearDosik) {

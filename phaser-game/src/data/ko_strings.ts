@@ -2824,6 +2824,8 @@ export const KO_STRINGS: Record<string, string> = {
   "Scholar: They say a hidden move-tutor once studied at this very table.": "학자: 숨은 기술 전수자가 바로 이 탁자에서 공부한 적이 있다더군요.",
   "Scholar: Knowledge is the sharpest move of all. Ha!": "학자: 지식이야말로 가장 예리한 기술이지요. 하하!",
   "Rival: Win the Tidal Arena badge — then we figure out where 노스단 hauled those sealed containers.": "라이벌: 조수 투기장 배지를 따 — 그다음 노스단이 그 봉인된 컨테이너들을 어디로 실어 갔는지 알아내자.",
+  "Rival: The Champion, back haggling at the Haean market like old times.": "라이벌: 챔피언이 옛날처럼 해안시티 시장에서 흥정이나 하고 있네.",
+  "Rival: 노스단, the vents, all of it — we saw it through. Nothing left to chase but a rematch someday.": "라이벌: 노스단도, 분화구도, 전부 — 우리가 끝까지 해냈지. 이제 남은 건 언젠가의 재대결뿐이야.",
   "You arrived at Pine Needle Town (솔잎 마을).": "너는 솔잎 마을에 도착했다.",
   "You lay your hand on the 고대 제단 (Ancient Altar). The stone is ice-cold, but it does not respond.": "너는 고대 제단에 손을 얹는다. 돌은 얼음처럼 차갑지만, 아무런 반응이 없다.",
   "So the Inspectorate's dog reaches the very peak. Beyond lies Samho — and 노스단's road to the sacred mountain. You go no further!": "어사대의 개가 기어이 정상까지 왔군. 그 너머엔 삼호가 — 그리고 신성한 산으로 향하는 노스단의 길이 있다. 더는 못 간다!",
