@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { tr } from '../systems/i18n';
+import { t, tr, getLang } from '../systems/i18n';
 import { REGION_NODES, RegionNode, nodeForScene, visitedNodeIds, FLY_MOVE } from '../data/RegionMap';
 import { PartySystem } from '../systems/PartySystem';
 import { canEnterPyeongseong } from '../data/Mapae';
@@ -102,12 +102,14 @@ export class RegionMapScene extends Phaser.Scene {
     this.drawNodes(currentNode);
 
     // ── Header ────────────────────────────────────────────────────────────────
-    this.add.text(W / 2, 46, tr('🗺️  ONNURI REGION MAP  ·  온누리 지역 지도'), {
+    this.add.text(W / 2, 46, t('🗺️  ONNURI REGION MAP', '🗺️  온누리 지역 지도'), {
       fontSize: '24px', color: '#ffe44e', fontStyle: 'bold', stroke: '#221133', strokeThickness: 4,
     }).setOrigin(0.5);
 
     if (currentNode) {
-      this.add.text(W / 2, 82, `📍 You are here — ${currentNode.name} (${currentNode.kr})`, {
+      // Show only the active language's place name — not both — to keep it clean.
+      const here = getLang() === 'ko' ? currentNode.kr : currentNode.name;
+      this.add.text(W / 2, 82, t(`📍 You are here — ${here}`, `📍 현재 위치 — ${here}`), {
         fontSize: '15px', color: '#aef0ff',
       }).setOrigin(0.5);
     }
@@ -180,16 +182,16 @@ export class RegionMapScene extends Phaser.Scene {
         });
       }
 
-      // Label (cities named, routes just show the dot to avoid clutter)
+      // Label (cities named, routes just show the dot to avoid clutter).
+      // Show ONLY the active language's name — drawing both KO and EN made the
+      // dense map overlap and read as cluttered.
       if (isCity) {
         const nameColor = flyTarget ? '#ffe44e' : visited ? '#ffffff' : '#8894a4';
-        this.add.text(x, y - r - 4, n.name, {
-          fontSize: '12px', color: nameColor, fontStyle: 'bold',
+        const label = getLang() === 'ko' ? n.kr : n.name;
+        this.add.text(x, y - r - 3, label, {
+          fontSize: '11px', color: nameColor, fontStyle: 'bold',
           stroke: '#000', strokeThickness: 3,
         }).setOrigin(0.5, 1).setAlpha(visited ? 1 : 0.7);
-        this.add.text(x, y + r + 2, n.kr, {
-          fontSize: '10px', color: visited ? '#cfe6ff' : '#8894a4', stroke: '#000', strokeThickness: 2,
-        }).setOrigin(0.5, 0).setAlpha(visited ? 1 : 0.7);
 
         // Clickable fly hotspot (visited fly targets only)
         if (flyTarget) {
@@ -262,7 +264,8 @@ export class RegionMapScene extends Phaser.Scene {
     c.add(this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.55));
     c.add(this.add.rectangle(W / 2, H / 2, 540, 280, 0x0d1830, 0.99).setStrokeStyle(2, 0x5599dd));
     c.add(this.add.text(W / 2, H / 2 - 75, tr('✈  FLY'), { fontSize: '18px', color: '#ffe44e', fontStyle: 'bold' }).setOrigin(0.5));
-    c.add(this.add.text(W / 2, H / 2 - 34, `Fly to ${node.name}?\n${node.kr}`, {
+    const flyTo = getLang() === 'ko' ? node.kr : node.name;
+    c.add(this.add.text(W / 2, H / 2 - 34, t(`Fly to ${flyTo}?`, `${flyTo}(으)로 날아갈까요?`), {
       fontSize: '15px', color: '#ffffff', align: 'center', lineSpacing: 6,
     }).setOrigin(0.5));
 

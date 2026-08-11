@@ -15,6 +15,7 @@ export const KO_TYPES: Record<string, string> = {
 export const KO_SPEAKERS: Record<string, string> = {
   'Prof. Song': '송 박사', 'Professor Song': '송 박사', 'Prof. Kim': '김 박사',
   'Rival': '라이벌', 'Mom': '엄마', 'Nurse Joy': '조이 간호사', 'Mart Clerk': '마트 점원',
+  'Minhyuk': '민혁', 'Soohyun': '수현',
   "Trainer's PC": '트레이너 PC', 'Ranger': '레인저', 'Ranger Sooyeon': '레인저 수연', 'Ranger Hyunwoo': '레인저 현우',
   'Byeoksan': '벽산', 'Leader Byeoksan': '관장 벽산', 'Champion Hwangeum': '챔피언 황금',
   'Taewang': '태왕', 'Sovereign Clemont': '군주 클레몽',

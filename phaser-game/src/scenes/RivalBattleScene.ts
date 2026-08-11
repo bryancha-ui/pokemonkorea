@@ -16,7 +16,7 @@ import { DexTracker } from '../systems/DexTracker';
 import { AVATAR_URL, playerAvatarKey, rivalAvatarKey } from '../data/PlayerAvatar';
 import { fitPortrait } from '../data/BattlePortraits';
 import { rivalTrainerName } from '../data/CharacterSprite';
-import { tr, pokeNameEn} from '../systems/i18n';
+import { t, tr, pokeNameEn, speakerName } from '../systems/i18n';
 import { fontScaleForScene } from '../systems/UiScale';
 import { genderedName } from '../data/PokemonGender';
 import { actsBefore } from '../systems/AbilitySystem';
@@ -133,9 +133,17 @@ export class RivalBattleScene extends Phaser.Scene {
     // The first rival also follows early progression. Grass gets a weak Rock
     // option beside Tackle so Hakdongja's Ghost typing is not a free immunity.
     const rivalDef = findForm(rivalKey) ?? STARTERS[2];
-    this.rival = new Pokemon(rivalDef.data, starterLevel,
-      enemyLearnset(rivalDef.startingMoves, rivalDef.spriteKey,
-        rivalDef.data.type1, rivalDef.data.type2, starterLevel));
+    let rivalMoves = enemyLearnset(rivalDef.startingMoves, rivalDef.spriteKey,
+      rivalDef.data.type1, rivalDef.data.type2, starterLevel);
+    // Against a Grass starter, the rival's Vipour gets BOTH Fire STAB and a
+    // super-effective Poison Sting, which spikes the opening difficulty. Drop the
+    // Poison Sting here so the rival still has its fair Fire-type edge but no extra
+    // Poison coverage. (A player-owned Vipour keeps Poison Sting for the Ghost matchup.)
+    if (rivalKey === 'vipour') {
+      const trimmed = rivalMoves.filter(m => m.name.toLowerCase() !== 'poison sting');
+      if (trimmed.length) rivalMoves = trimmed;
+    }
+    this.rival = new Pokemon(rivalDef.data, starterLevel, rivalMoves);
     DexTracker.markSeen(this.registry, rivalKey);
   }
 
@@ -695,7 +703,9 @@ export class RivalBattleScene extends Phaser.Scene {
     this.hideAllPanels();
 
     this.dialogText.setText(
-      `You lost...\n${this.rivalTName}: Don't give up. Come back stronger!\nMom healed your Pokémon at home.`,
+      `${t('You lost...', '패배했다...')}\n`
+      + `${speakerName(this.rivalTName)}: ${t("Don't give up. Come back stronger!", '포기하지 마. 더 강해져서 돌아와!')}\n`
+      + `${t('Mom healed your Pokémon at home.', '엄마가 집에서 포켓몬을 회복시켜 주었다.')}`,
     );
 
     this.registry.set('playerHealed', true);
