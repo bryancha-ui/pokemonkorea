@@ -128,6 +128,10 @@ export class ThreeStage {
     this.sun.shadow.mapSize.set(shadowSize, shadowSize);
     this.sun.shadow.bias = -0.00035;
     this.sun.shadow.normalBias = 0.035;
+    // Half-strength shadows: a building's cast shadow on an adjacent road read as
+    // hard black tiles (e.g. beside the So-ol Poké Mart). Softening keeps the 3D
+    // depth cue while the shadow blends to grey instead of near-black.
+    this.sun.shadow.intensity = 0.5;
     const shadowCam = this.sun.shadow.camera;
     shadowCam.left = shadowCam.bottom = -18;
     shadowCam.right = shadowCam.top = 18;
