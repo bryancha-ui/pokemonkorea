@@ -15,7 +15,10 @@ const T = {
   GRASS: 8, LIGHTHOUSE: 9, FLOWER: 10, PIER: 11, TREE: 12, OBSERVATORY: 13, STALL: 14, BOAT: 15,
 } as const;
 type Tile = typeof T[keyof typeof T];
-const TILE = 32, COLS = 40, ROWS = 28;
+// Sunrise City grew east into a working harbour. The original 40×28 town keeps
+// every coordinate it had (saves, spawns and exits are all row-based), and the
+// new columns 40-55 hold the quay, fish market and ferry berths.
+const TILE = 32, COLS = 56, ROWS = 28;
 const COLORS: Record<Tile, number> = {
   [T.ROCK]: 0x5a5058,  [T.PATH]: 0xc9bba4,  [T.BUILDING]: 0xe2d6c4, [T.SAND]: 0x2f2f38,
   [T.SEA]: 0x2a72b8,   [T.CLIFF]: 0x6a5f58, [T.LANTERN]: 0x9a7a4a,  [T.LOOKOUT]: 0xd8a85a,
@@ -72,6 +75,38 @@ function buildMap(): Tile[][] {
   // Stone lanterns — a pair framing the Gym gate, plus two along the boulevard
   for (const [r,c] of [[12,18],[12,22],[11,9],[11,29]] as [number,number][]) set(r, c, T.LANTERN);
 
+  // ══ EAST: the working harbour (cols 40-55) ═════════════════════════════════
+  // The clifftop lookout stops at the old town's edge; east of it the land
+  // drops to a sheltered basin where the fleet ties up.
+  fill(0, 6, 40, COLS, T.SEA);              // open water north of the breakwater
+  fill(6, 12, 40, COLS, T.PATH);            // quayside apron behind the market
+  fill(12, 16, 40, COLS - 1, T.PATH);       // boulevard continues as the quay road
+
+  // Harbour basin, dredged out of the shore and held by a breakwater arm.
+  fill(16, 25, 41, COLS - 4, T.SEA);
+  fill(15, 16, 40, COLS - 1, T.PIER);       // quay edge along the north bank
+  fill(16, 26, COLS - 4, COLS - 2, T.CLIFF);// breakwater arm (east)
+  fill(25, 26, 40, COLS, T.CLIFF);          // breakwater arm (south)
+
+  // Finger piers reaching into the basin, with berths for the boats.
+  fill(16, 23, 44, 46, T.PIER);
+  fill(16, 21, 50, 52, T.PIER);
+
+  // Harbour buildings along the apron.
+  fill(6, 11, 41, 47, T.BUILDING);          // Fish Market Hall
+  fill(6, 10, 49, 54, T.BUILDING);          // Ferry Terminal
+  set(11, 43, T.PATH); set(10, 51, T.PATH); // their doorways onto the apron
+
+  // Vendor stalls line the quay in front of the market hall.
+  fill(12, 13, 41, 47, T.STALL);
+
+  // Moored boats at the pier heads.
+  set(22, 44, T.BOAT); set(22, 45, T.BOAT);
+  set(20, 50, T.BOAT); set(20, 51, T.BOAT);
+
+  // Lanterns marking the quay road, and one at the breakwater root.
+  for (const [r,c] of [[14,41],[14,47],[14,53],[15,COLS-5]] as [number,number][]) set(r, c, T.LANTERN);
+
   return m;
 }
 
@@ -80,6 +115,9 @@ export class SunriseCityScene extends Phaser.Scene {
   public buildingPlots = [
     ...BUILDINGS.map((b, i) => ({ x: b.x, y: b.y, w: b.w, h: b.h, model: ['pokecenter', 'sunrisegym', 'mart'][i] })),
     { x: 3, y: 1, w: 2, h: 4, model: 'tower' },   // the clifftop lighthouse as a 3D tower
+    // ── Harbour landmarks ──
+    { x: 41, y: 6, w: 6, h: 5, model: 'jejumarket' },   // Fish Market Hall
+    { x: 49, y: 6, w: 5, h: 4, model: 'soolstation' },  // Ferry Terminal
   ];
   public onlyNamedBuildings = true;
   // The clifftop city has tall rock/edge tiles that otherwise extrude into walls
@@ -97,6 +135,71 @@ export class SunriseCityScene extends Phaser.Scene {
     // cols 8-9) render as flat brown ground in 3D, so drop a real 3D boat that
     // spans the 2-wide berth (x 8.5 → world centre 9.0 straddles both cols).
     { x: 8.5, y: 26, kind: 'boat' as const },
+
+    // ── Harbour: the fleet ──
+    { x: 43.5, y: 22, kind: 'boat' as const },
+    { x: 49.5, y: 20, kind: 'boat' as const, rot: 0.18 },
+    // Fish market row along the quay (in front of the market hall).
+    ...([41, 43, 45] as number[]).map(x => ({ x, y: 12, kind: 'fishstall' as const })),
+    // Quayside working clutter.
+    ...([[47, 12], [48, 15], [40, 15]] as [number, number][])
+      .map(([x, y]) => ({ x, y, kind: 'crates' as const })),
+    ...([[52, 12], [53, 15]] as [number, number][])
+      .map(([x, y]) => ({ x, y, kind: 'dryingrack' as const })),
+    ...([[46, 15], [51, 15], [42, 15]] as [number, number][])
+      .map(([x, y]) => ({ x, y, kind: 'net' as const })),
+    // Mooring bollards along the pier heads and quay edge.
+    ...([[44, 16], [45, 22], [50, 16], [51, 20], [47, 15], [41, 15]] as [number, number][])
+      .map(([x, y]) => ({ x, y, kind: 'bollard' as const })),
+    // Channel buoys marking the harbour entrance.
+    ...([[48, 24], [42, 24], [46, 19]] as [number, number][])
+      .map(([x, y]) => ({ x, y, kind: 'buoy' as const })),
+    // Lamps along the new quay road.
+    ...([[41, 14], [47, 14], [53, 14]] as [number, number][])
+      .map(([x, y]) => ({ x, y, kind: 'streetlamp' as const })),
+    // A second aisle of stalls on the apron in front of the market hall, so the
+    // quayside reads as a working market square rather than an empty forecourt.
+    ...([48, 50, 52] as number[]).map(x => ({ x, y: 11, kind: 'fishstall' as const })),
+    ...([[47, 10], [51, 10], [54, 11]] as [number, number][])
+      .map(([x, y]) => ({ x, y, kind: 'crates' as const })),
+    ...([[49, 13], [45, 10], [43, 15]] as [number, number][])
+      .map(([x, y]) => ({ x, y, kind: 'dryingrack' as const })),
+    ...([[40, 11], [44, 9], [52, 9]] as [number, number][])
+      .map(([x, y]) => ({ x, y, kind: 'net' as const })),
+    ...([[42, 9], [46, 9], [50, 9], [54, 9]] as [number, number][])
+      .map(([x, y]) => ({ x, y, kind: 'streetlamp' as const })),
+  ];
+
+  /** Decorative townsfolk — merchants working the fish market and locals out on
+   *  the quay. These are 3D-only: no collision, no dialogue, no save state. */
+  public crowdPlots = [
+    // Fishmongers standing behind their counters, facing the shoppers.
+    { x: 41, y: 11, look: 'merchant', rot: Math.PI, behaviour: 'stand' as const },
+    { x: 43, y: 11, look: 'merchant', rot: Math.PI, behaviour: 'stand' as const },
+    { x: 45, y: 11, look: 'merchant', rot: Math.PI, behaviour: 'stand' as const },
+    // Shoppers standing at the market row, facing the stalls.
+    { x: 41, y: 13, rot: Math.PI, behaviour: 'stand' as const },
+    { x: 44, y: 13, rot: Math.PI, behaviour: 'stand' as const },
+    // Fishers working the piers.
+    { x: 44, y: 18, look: 'fisher', rot: Math.PI / 2, behaviour: 'stand' as const },
+    { x: 50, y: 17, look: 'fisher', rot: -Math.PI / 2, behaviour: 'stand' as const },
+    // Locals standing along the quay road and the old boulevard.
+    { x: 48, y: 13, rot: Math.PI, behaviour: 'stand' as const },
+    { x: 30, y: 13, rot: Math.PI, behaviour: 'stand' as const },
+    { x: 12, y: 13, rot: Math.PI, behaviour: 'stand' as const },
+    // A couple taking in the view from the seaside park.
+    { x: 27, y: 18, rot: Math.PI, behaviour: 'stand' as const },
+    { x: 28, y: 18, rot: Math.PI, behaviour: 'stand' as const },
+    // The second market aisle: its own vendors and browsing customers.
+    { x: 48, y: 10, look: 'merchant', rot: Math.PI, behaviour: 'stand' as const },
+    { x: 50, y: 10, look: 'merchant', rot: Math.PI, behaviour: 'stand' as const },
+    { x: 52, y: 10, look: 'merchant', rot: Math.PI, behaviour: 'stand' as const },
+    { x: 47, y: 12, rot: Math.PI, behaviour: 'stand' as const },
+    { x: 42, y: 10, rot: Math.PI, behaviour: 'stand' as const },
+    { x: 53, y: 12, rot: -Math.PI / 2, behaviour: 'stand' as const },
+    // Porters standing with the catch between the hall and the boats.
+    { x: 45, y: 14, look: 'fisher', rot: 0, behaviour: 'stand' as const },
+    { x: 51, y: 14, look: 'fisher', rot: 0, behaviour: 'stand' as const },
   ];
   private playerG!: Phaser.GameObjects.Graphics;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -200,11 +303,8 @@ export class SunriseCityScene extends Phaser.Scene {
       lm.fillStyle(0xaeb6c2); lm.fillEllipse(x + w / 2, y + TILE, w - 6, TILE * 1.4);
       lm.fillStyle(0x2a2f3a); lm.fillRect(x + w / 2 - 3, y + 4, 6, TILE);    // dome slit
       lm.fillStyle(0xffffff, 0.4); lm.fillEllipse(x + w / 2 - 8, y + TILE - 6, 14, 10); }
-    // Moored boat at the pier (row 26, cols 8-9)
-    { const x = 8 * TILE, y = 26 * TILE, w = 2 * TILE;
-      lm.fillStyle(0x7a4a2a); lm.fillEllipse(x + w / 2, y + 18, w - 4, 20);
-      lm.fillStyle(0x9a6a3a); lm.fillRect(x + 6, y + 6, w - 12, 10);
-      lm.fillStyle(0xeeeeee); lm.fillTriangle(x + w / 2, y - 12, x + w / 2, y + 8, x + w / 2 + 16, y + 4); }   // sail
+    // The moored pier boat (row 26, cols 8-9) is now a real 3D model (see the
+    // 'boat' propPlot), so its flat 2D hull/sail drawing is intentionally gone.
 
     // ── Enterable buildings ──
     const bg = this.add.graphics().setDepth(2);
