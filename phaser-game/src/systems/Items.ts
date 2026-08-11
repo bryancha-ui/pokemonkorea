@@ -7,7 +7,7 @@ import Phaser from 'phaser';
 import { TMS } from '../data/TMs';
 import { t, tr } from './i18n';
 
-export type ItemCategory = 'heal' | 'status' | 'revive' | 'ball' | 'hm' | 'ppheal' | 'souvenir';
+export type ItemCategory = 'heal' | 'status' | 'revive' | 'ball' | 'hm' | 'ppheal' | 'souvenir' | 'key';
 
 export interface ItemDef {
   key:      string;
@@ -45,6 +45,8 @@ export const ITEMS: ItemDef[] = [
   { key: 'ether',       name: 'Ether',        icon: '🧴', price: 1200, category: 'ppheal', desc: 'Restores 20 PP to each of a Pokémon\'s moves.', ppRestore: 20 },
   { key: 'elixir',      name: 'Elixir',       icon: '🍶', price: 2500, category: 'ppheal', desc: 'Fully restores the PP of all of a Pokémon\'s moves.', ppRestore: 9999 },
   { key: 'hm_fly',      name: 'HM01 · Fly',   icon: '✈️', price: 0,    category: 'hm',     desc: 'Teach Fly to a Flying-type Pokémon. Reusable.', move: 'Fly', learnTypes: ['flying'] },
+  // Key item — Prof. Song's gift. While carried, the whole party shares battle EXP.
+  { key: 'expshare',    name: 'Exp. Share',   icon: '📡', price: 0,    category: 'key',    desc: 'Shares battle EXP with every Pokémon in your party, even benched ones.' },
   // ── Food-court drinks & snacks (Dept. Store 5F) ──
   { key: 'freshwater',  name: 'Fresh Water',  icon: '💧', price: 200,  category: 'heal',   desc: 'Mountain spring water. Restores 30 HP.',  heal: 30 },
   { key: 'sodapop',     name: 'Soda Pop',     icon: '🥤', price: 300,  category: 'heal',   desc: 'A fizzy soft drink. Restores 60 HP.',     heal: 60 },
@@ -138,6 +140,13 @@ export const Inventory = {
 
   /** One-time starter kit + sync legacy pokeballs into the inventory. */
   ensureInit(registry: Phaser.Data.DataManager): void {
+    // Retroactively hand Prof. Song's Exp. Share to saves created before it
+    // existed: any game that already left the lab (has a party) gets it once.
+    // New games skip the grant here and receive it from the starter scene.
+    if (!registry.get('expshareGranted')) {
+      registry.set('expshareGranted', true);
+      if (PartySystem.get(registry).some(Boolean)) this.add(registry, 'expshare');
+    }
     if (registry.get('inventoryInit')) {
       // keep legacy pokeballs count in sync if it grew elsewhere (e.g. Kisun gift)
       const legacy = (registry.get('pokeballs') as number) ?? 0;
@@ -157,6 +166,17 @@ export const Inventory = {
 
 export function formatMoney(n: number): string {
   return `₩${n.toLocaleString('ko-KR')}`;
+}
+
+/** True once Prof. Song's Exp. Share has been received (it lives in the bag). */
+export function expShareOwned(registry: Phaser.Data.DataManager): boolean {
+  return Inventory.count(registry, 'expshare') > 0;
+}
+
+/** True when the Exp. Share is owned AND switched on — the whole party then
+ *  shares battle EXP (see awardBenchExp). Toggled from the BAG. */
+export function expShareActive(registry: Phaser.Data.DataManager): boolean {
+  return expShareOwned(registry) && !registry.get('expShareOff');
 }
 
 import { PartySystem, PartyEntry } from './PartySystem';

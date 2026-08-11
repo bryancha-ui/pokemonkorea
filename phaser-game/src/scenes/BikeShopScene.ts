@@ -146,7 +146,7 @@ export class BikeShopScene extends Phaser.Scene {
     if (!hasBike(this.registry)) {
       giveBike(this.registry);
       this.dialog.show([
-        'Shop Clerk: A visiting Champion at MY little shop? An honour — take a Bicycle, on the house.',
+        'Shop Clerk: Off on your first big journey? Come on in — take a Bicycle, on the house.',
         '🚲 You received the Bicycle!',
         'Shop Clerk: Press C out on the road to hop on. The riverside path runs all the way to the bridge — enjoy the ride!',
       ], () => { this.cutsceneActive = false; });

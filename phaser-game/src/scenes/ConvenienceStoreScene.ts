@@ -24,8 +24,11 @@ function buildMap(): Tile[][] {
   fill(0, ROWS, 0, 1, T.WALL); fill(0, ROWS, COLS - 1, COLS, T.WALL); fill(0, 1, 0, COLS, T.WALL);
   fill(ROWS - 1, ROWS, 0, 8, T.WALL); fill(ROWS - 1, ROWS, 10, COLS, T.WALL);   // bottom wall w/ exit (cols 8-9)
   fill(2, 4, 10, 16, T.COUNTER);        // checkout counter (right)
-  fill(4, 5, 3, 15, T.SHELF);           // aisle shelves
-  fill(7, 8, 3, 15, T.SHELF);
+  // Aisle shelves. The upper row must NOT run in front of the checkout (cols
+  // 10-15): a shelf there walled the clerk off so the player could never get
+  // within interaction range and the shop never opened. Leave that span open.
+  fill(4, 5, 3, 10, T.SHELF);           // upper aisle (stops before the counter)
+  fill(7, 8, 3, 15, T.SHELF);           // lower aisle
   fill(2, 6, 1, 3, T.FRIDGE);           // drinks fridges along the left wall
   return m;
 }

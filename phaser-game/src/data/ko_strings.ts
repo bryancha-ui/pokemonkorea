@@ -2585,8 +2585,8 @@ export const KO_STRINGS: Record<string, string> = {
 
   // ── Han River shops (bike / store / dept) + park ──
   'SPACE — talk to Shop Clerk': 'SPACE — 가게 점원과 대화',
-  'Shop Clerk: A visiting Champion at MY little shop? An honour — take a Bicycle, on the house.':
-    '가게 점원: 내 작은 가게에 챔피언이 오시다니? 영광이에요 — 자전거 하나 가져가세요, 무료로.',
+  'Shop Clerk: Off on your first big journey? Come on in — take a Bicycle, on the house.':
+    '가게 점원: 첫 여정을 떠나시나 봐요? 어서 들어오세요 — 자전거 하나 가져가세요, 무료로.',
   '🚲 You received the Bicycle!': '🚲 자전거를 받았다!',
   'Shop Clerk: Press C out on the road to hop on. The riverside path runs all the way to the bridge — enjoy the ride!':
     '가게 점원: 길에서 C를 눌러 올라타세요. 강변길이 다리까지 쭉 이어져요 — 즐거운 라이딩 되세요!',
@@ -2901,6 +2901,8 @@ export const KO_STRINGS: Record<string, string> = {
   "Restores 20 PP to each of a Pokémon's moves.": "포켓몬의 각 기술 PP를 20씩 회복한다.",
   "Fully restores the PP of all of a Pokémon's moves.": "포켓몬의 모든 기술 PP를 완전히 회복한다.",
   "Teach Fly to a Flying-type Pokémon. Reusable.": "비행타입 포켓몬에게 공중날기를 가르친다. 재사용 가능.",
+  "Exp. Share": "학습장치",
+  "Shares battle EXP with every Pokémon in your party, even benched ones.": "배틀에서 얻은 경험치를 파티의 모든 포켓몬과 나눈다. 벤치에 있는 포켓몬도 포함.",
   "Mountain spring water. Restores 30 HP.": "산속 샘물. HP를 30 회복한다.",
   "A fizzy soft drink. Restores 60 HP.": "톡 쏘는 청량음료. HP를 60 회복한다.",
   "A sweet-tart cooler. Restores 90 HP.": "새콤달콤한 음료. HP를 90 회복한다.",

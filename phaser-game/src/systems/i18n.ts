@@ -246,10 +246,10 @@ const OFFICIAL_POKE_KR: Record<string, string> = {
   'Metapod': '단데기', 'Milotic': '밀로틱', 'Miltank': '밀탱크', 'Misdreavus': '무우마',
   'Mismagius': '무우마직', 'Murkrow': '니로우', 'Noctowl': '야부엉', 'Octillery': '대포무노',
   'Oddish': '뚜벅쵸', 'Onix': '롱스톤', 'Overqwil': '장침바루', 'Pelipper': '패리퍼',
-  'Pidgey': '구구', 'Piloswine': '메꾸리', 'Poliwrath': '강챙이', 'Poochyena': '포챠나',
+  'Pichu': '피츄', 'Pidgey': '구구', 'Pikachu': '피카츄', 'Piloswine': '메꾸리', 'Poliwrath': '강챙이', 'Poochyena': '포챠나',
   'Primarina': '누리레느', 'Primeape': '성원숭', 'Quagsire': '누오', 'Quaquaval': '웨이니발',
   'Quaxly': '꾸왁스', 'Quaxwell': '아꾸왁', 'Qwilfish': '침바루', 'Rattata': '꼬렛',
-  'Rayquaza': '레쿠쟈', 'Rhydon': '코뿌리', 'Rhyhorn': '뿔카노', 'Rhyperior': '거대코뿌리',
+  'Raichu': '라이츄', 'Rayquaza': '레쿠쟈', 'Rhydon': '코뿌리', 'Rhyhorn': '뿔카노', 'Rhyperior': '거대코뿌리',
   'Riolu': '리오르', 'Roselia': '로젤리아', 'Roserade': '로즈레이드', 'Rotom': '로토무',
   'Sableye': '깜까미', 'Salamence': '보만다', 'Sandshrew': '모래두지', 'Sandslash': '고지',
   'Sawsbuck': '바라철록', 'Scrafty': '곤율거니', 'Seaking': '왕콘치', 'Sentret': '꼬리선',
@@ -477,6 +477,8 @@ const BATTLE_PATTERNS: Array<[RegExp, (m: RegExpMatchArray) => string]> = [
   // ── Starter select — Prof. Song hands over the Pokédex ──
   [/^Prof\. Song: Excellent choice! (.+) is happy to travel with you\.\nAnd take this — your very own Pokédex! Press M, open your BAG,\nand select the Pokémon Encyclopedia to study every Pokémon you meet\.$/,
     m => `송 박사: 훌륭한 선택이야! ${P(m[1])}(은)는 너와 함께 여행하게 되어 기뻐하고 있어.\n그리고 이걸 받아 — 너만의 포켓몬 도감이야! M을 눌러 가방을 열고,\n포켓몬 도감을 선택해 만나는 모든 포켓몬을 조사해봐.`],
+  [/^Prof\. Song: One more thing — take this Exp\. Share\.\nWhile it's ON, every Pokémon in your party gains EXP from battle,\neven benched ones\. Open your BAG anytime to switch it on or off\.$/,
+    () => `송 박사: 하나 더 — 이 학습장치를 받아.\n켜져 있는 동안엔 배틀에서 얻은 경험치를 파티의 모든 포켓몬이 나눠 받아,\n벤치에 있는 포켓몬도 말이야. 가방에서 언제든 켜고 끌 수 있어.`],
   // ── EXP-to-next-level suffix + map / city signposts ──
   [/^([\s\S]+)  \((\d+) to next level\)$/, m => `${tr(m[1])}  (다음 레벨까지 ${m[2]})`],
   [/^📍 You are here — (.+) \((.+)\)$/, m => `📍 현재 위치 — ${m[2]}`],

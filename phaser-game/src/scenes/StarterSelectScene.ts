@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { STARTERS, StarterDef, TYPE_COLORS } from '../data/StarterData';
 import { PartySystem } from '../systems/PartySystem';
 import { DexTracker } from '../systems/DexTracker';
+import { Inventory } from '../systems/Items';
 import { rivalTrainerName } from '../data/CharacterSprite';
 import { t, tr, pokeNameEn, abilityName } from '../systems/i18n';
 
@@ -339,6 +340,9 @@ export class StarterSelectScene extends Phaser.Scene {
     DexTracker.grantPokedex(this.registry);
     DexTracker.markCaught(this.registry, chosen.spriteKey);
 
+    // …and her Exp. Share (학습장치): from now on the whole party shares battle EXP.
+    Inventory.add(this.registry, 'expshare');
+
     // Rival picks the type that beats the player's type
     // Water → Grass, Fire → Water, Grass → Fire
     const RIVAL_IDX: Record<string, number> = {
@@ -352,7 +356,8 @@ export class StarterSelectScene extends Phaser.Scene {
     this.registry.set('rivalName', rivalTrainerName(this.registry));   // 'Minhyuk' (male) / 'Soohyun' (female)
 
     this.showProfessorDialogue(
-      [`Prof. Song: Excellent choice! ${chosen.data.name} is happy to travel with you.\nAnd take this — your very own Pokédex! Press M, open your BAG,\nand select the Pokémon Encyclopedia to study every Pokémon you meet.`],
+      [`Prof. Song: Excellent choice! ${chosen.data.name} is happy to travel with you.\nAnd take this — your very own Pokédex! Press M, open your BAG,\nand select the Pokémon Encyclopedia to study every Pokémon you meet.`,
+       `Prof. Song: One more thing — take this Exp. Share.\nWhile it's ON, every Pokémon in your party gains EXP from battle,\neven benched ones. Open your BAG anytime to switch it on or off.`],
       () => {
         this.cameras.main.fadeOut(400, 0, 0, 0, () => {
           this.scene.start('PokemonLabScene');   // back into the lab — Song is right there

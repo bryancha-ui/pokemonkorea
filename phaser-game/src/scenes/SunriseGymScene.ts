@@ -112,7 +112,14 @@ export class SunriseGymScene extends Phaser.Scene {
       g.fillStyle(0xffe44e, 0.9); g.fillCircle(1 * IT + IT / 2, r * IT + IT / 2, 6);
       g.fillStyle(0x88ddff, 0.9); g.fillCircle((this.W - 2) * IT + IT / 2, r * IT + IT / 2, 6);
     }
-    g.fillStyle(0x2a3a6a); g.fillRect(4 * IT, IT, 8 * IT, IT * 1.4);
+    // Leader's storm podium. The 3D mirror bakes the whole map into one flat
+    // ground texture, so a dark-navy fill here read as a black blocking tile in
+    // front of Beonge under the gym's dim lighting. Paint it as a bright, clearly
+    // deliberate steel stage (lighter top face + thin front lip + glow trim) so it
+    // reads as a podium, not a void.
+    g.fillStyle(0x40608f); g.fillRect(4 * IT, IT, 8 * IT, IT * 1.4);            // stage top
+    g.fillStyle(0x4f74ac); g.fillRect(4 * IT, IT, 8 * IT, IT * 0.9);           // brighter upper face
+    g.fillStyle(0x2f466e); g.fillRect(4 * IT, IT + IT * 1.4 - 5, 8 * IT, 5);  // shadowed front lip
     g.lineStyle(2, 0xffe44e); g.strokeRect(4 * IT, IT, 8 * IT, IT * 1.4);
     g.fillStyle(0x6b4a28); g.fillRect(7 * IT, H - IT, 2 * IT, IT);
 

@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { BaseInteriorScene, NPC } from './BaseInteriorScene';
+import { PartySystem } from '../../systems/PartySystem';
 import { SaveManager } from '../../utils/SaveManager';
 
 export class PlayerHomeScene extends BaseInteriorScene {
@@ -128,6 +129,7 @@ export class PlayerHomeScene extends BaseInteriorScene {
       ], () => {
         this.dialog.showChoice(
           () => {
+            PartySystem.healAll(this.registry);
             this.registry.set('playerHealed', true);
             this.dialog.show([
               '...Your body feels refreshed!\nAll your Pokémon have been healed! ✨',
@@ -159,6 +161,7 @@ export class PlayerHomeScene extends BaseInteriorScene {
         ], () => {
           this.dialog.showChoice(
             () => {
+              PartySystem.healAll(this.registry);
               this.registry.set('playerHealed', true);
               this.dialog.show([
                 '...Your body feels refreshed!\nAll your Pokémon have been healed! ✨',
@@ -176,6 +179,7 @@ export class PlayerHomeScene extends BaseInteriorScene {
           () => {
             this.dialog.showChoice(
               () => {
+                PartySystem.healAll(this.registry);
                 this.registry.set('playerHealed', true);
                 this.dialog.show([
                   'Mom: Good. Rest well, honey.',

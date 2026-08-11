@@ -1012,6 +1012,49 @@ export function makeStall(): THREE.Group {
   return g;
 }
 
+/** A small moored wooden rowboat (나룻배): a tapered plank hull with a hollow
+ *  interior well, two seat thwarts and a pair of oars resting across the
+ *  gunwales. Built from primitives so it works offline. Long axis runs along X
+ *  (~2 tiles), so it spans a 2-wide pier berth without extra rotation. */
+export function makeBoat(): THREE.Group {
+  const g = new THREE.Group();
+  const hull = 0x7a4a2a, hullDark = 0x4f3320, seat = 0x8a5a34, oarWood = 0x9a6a3a;
+  const L = 1.9, W = 0.64, H = 0.3;
+  const top = 0.18 + H / 2;                                    // gunwale height
+  // Hull body — the surrounding rim reads as the gunwale once the well is inset.
+  const body = new THREE.Mesh(new THREE.BoxGeometry(L, H, W), toonMat(hull));
+  body.position.y = 0.18;
+  g.add(body);
+  // Pointed bow + stern: 4-sided cones (square pyramids) laid on their sides.
+  for (const dir of [1, -1]) {
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(W / 2, 0.5, 4), toonMat(hull));
+    tip.rotation.y = Math.PI / 4;                              // align square base with hull
+    tip.rotation.z = -dir * Math.PI / 2;                       // point along ±X
+    tip.position.set(dir * (L / 2 + 0.18), 0.18, 0);
+    g.add(tip);
+  }
+  // Hollow interior well (its open top sits flush with the gunwale).
+  const well = new THREE.Mesh(new THREE.BoxGeometry(L * 0.82, H * 0.7, W * 0.66), toonMat(hullDark));
+  well.position.y = top - (H * 0.7) / 2;
+  g.add(well);
+  // Two seat thwarts across the beam.
+  for (const x of [-0.42, 0.42]) {
+    const thwart = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.05, W * 0.9), toonMat(seat));
+    thwart.position.set(x, top - 0.02, 0);
+    g.add(thwart);
+  }
+  // A pair of oars laid across the gunwales, blades outboard.
+  for (const side of [-1, 1]) {
+    const oar = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 1.3, 6), toonMat(oarWood));
+    oar.rotation.z = Math.PI / 2; oar.rotation.y = 0.28 * side;
+    oar.position.set(0, top + 0.04, side * 0.16);
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.02, 0.12), toonMat(hullDark));
+    blade.position.set(side * 0.62, top + 0.04, side * 0.34);
+    g.add(oar, blade);
+  }
+  return g;
+}
+
 /** A vertical cascading waterfall: a tall water sheet with white flow streaks,
  *  a foam pool at the base and a rock ledge at the crest. Built from primitives
  *  (no external asset), so it works offline and reads as falling water. */

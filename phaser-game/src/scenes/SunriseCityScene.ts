@@ -93,6 +93,10 @@ export class SunriseCityScene extends Phaser.Scene {
       .map(([x, y]) => ({ x, y, kind: 'streetlamp' as const })),
     ...([[6, 17], [8, 17], [10, 17]] as [number, number][])
       .map(([x, y]) => ({ x, y, kind: 'stall' as const })),
+    // The moored rowboat (naruetbae) at the pier — the T.BOAT tiles (row 26,
+    // cols 8-9) render as flat brown ground in 3D, so drop a real 3D boat that
+    // spans the 2-wide berth (x 8.5 → world centre 9.0 straddles both cols).
+    { x: 8.5, y: 26, kind: 'boat' as const },
   ];
   private playerG!: Phaser.GameObjects.Graphics;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import {
   InstancedProp, WallBuilder, makeBronzeStatue, makeFlowers, makeGrandObelisk,
   makeCherryTree, makeFlowerBed, makeForestTree, makeGlowPlants, makeGrassTufts, makeIceStatue, makeMineCart, makePineTree, makePines, makePot, makeRailTrack,
-  makeRocks, makeScenicRock, makeGrandPalace, makeHanokPalace, makeMountainRange, makeNosdanHQ, makePalmTree, makePokemonCenter, makePokeMart, makeSacredPeakCloudSea, makeStall, makeStoneLantern, makeStoreFixture, makeStreetlamp, makeTrees, makeTriumphalArch, makeWater, makeWaterfall, makeWoodBridge, toonRamp,
+  makeRocks, makeScenicRock, makeGrandPalace, makeHanokPalace, makeMountainRange, makeNosdanHQ, makePalmTree, makePokemonCenter, makePokeMart, makeSacredPeakCloudSea, makeStall, makeStoneLantern, makeStoreFixture, makeStreetlamp, makeTrees, makeTriumphalArch, makeWater, makeWaterfall, makeWoodBridge, makeBoat, toonRamp,
   type StoreFixtureKind,
 } from './Props';
 import { buildCityDetail, CityTileSpec } from './CityDetail3D';
@@ -10,7 +10,7 @@ import { buildCityDetail, CityTileSpec } from './CityDetail3D';
 /** A decorative procedural prop the scene pins to an exact tile. */
 export interface PropPlot {
   x: number; y: number;
-  kind: 'tree' | 'pine' | 'palm' | 'lantern' | 'rock' | 'flower' | 'glowplant' | 'woodbridge' | 'icestatue' | 'rail' | 'obelisk' | 'statue' | 'arch' | 'pot' | 'streetlamp' | 'minecart' | 'cherry' | 'stall' | 'waterfall' | StoreFixtureKind;
+  kind: 'tree' | 'pine' | 'palm' | 'lantern' | 'rock' | 'flower' | 'glowplant' | 'woodbridge' | 'icestatue' | 'rail' | 'obelisk' | 'statue' | 'arch' | 'pot' | 'streetlamp' | 'minecart' | 'cherry' | 'stall' | 'waterfall' | 'boat' | StoreFixtureKind;
   scale?: number; rot?: number;
   len?: number;   // 'rail' span in tiles (laid along X, rotated by `rot`)
   w?: number; d?: number; color?: number; // authored interior-fixture footprint/theme
@@ -1206,7 +1206,8 @@ export function buildTerrain(
                       : p.kind === 'cherry' ? makeCherryTree()
                         : p.kind === 'stall' ? makeStall()
                           : p.kind === 'waterfall' ? makeWaterfall(p.len ?? 3)
-                            : makeIceStatue();
+                            : p.kind === 'boat' ? makeBoat()
+                              : makeIceStatue();
     obj.position.set(p.x + (storeFixture ? (p.w ?? 1) / 2 : 0.5), 0, p.y + (storeFixture ? (p.d ?? 1) / 2 : 0.5));
     if (p.scale) obj.scale.setScalar(p.scale);
     if (p.rot) obj.rotation.y = p.rot;

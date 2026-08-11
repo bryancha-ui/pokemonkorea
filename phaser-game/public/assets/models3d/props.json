@@ -3,31 +3,39 @@
     {
       "id": "home",
       "role": "building",
-      "tags": ["home"],
+      "tags": [
+        "home"
+      ],
       "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/5c8d3ebc-4b0d-4efc-b0da-bb902b5d402e.glb"
     },
     {
       "id": "rival",
       "role": "building",
-      "tags": ["home"],
+      "tags": [
+        "home"
+      ],
       "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/74f59825-3dcd-41da-9847-ed278f332f35.glb"
     },
     {
       "id": "lab",
       "role": "building",
-      "tags": ["lab"],
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/fa6c8385-b062-4202-a8c5-84c112059eb5.glb"
+      "tags": [
+        "lab"
+      ]
     },
     {
       "id": "pokecenter",
       "role": "building",
-      "tags": ["center"],
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/160ad098-d253-4c65-a00c-6b6f3907e220.glb"
+      "tags": [
+        "center"
+      ]
     },
     {
       "id": "hanok",
       "role": "building",
-      "tags": ["traditional"],
+      "tags": [
+        "traditional"
+      ],
       "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/2c30f29a-f274-4bdb-b3ef-30e70cf61e2c.glb"
     },
     {
@@ -38,80 +46,332 @@
     {
       "id": "deptstore",
       "role": "building",
-      "tags": ["shop"],
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/49b4f058-e47b-405f-b5ad-ed5b7419e2a5.glb"
+      "tags": [
+        "shop"
+      ]
     },
     {
       "id": "gym",
       "role": "building",
-      "tags": ["gym"],
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/641beb58-4927-4fbd-b568-da867172591a.glb"
+      "tags": [
+        "gym"
+      ]
     },
     {
       "id": "palace",
       "role": "building",
-      "tags": ["traditional"],
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/cc7a7249-9392-48cd-9f4e-d5fc902ec535.glb"
+      "tags": [
+        "traditional"
+      ]
     },
     {
       "id": "mart",
       "role": "building",
-      "tags": ["shop"],
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/29638717-a3d7-47db-85bc-291d9eb2c09b.glb"
+      "tags": [
+        "shop"
+      ]
     },
     {
       "id": "tower",
       "role": "building",
-      "tags": ["landmark"],
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/28923c39-4dde-4858-a7c8-db795da61c78.glb"
+      "tags": [
+        "landmark"
+      ]
     },
     {
       "id": "convenience",
       "role": "building",
-      "tags": ["shop"],
+      "tags": [
+        "shop"
+      ],
       "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/a412a0e9-ed1e-4029-80ea-3721a63f8d47.glb"
     },
     {
       "id": "bikeshop",
       "role": "building",
-      "tags": ["shop"],
+      "tags": [
+        "shop"
+      ],
       "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/3bce9d76-b9ea-4322-9905-c4ef10f3e59c.glb"
     },
-    { "id": "pinehouse",  "role": "building", "tags": ["home"], "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/6abfe345-7c8f-4af7-9572-913afb39d104.glb" },
-    { "id": "dojo",       "role": "building", "tags": ["gym"],  "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/2491a38f-40c5-42ed-b406-ab5baa15242d.glb" },
-    { "id": "gearshop",   "role": "building", "tags": ["shop"], "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/959b0c49-a551-48ca-843a-3b25ca068c22.glb" },
-    { "id": "lanterngym", "role": "building", "tags": ["gym"],  "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/b7013408-49ac-4b27-ab08-f6d7a64451c0.glb" },
-    { "id": "contesthall","role": "building", "tags": ["hall"], "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/d8101675-60a1-469d-acb6-00346fd49aaa.glb" },
-    { "id": "tidalgym",   "role": "building", "tags": ["gym"],  "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/339f473f-5a4e-44f6-a381-847a6e970e2a.glb" },
-    { "id": "templegym",  "role": "building", "tags": ["gym"],  "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/a0f775bf-5f7d-4159-ae43-6c985bc428cb.glb" },
-    { "id": "shrine",     "role": "building", "tags": ["shrine"], "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/00d4de02-0891-4bb1-8093-1efc59e8f047.glb" },
-    { "id": "league",       "role": "building", "tags": ["landmark"], "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/4da05027-b548-486b-9e71-5c38b3db451b.glb" },
-    { "id": "nabihalmang",  "role": "building", "tags": ["statue"], "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/8d5f5775-88d2-468e-9131-cecab680f5b3.glb" },
-    { "id": "dolmen",       "role": "building", "tags": ["ruin"],   "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/29edff55-333b-4b60-97bf-410f0f922125.glb" },
-    { "id": "sunrisegym",   "role": "building", "tags": ["gym"],   "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/58538d74-05dd-4ecb-a170-267ec297bdae.glb" },
-    { "id": "frostbell",    "role": "building", "tags": ["shrine"],"url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/6fba0fb7-8a40-47ff-9f9e-aef17577229c.glb" },
-    { "id": "alpinelodge",  "role": "building", "tags": ["home"],  "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/314aeb1a-b394-4475-947a-0b2581c1b0d7.glb" },
-    { "id": "snowmeltbaths","role": "building", "tags": ["bath"],  "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/ce421122-3f8f-4d41-9c0d-7c3486aa1586.glb" },
-    { "id": "skateshop",    "role": "building", "tags": ["shop"],  "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/a72d07a1-fec3-4807-844a-1846c92b07c0.glb" },
-    { "id": "sanbangsan",  "role": "building", "tags": ["shrine"], "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/e0f6d538-0441-4c11-a306-894ad4ba78b1.glb" },
-    { "id": "jejumarket",  "role": "building", "tags": ["market"], "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/2f48342c-2e92-4c19-a747-31f6f2f12d74.glb" },
-    { "id": "cheonjiyeon", "role": "building", "tags": ["pavilion"], "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/d2fec8e7-2615-41ee-9261-d8fd156afabb.glb" },
-    { "id": "cityfree_a", "role": "building", "tags": ["cityfree"], "url": "assets/map3d/kaykit-city/building_A.gltf" },
-    { "id": "cityfree_b", "role": "building", "tags": ["cityfree"], "url": "assets/map3d/kaykit-city/building_B.gltf" },
-    { "id": "cityfree_c", "role": "building", "tags": ["cityfree"], "url": "assets/map3d/kaykit-city/building_C.gltf" },
-    { "id": "cityfree_d", "role": "building", "tags": ["cityfree"], "url": "assets/map3d/kaykit-city/building_D.gltf" },
-    { "id": "cityfree_e", "role": "building", "tags": ["cityfree"], "url": "assets/map3d/kaykit-city/building_E.gltf" },
-    { "id": "cityfree_f", "role": "building", "tags": ["cityfree"], "url": "assets/map3d/kaykit-city/building_F.gltf" },
-    { "id": "cityfree_g", "role": "building", "tags": ["cityfree"], "url": "assets/map3d/kaykit-city/building_G.gltf" },
-    { "id": "cityfree_h", "role": "building", "tags": ["cityfree"], "url": "assets/map3d/kaykit-city/building_H.gltf" },
-    { "id": "nature_tree_default", "role": "scenery", "tags": ["naturefree", "tree", "temperate"], "url": "assets/map3d/kenney-nature/tree_default.obj", "mtl": "assets/map3d/kenney-nature/tree_default.mtl" },
-    { "id": "nature_tree_oak", "role": "scenery", "tags": ["naturefree", "tree", "temperate"], "url": "assets/map3d/kenney-nature/tree_oak.obj", "mtl": "assets/map3d/kenney-nature/tree_oak.mtl" },
-    { "id": "nature_tree_pine", "role": "scenery", "tags": ["naturefree", "tree", "pine"], "url": "assets/map3d/kenney-nature/tree_pineRoundA.obj", "mtl": "assets/map3d/kenney-nature/tree_pineRoundA.mtl" },
-    { "id": "nature_rock_a", "role": "scenery", "tags": ["naturefree", "rock"], "url": "assets/map3d/kenney-nature/rock_largeA.obj", "mtl": "assets/map3d/kenney-nature/rock_largeA.mtl" },
-    { "id": "nature_rock_c", "role": "scenery", "tags": ["naturefree", "rock"], "url": "assets/map3d/kenney-nature/rock_largeC.obj", "mtl": "assets/map3d/kenney-nature/rock_largeC.mtl" },
-    { "id": "pokemonvillage", "role": "building", "tags": ["village"], "url": "assets/map3d/original_pokemon_village.glb" },
-    { "id": "jongmyo", "role": "building", "tags": ["shrine"], "url": "assets/map3d/jongmyo.glb" },
-    { "id": "soolstation", "role": "building", "tags": ["station"], "url": "assets/map3d/soolstation.glb" },
+    {
+      "id": "pinehouse",
+      "role": "building",
+      "tags": [
+        "home"
+      ]
+    },
+    {
+      "id": "dojo",
+      "role": "building",
+      "tags": [
+        "gym"
+      ]
+    },
+    {
+      "id": "gearshop",
+      "role": "building",
+      "tags": [
+        "shop"
+      ]
+    },
+    {
+      "id": "lanterngym",
+      "role": "building",
+      "tags": [
+        "gym"
+      ]
+    },
+    {
+      "id": "contesthall",
+      "role": "building",
+      "tags": [
+        "hall"
+      ]
+    },
+    {
+      "id": "tidalgym",
+      "role": "building",
+      "tags": [
+        "gym"
+      ]
+    },
+    {
+      "id": "templegym",
+      "role": "building",
+      "tags": [
+        "gym"
+      ]
+    },
+    {
+      "id": "shrine",
+      "role": "building",
+      "tags": [
+        "shrine"
+      ]
+    },
+    {
+      "id": "league",
+      "role": "building",
+      "tags": [
+        "landmark"
+      ]
+    },
+    {
+      "id": "nabihalmang",
+      "role": "building",
+      "tags": [
+        "statue"
+      ],
+      "url": "assets/models3d/nabistatue.glb"
+    },
+    {
+      "id": "dolmen",
+      "role": "building",
+      "tags": [
+        "ruin"
+      ]
+    },
+    {
+      "id": "sunrisegym",
+      "role": "building",
+      "tags": [
+        "gym"
+      ]
+    },
+    {
+      "id": "frostbell",
+      "role": "building",
+      "tags": [
+        "shrine"
+      ]
+    },
+    {
+      "id": "alpinelodge",
+      "role": "building",
+      "tags": [
+        "home"
+      ]
+    },
+    {
+      "id": "snowmeltbaths",
+      "role": "building",
+      "tags": [
+        "bath"
+      ]
+    },
+    {
+      "id": "skateshop",
+      "role": "building",
+      "tags": [
+        "shop"
+      ]
+    },
+    {
+      "id": "sanbangsan",
+      "role": "building",
+      "tags": [
+        "shrine"
+      ],
+      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/e0f6d538-0441-4c11-a306-894ad4ba78b1.glb"
+    },
+    {
+      "id": "jejumarket",
+      "role": "building",
+      "tags": [
+        "market"
+      ],
+      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/2f48342c-2e92-4c19-a747-31f6f2f12d74.glb"
+    },
+    {
+      "id": "cheonjiyeon",
+      "role": "building",
+      "tags": [
+        "pavilion"
+      ],
+      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/d2fec8e7-2615-41ee-9261-d8fd156afabb.glb"
+    },
+    {
+      "id": "cityfree_a",
+      "role": "building",
+      "tags": [
+        "cityfree"
+      ],
+      "url": "assets/map3d/kaykit-city/building_A.gltf"
+    },
+    {
+      "id": "cityfree_b",
+      "role": "building",
+      "tags": [
+        "cityfree"
+      ],
+      "url": "assets/map3d/kaykit-city/building_B.gltf"
+    },
+    {
+      "id": "cityfree_c",
+      "role": "building",
+      "tags": [
+        "cityfree"
+      ],
+      "url": "assets/map3d/kaykit-city/building_C.gltf"
+    },
+    {
+      "id": "cityfree_d",
+      "role": "building",
+      "tags": [
+        "cityfree"
+      ],
+      "url": "assets/map3d/kaykit-city/building_D.gltf"
+    },
+    {
+      "id": "cityfree_e",
+      "role": "building",
+      "tags": [
+        "cityfree"
+      ],
+      "url": "assets/map3d/kaykit-city/building_E.gltf"
+    },
+    {
+      "id": "cityfree_f",
+      "role": "building",
+      "tags": [
+        "cityfree"
+      ],
+      "url": "assets/map3d/kaykit-city/building_F.gltf"
+    },
+    {
+      "id": "cityfree_g",
+      "role": "building",
+      "tags": [
+        "cityfree"
+      ],
+      "url": "assets/map3d/kaykit-city/building_G.gltf"
+    },
+    {
+      "id": "cityfree_h",
+      "role": "building",
+      "tags": [
+        "cityfree"
+      ],
+      "url": "assets/map3d/kaykit-city/building_H.gltf"
+    },
+    {
+      "id": "nature_tree_default",
+      "role": "scenery",
+      "tags": [
+        "naturefree",
+        "tree",
+        "temperate"
+      ],
+      "url": "assets/map3d/kenney-nature/tree_default.obj",
+      "mtl": "assets/map3d/kenney-nature/tree_default.mtl"
+    },
+    {
+      "id": "nature_tree_oak",
+      "role": "scenery",
+      "tags": [
+        "naturefree",
+        "tree",
+        "temperate"
+      ],
+      "url": "assets/map3d/kenney-nature/tree_oak.obj",
+      "mtl": "assets/map3d/kenney-nature/tree_oak.mtl"
+    },
+    {
+      "id": "nature_tree_pine",
+      "role": "scenery",
+      "tags": [
+        "naturefree",
+        "tree",
+        "pine"
+      ],
+      "url": "assets/map3d/kenney-nature/tree_pineRoundA.obj",
+      "mtl": "assets/map3d/kenney-nature/tree_pineRoundA.mtl"
+    },
+    {
+      "id": "nature_rock_a",
+      "role": "scenery",
+      "tags": [
+        "naturefree",
+        "rock"
+      ],
+      "url": "assets/map3d/kenney-nature/rock_largeA.obj",
+      "mtl": "assets/map3d/kenney-nature/rock_largeA.mtl"
+    },
+    {
+      "id": "nature_rock_c",
+      "role": "scenery",
+      "tags": [
+        "naturefree",
+        "rock"
+      ],
+      "url": "assets/map3d/kenney-nature/rock_largeC.obj",
+      "mtl": "assets/map3d/kenney-nature/rock_largeC.mtl"
+    },
+    {
+      "id": "pokemonvillage",
+      "role": "building",
+      "tags": [
+        "village"
+      ],
+      "url": "assets/map3d/original_pokemon_village.glb"
+    },
+    {
+      "id": "jongmyo",
+      "role": "building",
+      "tags": [
+        "shrine"
+      ],
+      "url": "assets/map3d/jongmyo.glb"
+    },
+    {
+      "id": "soolstation",
+      "role": "building",
+      "tags": [
+        "station"
+      ],
+      "url": "assets/map3d/soolstation.glb"
+    },
     {
       "id": "bus",
       "role": "vehicle",

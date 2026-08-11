@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { PartySystem } from './PartySystem';
+import { expShareActive } from './Items';
 import { t, pokeNameEn } from './i18n';
 
 /**
@@ -7,6 +8,9 @@ import { t, pokeNameEn } from './i18n';
  * currently-active slot (the battle scene already handles the active Pokémon via
  * its live Pokemon object). Applies the EXP to the stored party data so benched
  * Pokémon level up too. Returns level-up notice lines to show after the active one.
+ *
+ * With Prof. Song's Exp. Share received, EVERY party member shares the EXP — not
+ * just the ones who actually battled — so the whole team levels together.
  */
 /** A benched Pokémon that gained one or more levels this battle — the caller uses
  *  these to run the move-learning prompt so EXP-share level-ups never silently
@@ -24,7 +28,10 @@ export function awardBenchExp(
   const enNames: string[] = [];
   const koNames: string[] = [];
   const party = PartySystem.get(registry);
-  for (const slot of participants) {
+  // Exp. Share widens the recipients from just the battlers to the whole party.
+  const recipients = new Set<number>(participants);
+  if (expShareActive(registry)) for (let s = 0; s < party.length; s++) recipients.add(s);
+  for (const slot of recipients) {
     if (slot === activeSlot) continue;
     if (!party[slot]) continue;
     if (party[slot].hp <= 0) continue;   // fainted Pokémon earn no EXP
@@ -39,7 +46,7 @@ export function awardBenchExp(
   }
   if (enNames.length === 0) return [];
   // One summary line so the player sees benched battlers shared the EXP, then any level-ups.
-  const enWho = enNames.length <= 2 ? enNames.join(' & ') : `${enNames.length} other battlers`;
-  const koWho = koNames.length <= 2 ? koNames.join(', ') : `다른 배틀 참가 포켓몬 ${koNames.length}마리`;
+  const enWho = enNames.length <= 2 ? enNames.join(' & ') : `${enNames.length} other party Pokémon`;
+  const koWho = koNames.length <= 2 ? koNames.join(', ') : `다른 파티 포켓몬 ${koNames.length}마리`;
   return [t(`${enWho} also gained ${amount} EXP!`, `${koWho}(도) ${amount} 경험치를 얻었다!`), ...levelUps];
 }

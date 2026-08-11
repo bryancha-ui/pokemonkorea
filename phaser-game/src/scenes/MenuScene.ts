@@ -807,10 +807,27 @@ export class MenuScene extends Phaser.Scene {
     for (const def of ITEMS) {
       const n = inv[def.key] ?? 0;
       if (n <= 0 || def.category === 'hm') continue;
+      // Exp. Share is a toggle: tapping it switches party-wide EXP sharing on/off.
+      if (def.key === 'expshare') {
+        const on = !this.registry.get('expShareOff');
+        rows.push({
+          key: def.key,
+          icon: on ? '📡' : '📴',
+          name: itemName(def) + (on ? t('  [ON]', '  [켜짐]') : t('  [OFF]', '  [꺼짐]')),
+          desc: itemDescription(def) + (on ? t(' Tap to switch OFF.', ' 눌러서 끄기.') : t(' Tap to switch ON.', ' 눌러서 켜기.')),
+          onClick: () => {
+            this.registry.set('expShareOff', on);   // currently on → set OFF, and vice-versa
+            this.contentContainer.destroy(true);
+            this.contentContainer = this.add.container(0, 0);
+            this.renderBagTab();
+          },
+        });
+        continue;
+      }
       rows.push({
         key: def.key,
         name: itemName(def), icon: def.icon, desc: itemDescription(def), count: n,
-        onClick: (def.category === 'ball' || def.category === 'souvenir') ? undefined : () => this.beginUseItem(def.key),
+        onClick: (def.category === 'ball' || def.category === 'souvenir' || def.category === 'key') ? undefined : () => this.beginUseItem(def.key),
       });
     }
 
