@@ -504,6 +504,16 @@ export function tr(en: string): string {
     const koSpeaker = KO_SPEAKERS[speaker];
     if (koRest || koSpeaker) return `${koSpeaker ?? speaker}: ${koRest ?? rest}`;
   }
+  // Battle sequences show several messages as one string joined by newlines
+  // (e.g. "Super effective!\nX's Defense fell!"). The per-line battle patterns
+  // are anchored, so they never match the combined string — translate each line
+  // on its own as a last resort (after the whole-string lookups above, which keep
+  // any genuinely multi-line dictionary entry intact).
+  if (en.includes('\n')) {
+    const lines = en.split('\n');
+    const translated = lines.map(line => tr(line));
+    if (translated.some((line, i) => line !== lines[i])) return translated.join('\n');
+  }
   return en;
 }
 

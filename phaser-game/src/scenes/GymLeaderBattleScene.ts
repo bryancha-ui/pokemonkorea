@@ -602,7 +602,7 @@ export class GymLeaderBattleScene extends Phaser.Scene {
   private playerFainted() {
     const party = PartySystem.get(this.registry);
     if (party[this.activeSlot]) { party[this.activeSlot].hp = 0; PartySystem.set(this.registry, party); }
-    const nextIdx = party.findIndex((e, i) => i !== this.activeSlot && e.hp > 0);
+    const nextIdx = party.findIndex((e, i) => i !== this.activeSlot && e && e.hp > 0);
     if (nextIdx === -1) {
       this.typeDialog('All your Pokémon fainted!', () => {
         this.typeDialog('Leader Jin: Rest and recover. Your spirit is strong.', () => {

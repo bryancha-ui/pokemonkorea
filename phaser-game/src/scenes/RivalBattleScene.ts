@@ -617,7 +617,7 @@ export class RivalBattleScene extends Phaser.Scene {
     const party = PartySystem.get(this.registry);
     if (party[this.activeSlot]) { party[this.activeSlot].hp = 0; PartySystem.set(this.registry, party); }
 
-    const nextIdx = party.findIndex((e, i) => i !== this.activeSlot && e.hp > 0);
+    const nextIdx = party.findIndex((e, i) => i !== this.activeSlot && e && e.hp > 0);
     if (nextIdx === -1) { this.handleLoss(); return; }
 
     this.activeSlot = nextIdx;
