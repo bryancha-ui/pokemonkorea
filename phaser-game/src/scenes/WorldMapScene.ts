@@ -1,9 +1,9 @@
 import Phaser from 'phaser';
 import { tr, t } from '../systems/i18n';
 import { playBgm } from '../systems/Music';
-import { drawTrainerBody, drawRiderBody, playerDesign, rivalDesign, rivalTrainerName, playerTrainerName } from '../data/CharacterSprite';
+import { drawNpcBody, drawTrainerBody, drawRiderBody, playerDesign, rivalDesign, rivalTrainerName, playerTrainerName } from '../data/CharacterSprite';
 import { hasBike, BIKE_SPEED, isBikeRiding, setBikeRiding } from '../data/Bike';
-import { markRivalPortrait } from '../data/BattlePortraits';
+import { markRivalPortrait, markTrainerPortrait } from '../data/BattlePortraits';
 import { DialogBox } from '../ui/DialogBox';
 import { findForm } from '../data/StarterData';
 import { SaveManager } from '../utils/SaveManager';
@@ -215,6 +215,41 @@ const BUILDINGS: BuildingDef[] = [
     wallColor: 0xeeeeff, roofColor: 0x2255aa, accentColor: 0xaaddff },
 ];
 
+interface FinalePartyActor {
+  labelEn: string;
+  labelKo: string;
+  trainerKey?: string;
+  outfit: number;
+  hair: number;
+  col: number;
+  row: number;
+}
+
+/**
+ * Every guest is a real overworld character. `trainerKey` selects the authored
+ * high-quality trainer sculpt in OverworldMirror; actors without portrait art
+ * still use its full volumetric procedural character model, never a flat card.
+ */
+const WATERFALL_FINALE_GUESTS: FinalePartyActor[] = [
+  { labelEn: 'Leader Jin', labelKo: '관장 진', trainerKey: 'capitol-jin', outfit: 0x312446, hair: 0x15101d, col: 10.2, row: 10.8 },
+  { labelEn: 'Leader Byeoksan', labelKo: '관장 벽산', trainerKey: 'baekdu-byeoksan', outfit: 0x704f42, hair: 0x201810, col: 12.0, row: 10.5 },
+  { labelEn: 'Leader Namsun', labelKo: '관장 남순', trainerKey: 'geumgang-namsun', outfit: 0x8a3a6a, hair: 0x6a2a5a, col: 13.8, row: 10.3 },
+  { labelEn: 'Leader Harang', labelKo: '관장 하랑', trainerKey: 'haean-harang', outfit: 0x174c73, hair: 0x0a2a3a, col: 15.7, row: 10.2 },
+  { labelEn: 'Leader Noksaek', labelKo: '관장 녹색', trainerKey: 'forest-noksaek', outfit: 0x356b39, hair: 0x253d25, col: 17.6, row: 10.3 },
+  { labelEn: 'Leader Beonge', labelKo: '관장 번개', trainerKey: 'sunrise-beonge', outfit: 0x8a6a1a, hair: 0x3a2a10, col: 19.4, row: 10.5 },
+  { labelEn: 'Leader Sandol', labelKo: '관장 산돌', trainerKey: 'dolmoe-sandol', outfit: 0x66574b, hair: 0x281d17, col: 21.2, row: 10.8 },
+  { labelEn: 'Leader Yeona', labelKo: '관장 연아', trainerKey: 'seorae-yeona', outfit: 0x3a6a8a, hair: 0xbfe6ff, col: 22.6, row: 11.4 },
+  { labelEn: 'Elite Four Gyeoul', labelKo: '사천왕 겨울', trainerKey: 'e4-gyeoul', outfit: 0x506b84, hair: 0xd8e9f7, col: 10.8, row: 12.8 },
+  { labelEn: 'Elite Four Hwageum', labelKo: '사천왕 화금', trainerKey: 'e4-hwageum', outfit: 0x9b463d, hair: 0x3a1d19, col: 12.8, row: 12.4 },
+  { labelEn: 'Elite Four Baram', labelKo: '사천왕 바람', trainerKey: 'e4-baram', outfit: 0x416f77, hair: 0x172d34, col: 14.8, row: 12.2 },
+  { labelEn: 'Elite Four Saleum', labelKo: '사천왕 살음', trainerKey: 'e4-saleum', outfit: 0x65497c, hair: 0x2b1938, col: 16.8, row: 12.2 },
+  { labelEn: 'Champion Hwangeum', labelKo: '챔피언 황금', trainerKey: 'champion-hwangeum', outfit: 0xc08b2f, hair: 0x322416, col: 18.8, row: 12.4 },
+  { labelEn: 'Chief Inspector Jinnok', labelKo: '어사대장 진옥', trainerKey: 'inspector-jinnok', outfit: 0x2f6a44, hair: 0xcfd6dc, col: 20.8, row: 12.8 },
+  { labelEn: 'Mom', labelKo: '엄마', outfit: 0xb64f78, hair: 0x24131d, col: 12.5, row: 14.6 },
+  { labelEn: 'Professor Song', labelKo: '송 박사', trainerKey: 'prof-song', outfit: 0xdde4ed, hair: 0x4b4e58, col: 14.6, row: 14.3 },
+  { labelEn: 'Admin Chaeyeon', labelKo: '간부 채연', trainerKey: 'suri-chaeyeon-2', outfit: 0x376a78, hair: 0x202937, col: 18.7, row: 14.3 },
+];
+
 export class WorldMapScene extends Phaser.Scene {
   private playerSprite!: Phaser.GameObjects.Graphics;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -254,6 +289,7 @@ export class WorldMapScene extends Phaser.Scene {
   private shoesText!: Phaser.GameObjects.Text;
   private cutsceneDialog!: DialogBox;
   private shiftKey!: Phaser.Input.Keyboard.Key;
+  private enterKey!: Phaser.Input.Keyboard.Key;
 
   private readonly BASE_SPEED = 120;
   private readonly RUN_SPEED  = 260;
@@ -269,6 +305,7 @@ export class WorldMapScene extends Phaser.Scene {
   private walkTimer = 0;
   private isMoving = false;
   private cutsceneActive = false;
+  private finalePartyActive = false;
   private spawnGuard = false;
   private saveToast!: Phaser.GameObjects.Text;
 
@@ -279,6 +316,7 @@ export class WorldMapScene extends Phaser.Scene {
     playBgm(this, 'waterfall');
     // Reset all per-session state
     this.cutsceneActive = false;
+    this.finalePartyActive = !!this.registry.get('waterfallFinalePartyPending');
     this.isMoving       = false;
     this.walkFrame      = 0;
     this.walkTimer      = 0;
@@ -296,6 +334,16 @@ export class WorldMapScene extends Phaser.Scene {
     const ry = this.registry.get('returnY') as number | undefined;
     if (rx !== undefined) { this.px = rx; this.py = ry as number; }
     this.registry.remove('returnX'); this.registry.remove('returnY');
+
+    // The finale returns to the real Waterfall City map. Centre the player on
+    // the river promenade so the 3D follow camera frames the waterfall and the
+    // complete celebration cast ahead of them.
+    if (this.finalePartyActive) {
+      this.px = 16.5 * TILE;
+      this.py = 16.4 * TILE;
+      this.facing = 1;
+      this.cycling = false;
+    }
 
     this.map = buildMap();
 
@@ -345,8 +393,10 @@ export class WorldMapScene extends Phaser.Scene {
     this.createUI();
     this.addLabels();
 
+    if (this.finalePartyActive) this.startWaterfallFinaleParty();
+
     // Trigger any pending evolutions on return from battle
-    this.time.delayedCall(300, () => maybeLaunchEvolution(this));
+    if (!this.finalePartyActive) this.time.delayedCall(300, () => maybeLaunchEvolution(this));
   }
 
   // ── Map rendering ─────────────────────────────────────────────────────────
@@ -491,6 +541,7 @@ export class WorldMapScene extends Phaser.Scene {
       right: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.D),
     };
     this.interactKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    this.enterKey    = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
     this.shiftKey    = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
     // C hops on/off the bike (once obtained) — same control as the routes/cities.
     this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.C).on('down', () => {
@@ -552,6 +603,125 @@ export class WorldMapScene extends Phaser.Scene {
     label('Forest Path', 4, 25);
   }
 
+  // ── True-ending celebration in the real 3D Waterfall City ──────────────
+
+  private startWaterfallFinaleParty() {
+    this.cutsceneActive = true;
+    this.playerSprite.setData('characterLookAt3D', { x: 16.5 * TILE, y: 13.2 * TILE });
+
+    const lookAt = { x: this.px, y: this.py };
+    for (const guest of WATERFALL_FINALE_GUESTS) {
+      this.addFinalePartyGuest(guest, lookAt);
+    }
+
+    // The rival uses the opposite-gender authored trainer model selected at
+    // the beginning of the game, and remains a full 3D character in the crowd.
+    const rival = this.add.graphics()
+      .setPosition(16.7 * TILE, 15.05 * TILE)
+      .setDepth(45);
+    drawTrainerBody(rival, 0, 0, rivalDesign(this.registry));
+    markRivalPortrait(rival, this.registry);
+    rival.setData('characterLookAt3D', lookAt);
+    this.addFinalePartyLabel(rival, rivalTrainerName(this.registry), '#a9dcff');
+
+    this.add.text(this.scale.width / 2, 32, t(
+      'WATERFALL CITY · UNIFIED CHAMPION CELEBRATION',
+      '폭포시티 · 온누리 통합 챔피언 축하 파티',
+    ), {
+      fontSize: '23px', color: '#fff0a8', fontStyle: 'bold',
+      stroke: '#2b1308', strokeThickness: 6,
+      backgroundColor: '#071027b8', padding: { x: 12, y: 6 },
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(240);
+
+    // Fixed-screen lantern glow and petals provide the party layer while the
+    // world, waterfall and every guest continue to render in true 3D.
+    for (let i = 0; i < 16; i++) {
+      const x = 28 + (i * (this.scale.width - 56)) / 15;
+      const lantern = this.add.circle(x, 78 + (i % 2) * 17, 8, i % 3 ? 0xffb84d : 0xff625f, 0.9)
+        .setScrollFactor(0).setDepth(230).setBlendMode(Phaser.BlendModes.ADD);
+      this.tweens.add({
+        targets: lantern, alpha: { from: 0.42, to: 1 }, scale: { from: 0.86, to: 1.18 },
+        duration: 820 + i * 30, yoyo: true, repeat: -1, ease: 'Sine.inOut',
+      });
+    }
+
+    this.registry.set('finaleResumePhase', 'party');
+    SaveManager.save(this.registry, this.px, this.py, 'WorldMapScene');
+    this.cameras.main.fadeIn(900);
+    this.time.delayedCall(900, () => {
+      this.cutsceneDialog.show([
+        t(
+          'When the ending credits finish, you return to Waterfall City. Every lantern in your hometown is already alight.',
+          '엔딩크레딧이 끝나고, 너는 폭포시티로 돌아온다. 고향의 모든 등불이 이미 환하게 밝혀져 있다.',
+        ),
+        t(
+          'Professor Song, all eight southern Gym Leaders, the Elite Four, Champion Hwangeum, your family and every friend from the journey have gathered as 3D figures beside the waterfall.',
+          '송 박사와 남쪽의 여덟 체육관 관장, 사천왕, 챔피언 황금, 가족과 여행에서 만난 주요 인물들이 모두 폭포 앞에 모여 있다.',
+        ),
+        t(
+          'Professor Song: Two Leagues and one reunited Onnuri. No trainer in our history has ever walked as far as you did. Welcome home, Champion.',
+          '송 박사: 두 개의 리그, 그리고 다시 하나가 된 온누리. 우리 역사에서 너만큼 멀리 걸어간 트레이너는 없었단다. 돌아온 걸 환영한다, 챔피언.',
+        ),
+        t(
+          'Leader Byeoksan: Every Gym in the south closed its doors tonight. This night belongs to the Champion of Champions!',
+          '관장 벽산: 오늘 밤 남쪽의 모든 체육관이 문을 닫았어. 이 밤은 챔피언 중의 챔피언을 위한 밤이다!',
+        ),
+        t(
+          'Champion Hwangeum: No titles, no battles. Eat, laugh and remember everyone who carried you this far. You earned this.',
+          '챔피언 황금: 오늘은 직함도, 배틀도 없다. 먹고, 웃고, 여기까지 너와 함께한 모두를 기억해. 넌 그럴 자격이 있어.',
+        ),
+        t(
+          'Music, lanterns, fireworks and falling petals fill Waterfall City until the last guests finally begin to leave.',
+          '음악과 등불, 불꽃놀이, 흩날리는 꽃잎이 폭포시티를 가득 채우고, 마침내 마지막 손님들까지 하나둘 돌아가기 시작한다.',
+        ),
+        t(
+          'Much later, your Rival quietly asks you to follow them to the waterfall where the journey first began.',
+          '한참 뒤, 라이벌은 여행이 처음 시작된 폭포 앞으로 조용히 따라오라고 손짓한다.',
+        ),
+      ], () => this.finishWaterfallFinaleParty());
+    });
+  }
+
+  private addFinalePartyGuest(
+    guest: FinalePartyActor,
+    lookAt: { x: number; y: number },
+  ): Phaser.GameObjects.Graphics {
+    const actor = this.add.graphics()
+      // Pull the crowd into the elevated camera's shared safe frame so no Gym
+      // Leader is clipped along the top edge of desktop or mobile layouts.
+      .setPosition(guest.col * TILE, (guest.row + 0.8) * TILE)
+      .setDepth(40 + Math.round(guest.row));
+    drawNpcBody(actor, guest.outfit, { hair: guest.hair });
+    if (guest.trainerKey) markTrainerPortrait(actor, guest.trainerKey);
+    actor.setData('characterLookAt3D', lookAt);
+    this.addFinalePartyLabel(actor, t(guest.labelEn, guest.labelKo));
+    return actor;
+  }
+
+  private addFinalePartyLabel(
+    actor: Phaser.GameObjects.Graphics,
+    label: string,
+    color = '#ffffff',
+  ) {
+    this.add.text(actor.x, actor.y - 30, label, {
+      fontSize: '8px', color, fontStyle: 'bold',
+      backgroundColor: '#071027c9', padding: { x: 3, y: 2 },
+    }).setOrigin(0.5).setDepth(actor.depth + 1)
+      .setData('characterLabel3D', true)
+      .setData('characterLabelTarget3D', actor);
+  }
+
+  private finishWaterfallFinaleParty() {
+    if (!this.finalePartyActive) return;
+    this.finalePartyActive = false;
+    this.registry.remove('waterfallFinalePartyPending');
+    this.registry.set('finaleResumePhase', 'night');
+    SaveManager.save(this.registry, 15 * TILE + TILE / 2, 8 * TILE + TILE / 2, 'WaterfallFinaleScene');
+    this.cameras.main.fadeOut(1100, 0, 0, 0, () => {
+      this.scene.start('WaterfallFinaleScene', { phase: 'night' });
+    });
+  }
+
   // ── Update ────────────────────────────────────────────────────────────────
   update(_: number, delta: number) {
     // During cutscene handle only dialog input
@@ -560,8 +730,8 @@ export class WorldMapScene extends Phaser.Scene {
         // Navigate choices with the D-pad (up/down); confirm with A — never the B button.
         if (Phaser.Input.Keyboard.JustDown(this.cursors.up)   || Phaser.Input.Keyboard.JustDown(this.wasd.up))   this.cutsceneDialog.navigateChoice(-1);
         if (Phaser.Input.Keyboard.JustDown(this.cursors.down) || Phaser.Input.Keyboard.JustDown(this.wasd.down)) this.cutsceneDialog.navigateChoice(1);
-        if (Phaser.Input.Keyboard.JustDown(this.interactKey)) this.cutsceneDialog.confirmChoice();
-      } else if (Phaser.Input.Keyboard.JustDown(this.interactKey)) {
+        if (Phaser.Input.Keyboard.JustDown(this.interactKey) || Phaser.Input.Keyboard.JustDown(this.enterKey)) this.cutsceneDialog.confirmChoice();
+      } else if (Phaser.Input.Keyboard.JustDown(this.interactKey) || Phaser.Input.Keyboard.JustDown(this.enterKey)) {
         this.cutsceneDialog.advance();
       }
       return;

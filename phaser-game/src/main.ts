@@ -427,6 +427,8 @@ function launchWaterfallFinaleTest(
   phase: 'party' | 'night' | 'logo',
   gender: 'boy' | 'girl' = 'boy',
 ): void {
+  const requestedLang = new URLSearchParams(location.search).get('lang');
+  if (requestedLang === 'ko' || requestedLang === 'en') setLang(requestedLang, false);
   game.registry.set('sceneFlowTest', true);
   game.registry.set('playerGender', gender);
   game.registry.set('playerName', gender === 'girl' ? 'Hana' : 'Jun');
@@ -434,7 +436,15 @@ function launchWaterfallFinaleTest(
   game.registry.set('finaleResumePhase', phase);
   game.registry.set('trueEndDone', true);
   if (game.scene.isActive('TitleScene')) game.scene.stop('TitleScene');
-  game.scene.start('WaterfallFinaleScene', { phase });
+  if (phase === 'party') {
+    game.registry.set('waterfallFinalePartyPending', true);
+    game.registry.set('returnX', 16.5 * 32);
+    game.registry.set('returnY', 16.4 * 32);
+    game.scene.start('WorldMapScene');
+  } else {
+    game.registry.remove('waterfallFinalePartyPending');
+    game.scene.start('WaterfallFinaleScene', { phase });
+  }
 }
 
 /**

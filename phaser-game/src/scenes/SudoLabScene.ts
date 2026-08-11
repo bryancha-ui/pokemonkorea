@@ -395,12 +395,13 @@ export class SudoLabScene extends Phaser.Scene {
     this.stopEndingBgm = undefined;
     this.registry.remove('finalePartyPending');
     this.registry.remove('trueEndingHomecomingPending');
+    this.registry.set('waterfallFinalePartyPending', true);
     this.registry.set('finaleResumePhase', 'party');
     // If the browser closes during the transition, Continue resumes at the
-    // Waterfall City party instead of replaying the five-minute credits.
-    SaveManager.save(this.registry, 15 * 32 + 16, 14 * 32 + 16, 'WaterfallFinaleScene');
+    // real 3D Waterfall City party instead of replaying the five-minute credits.
+    SaveManager.save(this.registry, 16.5 * 32, 16.4 * 32, 'WorldMapScene');
     stopBgm(this);
-    this.cameras.main.fadeOut(1000, 0, 0, 0, () => this.scene.start('WaterfallFinaleScene'));
+    this.cameras.main.fadeOut(1000, 0, 0, 0, () => this.scene.start('WorldMapScene'));
   }
 
   private destroyDisplayList(): void {

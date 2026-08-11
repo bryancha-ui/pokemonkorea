@@ -5,6 +5,7 @@ import { getLang, t } from '../systems/i18n';
 import { playBgm, stopBgm } from '../systems/Music';
 import { DialogBox } from '../ui/DialogBox';
 import { SaveManager } from '../utils/SaveManager';
+import { playWaterfallRivalClip } from '../systems/WaterfallRivalVideo';
 
 type FinalePhase = 'party' | 'night' | 'logo';
 
@@ -54,6 +55,7 @@ export class WaterfallFinaleScene extends Phaser.Scene {
   private inputReadyAt = 0;
   private transitioning = false;
   private logoCanExit = false;
+  private rivalVideoAction?: () => void;
 
   constructor() { super('WaterfallFinaleScene'); }
 
@@ -67,12 +69,19 @@ export class WaterfallFinaleScene extends Phaser.Scene {
     if (!this.textures.exists(key)) {
       this.load.image(key, `assets/title/pokemon-string-opening-${lang}.png`);
     }
+    if (!this.textures.exists('finale-ending-background')) {
+      this.load.image('finale-ending-background', 'assets/title/pokemon-string-ending-background.png');
+    }
+    if (!this.textures.exists('waterfall-rival-seated')) {
+      this.load.image('waterfall-rival-seated', 'assets/cutscenes/waterfall_rival_seated.png');
+    }
   }
 
   create() {
     this.disable3D = true;
     this.transitioning = false;
     this.logoCanExit = false;
+    this.rivalVideoAction = undefined;
     this.input.keyboard?.resetKeys();
     this.spaceKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     this.enterKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
@@ -105,12 +114,28 @@ export class WaterfallFinaleScene extends Phaser.Scene {
       this.dialog.advance();
       return;
     }
+    if (this.rivalVideoAction) {
+      this.rivalVideoAction();
+      return;
+    }
     if (this.phase === 'logo' && this.logoCanExit) this.returnToTitle();
   }
 
   // ── 1. Waterfall City celebration ──────────────────────────────────────
 
   private showCelebration() {
+    // Old saves may still resume this scene with `phase: party`. Route them to
+    // the actual 3D Waterfall City map; the former flat party plate is never
+    // shown again.
+    this.registry.set('waterfallFinalePartyPending', true);
+    this.registry.set('returnX', 16.5 * 32);
+    this.registry.set('returnY', 16.4 * 32);
+    SaveManager.save(this.registry, 16.5 * 32, 16.4 * 32, 'WorldMapScene');
+    this.scene.start('WorldMapScene');
+    return;
+
+    /* Legacy implementation kept below only as a source reference for actor
+       dialogue/colours. It is unreachable by design. */
     playBgm(this, 'waterfall');
     this.drawWaterfallCity(false);
     this.drawPartyCast();
@@ -251,53 +276,40 @@ export class WaterfallFinaleScene extends Phaser.Scene {
 
   private showNightWaterfall() {
     playBgm(this, 'waterfallnight');
-    this.drawWaterfallCity(true);
     const W = this.scale.width, H = this.scale.height;
+
+    this.add.rectangle(W / 2, H / 2, W, H, 0x020817, 1);
+    if (this.textures.exists('waterfall-rival-seated')) {
+      const seated = this.add.image(W / 2, H / 2, 'waterfall-rival-seated').setDepth(1);
+      const source = this.textures.get('waterfall-rival-seated').getSourceImage();
+      const sourceW = Math.max(1, Number(source.width));
+      const sourceH = Math.max(1, Number(source.height));
+      const scale = Math.max(W / sourceW, H / sourceH);
+      seated.setScale(scale);
+      this.tweens.add({
+        targets: seated,
+        scaleX: scale * 1.012,
+        scaleY: scale * 1.012,
+        duration: 12000,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.inOut',
+      });
+    } else {
+      // Asset/codec safety net retained for old cached deployments.
+      this.drawWaterfallCity(true);
+    }
 
     this.add.text(W / 2, 38, t('WATERFALL CITY · AFTER MIDNIGHT', '폭포시티 · 깊은 밤'), {
       fontSize: '20px', color: '#bcd9ff', fontStyle: 'bold',
       stroke: '#061126', strokeThickness: 5,
     }).setOrigin(0.5).setDepth(80);
 
-    const player = this.add.graphics().setPosition(250, H - 178).setScale(5.2).setDepth(100);
-    const rival = this.add.graphics().setPosition(W - 250, H - 178).setScale(5.2).setDepth(100);
-    drawTrainerBody(player, 3, 0, playerDesign(this.registry));
-    drawTrainerBody(rival, 2, 0, rivalDesign(this.registry));
-    markRivalPortrait(rival, this.registry);
-
-    const playerLabel = this.add.text(250, H - 292, t('Champion', '통합 챔피언'), {
-      fontSize: '15px', color: '#ffe783', backgroundColor: '#030a18c9', padding: { x: 6, y: 3 },
-    }).setOrigin(0.5).setDepth(101);
-    const rivalLabel = this.add.text(W - 250, H - 292, rivalTrainerName(this.registry), {
-      fontSize: '15px', color: '#a9dcff', backgroundColor: '#030a18c9', padding: { x: 6, y: 3 },
-    }).setOrigin(0.5).setDepth(101);
-
-    const playerTargetX = W / 2 - 155;
-    const rivalTargetX = W / 2 + 155;
-    const redrawWalk = (g: Phaser.GameObjects.Graphics, facing: number, design: 'boy' | 'girl') => {
-      let frame = 0;
-      const timer = this.time.addEvent({
-        delay: 180, loop: true,
-        callback: () => { frame = frame ? 0 : 1; drawTrainerBody(g, facing, frame, design); },
-      });
-      return timer;
-    };
-    const playerWalk = redrawWalk(player, 3, playerDesign(this.registry));
-    const rivalWalk = redrawWalk(rival, 2, rivalDesign(this.registry));
-    this.tweens.add({ targets: [player, playerLabel], x: playerTargetX, duration: 1750, ease: 'Sine.out' });
-    this.tweens.add({
-      targets: [rival, rivalLabel], x: rivalTargetX, duration: 1750, ease: 'Sine.out',
-      onComplete: () => {
-        playerWalk.remove(false); rivalWalk.remove(false);
-        drawTrainerBody(player, 3, 0, playerDesign(this.registry));
-        drawTrainerBody(rival, 2, 0, rivalDesign(this.registry));
-      },
-    });
-
     this.dialog = new DialogBox(this, W, H);
     SaveManager.save(this.registry, 15 * 32 + 16, 8 * 32 + 16, 'WaterfallFinaleScene');
     const rivalName = rivalTrainerName(this.registry);
-    this.time.delayedCall(2150, () => {
+    const beginDialogue = () => {
+      this.rivalVideoAction = undefined;
       this.dialog?.show([
         t(
           'The festival is silent now. Only moonlight, the roar of the waterfall and the friend who began this journey beside you remain.',
@@ -319,8 +331,38 @@ export class WaterfallFinaleScene extends Phaser.Scene {
           `${rivalName}: ...I knew it. Then next time, I will be the one waiting one step ahead.`,
           `${rivalName}: ...그럴 줄 알았어. 그럼 다음에는 내가 한발 앞에서 기다리고 있을게.`,
         ),
-      ], () => this.transitionTo('logo'));
-    });
+      ], () => this.playStandUpThenCheer());
+    };
+
+    // Hold on the AAA seated composition for the entire private conversation.
+    this.time.delayedCall(650, beginDialogue);
+  }
+
+  private playStandUpThenCheer() {
+    const finish = () => {
+      this.rivalVideoAction = undefined;
+      this.transitionTo('logo');
+    };
+    const playCheer = () => {
+      this.rivalVideoAction = undefined;
+      this.time.delayedCall(140, () => {
+        this.rivalVideoAction = playWaterfallRivalClip(
+          this,
+          'girl-cheer',
+          finish,
+          finish,
+        );
+      });
+    };
+
+    // Beat 1: both trainers rise naturally from the exact seated composition.
+    // Beat 2: the girl gives the requested encouraging fighting gesture.
+    this.rivalVideoAction = playWaterfallRivalClip(
+      this,
+      'stand-up',
+      playCheer,
+      playCheer,
+    );
   }
 
   // ── 3. Final logo card ──────────────────────────────────────────────────
@@ -330,24 +372,43 @@ export class WaterfallFinaleScene extends Phaser.Scene {
     const W = this.scale.width, H = this.scale.height;
     this.add.rectangle(W / 2, H / 2, W, H, 0x070014, 1);
 
+    // Newly generated ending panorama: the title-screen purple cosmos resolves
+    // into dawn over a waterfall city, with the trainer and companions looking
+    // toward the next journey. Fill without stretching on desktop or phones.
+    if (this.textures.exists('finale-ending-background')) {
+      const bg = this.add.image(W / 2, H / 2, 'finale-ending-background').setDepth(1);
+      const source = this.textures.get('finale-ending-background').getSourceImage();
+      const sourceW = Math.max(1, Number(source.width));
+      const sourceH = Math.max(1, Number(source.height));
+      const scale = Math.max(W / sourceW, H / sourceH);
+      bg.setScale(scale);
+      this.tweens.add({
+        targets: bg, scaleX: scale * 1.025, scaleY: scale * 1.025,
+        duration: 14000, yoyo: true, repeat: -1, ease: 'Sine.inOut',
+      });
+    }
+
+    // Keep the official localized main-screen logo pixel-perfect by compositing
+    // its authored top plate over the new background instead of regenerating
+    // letterforms with an image model.
     const key = `finale-title-${getLang()}`;
     if (this.textures.exists(key)) {
       const source = this.textures.get(key).getSourceImage();
       const sourceW = Math.max(1, Number(source.width));
       const sourceH = Math.max(1, Number(source.height));
-      const cropH = Math.floor(sourceH * 0.60);
+      const cropH = Math.floor(sourceH * 0.52);
       const art = this.add.image(W / 2, 0, key).setOrigin(0.5, 0).setDepth(1);
       art.setCrop(0, 0, sourceW, cropH);
-      art.setDisplaySize(W, H * 0.69);
+      art.setDisplaySize(W, H * 0.47);
       this.tweens.add({
-        targets: art, scaleX: art.scaleX * 1.025, scaleY: art.scaleY * 1.025,
+        targets: art, scaleX: art.scaleX * 1.012, scaleY: art.scaleY * 1.012,
         duration: 12000, yoyo: true, repeat: -1, ease: 'Sine.inOut',
       });
     }
 
     const veil = this.add.graphics().setDepth(3);
-    veil.fillGradientStyle(0x070014, 0x070014, 0x070014, 0x070014, 0, 0, 0.99, 0.99);
-    veil.fillRect(0, H * 0.52, W, H * 0.48);
+    veil.fillGradientStyle(0x070014, 0x070014, 0x070014, 0x070014, 0, 0, 0.78, 0.78);
+    veil.fillRoundedRect(W * 0.15, H * 0.59, W * 0.7, H * 0.2, 24);
     for (let i = 0; i < 45; i++) {
       const star = this.add.circle(
         Phaser.Math.Between(20, W - 20), Phaser.Math.Between(20, H - 20),
@@ -356,7 +417,7 @@ export class WaterfallFinaleScene extends Phaser.Scene {
       this.tweens.add({ targets: star, alpha: { from: 0.15, to: 0.9 }, duration: Phaser.Math.Between(900, 2200), yoyo: true, repeat: -1 });
     }
 
-    this.add.text(W / 2, H * 0.73, t('THE END', '끝'), {
+    this.add.text(W / 2, H * 0.65, t('THE END', '끝'), {
       fontSize: '55px', color: '#f2ddff', fontStyle: 'bold',
       stroke: '#2d0748', strokeThickness: 9, letterSpacing: 8,
     }).setOrigin(0.5).setDepth(10).setAlpha(0)
@@ -364,7 +425,7 @@ export class WaterfallFinaleScene extends Phaser.Scene {
     const endingText = this.children.list.find(child => child.getData?.('finaleText')) as Phaser.GameObjects.Text;
     this.tweens.add({ targets: endingText, alpha: 1, y: endingText.y - 8, duration: 1900, ease: 'Sine.out' });
 
-    this.add.text(W / 2, H * 0.84, t(
+    this.add.text(W / 2, H * 0.75, t(
       'The unified Champion’s journey continues beyond the horizon.',
       '온누리 통합 챔피언의 여행은 지평선 너머로 계속된다.',
     ), {
