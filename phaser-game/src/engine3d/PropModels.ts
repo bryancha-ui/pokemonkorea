@@ -120,6 +120,13 @@ export function propFailed(def: PropDef): boolean {
   return cache.get(def.id) === 'failed';
 }
 
+/** True while this prop's GLB fetch/decode is still in flight. Callers waiting
+ *  to swap in a model must not time out during this window — large GLBs can take
+ *  several seconds to decode on a phone the first (uncached) time. */
+export function propLoading(def: PropDef): boolean {
+  return cache.get(def.id) === 'loading';
+}
+
 /** Footprint (in tiles) of a normalized prop, used to fit it to a plot. */
 export function propFootprint(def: PropDef): { w: number; d: number } | null {
   const hit = cache.get(def.id);

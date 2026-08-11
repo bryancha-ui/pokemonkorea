@@ -15,7 +15,7 @@ export interface PropPlot {
   len?: number;   // 'rail' span in tiles (laid along X, rotated by `rot`)
   w?: number; d?: number; color?: number; // authored interior-fixture footprint/theme
 }
-import { getProp, pickProp, primeProps, propById, propFailed, propsFor } from './PropModels';
+import { getProp, pickProp, primeProps, propById, propFailed, propLoading, propsFor } from './PropModels';
 import type { EnvProfile } from './ThreeStage';
 
 /** Procedural warm-soil texture for the diorama slab sides: layered earth
@@ -1320,9 +1320,12 @@ export function buildTerrain(
         const model = getProp(p.def);
         if (!model) {
           // If the generated model can't be fetched (offline / bad URL), fall
-          // back to the painted-art extrusion so the city is never empty.
+          // back to the painted-art extrusion so the city is never empty. Keep
+          // waiting as long as the GLB is still loading — big models take several
+          // seconds to decode on a phone the first time, and giving up early left
+          // the fallback until the scene was re-entered (GLB cached by then).
           p.wait += dt;
-          if (propFailed(p.def) || p.wait > 2.5) {
+          if (propFailed(p.def) || (!propLoading(p.def) && p.wait > 2.5)) {
             pendingProps.splice(i, 1);
           }
           continue;
@@ -1348,7 +1351,7 @@ export function buildTerrain(
         const model = getProp(p.def);
         if (!model) {
           p.wait += dt;
-          if (propFailed(p.def) || p.wait > 2.5) pendingScenery.splice(i, 1);
+          if (propFailed(p.def) || (!propLoading(p.def) && p.wait > 2.5)) pendingScenery.splice(i, 1);
           continue;
         }
         model.scale.multiplyScalar(p.scale);
