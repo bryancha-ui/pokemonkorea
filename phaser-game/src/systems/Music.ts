@@ -99,7 +99,7 @@ export const TRACKS: Record<string, string> = {
   // ── Utility / interior ──
   title:      BASE + 'bgm_title.mp3',       // Title screen
   professorintro: BASE + 'bgm_professorintro.mp3', // Professor Song's opening narration
-  center:     BASE + 'bgm_center.mp3',      // Pokémon Center
+  center:     BASE + 'pokemoncenter.mp3',      // Pokémon Center
   mart:       BASE + 'bgm_mart.mp3',        // Poké Mart / shop
   gyminterior: BASE + 'bgm_gyminterior.mp3',// Gym interior (approaching leader)
   leagueinterior: BASE + 'bgm_leagueinterior.mp3', // League interior
