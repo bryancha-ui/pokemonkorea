@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { tr } from '../systems/i18n';
+import { tr, speakerName } from '../systems/i18n';
 import { playBgm } from '../systems/Music';
 import { drawRiderBody, drawTrainerBody, playerDesign, rivalDesign, rivalTrainerName } from '../data/CharacterSprite';
 import { BIKE_SPEED, hasBike, isBikeRiding, setBikeRiding } from '../data/Bike';
@@ -342,7 +342,7 @@ export class SunriseCityScene extends Phaser.Scene {
     if (!this.rivalHere) return;   // rival has left after the final badge
     const dx = this.px - (this.rivalCol * TILE + 16), dy = this.py - (this.rivalRow * TILE + 16);
     if (Math.hypot(dx, dy) > TILE * 1.5) { if (!this.nearBuilding()) this.enterPrompt.setVisible(false); return; }
-    this.enterPrompt.setText('SPACE: talk to ' + rivalTrainerName(this.registry)).setVisible(true);
+    this.enterPrompt.setText(`${tr('SPACE: talk to')} ${speakerName(rivalTrainerName(this.registry))}`).setVisible(true);
     if (!Phaser.Input.Keyboard.JustDown(this.spaceKey)) return;
     this.cutsceneActive = true;
     this.enterPrompt.setVisible(false);

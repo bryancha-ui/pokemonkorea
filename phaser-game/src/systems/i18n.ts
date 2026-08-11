@@ -328,6 +328,7 @@ const ST = (s: string) => STAT_KR[s] ?? s;
 const AB = (s: string) => KO_ABILITIES[s.trim().replace(/[-_]+/g, ' ').toLowerCase()] ?? s;
 const TY = (s: string) => KO_TYPES[s.toLowerCase()] ?? s;
 const BATTLE_PATTERNS: Array<[RegExp, (m: RegExpMatchArray) => string]> = [
+  [/^What will (.+) do\?  🔴×(\d+)$/, m => `${P(m[1])}는 무엇을 할까?  🔴×${m[2]}`],
   [/^What will (.+) do\?$/, m => `${P(m[1])}는 무엇을 할까?`],
   [/^(.+) fainted!$/,       m => `${P(m[1])}은 쓰러졌다!`],
   [/^Go, (.+)!$/,           m => `가랏, ${P(m[1])}!`],
@@ -343,6 +344,24 @@ const BATTLE_PATTERNS: Array<[RegExp, (m: RegExpMatchArray) => string]> = [
   [/^✨ (.+) grew to Lv\. (\d+)!$/, m => `✨ ${P(m[1])}(은)는 Lv. ${m[2]}로 성장했다!`],
   [/^(.+) gained (\d+) EXP!$/, m => `${P(m[1])}(은)는 ${m[2]} 경험치를 얻었다!`],
   [/^(.+) also gained (\d+) EXP!$/, m => `${P(m[1])}(도) ${m[2]} 경험치를 얻었다!`],
+  // ── Battle results, capture, party/PC and trainer lines ──
+  [/^(.+) fainted! You win!$/,  m => `${P(m[1])}(은)는 쓰러졌다! 승리했다!`],
+  [/^(.+) fainted! You lose!$/, m => `${P(m[1])}(은)는 쓰러졌다! 패배했다...`],
+  [/^You got (.+) for winning!$/, m => `이겨서 ${m[1]}을(를) 얻었다!`],
+  [/^(.+) wants to battle!$/,   m => `${S(m[1])}(이)가 승부를 걸어왔다!`],
+  [/^(.+) sent out (.+)\.$/,    m => `${S(m[1])}가 ${P(m[2])}을(를) 내보냈다.`],
+  [/^Will you switch your Pokémon\?$/, () => `포켓몬을 교체할까요?`],
+  [/^(.+): You're out of Pokémon! Better luck next time\.$/, m => `${S(m[1])}: 네 포켓몬이 다 쓰러졌군! 다음 기회를 노려봐.`],
+  [/^Leader Jin: (.+), step forward!$/, m => `관장 진: ${P(m[1])}, 나서라!`],
+  [/^(.+) threw a (.+)!$/,      m => `${P(m[1])}(은)는 ${KO_STRINGS[m[2]] ?? m[2]}을(를) 던졌다!`],
+  [/^✨ Gotcha! (.+) was caught!$/, m => `✨ 좋았어! ${P(m[1])}(을)를 잡았다!`],
+  [/^Added to your party!$/,    () => `파티에 추가되었다!`],
+  [/^But your party is full\.$/, () => `하지만 파티가 가득 찼다.`],
+  [/^Oh no! (.+) broke free!$/, m => `안 돼! ${P(m[1])}(이)가 튀어나왔다!`],
+  [/^(.+) joined the party!$/,  m => `${P(m[1])}(이)가 파티에 합류했다!`],
+  [/^(.+) was sent to the PC\.$/, m => `${P(m[1])}(은)는 PC로 보내졌다.`],
+  [/^Max HP: (\d+)$/,           m => `최대 HP: ${m[1]}`],
+  [/^(.+)'s (.+) prevents escape!$/, m => `${P(m[1])}의 ${AB(m[2])}(으)로 도망칠 수 없다!`],
   // ── Status conditions (inflicted / persistent turn effects) ──
   [/^(.+) was paralyzed!$/,   m => `${P(m[1])}(은)는 마비되어 버렸다!`],
   [/^(.+) was burned!$/,      m => `${P(m[1])}(은)는 화상을 입었다!`],

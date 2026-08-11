@@ -299,7 +299,8 @@ export class StarterSelectScene extends Phaser.Scene {
     this.confirming = true;
     this.confirmIdx = 0;
     const q = this.confirmPanel.getData('q') as Phaser.GameObjects.Text;
-    q.setText(`Choose ${s.data.name}?`);
+    const nm = pokeNameEn(s.data.name);
+    q.setText(t(`Choose ${nm}?`, `${nm}(으)로 정할까요?`));
     this.confirmPanel.setVisible(true);
     this.refreshConfirm();
   }

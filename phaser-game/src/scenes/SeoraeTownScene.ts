@@ -279,7 +279,7 @@ export class SeoraeTownScene extends Phaser.Scene {
       return;
     }
     for (const building of ENTERABLE_BUILDINGS) if (distance(building.col, building.row) < TILE * 1.35) {
-      this.enterPrompt.setText(`SPACE — ${building.prompt}`).setVisible(true);
+      this.enterPrompt.setText(`SPACE — ${tr(building.prompt)}`).setVisible(true);
       if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) this.enterBuilding(building.kind, building.col, building.row);
       return;
     }
