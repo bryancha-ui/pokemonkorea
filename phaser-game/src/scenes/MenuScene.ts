@@ -23,6 +23,7 @@ import { ITEMS, Inventory, itemDef, itemDescription, itemName, useItemOnSlot, te
 import { TMS } from '../data/TMs';
 import { BADGES, reconcileBadgeProgress } from '../data/Badges';
 import { MAPAE, hasMapae, mapaeCount } from '../data/Mapae';
+import { preloadRewardAssets, rewardTextureKey } from '../systems/RewardCeremony';
 
 export class MenuScene extends Phaser.Scene {
   private tab: 'pokemon' | 'bag' = 'pokemon';
@@ -47,6 +48,7 @@ export class MenuScene extends Phaser.Scene {
   constructor() { super({ key: 'MenuScene' }); }
 
   preload() {
+    preloadRewardAssets(this);
     // Load sprites for any caught Pokémon whose textures aren't cached yet
     STARTERS.forEach(s => {
       if (!this.textures.exists(s.spriteKey))
@@ -982,18 +984,20 @@ export class MenuScene extends Phaser.Scene {
       const has = !!this.registry.get(b.flag);
       const col0 = TYPE_COLORS[b.type as keyof typeof TYPE_COLORS] ?? 0x556699;
 
-      // Emblem disc — coloured & glowing when earned, dark & dim when not.
-      const disc = this.add.circle(x, y - 18, 34, has ? col0 : 0x1a1e33)
+      // High-resolution Higgsfield emblem — full colour when earned, a locked
+      // metal silhouette before discovery.
+      const disc = this.add.circle(x, y - 18, 42, has ? col0 : 0x1a1e33)
         .setStrokeStyle(3, has ? 0xffe44e : 0x2a3050);
       overlay.add(disc);
-      const glyph = this.add.text(x, y - 18, has ? b.icon : '🔒', { fontSize: '26px' }).setOrigin(0.5);
-      if (!has) glyph.setAlpha(0.5);
-      overlay.add(glyph);
+      const emblem = this.add.image(x, y - 18, rewardTextureKey('badge', b.flag)).setDisplaySize(82, 82);
+      if (!has) emblem.setTint(0x22283c).setAlpha(0.32);
+      overlay.add(emblem);
+      if (!has) overlay.add(this.add.text(x, y - 18, '🔒', { fontSize: '22px' }).setOrigin(0.5));
 
       // Labels
-      overlay.add(this.add.text(x, y + 24, has ? b.name : '? ? ?',
+      overlay.add(this.add.text(x, y + 24, has ? tr(b.name) : '? ? ?',
         { fontSize: '11px', color: has ? '#ffffff' : '#556', fontStyle: 'bold', align: 'center', wordWrap: { width: cellW - 20 } }).setOrigin(0.5, 0));
-      overlay.add(this.add.text(x, y + (this.mobileMenu ? 66 : 52), has ? `${b.leader} · ${b.city}` : '',
+      overlay.add(this.add.text(x, y + (this.mobileMenu ? 66 : 52), has ? `${tr(b.leader)} · ${tr(b.city)}` : '',
         { fontSize: '9px', color: '#8899bb', align: 'center', wordWrap: { width: cellW - 20 } }).setOrigin(0.5, 0));
     });
 
@@ -1034,12 +1038,13 @@ export class MenuScene extends Phaser.Scene {
       const x = startX + col * cellW;
       const y = startY + row * cellH;
       const has = hasMapae(this.registry, mapae.key);
-      const tablet = this.add.rectangle(x, y - 18, 70, 52, has ? 0xb57a2d : 0x211b18)
+      const tablet = this.add.circle(x, y - 18, 43, has ? 0x7a4a1c : 0x211b18)
         .setStrokeStyle(3, has ? 0xffd77b : 0x55473d);
       overlay.add(tablet);
-      const glyph = this.add.text(x, y - 18, has ? mapae.icon : '🔒', { fontSize: '25px' }).setOrigin(0.5);
-      if (!has) glyph.setAlpha(0.5);
-      overlay.add(glyph);
+      const emblem = this.add.image(x, y - 18, rewardTextureKey('mapae', mapae.key)).setDisplaySize(84, 84);
+      if (!has) emblem.setTint(0x302821).setAlpha(0.34);
+      overlay.add(emblem);
+      if (!has) overlay.add(this.add.text(x, y - 18, '🔒', { fontSize: '22px' }).setOrigin(0.5));
       overlay.add(this.add.text(x, y + 22,
         has ? t(`${mapae.city} Mapae`, `${mapae.cityKo} 마패`) : '? ? ?', {
           fontSize: '11px', color: has ? '#fff4d6' : '#6d625b', fontStyle: 'bold', align: 'center',

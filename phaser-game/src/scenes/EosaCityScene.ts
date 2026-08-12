@@ -10,6 +10,7 @@ import { PartySystem } from '../systems/PartySystem';
 import { hasMapae, awardMapae } from '../data/Mapae';
 import { vanishesAfterDefeat } from '../data/Villains';
 import { markTrainerPortrait } from '../data/BattlePortraits';
+import { showRewardCeremony } from '../systems/RewardCeremony';
 
 // ── Shared base for the northern 어사대 (Inspectorate) circuit cities ─────────────
 // Each city is a small subclass that passes an EosaCity config. The base builds a
@@ -242,7 +243,11 @@ export abstract class EosaCityScene extends Phaser.Scene {
     const passKey = cfg.examBattle?.key ?? cfg.chiefKey;   // who you must beat to earn this 마패
     if (this.registry.get('trainerDefeated_' + passKey) && !hasMapae(this.registry, cfg.mapaeKey)) {
       awardMapae(this.registry, cfg.mapaeKey);
-      this.time.delayedCall(450, () => { this.cutsceneActive = true; this.dialog.show(cfg.award, () => { this.cutsceneActive = false; }); });
+      this.cutsceneActive = true;
+      showRewardCeremony(this, {
+        kind: 'mapae', key: cfg.mapaeKey,
+        onComplete: () => this.dialog.show(cfg.award, () => { this.cutsceneActive = false; }),
+      });
     } else if (!this.registry.get(cfg.key + 'Visited')) {
       this.registry.set(cfg.key + 'Visited', true);
       this.time.delayedCall(550, () => { this.cutsceneActive = true; this.dialog.show(cfg.intro, () => { this.cutsceneActive = false; }); });

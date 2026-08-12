@@ -33,6 +33,7 @@ import { genderedName } from '../data/PokemonGender';
 import { actsBefore } from '../systems/AbilitySystem';
 import { enemyLearnset, mergeLearnset } from '../data/Learnsets';
 import { BattleStatusBadge } from '../systems/BattleStatusBadge';
+import { showRewardCeremony } from '../systems/RewardCeremony';
 
 // ── Enemy movesets ──────────────────────────────────────────────────────────
 // Strong authored move data is reserved for Elite Four / Champion teams below.
@@ -922,7 +923,7 @@ export class TrainerBattleScene extends Phaser.Scene {
     // Silence the battle theme so only the win jingle plays (not both at once).
     stopBgm(this);
     // Milestone jingle: badge get for gym leaders, victory fanfare otherwise.
-    playJingle(this, this.badgeFlag ? 'badge' : 'victory');
+    if (!this.badgeFlag) playJingle(this, 'victory');
 
     // Commit the Chapter 7 milestone at victory time. If the lab return is
     // interrupted or reloaded, Haean City will no longer replay the summons.
@@ -953,7 +954,7 @@ export class TrainerBattleScene extends Phaser.Scene {
         }
         this.typeDialog(lines[i], () => playSeq(i + 1));
       };
-      playSeq(0);
+      showRewardCeremony(this, { kind: 'badge', key: this.badgeFlag, onComplete: () => playSeq(0) });
       return;
     }
 

@@ -9,6 +9,7 @@ import { maybeLaunchEvolution } from '../systems/EvolutionSystem';
 import { PartySystem } from '../systems/PartySystem';
 import { hasMapae, awardMapae } from '../data/Mapae';
 import { markTrainerPortrait } from '../data/BattlePortraits';
+import { showRewardCeremony } from '../systems/RewardCeremony';
 
 // ── POST-LEAGUE NORTH — Songhyeon (송현), an 어사대 circuit city ──────────────────────
 // Apolitical: real Songhyeon geography only — Songak Mountain, the Sungkyunkwan Confucian
@@ -135,7 +136,8 @@ export class KaesongCityScene extends Phaser.Scene {
     // Returned from the exam victorious → award the Songhyeon 마패 (once).
     if (this.registry.get('trainerDefeated_eosa-kaesong') && !hasMapae(this.registry, 'kaesong')) {
       awardMapae(this.registry, 'kaesong');
-      this.time.delayedCall(500, () => {
+      this.cutsceneActive = true;
+      showRewardCeremony(this, { kind: 'mapae', key: 'kaesong', onComplete: () => {
         this.cutsceneActive = true;
         this.dialog.show([
           '어사대장 Hyeon: ...Composed. Adaptable. You read the exam, not just the battle. The southern Champion is no rumour.',
@@ -143,7 +145,7 @@ export class KaesongCityScene extends Phaser.Scene {
           '🐎 You received the Songhyeon 마패! (1 of 8 the Northern League requires.)',
           '어사대장 Hyeon: Seven Chiefs remain, across the northern provinces. Earn all eight and the League gate at the far north will know you by them.',
         ], () => { this.cutsceneActive = false; });
-      });
+      } });
     } else if (!this.registry.get('kaesongVisited')) {
       this.registry.set('kaesongVisited', true);
       this.time.delayedCall(600, () => {

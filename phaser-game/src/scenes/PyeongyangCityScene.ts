@@ -7,6 +7,7 @@ import { SaveManager } from '../utils/SaveManager';
 import { PartySystem } from '../systems/PartySystem';
 import { awardMapae, canEnterPyeongseong, regionalMapaeCount } from '../data/Mapae';
 import { markTrainerPortrait } from '../data/BattlePortraits';
+import { showRewardCeremony } from '../systems/RewardCeremony';
 
 // ── POST-GAME I — Gwanmunseong, the Northern Capital ──────────────────────────────
 // A stern, conservative, GRAND capital: wide ceremonial avenues, colossal grey-granite
@@ -191,9 +192,14 @@ export class PyeongyangCityScene extends Phaser.Scene {
   private playChiefVictory() {
     this.cutsceneActive = true;
     this.chiefG?.destroy(); // Remove the chief from the map
-    this.dialog.show(PYEONGSEONG_CHIEF.defeat, () => {
-      awardMapae(this.registry, 'pyeongseong');
-      this.cutsceneActive = false;
+    // Persist the final tablet before any presentation begins, so a reload in
+    // the victory sequence can never lose the eighth 마패.
+    awardMapae(this.registry, 'pyeongseong');
+    showRewardCeremony(this, {
+      kind: 'mapae', key: 'pyeongseong',
+      onComplete: () => this.dialog.show(PYEONGSEONG_CHIEF.defeat, () => {
+        this.cutsceneActive = false;
+      }),
     });
   }
 

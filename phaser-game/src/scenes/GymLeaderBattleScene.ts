@@ -14,7 +14,7 @@ import { DexTracker } from '../systems/DexTracker';
 import { ITEMS, Inventory, itemName, useItemOnSlot } from '../systems/Items';
 import { SaveManager } from '../utils/SaveManager';
 import { portraitFor, fitPortrait } from '../data/BattlePortraits';
-import { pushBgm, popBgm, stopBgm, playJingle } from '../systems/Music';
+import { pushBgm, popBgm, stopBgm } from '../systems/Music';
 import { executeBattleMove, pendingMoveFor } from '../systems/MoveEffects';
 import { battle2DSpriteScale } from '../data/SpriteScale';
 import { runLevelUpLearning, runBenchLevelUpLearning } from '../systems/MoveLearning';
@@ -26,6 +26,7 @@ import { actsBefore } from '../systems/AbilitySystem';
 import { mergeLearnset } from '../data/Learnsets';
 import { BattleStatusBadge } from '../systems/BattleStatusBadge';
 import { blackoutMessage, blackoutToCenter } from '../systems/Blackout';
+import { showRewardCeremony } from '../systems/RewardCeremony';
 
 type State = 'intro' | 'playerAction' | 'playerMove' | 'busy' | 'over';
 const HP_W = 200;
@@ -676,7 +677,6 @@ export class GymLeaderBattleScene extends Phaser.Scene {
   private handleWin() {
     this.state = 'over';
     stopBgm(this);               // silence the gym-leader theme so only the badge jingle plays
-    playJingle(this, 'badge');   // Shadow Badge milestone
     this.hideAllPanels();
     this.registry.set('gymLeaderDefeated', true);
     Inventory.addMoney(this.registry, 3000);  // Gym Leader prize money (EXP already earned per Pokémon)
@@ -703,7 +703,7 @@ export class GymLeaderBattleScene extends Phaser.Scene {
       this.dialogText.setText(tr(lines[idx++]));
       this.time.delayedCall(300, () => { this.input.keyboard!.once('keydown-SPACE', next); });
     };
-    this.time.delayedCall(500, next);
+    showRewardCeremony(this, { kind: 'badge', key: 'gymLeaderDefeated', onComplete: next });
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────

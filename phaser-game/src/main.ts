@@ -157,6 +157,7 @@ import { PartySystem } from './systems/PartySystem';
 import { standaloneTestMode } from './systems/StandaloneTestMode';
 import { LeaderboardProgress } from './systems/LeaderboardProgress';
 import { LeaderboardApi, type LeaderboardEntry } from './systems/LeaderboardApi';
+import { showRewardCeremony } from './systems/RewardCeremony';
 
 function launchRyeoBattleTest(game: Phaser.Game): void {
   // Restore into this window's Phaser registry only. The battle scene's save
@@ -510,6 +511,28 @@ function launchUiLocalizationTest(game: Phaser.Game): void {
   game.scene.start('MenuScene');
 }
 
+/** Isolated badge/mapae reveal fixture. Use `reward=badge|mapae` and `key=`. */
+function launchRewardCeremonyTest(game: Phaser.Game): void {
+  const params = new URLSearchParams(location.search);
+  const kind = params.get('reward') === 'mapae' ? 'mapae' : 'badge';
+  const key = params.get('key') || (kind === 'mapae' ? 'pyeongseong' : 'sunriseGymDefeated');
+  const requestedLang = params.get('lang');
+  if (requestedLang === 'ko' || requestedLang === 'en') setLang(requestedLang, false);
+  game.registry.set('sceneFlowTest', true);
+  game.registry.set('party', '[]');
+  game.registry.set('starterName', 'Vipour');
+  game.registry.set('starterKey', 'vipour');
+  game.registry.set('starterLevel', 20);
+  game.registry.set('starterExp', 0);
+  PartySystem.initFromStarter(game.registry);
+  if (game.scene.isActive('TitleScene')) game.scene.stop('TitleScene');
+  game.scene.start('MenuScene');
+  const menu = game.scene.getScene('MenuScene');
+  menu.events.once(Phaser.Scenes.Events.CREATE, () => {
+    menu.time.delayedCall(250, () => showRewardCeremony(menu, { kind, key }));
+  });
+}
+
 /** Responsive leaderboard fixture with enough anonymous players to test paging. */
 function launchLeaderboardTest(game: Phaser.Game): void {
   game.registry.set('sceneFlowTest', true);
@@ -685,6 +708,10 @@ if (testMode === 'leaderboard') {
 } else if (testMode === 'ui-localization') {
   game.events.once(Phaser.Core.Events.READY, () => {
     window.setTimeout(() => launchUiLocalizationTest(game), 350);
+  });
+} else if (testMode === 'reward-ceremony') {
+  game.events.once(Phaser.Core.Events.READY, () => {
+    window.setTimeout(() => launchRewardCeremonyTest(game), 350);
   });
 } else if (testMode === 'close-combat') {
   game.events.once(Phaser.Core.Events.READY, () => {
