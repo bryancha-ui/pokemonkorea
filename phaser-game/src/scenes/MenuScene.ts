@@ -22,6 +22,7 @@ import { DexTracker } from '../systems/DexTracker';
 import { ITEMS, Inventory, itemDef, itemDescription, itemName, useItemOnSlot, teachHM, canLearnMove, formatMoney } from '../systems/Items';
 import { TMS } from '../data/TMs';
 import { BADGES, reconcileBadgeProgress } from '../data/Badges';
+import { MAPAE, hasMapae, mapaeCount } from '../data/Mapae';
 
 export class MenuScene extends Phaser.Scene {
   private tab: 'pokemon' | 'bag' = 'pokemon';
@@ -130,7 +131,7 @@ export class MenuScene extends Phaser.Scene {
       const scene = active?.scene.key ?? (this.registry.get('lastScene') as string) ?? 'WorldMapScene';
       const px = active?.px ?? (this.registry.get('lastX') as number) ?? (this.registry.get('returnX') as number) ?? 22 * 32 + 16;
       const py = active?.py ?? (this.registry.get('lastY') as number) ?? (this.registry.get('returnY') as number) ?? 24 * 32 + 16;
-      const ok = SaveManager.save(this.registry, px, py, scene);
+      const ok = SaveManager.save(this.registry, px, py, scene, 'manual');
       if (ok) saveBtn.setText(tr('💾 SAVED!')).setColor('#aaffaa');
       else    saveBtn.setText(tr('⚠ SAVE FAILED')).setColor('#ff8888');
       this.time.delayedCall(1800, () => saveBtn.setText(t('💾 SAVE', '💾 저장')).setColor('#ffe44e'));
@@ -142,6 +143,24 @@ export class MenuScene extends Phaser.Scene {
     rankBtn.on('pointerdown', () => {
       this.scene.pause();
       this.scene.launch('LeaderboardScene', { returnTo: 'MenuScene' });
+    });
+
+    // Auto-save is enabled by default to preserve the game's existing safety.
+    // It can be disabled without affecting the explicit SAVE button above.
+    const autoSaveBtn = this.add.text(winLeft + 250, winTop + 22, '', {
+      fontSize: '13px', color: '#aaffc2', backgroundColor: '#17452a', padding: { x: 8, y: 4 },
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    const refreshAutoSaveButton = () => {
+      const enabled = SaveManager.isAutoSaveEnabled();
+      autoSaveBtn
+        .setText(t(`AUTO-SAVE: ${enabled ? 'ON' : 'OFF'}`, `자동저장: ${enabled ? '켜짐' : '꺼짐'}`))
+        .setColor(enabled ? '#aaffc2' : '#ffb5b5')
+        .setBackgroundColor(enabled ? '#17452a' : '#52212a');
+    };
+    refreshAutoSaveButton();
+    autoSaveBtn.on('pointerdown', () => {
+      SaveManager.toggleAutoSave();
+      refreshAutoSaveButton();
     });
 
     // ── Close button ─────────────────────────────────────────────────────────
@@ -799,6 +818,17 @@ export class MenuScene extends Phaser.Scene {
       onClick: () => this.showBadgeCase(),
     });
 
+    // Northern Inspectorate tablets — kept separately from southern Gym Badges.
+    const heldMapae = mapaeCount(this.registry);
+    rows.push({
+      name: t('Mapae Pouch', '마패 파우치'), icon: '🐎',
+      desc: t(
+        `${heldMapae} of ${MAPAE.length} northern tablets collected. Tap to view your pouch.`,
+        `북부 마패 ${MAPAE.length}개 중 ${heldMapae}개 획득. 탭하면 파우치를 봅니다.`,
+      ),
+      onClick: () => this.showMapaePouch(),
+    });
+
     // Key items — HMs sit near the top (with the map/dex) so they're always visible.
     const inv = Inventory.all(this.registry);
     for (const def of ITEMS) {
@@ -971,6 +1001,60 @@ export class MenuScene extends Phaser.Scene {
       .setOrigin(0.5).setInteractive({ useHandCursor: true });
     close.on('pointerover', () => close.setColor('#fff'));
     close.on('pointerout',  () => close.setColor('#aaa'));
+    close.on('pointerdown', () => overlay.destroy(true));
+    overlay.add(close);
+  }
+
+  /** Mapae pouch — the eight northern 어사대장 tablets in circuit order. */
+  private showMapaePouch() {
+    const cx = this.W / 2, cy = this.H / 2;
+    const held = mapaeCount(this.registry);
+    const pouchW = this.mobileMenu ? Math.min(this.W - 48, 1180) : 660;
+    const pouchH = this.mobileMenu ? Math.min(this.H - 40, 680) : 470;
+    const overlay = this.add.container(0, 0).setDepth(60);
+
+    overlay.add(this.add.rectangle(cx, cy, this.W, this.H, 0x000000, 0.72));
+    overlay.add(this.add.rectangle(cx, cy, pouchW, pouchH, 0x24170e, 0.99)
+      .setStrokeStyle(3, 0xd8a74f));
+    const pouchTop = cy - pouchH / 2;
+    overlay.add(this.add.text(cx, pouchTop + 30, t('— NORTHERN MAPAE POUCH —', '— 북부 마패 파우치 —'), {
+      fontSize: '18px', color: '#ffd77b', fontStyle: 'bold',
+    }).setOrigin(0.5));
+    overlay.add(this.add.text(cx, pouchTop + 58,
+      t(`${held} / ${MAPAE.length} collected`, `${held} / ${MAPAE.length} 획득`),
+      { fontSize: '13px', color: '#d3b98c' }).setOrigin(0.5));
+
+    const cols = 4;
+    const cellW = this.mobileMenu ? (pouchW - 56) / cols : 152;
+    const cellH = this.mobileMenu ? 205 : 150;
+    const startX = cx - ((cols - 1) / 2) * cellW;
+    const startY = this.mobileMenu ? cy - 105 : cy - 70;
+    MAPAE.forEach((mapae, index) => {
+      const col = index % cols, row = Math.floor(index / cols);
+      const x = startX + col * cellW;
+      const y = startY + row * cellH;
+      const has = hasMapae(this.registry, mapae.key);
+      const tablet = this.add.rectangle(x, y - 18, 70, 52, has ? 0xb57a2d : 0x211b18)
+        .setStrokeStyle(3, has ? 0xffd77b : 0x55473d);
+      overlay.add(tablet);
+      const glyph = this.add.text(x, y - 18, has ? mapae.icon : '🔒', { fontSize: '25px' }).setOrigin(0.5);
+      if (!has) glyph.setAlpha(0.5);
+      overlay.add(glyph);
+      overlay.add(this.add.text(x, y + 22,
+        has ? t(`${mapae.city} Mapae`, `${mapae.cityKo} 마패`) : '? ? ?', {
+          fontSize: '11px', color: has ? '#fff4d6' : '#6d625b', fontStyle: 'bold', align: 'center',
+          wordWrap: { width: cellW - 18 },
+        }).setOrigin(0.5, 0));
+      overlay.add(this.add.text(x, y + (this.mobileMenu ? 66 : 52), has ? t(mapae.chief, mapae.chiefKo) : '', {
+        fontSize: '9px', color: '#c4a879', align: 'center', wordWrap: { width: cellW - 18 },
+      }).setOrigin(0.5, 0));
+    });
+
+    const close = this.add.text(cx, cy + pouchH / 2 - 28, tr('✕ Close'), {
+      fontSize: '14px', color: '#c8b89d',
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    close.on('pointerover', () => close.setColor('#ffffff'));
+    close.on('pointerout', () => close.setColor('#c8b89d'));
     close.on('pointerdown', () => overlay.destroy(true));
     overlay.add(close);
   }

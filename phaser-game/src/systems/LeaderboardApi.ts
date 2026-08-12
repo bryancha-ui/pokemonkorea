@@ -20,6 +20,7 @@ const FETCH_LIMIT = 200;
 export type LeaderboardCategory =
   | 'overall'
   | `badge-${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8}`
+  | `mapae-${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8}`
   | 'south-league'
   | 'north-league'
   | 'captures';
@@ -31,6 +32,8 @@ export interface LeaderboardEntry {
   playMs: number;
   badgeCount: number;
   badgeTimes: Array<number | null>;
+  mapaeCount: number;
+  mapaeTimes: Array<number | null>;
   southLeagueCleared: boolean;
   southLeagueMs: number | null;
   northLeagueCleared: boolean;
@@ -148,6 +151,21 @@ function nullableInt(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? Math.floor(value) : null;
 }
 
+function recordMapaeCount(value: DocumentData): number {
+  if (typeof value.mapaeCount === 'number') return Math.min(8, finiteInt(value.mapaeCount));
+  // Schema-one records created before 마패 tracking did not store the count.
+  // A Northern League clear proves all eight were held, so preserve that fact
+  // during the first migration update instead of displaying zero.
+  return value.northLeagueCleared ? 8 : 0;
+}
+
+function recordProgressScore(value: DocumentData): number {
+  return Math.min(8, finiteInt(value.badgeCount))
+    + recordMapaeCount(value)
+    + Number(!!value.southLeagueCleared) * 100
+    + Number(!!value.northLeagueCleared) * 100;
+}
+
 function timestampMs(value: unknown): number {
   if (value && typeof value === 'object' && 'toMillis' in value && typeof value.toMillis === 'function') {
     return finiteInt(value.toMillis(), Date.now());
@@ -155,14 +173,16 @@ function timestampMs(value: unknown): number {
   return finiteInt(value, Date.now());
 }
 
-function progressScore(snapshot: Pick<LeaderboardSnapshot, 'badgeCount' | 'southLeagueCleared' | 'northLeagueCleared'>): number {
+function progressScore(snapshot: Pick<LeaderboardSnapshot, 'badgeCount' | 'mapaeCount' | 'southLeagueCleared' | 'northLeagueCleared'>): number {
   return snapshot.badgeCount
+    + snapshot.mapaeCount
     + Number(snapshot.southLeagueCleared) * 100
     + Number(snapshot.northLeagueCleared) * 100;
 }
 
 function firestoreRecord(snapshot: LeaderboardSnapshot, user: User, serverTimestamp: () => unknown): DocumentData {
   const badgeTimes = Array.from({ length: 8 }, (_, index) => nullableInt(snapshot.badgeTimes[index]));
+  const mapaeTimes = Array.from({ length: 8 }, (_, index) => nullableInt(snapshot.mapaeTimes[index]));
   const record: DocumentData = {
     schema: 1,
     ownerUid: user.uid,
@@ -173,6 +193,8 @@ function firestoreRecord(snapshot: LeaderboardSnapshot, user: User, serverTimest
     playMs: finiteInt(snapshot.playMs),
     badgeCount: Math.min(8, finiteInt(snapshot.badgeCount)),
     badgeTimes,
+    mapaeCount: Math.min(8, finiteInt(snapshot.mapaeCount)),
+    mapaeTimes,
     southLeagueCleared: !!snapshot.southLeagueCleared,
     northLeagueCleared: !!snapshot.northLeagueCleared,
     totalCaught: finiteInt(snapshot.totalCaught),
@@ -183,6 +205,9 @@ function firestoreRecord(snapshot: LeaderboardSnapshot, user: User, serverTimest
   };
   badgeTimes.forEach((time, index) => {
     if (time !== null) record[`badge${index + 1}Ms`] = time;
+  });
+  mapaeTimes.forEach((time, index) => {
+    if (time !== null) record[`mapae${index + 1}Ms`] = time;
   });
   const southLeagueMs = nullableInt(snapshot.southLeagueMs);
   const northLeagueMs = nullableInt(snapshot.northLeagueMs);
@@ -202,13 +227,17 @@ function aggregateBestRecord(
   incoming: DocumentData,
   serverTimestamp: () => unknown,
 ): { changed: boolean; record: DocumentData } {
-  const oldScore = finiteInt(old.progressScore);
-  const incomingScore = finiteInt(incoming.progressScore);
+  const oldScore = recordProgressScore(old);
+  const incomingScore = recordProgressScore(incoming);
   const oldPlayMs = finiteInt(old.playMs);
   const incomingPlayMs = finiteInt(incoming.playMs);
   const overallImproved = incomingScore > oldScore
     || (incomingScore === oldScore && incomingPlayMs < oldPlayMs);
   const recordPlayMs = overallImproved ? incomingPlayMs : oldPlayMs;
+  const badgeCount = Math.max(finiteInt(old.badgeCount), finiteInt(incoming.badgeCount));
+  const mapaeCount = Math.max(recordMapaeCount(old), recordMapaeCount(incoming));
+  const southLeagueCleared = !!old.southLeagueCleared || !!incoming.southLeagueCleared;
+  const northLeagueCleared = !!old.northLeagueCleared || !!incoming.northLeagueCleared;
   const record: DocumentData = {
     schema: 1,
     ownerUid: old.ownerUid,
@@ -217,13 +246,16 @@ function aggregateBestRecord(
     displayName: incoming.displayName,
     startedAt: overallImproved ? incoming.startedAt : old.startedAt,
     playMs: recordPlayMs,
-    badgeCount: Math.max(finiteInt(old.badgeCount), finiteInt(incoming.badgeCount)),
-    southLeagueCleared: !!old.southLeagueCleared || !!incoming.southLeagueCleared,
-    northLeagueCleared: !!old.northLeagueCleared || !!incoming.northLeagueCleared,
+    badgeCount,
+    mapaeCount,
+    southLeagueCleared,
+    northLeagueCleared,
     totalCaught: Math.max(finiteInt(old.totalCaught), finiteInt(incoming.totalCaught)),
     uniqueCaught: Math.max(finiteInt(old.uniqueCaught), finiteInt(incoming.uniqueCaught)),
     legacyImported: overallImproved ? !!incoming.legacyImported : !!old.legacyImported,
-    progressScore: Math.max(oldScore, incomingScore),
+    progressScore: badgeCount + mapaeCount
+      + Number(southLeagueCleared) * 100
+      + Number(northLeagueCleared) * 100,
     updatedAt: serverTimestamp(),
   };
 
@@ -234,6 +266,13 @@ function aggregateBestRecord(
     if (time !== null) record[`badge${index + 1}Ms`] = time;
     return time;
   });
+  const oldMapaeTimes = Array.isArray(old.mapaeTimes) ? old.mapaeTimes : [];
+  const incomingMapaeTimes = Array.isArray(incoming.mapaeTimes) ? incoming.mapaeTimes : [];
+  record.mapaeTimes = Array.from({ length: 8 }, (_, index) => {
+    const time = bestTime(oldMapaeTimes[index], incomingMapaeTimes[index], recordPlayMs);
+    if (time !== null) record[`mapae${index + 1}Ms`] = time;
+    return time;
+  });
   const southLeagueMs = bestTime(old.southLeagueMs, incoming.southLeagueMs, recordPlayMs);
   const northLeagueMs = bestTime(old.northLeagueMs, incoming.northLeagueMs, recordPlayMs);
   if (southLeagueMs !== null) record.southLeagueMs = southLeagueMs;
@@ -241,16 +280,21 @@ function aggregateBestRecord(
 
   const oldBadgeFingerprint = oldBadgeTimes.map(nullableInt).join(',');
   const newBadgeFingerprint = (record.badgeTimes as Array<number | null>).join(',');
+  const oldMapaeFingerprint = oldMapaeTimes.map(nullableInt).join(',');
+  const newMapaeFingerprint = (record.mapaeTimes as Array<number | null>).join(',');
   const changed = overallImproved
     || old.displayName !== record.displayName
     || finiteInt(old.badgeCount) !== record.badgeCount
+    || finiteInt(old.mapaeCount) !== record.mapaeCount
     || finiteInt(old.totalCaught) !== record.totalCaught
     || finiteInt(old.uniqueCaught) !== record.uniqueCaught
     || !!old.southLeagueCleared !== record.southLeagueCleared
     || !!old.northLeagueCleared !== record.northLeagueCleared
     || nullableInt(old.southLeagueMs) !== southLeagueMs
     || nullableInt(old.northLeagueMs) !== northLeagueMs
-    || oldBadgeFingerprint !== newBadgeFingerprint;
+    || oldBadgeFingerprint !== newBadgeFingerprint
+    || oldMapaeFingerprint !== newMapaeFingerprint
+    || !Array.isArray(old.mapaeTimes);
   return { changed, record };
 }
 
@@ -315,6 +359,7 @@ function parseEntry(document: QueryDocumentSnapshot<DocumentData>, myUid: string
   const value = document.data();
   if (typeof value.ownerUid !== 'string' || typeof value.displayName !== 'string') return null;
   const badgeTimes = Array.from({ length: 8 }, (_, index) => nullableInt(value.badgeTimes?.[index]));
+  const mapaeTimes = Array.from({ length: 8 }, (_, index) => nullableInt(value.mapaeTimes?.[index]));
   return {
     rank: 0,
     ownerUid: value.ownerUid,
@@ -323,6 +368,8 @@ function parseEntry(document: QueryDocumentSnapshot<DocumentData>, myUid: string
     playMs: finiteInt(value.playMs),
     badgeCount: Math.min(8, finiteInt(value.badgeCount)),
     badgeTimes,
+    mapaeCount: recordMapaeCount(value),
+    mapaeTimes,
     southLeagueCleared: !!value.southLeagueCleared,
     southLeagueMs: nullableInt(value.southLeagueMs),
     northLeagueCleared: !!value.northLeagueCleared,
@@ -336,13 +383,17 @@ function parseEntry(document: QueryDocumentSnapshot<DocumentData>, myUid: string
 
 function compare(category: LeaderboardCategory, left: ParsedEntry, right: ParsedEntry): number {
   if (category === 'overall') {
-    const leftProgress = left.badgeCount + Number(left.southLeagueCleared) * 100 + Number(left.northLeagueCleared) * 100;
-    const rightProgress = right.badgeCount + Number(right.southLeagueCleared) * 100 + Number(right.northLeagueCleared) * 100;
+    const leftProgress = left.badgeCount + left.mapaeCount + Number(left.southLeagueCleared) * 100 + Number(left.northLeagueCleared) * 100;
+    const rightProgress = right.badgeCount + right.mapaeCount + Number(right.southLeagueCleared) * 100 + Number(right.northLeagueCleared) * 100;
     return rightProgress - leftProgress || left.playMs - right.playMs || right.totalCaught - left.totalCaught;
   }
   if (category === 'captures') return right.totalCaught - left.totalCaught || left.playMs - right.playMs;
   if (category === 'south-league') return (left.southLeagueMs ?? Infinity) - (right.southLeagueMs ?? Infinity);
   if (category === 'north-league') return (left.northLeagueMs ?? Infinity) - (right.northLeagueMs ?? Infinity);
+  if (category.startsWith('mapae-')) {
+    const mapaeIndex = Number(category.slice(6)) - 1;
+    return (left.mapaeTimes[mapaeIndex] ?? Infinity) - (right.mapaeTimes[mapaeIndex] ?? Infinity);
+  }
   const badgeIndex = Number(category.slice(6)) - 1;
   return (left.badgeTimes[badgeIndex] ?? Infinity) - (right.badgeTimes[badgeIndex] ?? Infinity);
 }
@@ -352,6 +403,7 @@ function queryField(category: LeaderboardCategory): { field: string; direction: 
   if (category === 'captures') return { field: 'totalCaught', direction: 'desc' };
   if (category === 'south-league') return { field: 'southLeagueMs', direction: 'asc' };
   if (category === 'north-league') return { field: 'northLeagueMs', direction: 'asc' };
+  if (category.startsWith('mapae-')) return { field: `mapae${Number(category.slice(6))}Ms`, direction: 'asc' };
   return { field: `badge${Number(category.slice(6))}Ms`, direction: 'asc' };
 }
 

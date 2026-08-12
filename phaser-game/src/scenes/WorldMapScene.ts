@@ -584,7 +584,9 @@ export class WorldMapScene extends Phaser.Scene {
     this.time.addEvent({
       delay: 60_000,
       loop: true,
-      callback: () => this.saveGame(),
+      callback: () => {
+        if (SaveManager.autoSave(this.registry, this.px, this.py)) this.showSaveToast();
+      },
     });
   }
 
@@ -859,7 +861,10 @@ export class WorldMapScene extends Phaser.Scene {
 
   // ── Save ──────────────────────────────────────────────────────────────────
   saveGame() {
-    SaveManager.save(this.registry, this.px, this.py);
+    if (SaveManager.save(this.registry, this.px, this.py, 'WorldMapScene', 'manual')) this.showSaveToast();
+  }
+
+  private showSaveToast() {
     this.tweens.add({
       targets: this.saveToast,
       alpha: { from: 0, to: 1 },

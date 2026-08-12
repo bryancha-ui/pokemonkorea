@@ -6,17 +6,24 @@ import Phaser from 'phaser';
 // tablet). All eight 마패 + the eight southern badges make a trainer eligible for the
 // Northern League. Each entry keys a registry flag `mapae_<key>` set true on victory.
 
-export interface MapaeDef { key: string; city: string; chief: string; }
+export interface MapaeDef {
+  key: string;
+  city: string;
+  cityKo: string;
+  chief: string;
+  chiefKo: string;
+  icon: string;
+}
 
 export const MAPAE: MapaeDef[] = [
-  { key: 'kaesong',   city: 'Songhyeon',   chief: '어사대장 Hyeon' },    // scholar / Psychic  (sprite: npc_eosajang)
-  { key: 'nampo',     city: 'Parangpo',     chief: '어사대장 Haemin' },   // west-sea barrage / Water
-  { key: 'wonsan',    city: 'Haesol',    chief: '어사대장 Haegang' },  // east coast / Fighting
-  { key: 'hamhung',   city: 'Gangcheoldo',   chief: '어사대장 Cheolju' },  // steelworks / Steel
-  { key: 'chongjin',  city: 'Muyeonhang',  chief: '어사대장 Mukyeong' }, // far-NE fog port / Dark
-  { key: 'sinuiju',   city: 'Binghagwan',   chief: '어사대장 Amrok' },    // Yalu border ice / Ice·Dragon
-  { key: 'samjiyon',  city: 'Samho',  chief: '어사대장 Seolwon' },  // Baekdu highland / Ice
-  { key: 'pyeongseong',city: 'Gwanmunseong',chief: '어사대장 Supreme Gwang' },  // capital, final certification / Supreme Commander
+  { key: 'kaesong', city: 'Songhyeon', cityKo: '송현', chief: 'Inspector Chief Hyeon', chiefKo: '어사대장 현', icon: '📜' },
+  { key: 'nampo', city: 'Parangpo', cityKo: '파랑포', chief: 'Inspector Chief Haemin', chiefKo: '어사대장 해민', icon: '🌊' },
+  { key: 'wonsan', city: 'Haesol', cityKo: '해솔', chief: 'Inspector Chief Haegang', chiefKo: '어사대장 해강', icon: '🥋' },
+  { key: 'hamhung', city: 'Gangcheoldo', cityKo: '강철도', chief: 'Inspector Chief Cheolju', chiefKo: '어사대장 철주', icon: '⚙️' },
+  { key: 'chongjin', city: 'Muyeonhang', cityKo: '무연항', chief: 'Inspector Chief Mukyeong', chiefKo: '어사대장 무경', icon: '🌫️' },
+  { key: 'sinuiju', city: 'Binghagwan', cityKo: '빙하관', chief: 'Inspector Chief Amrok', chiefKo: '어사대장 압록', icon: '🧊' },
+  { key: 'samjiyon', city: 'Samho', cityKo: '삼호', chief: 'Inspector Chief Seolwon', chiefKo: '어사대장 설원', icon: '🏔️' },
+  { key: 'pyeongseong', city: 'Gwanmunseong', cityKo: '관문성', chief: 'Supreme Commander Gwang', chiefKo: '어사대 총수 광', icon: '👑' },
 ];
 
 /** The capital is the eighth/final trial, so its gate is unlocked by the seven
@@ -38,11 +45,17 @@ export function awardMapae(reg: Phaser.Data.DataManager, key: string): void {
 }
 /** How many of the eight 마패 the player currently holds. */
 export function mapaeCount(reg: Phaser.Data.DataManager): number {
-  // Use cached count from registry if available, otherwise calculate
-  const cached = reg.get('mapaeCount') as number;
-  if (cached !== undefined) return cached;
+  // Reaching the end of the Northern League proves the full circuit was
+  // completed. Repair very old saves that did not persist every tablet flag.
+  if (reg.get('northLeagueDone')) {
+    MAPAE.forEach(mapae => {
+      if (!reg.get(flag(mapae.key))) reg.set(flag(mapae.key), true);
+    });
+  }
+  // Individual award flags are authoritative. Recalculate every time so an old
+  // or partially restored save can never keep a stale cached pouch total.
   const calculated = MAPAE.reduce((n, m) => n + (reg.get(flag(m.key)) ? 1 : 0), 0);
-  reg.set('mapaeCount', calculated);
+  if (reg.get('mapaeCount') !== calculated) reg.set('mapaeCount', calculated);
   return calculated;
 }
 

@@ -297,6 +297,7 @@ export class OverworldMirror {
       noRocks3D?: boolean;
       sacredPeakNature3D?: boolean;
       preservePaintedGround3D?: boolean;
+      crowdPlots?: import('./AmbientCrowd').CrowdPlot[];
     };
     const known = sc.buildingPlots ?? [];
     const useFreeCityBuildings = sc.freeBuildings ?? (
@@ -322,6 +323,7 @@ export class OverworldMirror {
       sc.noRocks3D ?? false,
       sc.sacredPeakNature3D ?? false,
       sc.preservePaintedGround3D ?? false,
+      sc.crowdPlots ?? [],
     );
     this.terrain = t;
     this.groundTex = ((t.group.children[0] as THREE.Mesh).material as THREE.MeshToonMaterial).map as THREE.CanvasTexture;

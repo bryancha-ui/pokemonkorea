@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { BADGES } from '../data/Badges';
+import { MAPAE, hasMapae, mapaeCount } from '../data/Mapae';
 import { DexTracker } from './DexTracker';
 
 const REGISTRY_KEY = 'leaderboardProgressV1';
@@ -14,6 +15,11 @@ export interface LeaderboardProgressData {
   playMs: number;
   badgeCount: number;
   badgeTimes: Array<number | null>;
+  mapaeCount: number;
+  mapaeTimes: Array<number | null>;
+  /** Local-only observation state. It prevents existing 마패 from receiving a
+   * fabricated current timestamp when a schema-one leaderboard run is loaded. */
+  mapaeObserved: boolean[];
   southLeagueCleared: boolean;
   southLeagueMs: number | null;
   northLeagueCleared: boolean;
@@ -45,6 +51,18 @@ function parse(registry: Phaser.Data.DataManager): LeaderboardProgressData | nul
       const time = value.badgeTimes?.[index];
       return typeof time === 'number' && Number.isFinite(time) && time >= 0 ? Math.floor(time) : UNKNOWN_TIME;
     });
+    const mapaeTimes = Array.from({ length: MAPAE.length }, (_, index) => {
+      const time = value.mapaeTimes?.[index];
+      return typeof time === 'number' && Number.isFinite(time) && time >= 0 ? Math.floor(time) : UNKNOWN_TIME;
+    });
+    mapaeCount(registry); // reconcile legacy Northern League saves before migration
+    const earnedMapae = MAPAE.map(mapae => hasMapae(registry, mapae.key));
+    const mapaeObserved = Array.from({ length: MAPAE.length }, (_, index) => {
+      const observed = value.mapaeObserved?.[index];
+      // Runs saved before 마패 tracking already know which tablets exist, but not
+      // when they were earned. Mark those as observed and leave their time null.
+      return typeof observed === 'boolean' ? observed : (earnedMapae[index] || mapaeTimes[index] !== null);
+    });
     return {
       schema: SCHEMA_VERSION,
       runId: value.runId,
@@ -52,6 +70,13 @@ function parse(registry: Phaser.Data.DataManager): LeaderboardProgressData | nul
       playMs: Math.max(0, Math.floor(value.playMs ?? 0)),
       badgeCount: Phaser.Math.Clamp(Math.floor(value.badgeCount ?? 0), 0, BADGES.length),
       badgeTimes,
+      mapaeCount: Phaser.Math.Clamp(
+        Math.floor(value.mapaeCount ?? earnedMapae.filter(Boolean).length),
+        0,
+        MAPAE.length,
+      ),
+      mapaeTimes,
+      mapaeObserved,
       southLeagueCleared: !!value.southLeagueCleared,
       southLeagueMs: typeof value.southLeagueMs === 'number' ? Math.max(0, Math.floor(value.southLeagueMs)) : null,
       northLeagueCleared: !!value.northLeagueCleared,
@@ -76,10 +101,16 @@ function completedBadgeCount(registry: Phaser.Data.DataManager): number {
   return furthest + 1;
 }
 
+function completedMapae(registry: Phaser.Data.DataManager): boolean[] {
+  mapaeCount(registry); // also reconciles legacy Northern League saves
+  return MAPAE.map(mapae => hasMapae(registry, mapae.key));
+}
+
 function newProgress(registry: Phaser.Data.DataManager, legacyImported: boolean): LeaderboardProgressData {
   const badgeCount = completedBadgeCount(registry);
   const southLeagueCleared = !!registry.get('championDefeated');
   const northLeagueCleared = !!registry.get('northLeagueDone');
+  const earnedMapae = completedMapae(registry);
   return {
     schema: SCHEMA_VERSION,
     runId: uuid(),
@@ -89,6 +120,9 @@ function newProgress(registry: Phaser.Data.DataManager, legacyImported: boolean)
     // A pre-leaderboard save proves that a milestone was reached, but not when.
     // Keep its time unknown so it can never become a fabricated speed record.
     badgeTimes: Array.from({ length: BADGES.length }, () => UNKNOWN_TIME),
+    mapaeCount: earnedMapae.filter(Boolean).length,
+    mapaeTimes: Array.from({ length: MAPAE.length }, () => UNKNOWN_TIME),
+    mapaeObserved: [...earnedMapae],
     southLeagueCleared,
     southLeagueMs: null,
     northLeagueCleared,
@@ -119,6 +153,19 @@ function observe(registry: Phaser.Data.DataManager, progress: LeaderboardProgres
       if (progress.badgeTimes[index] === null) progress.badgeTimes[index] = Math.floor(progress.playMs);
     }
     progress.badgeCount = badgeCount;
+    changed = true;
+  }
+
+  const earnedMapae = completedMapae(registry);
+  earnedMapae.forEach((earned, index) => {
+    if (!earned || progress.mapaeObserved[index]) return;
+    progress.mapaeObserved[index] = true;
+    if (progress.mapaeTimes[index] === null) progress.mapaeTimes[index] = Math.floor(progress.playMs);
+    changed = true;
+  });
+  const mapaeCount = earnedMapae.filter(Boolean).length;
+  if (mapaeCount > progress.mapaeCount) {
+    progress.mapaeCount = mapaeCount;
     changed = true;
   }
 
@@ -231,6 +278,8 @@ export const LeaderboardProgress = {
     return {
       ...active,
       badgeTimes: [...active.badgeTimes],
+      mapaeTimes: [...active.mapaeTimes],
+      mapaeObserved: [...active.mapaeObserved],
       displayName: cleanDisplayName(registry.get('playerName')),
       uniqueCaught: DexTracker.caughtCount(registry),
     };

@@ -4,6 +4,7 @@ import { LeaderboardApi } from '../systems/LeaderboardApi';
 
 const SAVE_KEY = 'pokemon_korea_v2';
 const BACKUP_KEY = 'pokemon_korea_v2_backup';
+const AUTO_SAVE_SETTING_KEY = 'pokemon_korea_auto_save_v1';
 const DURABLE_DB = 'pokemon_korea_saves';
 const DURABLE_STORE = 'slots';
 
@@ -124,6 +125,24 @@ export interface SaveData {
 
 export const SaveManager = {
 
+  /** Auto-save is an install-wide preference, not part of a run. Keeping it
+   *  outside SaveData means New Game and backup restore do not reset it. */
+  isAutoSaveEnabled(): boolean {
+    try { return localStorage.getItem(AUTO_SAVE_SETTING_KEY) !== 'off'; }
+    catch { return true; }
+  },
+
+  setAutoSaveEnabled(enabled: boolean): void {
+    try { localStorage.setItem(AUTO_SAVE_SETTING_KEY, enabled ? 'on' : 'off'); }
+    catch { /* private browsing can reject preference writes */ }
+  },
+
+  toggleAutoSave(): boolean {
+    const enabled = !this.isAutoSaveEnabled();
+    this.setAutoSaveEnabled(enabled);
+    return enabled;
+  },
+
   /** Restore the newest valid save mirror before TitleScene checks Continue. */
   async bootstrapDurableStorage(): Promise<void> {
     try {
@@ -144,7 +163,14 @@ export const SaveManager = {
 
   /** Persist the game. Returns true on success, false if it couldn't be written
    *  (e.g. storage quota) — callers should surface a failure instead of assuming saved. */
-  save(registry: Phaser.Data.DataManager, px: number, py: number, scene = 'WorldMapScene'): boolean {
+  save(
+    registry: Phaser.Data.DataManager,
+    px: number,
+    py: number,
+    scene = 'WorldMapScene',
+    source: 'auto' | 'manual' = 'auto',
+  ): boolean {
+    if (source === 'auto' && !this.isAutoSaveEnabled()) return false;
     // The Commander Ryeo popup is an isolated rehearsal. Never let its copied
     // party, battle damage, rewards, or debug flags reach the real save slot.
     if (registry.get('ryeoBattleTest') || registry.get('sceneFlowTest')) return false;
@@ -194,6 +220,12 @@ export const SaveManager = {
       console.error('SaveManager.save failed:', e);
       return false;
     }
+  },
+
+  /** Save only when the player has enabled automatic saving. Explicit menu/F5
+   *  saves continue to call save() and always work. */
+  autoSave(registry: Phaser.Data.DataManager, px: number, py: number, scene = 'WorldMapScene'): boolean {
+    return this.save(registry, px, py, scene, 'auto');
   },
 
   load(): SaveData | null {

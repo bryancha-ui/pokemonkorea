@@ -1452,3 +1452,170 @@ export class WallBuilder {
     return new THREE.Mesh(g, m);
   }
 }
+
+// ── Coastal harbour dressing ─────────────────────────────────────────────────
+// A fishing town lives on its quayside clutter: iced fish counters under bright
+// awnings, stacked crates, drying racks, mooring bollards and floating buoys.
+// All primitive-built, so the harbour works offline and stays cheap to draw.
+
+/** A fish-market counter: iced tray of the day's catch under a striped awning,
+ *  with a hanging scale and a chalk price board. Faces −Z (toward the shopper). */
+export function makeFishStall(): THREE.Group {
+  const g = new THREE.Group();
+  const wood = 0x9a6a3a, post = 0x6a4a2a;
+
+  const counter = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.44, 0.72), toonMat(wood));
+  counter.position.set(0, 0.22, 0);
+  const iceTray = new THREE.Mesh(new THREE.BoxGeometry(1.34, 0.1, 0.58), toonMat(0xdfeef6));
+  iceTray.position.set(0, 0.49, 0);
+  g.add(counter, iceTray);
+
+  // The catch: silver, red-snapper and squid tones laid on the ice.
+  const catchTones = [0xbfc9d4, 0xd8654f, 0xe8d9c0, 0xa9b6c4];
+  for (let i = 0; i < 7; i++) {
+    const fish = new THREE.Mesh(new THREE.SphereGeometry(0.1, 7, 5), toonMat(catchTones[i % catchTones.length]));
+    fish.scale.set(1.7, 0.5, 0.7);
+    fish.position.set(-0.52 + (i % 4) * 0.34, 0.56, -0.12 + Math.floor(i / 4) * 0.24);
+    fish.rotation.y = (i % 3) * 0.4;
+    g.add(fish);
+  }
+
+  // Posts + striped awning.
+  for (const x of [-0.72, 0.72]) {
+    for (const z of [-0.3, 0.3]) {
+      const p = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.5, 6), toonMat(post));
+      p.position.set(x, 0.75, z);
+      g.add(p);
+    }
+  }
+  const stripes = 6;
+  for (let i = 0; i < stripes; i++) {
+    const seg = new THREE.Mesh(
+      new THREE.BoxGeometry(1.72 / stripes, 0.06, 1.0),
+      toonMat(i % 2 ? 0xf2f2ee : 0x2f8fd0),
+    );
+    seg.position.set(-0.86 + (i + 0.5) * (1.72 / stripes), 1.54, -0.06);
+    seg.rotation.x = -0.14;
+    g.add(seg);
+  }
+  // Valance along the shopper side.
+  const valance = new THREE.Mesh(new THREE.BoxGeometry(1.74, 0.16, 0.04), toonMat(0x2f8fd0));
+  valance.position.set(0, 1.46, 0.44);
+  g.add(valance);
+
+  // Hanging scale + chalk board.
+  const scaleArm = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.34, 5), toonMat(0x555a60));
+  scaleArm.position.set(0.6, 1.28, 0.1);
+  const pan = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.11, 0.05, 10), toonMat(0xb9bfc6));
+  pan.position.set(0.6, 1.09, 0.1);
+  const board = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.3, 0.03), toonMat(0x2a2f36));
+  board.position.set(-0.62, 0.72, 0.37);
+  board.rotation.x = 0.2;
+  g.add(scaleArm, pan, board);
+  return g;
+}
+
+/** A stack of quayside crates, some open with fish or nets inside. */
+export function makeCrateStack(): THREE.Group {
+  const g = new THREE.Group();
+  const tones = [0xa87a48, 0x926a3e, 0xb98a52];
+  const boxes: [number, number, number, number][] = [
+    [0, 0.22, 0, 0.44], [0.34, 0.2, 0.22, 0.4], [-0.28, 0.19, 0.26, 0.38],
+    [0.08, 0.62, 0.06, 0.4],
+  ];
+  boxes.forEach(([x, y, z, s], i) => {
+    const c = new THREE.Mesh(new THREE.BoxGeometry(s, s, s), toonMat(tones[i % tones.length]));
+    c.position.set(x, y, z);
+    c.rotation.y = (i * 0.5) % 1.2;
+    g.add(c);
+    // slat lines
+    const slat = new THREE.Mesh(new THREE.BoxGeometry(s * 1.02, s * 0.08, s * 1.02), toonMat(0x6f4f2c));
+    slat.position.copy(c.position);
+    slat.rotation.y = c.rotation.y;
+    g.add(slat);
+  });
+  const catchTop = new THREE.Mesh(new THREE.SphereGeometry(0.09, 7, 5), toonMat(0xbfc9d4));
+  catchTop.scale.set(1.6, 0.5, 0.8);
+  catchTop.position.set(0.08, 0.83, 0.06);
+  g.add(catchTop);
+  return g;
+}
+
+/** A drying rack: split fish hung from a timber frame, a coastal-village staple. */
+export function makeDryingRack(): THREE.Group {
+  const g = new THREE.Group();
+  const timber = 0x8a6238;
+  for (const x of [-0.7, 0.7]) {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.055, 1.5, 6), toonMat(timber));
+    leg.position.set(x, 0.75, 0);
+    g.add(leg);
+  }
+  for (const y of [1.42, 1.05]) {
+    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.5, 6), toonMat(timber));
+    bar.rotation.z = Math.PI / 2;
+    bar.position.set(0, y, 0);
+    g.add(bar);
+  }
+  for (let i = 0; i < 8; i++) {
+    const row = i % 2;
+    const fish = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.34, 0.04), toonMat(row ? 0xd8c9a8 : 0xc7b494));
+    fish.position.set(-0.6 + (i % 4) * 0.4 + row * 0.1, (row ? 1.05 : 1.42) - 0.2, row ? 0.05 : -0.05);
+    g.add(fish);
+  }
+  return g;
+}
+
+/** A cast-iron mooring bollard with a coiled rope at its foot. */
+export function makeBollard(): THREE.Group {
+  const g = new THREE.Group();
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.17, 0.5, 8), toonMat(0x3a4048));
+  post.position.y = 0.25;
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 6), toonMat(0x3a4048));
+  cap.scale.y = 0.6; cap.position.y = 0.5;
+  const rope = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.045, 6, 12), toonMat(0xcbb388));
+  rope.rotation.x = Math.PI / 2; rope.position.y = 0.045;
+  g.add(post, cap, rope);
+  return g;
+}
+
+/** A floating harbour buoy — bobbing is applied by the caller if desired. */
+export function makeBuoy(): THREE.Group {
+  const g = new THREE.Group();
+  const float = new THREE.Mesh(new THREE.SphereGeometry(0.26, 10, 8), toonMat(0xd8483a));
+  float.scale.y = 0.85; float.position.y = 0.2;
+  const band = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.08, 10), toonMat(0xf2f2ee));
+  band.position.y = 0.24;
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.42, 5), toonMat(0x55606a));
+  mast.position.y = 0.6;
+  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.07, 7, 5), new THREE.MeshBasicMaterial({ color: 0xfff0a8 }));
+  lamp.position.y = 0.82;
+  g.add(float, band, mast, lamp);
+  return g;
+}
+
+/** A fishing net draped over a frame, drying on the quay. */
+export function makeFishingNet(): THREE.Group {
+  const g = new THREE.Group();
+  const frame = 0x7f5a34;
+  for (const x of [-0.5, 0.5]) {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 1.05, 6), toonMat(frame));
+    leg.position.set(x, 0.52, 0);
+    g.add(leg);
+  }
+  const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.1, 6), toonMat(frame));
+  bar.rotation.z = Math.PI / 2; bar.position.y = 1.02;
+  g.add(bar);
+  const net = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.0, 0.85),
+    new THREE.MeshLambertMaterial({ color: 0xbfc4ae, transparent: true, opacity: 0.75, side: THREE.DoubleSide, wireframe: true }),
+  );
+  net.position.set(0, 0.6, 0.03);
+  g.add(net);
+  const floats = [-0.34, 0, 0.34];
+  for (const fx of floats) {
+    const f = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 5), toonMat(0xe2a13c));
+    f.position.set(fx, 0.2, 0.05);
+    g.add(f);
+  }
+  return g;
+}

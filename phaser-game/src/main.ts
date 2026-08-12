@@ -501,6 +501,10 @@ function launchUiLocalizationTest(game: Phaser.Game): void {
   // Reproduce the old-save gap: only the seventh story badge remains set.
   // Opening the bag must reconcile this to seven earned badges.
   game.registry.set('seoraeGymDefeated', true);
+  // Three northern tablets validate both earned and locked pouch slots.
+  game.registry.set('mapae_kaesong', true);
+  game.registry.set('mapae_nampo', true);
+  game.registry.set('mapae_wonsan', true);
   PartySystem.initFromStarter(game.registry);
   if (game.scene.isActive('TitleScene')) game.scene.stop('TitleScene');
   game.scene.start('MenuScene');
@@ -515,6 +519,9 @@ function launchLeaderboardTest(game: Phaser.Game): void {
   mine.playMs = 18_754_000;
   mine.badgeCount = 6;
   mine.badgeTimes = [1_840_000, 3_190_000, 5_420_000, 7_770_000, 10_960_000, 14_220_000, null, null];
+  mine.mapaeCount = 3;
+  mine.mapaeTimes = [14_100_000, 15_800_000, 17_500_000, null, null, null, null, null];
+  mine.mapaeObserved = [true, true, true, false, false, false, false, false];
   mine.totalCaught = 47;
   game.registry.set(LeaderboardProgress.registryKey, JSON.stringify(mine));
   const fixtures: LeaderboardEntry[] = Array.from({ length: 18 }, (_, index) => ({
@@ -525,6 +532,9 @@ function launchLeaderboardTest(game: Phaser.Game): void {
     badgeCount: Math.max(1, 8 - Math.floor(index / 3)),
     badgeTimes: Array.from({ length: 8 }, (_, badge) => badge <= 7 - Math.floor(index / 3)
       ? 1_400_000 + badge * 1_180_000 + index * 95_000 : null),
+    mapaeCount: Math.max(0, 8 - Math.floor(index / 2)),
+    mapaeTimes: Array.from({ length: 8 }, (_, mapae) => mapae < Math.max(0, 8 - Math.floor(index / 2))
+      ? 3_800_000 + mapae * 520_000 + index * 80_000 : null),
     southLeagueCleared: index < 8,
     southLeagueMs: index < 8 ? 12_300_000 + index * 490_000 : null,
     northLeagueCleared: index < 3,

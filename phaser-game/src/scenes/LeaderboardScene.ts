@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { BADGES } from '../data/Badges';
+import { MAPAE } from '../data/Mapae';
 import { LeaderboardApi, type LeaderboardCategory, type LeaderboardEntry } from '../systems/LeaderboardApi';
 import { LeaderboardProgress } from '../systems/LeaderboardProgress';
 import { getLang, t, tr } from '../systems/i18n';
@@ -15,6 +16,7 @@ interface LeaderboardSceneData {
 const CATEGORIES: LeaderboardCategory[] = [
   'overall',
   'badge-1', 'badge-2', 'badge-3', 'badge-4', 'badge-5', 'badge-6', 'badge-7', 'badge-8',
+  'mapae-1', 'mapae-2', 'mapae-3', 'mapae-4', 'mapae-5', 'mapae-6', 'mapae-7', 'mapae-8',
   'south-league', 'north-league', 'captures',
 ];
 
@@ -119,8 +121,8 @@ export class LeaderboardScene extends Phaser.Scene {
     const code = LeaderboardApi.playerCode();
     const summary = self
       ? t(
-        `${self.displayName}${code ? ` #${code}` : ''} · ${self.badgeCount}/8 badges · ${leagueCount(self)}/2 leagues · ${self.totalCaught} catches · ${formatTime(self.playMs)}`,
-        `${self.displayName}${code ? ` #${code}` : ''} · 뱃지 ${self.badgeCount}/8 · 리그 ${leagueCount(self)}/2 · 포획 ${self.totalCaught}마리 · ${formatTime(self.playMs)}`,
+        `${self.displayName}${code ? ` #${code}` : ''} · ${self.badgeCount}/8 badges · ${self.mapaeCount}/8 mapae · ${leagueCount(self)}/2 leagues · ${self.totalCaught} catches · ${formatTime(self.playMs)}`,
+        `${self.displayName}${code ? ` #${code}` : ''} · 뱃지 ${self.badgeCount}/8 · 마패 ${self.mapaeCount}/8 · 리그 ${leagueCount(self)}/2 · 포획 ${self.totalCaught}마리 · ${formatTime(self.playMs)}`,
       )
       : t('Start a New Game to record your own run.', '새 게임을 시작하면 내 기록이 측정됩니다.');
     this.add.text(this.W / 2, 100, summary, {
@@ -168,6 +170,11 @@ export class LeaderboardScene extends Phaser.Scene {
     if (category === 'south-league') return t('SOUTHERN LEAGUE CLEAR TIME', '남부 리그 클리어 시간');
     if (category === 'north-league') return t('NORTHERN LEAGUE CLEAR TIME', '북부 리그 클리어 시간');
     if (category === 'captures') return t('TOTAL WILD POKÉMON CAUGHT', '야생 포켓몬 총 포획 수');
+    if (category.startsWith('mapae-')) {
+      const index = Number(category.slice(6)) - 1;
+      const mapae = MAPAE[index];
+      return t(`MAPAE ${index + 1} · ${mapae?.city ?? ''}`, `${index + 1}번째 마패 · ${mapae?.cityKo ?? ''}`);
+    }
     const index = Number(category.slice(6)) - 1;
     const badge = BADGES[index];
     return t(`BADGE ${index + 1} · ${badge?.name ?? ''}`, `${index + 1}번째 뱃지 · ${badge ? tr(badge.name) : ''}`);
@@ -265,8 +272,8 @@ export class LeaderboardScene extends Phaser.Scene {
         fontSize: this.compactMobile ? '17px' : '14px', color: '#aee6ff', fontStyle: 'bold', align: 'center',
       }).setOrigin(0.5));
       this.content.add(this.add.text(right - 12, y,
-        t(`${entry.badgeCount}/8 badges · ${leagueCount(entry)}/2 leagues · ${entry.totalCaught} caught`,
-          `뱃지 ${entry.badgeCount}/8 · 리그 ${leagueCount(entry)}/2 · 포획 ${entry.totalCaught}`), {
+        t(`${entry.badgeCount}/8 badges · ${entry.mapaeCount}/8 mapae · ${leagueCount(entry)}/2 leagues · ${entry.totalCaught} caught`,
+          `뱃지 ${entry.badgeCount}/8 · 마패 ${entry.mapaeCount}/8 · 리그 ${leagueCount(entry)}/2 · 포획 ${entry.totalCaught}`), {
           fontSize: this.compactMobile ? '15px' : '12px', color: '#bac8e8', align: 'right',
         }).setOrigin(1, 0.5));
     });
@@ -281,6 +288,7 @@ export class LeaderboardScene extends Phaser.Scene {
     if (category === 'south-league') return formatTime(entry.southLeagueMs);
     if (category === 'north-league') return formatTime(entry.northLeagueMs);
     if (category.startsWith('badge-')) return formatTime(entry.badgeTimes[Number(category.slice(6)) - 1] ?? null);
+    if (category.startsWith('mapae-')) return formatTime(entry.mapaeTimes[Number(category.slice(6)) - 1] ?? null);
     return formatTime(entry.playMs);
   }
 
