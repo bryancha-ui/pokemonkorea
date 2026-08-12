@@ -1,0 +1,21 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "leaderboardRuns",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "progressScore", "order": "DESCENDING" },
+        { "fieldPath": "playMs", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "leaderboardRuns",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "totalCaught", "order": "DESCENDING" },
+        { "fieldPath": "playMs", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

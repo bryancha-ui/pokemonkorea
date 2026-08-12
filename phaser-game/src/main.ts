@@ -146,6 +146,7 @@ import { HamhungNaengmyeonScene } from './scenes/interior/HamhungNaengmyeonScene
 import { NorthernBuildingScene } from './scenes/interior/NorthernBuildingScene';
 import { SeolbongInnScene } from './scenes/SeolbongInnScene';
 import { WaterfallFinaleScene } from './scenes/WaterfallFinaleScene';
+import { LeaderboardScene } from './scenes/LeaderboardScene';
 import { setupMobileShell } from './systems/TouchControls';
 import { installFontScaling } from './systems/UiScale';
 import { initI18n, setLang } from './systems/i18n';
@@ -154,6 +155,8 @@ import { BreedingTrackerPlugin } from './systems/BreedingTracker';
 import { SaveManager } from './utils/SaveManager';
 import { PartySystem } from './systems/PartySystem';
 import { standaloneTestMode } from './systems/StandaloneTestMode';
+import { LeaderboardProgress } from './systems/LeaderboardProgress';
+import { LeaderboardApi, type LeaderboardEntry } from './systems/LeaderboardApi';
 
 function launchRyeoBattleTest(game: Phaser.Game): void {
   // Restore into this window's Phaser registry only. The battle scene's save
@@ -503,6 +506,45 @@ function launchUiLocalizationTest(game: Phaser.Game): void {
   game.scene.start('MenuScene');
 }
 
+/** Responsive leaderboard fixture with enough anonymous players to test paging. */
+function launchLeaderboardTest(game: Phaser.Game): void {
+  game.registry.set('sceneFlowTest', true);
+  game.registry.set('starterChosen', true);
+  game.registry.set('playerName', '한라챔피언');
+  const mine = LeaderboardProgress.startNewRun(game.registry);
+  mine.playMs = 18_754_000;
+  mine.badgeCount = 6;
+  mine.badgeTimes = [1_840_000, 3_190_000, 5_420_000, 7_770_000, 10_960_000, 14_220_000, null, null];
+  mine.totalCaught = 47;
+  game.registry.set(LeaderboardProgress.registryKey, JSON.stringify(mine));
+  const fixtures: LeaderboardEntry[] = Array.from({ length: 18 }, (_, index) => ({
+    rank: index + 1,
+    playerCode: `${(0xA10B20 + index * 73).toString(16).toUpperCase()}`.slice(0, 6),
+    displayName: ['백두산', '물결', '별빛', '초록바람', '노을', '달토끼'][index % 6],
+    playMs: 9_000_000 + index * 820_000,
+    badgeCount: Math.max(1, 8 - Math.floor(index / 3)),
+    badgeTimes: Array.from({ length: 8 }, (_, badge) => badge <= 7 - Math.floor(index / 3)
+      ? 1_400_000 + badge * 1_180_000 + index * 95_000 : null),
+    southLeagueCleared: index < 8,
+    southLeagueMs: index < 8 ? 12_300_000 + index * 490_000 : null,
+    northLeagueCleared: index < 3,
+    northLeagueMs: index < 3 ? 19_600_000 + index * 740_000 : null,
+    totalCaught: 96 - index * 3,
+    uniqueCaught: 71 - index * 2,
+    updatedAt: Date.now() - index * 60_000,
+    isMine: index === 5,
+  }));
+  if (game.scene.isActive('TitleScene')) game.scene.stop('TitleScene');
+  game.scene.start('LeaderboardScene', { returnTo: 'TitleScene', fixtureEntries: fixtures });
+}
+
+/** Live Firebase connectivity check that never writes fixture/save data. */
+function launchLiveLeaderboardTest(game: Phaser.Game): void {
+  game.registry.set('sceneFlowTest', true);
+  if (game.scene.isActive('TitleScene')) game.scene.stop('TitleScene');
+  game.scene.start('LeaderboardScene', { returnTo: 'TitleScene', readOnly: true });
+}
+
 async function bootGame() {
 // Recover the IndexedDB mirror before TitleScene decides whether Continue is
 // available. This protects game history when ordinary browser cache cleanup
@@ -553,7 +595,13 @@ const game = new Phaser.Game({
   },
 });
 
+// The scene list is intentionally kept stable for the many existing story
+// fixtures; register this overlay separately so it can be launched from both
+// TitleScene and MenuScene without changing the first auto-start scene.
+game.scene.add('LeaderboardScene', LeaderboardScene, false);
+
 initI18n(game);   // load the saved KO/EN language preference before any scene renders
+LeaderboardProgress.install(game, snapshot => LeaderboardApi.queue(snapshot));
 
 (window as unknown as { __game: Phaser.Game }).__game = game;
 
@@ -576,7 +624,15 @@ else {
 
 // Open isolated scene-flow checks directly from their dedicated URLs.
 const testMode = standaloneTestMode();
-if (testMode === 'ryeo-battle') {
+if (testMode === 'leaderboard') {
+  game.events.once(Phaser.Core.Events.READY, () => {
+    window.setTimeout(() => launchLeaderboardTest(game), 100);
+  });
+} else if (testMode === 'leaderboard-live') {
+  game.events.once(Phaser.Core.Events.READY, () => {
+    window.setTimeout(() => launchLiveLeaderboardTest(game), 100);
+  });
+} else if (testMode === 'ryeo-battle') {
   game.events.once(Phaser.Core.Events.READY, () => {
     window.setTimeout(() => launchRyeoBattleTest(game), 0);
   });

@@ -136,6 +136,14 @@ export class MenuScene extends Phaser.Scene {
       this.time.delayedCall(1800, () => saveBtn.setText(t('💾 SAVE', '💾 저장')).setColor('#ffe44e'));
     });
 
+    const rankBtn = this.add.text(winLeft + 137, winTop + 22, t('◆ RANK', '◆ 순위'), {
+      fontSize: '13px', color: '#d9d0ff', backgroundColor: '#30265d', padding: { x: 8, y: 4 },
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    rankBtn.on('pointerdown', () => {
+      this.scene.pause();
+      this.scene.launch('LeaderboardScene', { returnTo: 'MenuScene' });
+    });
+
     // ── Close button ─────────────────────────────────────────────────────────
     this.add.text(winRight - 20, winTop + 22, t('✕ CLOSE', '✕ 닫기'), {
       fontSize: '13px', color: '#aaaaaa',

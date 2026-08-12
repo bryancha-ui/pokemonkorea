@@ -47,7 +47,9 @@ export class BreedingTrackerPlugin extends Phaser.Plugins.ScenePlugin {
     const hatchCutsceneOpen = scene.scene.key === 'EggHatchScene';
     // The Menu and Town Map are full-screen overlays with their own layout; the
     // step widget shouldn't hover over them. It returns to the field on close.
-    const menuOverlayOpen = scene.scene.key === 'MenuScene' || scene.scene.key === 'RegionMapScene';
+    const menuOverlayOpen = scene.scene.key === 'MenuScene'
+      || scene.scene.key === 'RegionMapScene'
+      || scene.scene.key === 'LeaderboardScene';
     if (!isTopScene || !scene.registry.get('starterChosen') || shopCheckoutOpen || battleOpen || hatchCutsceneOpen || menuOverlayOpen) {
       this.setWidgetVisible(false);
       this.lastX = this.lastY = undefined;

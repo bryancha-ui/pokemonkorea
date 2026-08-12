@@ -5,6 +5,7 @@ import { playBgm, stopBgm } from '../systems/Music';
 import { t, getLang, setLang } from '../systems/i18n';
 import { fontScaleForScene } from '../systems/UiScale';
 import { standaloneTestMode } from '../systems/StandaloneTestMode';
+import { LeaderboardProgress } from '../systems/LeaderboardProgress';
 
 const TITLE_BACKGROUNDS = {
   ko: { key: 'pokemon-string-opening-ko', url: 'assets/title/pokemon-string-opening-ko.png' },
@@ -302,18 +303,22 @@ export class TitleScene extends Phaser.Scene {
 
   private drawMenu() {
     const cx = this.W / 2;
-    const options = [t('▶  NEW GAME', '▶  새 게임'), t('▶  CONTINUE', '▶  이어하기')];
+    const options = [
+      t('▶  NEW GAME', '▶  새 게임'),
+      t('▶  CONTINUE', '▶  이어하기'),
+      t('◆  LEADERBOARD', '◆  리더보드'),
+    ];
 
     const panel = this.add.graphics().setDepth(5);
     const panelY = this.H * 0.65;
-    panel.fillStyle(0x09000f, 0.78); panel.fillRoundedRect(cx - 205, panelY - 60, 410, 134, 18);
-    panel.lineStyle(2, 0x9b52cf, 0.72); panel.strokeRoundedRect(cx - 205, panelY - 60, 410, 134, 18);
-    panel.lineStyle(1, 0xf0d8ff, 0.26); panel.strokeRoundedRect(cx - 197, panelY - 52, 394, 118, 13);
+    panel.fillStyle(0x09000f, 0.78); panel.fillRoundedRect(cx - 205, panelY - 70, 410, 174, 18);
+    panel.lineStyle(2, 0x9b52cf, 0.72); panel.strokeRoundedRect(cx - 205, panelY - 70, 410, 174, 18);
+    panel.lineStyle(1, 0xf0d8ff, 0.26); panel.strokeRoundedRect(cx - 197, panelY - 62, 394, 158, 13);
 
     this.menuItems = options.map((label, i) => {
       const disabled = i === 1 && !this.hasSave;
-      const t = this.add.text(cx, panelY - 29 + i * 50, label, {
-        fontSize:   '23px',
+      const t = this.add.text(cx, panelY - 44 + i * 49, label, {
+        fontSize:   i === 2 ? '19px' : '23px',
         color:      disabled ? '#624875' : '#ffffff',
         fontStyle:  'bold',
         fontFamily: '"Arial Black", Arial, sans-serif',
@@ -351,7 +356,7 @@ export class TitleScene extends Phaser.Scene {
       ? `${localizedName}  Lv.${level}  ·  ${SaveManager.formatDate(save.timestamp)}`
       : SaveManager.formatDate(save.timestamp);
 
-    this.add.text(this.W / 2, this.H * 0.785, t(`Save data: ${info}`, `저장 데이터: ${info}`), {
+    this.add.text(this.W / 2, this.H * 0.825, t(`Save data: ${info}`, `저장 데이터: ${info}`), {
       fontSize: '13px', color: '#d6b4eb', backgroundColor: '#08000baa', padding: { x: 10, y: 4 },
     }).setOrigin(0.5).setDepth(6);
   }
@@ -359,7 +364,7 @@ export class TitleScene extends Phaser.Scene {
   /** If a backup exists (from a previous delete / New Game), offer to restore it. */
   private drawRestoreOption() {
     if (!SaveManager.hasBackup()) return;
-    const t = this.add.text(this.W / 2, this.H * 0.84, tr('↩  Restore previous save'), {
+    const t = this.add.text(this.W / 2, this.H * 0.875, tr('↩  Restore previous save'), {
       fontSize: '13px', color: '#88ccff', backgroundColor: '#00000055', padding: { x: 8, y: 4 },
     }).setOrigin(0.5).setDepth(6).setInteractive({ useHandCursor: true });
     t.on('pointerover', () => t.setColor('#ffffff'));
@@ -377,7 +382,7 @@ export class TitleScene extends Phaser.Scene {
       .on('down', () => this.confirm());
 
     this.cursors.up.on('down',    () => { if (this.confirming) { this.confirmChoice = 0; this.refreshConfirm(); return; } this.selected = Math.max(0, this.selected - 1); this.refreshSelection(); });
-    this.cursors.down.on('down',  () => { if (this.confirming) { this.confirmChoice = 1; this.refreshConfirm(); return; } this.selected = Math.min(1, this.selected + 1); this.refreshSelection(); });
+    this.cursors.down.on('down',  () => { if (this.confirming) { this.confirmChoice = 1; this.refreshConfirm(); return; } this.selected = Math.min(2, this.selected + 1); this.refreshSelection(); });
     this.cursors.left.on('down',  () => { if (this.confirming) { this.confirmChoice = 0; this.refreshConfirm(); } });
     this.cursors.right.on('down', () => { if (this.confirming) { this.confirmChoice = 1; this.refreshConfirm(); } });
     this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ESC).on('down', () => { if (this.confirming) this.resolveConfirm(false); });
@@ -416,6 +421,10 @@ export class TitleScene extends Phaser.Scene {
     // If the "start over?" prompt is open, this resolves it.
     if (this.confirming) { this.resolveConfirm(this.confirmChoice === 1); return; }
     if (this.selected === 1 && !this.hasSave) return;
+    if (this.selected === 2) {
+      this.scene.start('LeaderboardScene', { returnTo: 'TitleScene' });
+      return;
+    }
     // New Game with existing save → ask first, so a mis-click can't wipe progress.
     if (this.selected === 0 && this.hasSave) { this.openNewGameConfirm(); return; }
     this.doSelection();
@@ -467,6 +476,7 @@ export class TitleScene extends Phaser.Scene {
       if (this.selected === 0) {
         SaveManager.delete();
         this.registry.reset();
+        LeaderboardProgress.startNewRun(this.registry);
         this.scene.start('IntroScene');   // Prof. Song's welcome → boy/girl select → adventure
       } else {
         const save = SaveManager.load();

@@ -1,0 +1,158 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function optional(data, key) {
+      return data.get(key, null);
+    }
+
+    function validTime(value, playMs) {
+      return value == null || (value is int && value >= 0 && value <= playMs);
+    }
+
+    function validBadgeTimes(data) {
+      return data.badgeTimes is list
+        && data.badgeTimes.size() == 8
+        && validTime(data.badgeTimes[0], data.playMs)
+        && validTime(data.badgeTimes[1], data.playMs)
+        && validTime(data.badgeTimes[2], data.playMs)
+        && validTime(data.badgeTimes[3], data.playMs)
+        && validTime(data.badgeTimes[4], data.playMs)
+        && validTime(data.badgeTimes[5], data.playMs)
+        && validTime(data.badgeTimes[6], data.playMs)
+        && validTime(data.badgeTimes[7], data.playMs)
+        && optional(data, 'badge1Ms') == data.badgeTimes[0]
+        && optional(data, 'badge2Ms') == data.badgeTimes[1]
+        && optional(data, 'badge3Ms') == data.badgeTimes[2]
+        && optional(data, 'badge4Ms') == data.badgeTimes[3]
+        && optional(data, 'badge5Ms') == data.badgeTimes[4]
+        && optional(data, 'badge6Ms') == data.badgeTimes[5]
+        && optional(data, 'badge7Ms') == data.badgeTimes[6]
+        && optional(data, 'badge8Ms') == data.badgeTimes[7]
+        && (data.badgeTimes[0] == null || data.badgeCount >= 1)
+        && (data.badgeTimes[1] == null || data.badgeCount >= 2)
+        && (data.badgeTimes[2] == null || data.badgeCount >= 3)
+        && (data.badgeTimes[3] == null || data.badgeCount >= 4)
+        && (data.badgeTimes[4] == null || data.badgeCount >= 5)
+        && (data.badgeTimes[5] == null || data.badgeCount >= 6)
+        && (data.badgeTimes[6] == null || data.badgeCount >= 7)
+        && (data.badgeTimes[7] == null || data.badgeCount >= 8);
+    }
+
+    function validShape(data, uid) {
+      return data.keys().hasAll([
+          'schema', 'ownerUid', 'playerCode', 'runId', 'displayName',
+          'startedAt', 'playMs', 'badgeCount', 'badgeTimes',
+          'southLeagueCleared', 'northLeagueCleared', 'totalCaught',
+          'uniqueCaught', 'legacyImported', 'progressScore', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'schema', 'ownerUid', 'playerCode', 'runId', 'displayName',
+          'startedAt', 'playMs', 'badgeCount', 'badgeTimes',
+          'badge1Ms', 'badge2Ms', 'badge3Ms', 'badge4Ms',
+          'badge5Ms', 'badge6Ms', 'badge7Ms', 'badge8Ms',
+          'southLeagueCleared', 'southLeagueMs', 'northLeagueCleared',
+          'northLeagueMs', 'totalCaught', 'uniqueCaught',
+          'legacyImported', 'progressScore', 'updatedAt'
+        ])
+        && data.schema == 1
+        && data.ownerUid == uid
+        && data.playerCode is string
+        && data.playerCode.matches('^[0-9A-Z]{7}$')
+        && data.runId is string
+        && data.runId.matches('^[0-9a-fA-F-]{16,64}$')
+        && data.displayName is string
+        && data.displayName.size() >= 1
+        && data.displayName.size() <= 18
+        && data.startedAt is int
+        && data.startedAt >= 1577836800000
+        && data.startedAt <= request.time.toMillis() + 60000
+        && data.playMs is int
+        && data.playMs >= 0
+        && data.playMs <= request.time.toMillis() - data.startedAt + 120000
+        && data.badgeCount is int
+        && data.badgeCount >= 0
+        && data.badgeCount <= 8
+        && data.southLeagueCleared is bool
+        && data.northLeagueCleared is bool
+        && (!data.southLeagueCleared || data.badgeCount == 8)
+        && (!data.northLeagueCleared || data.southLeagueCleared)
+        && validTime(optional(data, 'southLeagueMs'), data.playMs)
+        && validTime(optional(data, 'northLeagueMs'), data.playMs)
+        && (optional(data, 'southLeagueMs') == null || data.southLeagueCleared)
+        && (optional(data, 'northLeagueMs') == null || data.northLeagueCleared)
+        && (!data.southLeagueCleared || optional(data, 'southLeagueMs') != null)
+        && (!data.northLeagueCleared || optional(data, 'northLeagueMs') != null)
+        && data.totalCaught is int
+        && data.totalCaught >= 0
+        && data.totalCaught <= 100000
+        && data.uniqueCaught is int
+        && data.uniqueCaught >= 0
+        && data.uniqueCaught <= 5000
+        && data.legacyImported == false
+        && data.progressScore == data.badgeCount
+          + (data.southLeagueCleared ? 100 : 0)
+          + (data.northLeagueCleared ? 100 : 0)
+        && data.updatedAt == request.time
+        && validBadgeTimes(data);
+    }
+
+    function preservedMilestones(data, old) {
+      return (old.badgeTimes[0] == null || (data.badgeTimes[0] != null && data.badgeTimes[0] <= old.badgeTimes[0]))
+        && (old.badgeTimes[1] == null || (data.badgeTimes[1] != null && data.badgeTimes[1] <= old.badgeTimes[1]))
+        && (old.badgeTimes[2] == null || (data.badgeTimes[2] != null && data.badgeTimes[2] <= old.badgeTimes[2]))
+        && (old.badgeTimes[3] == null || (data.badgeTimes[3] != null && data.badgeTimes[3] <= old.badgeTimes[3]))
+        && (old.badgeTimes[4] == null || (data.badgeTimes[4] != null && data.badgeTimes[4] <= old.badgeTimes[4]))
+        && (old.badgeTimes[5] == null || (data.badgeTimes[5] != null && data.badgeTimes[5] <= old.badgeTimes[5]))
+        && (old.badgeTimes[6] == null || (data.badgeTimes[6] != null && data.badgeTimes[6] <= old.badgeTimes[6]))
+        && (old.badgeTimes[7] == null || (data.badgeTimes[7] != null && data.badgeTimes[7] <= old.badgeTimes[7]))
+        && (optional(old, 'southLeagueMs') == null
+          || (optional(data, 'southLeagueMs') != null
+            && optional(data, 'southLeagueMs') <= optional(old, 'southLeagueMs')))
+        && (optional(old, 'northLeagueMs') == null
+          || (optional(data, 'northLeagueMs') != null
+            && optional(data, 'northLeagueMs') <= optional(old, 'northLeagueMs')));
+    }
+
+    function validUpdate(data, old) {
+      return data.ownerUid == old.ownerUid
+        && data.playerCode == old.playerCode
+        && data.badgeCount >= old.badgeCount
+        && data.totalCaught >= old.totalCaught
+        && data.uniqueCaught >= old.uniqueCaught
+        && data.progressScore >= old.progressScore
+        && (data.progressScore > old.progressScore || data.playMs <= old.playMs)
+        && (!old.southLeagueCleared || data.southLeagueCleared)
+        && (!old.northLeagueCleared || data.northLeagueCleared)
+        && preservedMilestones(data, old)
+        && ((data.runId == old.runId
+            && data.startedAt == old.startedAt
+            && data.legacyImported == old.legacyImported)
+          || (data.runId != old.runId
+            && (data.progressScore > old.progressScore || data.playMs < old.playMs)));
+    }
+
+    match /leaderboardRuns/{documentId} {
+      allow get: if signedIn();
+      allow list: if signedIn()
+        && request.query.limit != null
+        && request.query.limit <= 200;
+      allow create: if signedIn()
+        && documentId == request.auth.uid
+        && validShape(request.resource.data, request.auth.uid);
+      allow update: if signedIn()
+        && documentId == request.auth.uid
+        && validShape(request.resource.data, request.auth.uid)
+        && validUpdate(request.resource.data, resource.data);
+      allow delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

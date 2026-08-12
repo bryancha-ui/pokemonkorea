@@ -197,6 +197,9 @@ function tapButton(label: string, css: string, code: number): HTMLElement {
 }
 
 let deckEl: HTMLElement | null = null;
+let gamePaneEl: HTMLElement | null = null;
+let rotateHintEl: HTMLElement | null = null;
+let immersiveView = false;
 let controlLayer: HTMLElement | null = null;
 let battleActionLayer: HTMLElement | null = null;
 let moveLayer: HTMLElement | null = null;
@@ -377,6 +380,7 @@ export function setupMobileShell(force = false): { parent: HTMLElement | undefin
   gamePane.style.cssText =
     'position:relative;width:100vw;flex:1 1 auto;min-height:0;' +
     'background:#000;overflow:hidden;';
+  gamePaneEl = gamePane;
 
   deckEl = document.createElement('div');
   deckEl.id = 'deck';
@@ -399,6 +403,7 @@ export function setupMobileShell(force = false): { parent: HTMLElement | undefin
   // while the device is held in portrait; once dismissed it stays out of the way.
   let hintDismissed = false;
   const rotateHint = document.createElement('div');
+  rotateHintEl = rotateHint;
   rotateHint.id = 'rotate-hint';
   rotateHint.style.cssText =
     'position:fixed;inset:0;z-index:100000;display:none;flex-direction:column;' +
@@ -414,7 +419,7 @@ export function setupMobileShell(force = false): { parent: HTMLElement | undefin
   document.body.append(rotateHint);
   const syncHint = () => {
     const portrait = window.innerHeight > window.innerWidth;
-    rotateHint.style.display = (portrait && !hintDismissed) ? 'flex' : 'none';
+    rotateHint.style.display = (portrait && !hintDismissed && !immersiveView) ? 'flex' : 'none';
   };
   rotateHint.querySelector('#rotate-hint-dismiss')!.addEventListener('click', (e) => {
     e.stopPropagation(); hintDismissed = true; syncHint();
@@ -429,6 +434,20 @@ export function setupMobileShell(force = false): { parent: HTMLElement | undefin
   window.addEventListener('resize', updateUnit);
   window.addEventListener('orientationchange', () => setTimeout(updateUnit, 150));
   return { parent: gamePane, mobile: true };
+}
+
+/** Temporarily give an information-heavy overlay the whole phone display.
+ *  Leaderboards do not use movement or battle buttons, and squeezing them into
+ *  the DS top pane would make trainer records unreadably small. */
+export function deckSetImmersiveView(enabled: boolean): void {
+  if (!mobile || !deckEl || !gamePaneEl) return;
+  immersiveView = enabled;
+  deckEl.style.display = enabled ? 'none' : 'block';
+  gamePaneEl.style.flex = enabled ? '1 1 100%' : '1 1 auto';
+  if (rotateHintEl && enabled) rotateHintEl.style.display = 'none';
+  // Phaser's Scale Manager listens for viewport changes, not sibling display
+  // changes. A resize event makes it immediately refit the canvas to the pane.
+  requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
 }
 
 /** The persistent movement/action controls, shown whenever the move bar is hidden. */

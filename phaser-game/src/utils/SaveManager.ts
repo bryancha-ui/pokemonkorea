@@ -1,4 +1,6 @@
 import { markVisited } from '../data/RegionMap';
+import { LeaderboardProgress } from '../systems/LeaderboardProgress';
+import { LeaderboardApi } from '../systems/LeaderboardApi';
 
 const SAVE_KEY = 'pokemon_korea_v2';
 const BACKUP_KEY = 'pokemon_korea_v2_backup';
@@ -146,6 +148,7 @@ export const SaveManager = {
     // The Commander Ryeo popup is an isolated rehearsal. Never let its copied
     // party, battle damage, rewards, or debug flags reach the real save slot.
     if (registry.get('ryeoBattleTest') || registry.get('sceneFlowTest')) return false;
+    const leaderboardSnapshot = LeaderboardProgress.sync(registry);
     // Remember the current resumable scene/position so menu/battle saves (which
     // don't know the scene) can record it correctly instead of defaulting to WorldMap.
     registry.set('lastScene', scene);
@@ -185,6 +188,7 @@ export const SaveManager = {
       const raw = JSON.stringify(payload);
       localStorage.setItem(SAVE_KEY, raw);
       queueDurable('mirror save', () => durableSet(SAVE_KEY, raw));
+      LeaderboardApi.queue(leaderboardSnapshot);
       return true;
     } catch (e) {
       console.error('SaveManager.save failed:', e);
@@ -205,6 +209,9 @@ export const SaveManager = {
   },
 
   restore(registry: Phaser.Data.DataManager, data: SaveData): void {
+    // Prevent a run id left in the live registry from attaching itself to an
+    // older backup that predates leaderboard tracking.
+    if (!(LeaderboardProgress.registryKey in data.data)) registry.remove(LeaderboardProgress.registryKey);
     // Write back every saved key — restores party, box, inventory, money, dex, flags…
     for (const k of Object.keys(data.data)) {
       registry.set(k, data.data[k]);

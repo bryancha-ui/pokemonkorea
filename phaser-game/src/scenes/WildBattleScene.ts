@@ -21,6 +21,7 @@ import { awardBenchExp } from '../systems/BattleExp';
 import { buildFromEntry, ensurePartyTexture, persistMovePP, persistSwitchOut } from '../systems/PartyBattle';
 import { openSwitchPanel } from '../systems/SwitchPanel';
 import { DexTracker } from '../systems/DexTracker';
+import { LeaderboardProgress } from '../systems/LeaderboardProgress';
 import { ITEMS, Inventory, itemDef, itemName, useItemOnSlot } from '../systems/Items';
 import { SaveManager } from '../utils/SaveManager';
 import { drawBattleBall, playBallSendOut } from '../systems/BattleBallFX';
@@ -647,6 +648,7 @@ export class WildBattleScene extends Phaser.Scene {
     };
 
     DexTracker.markCaught(this.registry, this.registry.get('wildId') as string | number);
+    LeaderboardProgress.recordWildCatch(this.registry);
     const name = pokeNameEn(this.wild.name).toUpperCase();
     const captureExp = Math.round(this.wild.level * 12 * expMultiplierFor(this.registry));   // capture rewards EXP to all battlers too (northern boost applies)
     // A full-party capture may replace a slot that participated in this battle.

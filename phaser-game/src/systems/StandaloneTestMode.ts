@@ -2,6 +2,7 @@ export const STANDALONE_TEST_MODES = [
   'ryeo-battle', 'nabi-entrance', 'hwanung-entrance', 'hwanung-battle', 'true-ending',
   'battle-regressions', 'ui-localization', 'close-combat', 'special-move-fx', 'move-fx-families', 'status-effects',
   'starter-select', 'starter-rival-vipour',
+  'leaderboard', 'leaderboard-live',
   'finale-party', 'finale-night-boy', 'finale-night-girl', 'finale-logo',
 ] as const;
 export type StandaloneTestMode = typeof STANDALONE_TEST_MODES[number];
