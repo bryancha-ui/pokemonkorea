@@ -5,10 +5,21 @@ import { DexTracker } from '../systems/DexTracker';
 import { Inventory } from '../systems/Items';
 import { rivalTrainerName } from '../data/CharacterSprite';
 import { t, tr, pokeNameEn, abilityName } from '../systems/i18n';
+import { sfxBallOpen, sfxCancel, sfxConfirm, sfxMove } from '../systems/UiSfx';
+import { StarterPreview3D } from '../engine3d/StarterPreview3D';
 
 export class StarterSelectScene extends Phaser.Scene {
   private selectedIdx = 0;
   private cards: Phaser.GameObjects.Container[] = [];
+  /** One Poké Ball per starter, resting on the lab desk. */
+  private balls: Phaser.GameObjects.Container[] = [];
+  /** The reveal stage above the desk: 3D model (when available) + name plate. */
+  private preview3D?: StarterPreview3D;
+  private revealSprite?: Phaser.GameObjects.Image;
+  private nameText!: Phaser.GameObjects.Text;
+  private typeBadges: Phaser.GameObjects.GameObject[] = [];
+  private abilityText!: Phaser.GameObjects.Text;
+  private openedIdx = -1;
   private flavText!: Phaser.GameObjects.Text;
   private profText!: Phaser.GameObjects.Text;
   private profAdvance!: Phaser.GameObjects.Text;
@@ -46,7 +57,9 @@ export class StarterSelectScene extends Phaser.Scene {
     this.cameras.main.fadeIn(500);
     this.drawBackground();
     this.drawProfessor();
-    this.createCards();
+    this.createDesk();
+    this.createRevealStage();
+    this.createBalls();
     this.createInfoArea();
     this.createConfirmPanel();
     this.setupInput();
@@ -139,21 +152,96 @@ export class StarterSelectScene extends Phaser.Scene {
 
   // ── Cards ─────────────────────────────────────────────────────────────────
 
-  private createCards() {
-    const positions = [150, 400, 650];
+  /** The lab desk the three Poké Balls rest on. */
+  private createDesk() {
+    const g = this.add.graphics().setDepth(3);
+    const top = 330, h = 26;
+    // Table top with a lit front edge, and legs receding into shadow.
+    g.fillStyle(0x000000, 0.16); g.fillEllipse(400, top + h + 26, 560, 26);
+    g.fillStyle(0x9c7a52, 1); g.fillRect(120, top, 560, h);
+    g.fillStyle(0xb8935f, 1); g.fillRect(120, top, 560, 7);           // polished highlight
+    g.fillStyle(0x6f5436, 1); g.fillRect(120, top + h, 560, 8);       // shadowed lip
+    g.fillStyle(0x7d603d, 1);
+    g.fillRect(150, top + h + 8, 16, 42); g.fillRect(634, top + h + 8, 16, 42);
+    // A felt runner so the balls read as "presented", not just placed.
+    g.fillStyle(0x2c4a6e, 0.9); g.fillRect(150, top + 6, 500, 14);
+    g.fillStyle(0x3f6796, 0.9); g.fillRect(150, top + 6, 500, 3);
+  }
+
+  /** Where the chosen starter appears once its ball opens. */
+  private createRevealStage() {
+    // Soft spotlight pool on the wall behind the reveal.
+    const g = this.add.graphics().setDepth(2);
+    g.fillStyle(0xffffff, 0.13);
+    g.fillEllipse(400, 232, 300, 190);
+    g.fillStyle(0xffe9b8, 0.10);
+    g.fillEllipse(400, 250, 210, 130);
+
+    // 2D artwork stands in until (or unless) a generated 3D model exists.
+    this.revealSprite = this.add.image(400, 212, '__none__')
+      .setDepth(6).setVisible(false);
+
+    this.nameText = this.add.text(400, 284, '', {
+      fontSize: '22px', color: '#ffffff', fontStyle: 'bold',
+      stroke: '#1a2a4a', strokeThickness: 5,
+    }).setOrigin(0.5, 1).setDepth(12);
+
+    // Ability sits BELOW the desk so nothing crowds the balls on it.
+    this.abilityText = this.add.text(400, 388, '', {
+      fontSize: '11px', color: '#ffe9a8',
+      stroke: '#1a2a4a', strokeThickness: 3,
+    }).setOrigin(0.5, 0).setDepth(12);
+
+    // The 3D stage sits over the same rect the artwork would occupy.
+    this.preview3D = new StarterPreview3D(this, { x: 258, y: 108, w: 284, h: 176 });
+  }
+
+  /** Three Poké Balls in a row on the desk — the actual selectors. */
+  private createBalls() {
+    const positions = [230, 400, 570];
     STARTERS.forEach((s, i) => {
-      const card = this.buildCard(s, positions[i], 310);
-      card.setInteractive(
-        new Phaser.Geom.Rectangle(-90, -120, 180, 240),
+      const ball = this.buildBall(positions[i], 330);
+      ball.setInteractive(
+        new Phaser.Geom.Rectangle(-30, -34, 60, 60),
         Phaser.Geom.Rectangle.Contains,
       );
-      card.on('pointerdown', () => {
+      ball.on('pointerdown', () => {
         if (this.professorDialogueActive || this.transitioning) return;
+        if (this.selectedIdx === i && this.openedIdx === i) return;
         this.selectedIdx = i;
-        this.refreshSelection(false);
+        this.refreshSelection(true);
       });
-      this.cards.push(card);
+      ball.on('pointerover', () => {
+        if (this.professorDialogueActive || this.transitioning) return;
+        this.input.setDefaultCursor('pointer');
+      });
+      ball.on('pointerout', () => this.input.setDefaultCursor('default'));
+      this.balls.push(ball);
+      void s;
     });
+  }
+
+  /** A Poké Ball drawn from primitives, with its own shadow and shine. */
+  private buildBall(x: number, y: number): Phaser.GameObjects.Container {
+    const c = this.add.container(x, y).setDepth(11);
+    const shadow = this.add.ellipse(0, 20, 44, 12, 0x000000, 0.28);
+    const g = this.add.graphics();
+    const R = 21;
+    g.fillStyle(0xd8342c, 1);
+    g.slice(0, 0, R, Phaser.Math.DegToRad(180), Phaser.Math.DegToRad(360), false);
+    g.fillPath();
+    g.fillStyle(0xf2f2f0, 1);
+    g.slice(0, 0, R, Phaser.Math.DegToRad(0), Phaser.Math.DegToRad(180), false);
+    g.fillPath();
+    g.fillStyle(0x24262b, 1); g.fillRect(-R, -3, R * 2, 6);
+    g.lineStyle(2, 0x24262b, 1); g.strokeCircle(0, 0, R);
+    g.fillStyle(0x24262b, 1); g.fillCircle(0, 0, 7);
+    g.fillStyle(0xf2f2f0, 1); g.fillCircle(0, 0, 4.4);
+    // specular highlight
+    g.fillStyle(0xffffff, 0.5); g.fillEllipse(-7, -9, 9, 6);
+    c.add([shadow, g]);
+    c.setData('shadow', shadow);
+    return c;
   }
 
   private buildCard(s: StarterDef, x: number, y: number): Phaser.GameObjects.Container {
@@ -242,7 +330,8 @@ export class StarterSelectScene extends Phaser.Scene {
     this.downKey  = kb.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN);
   }
 
-  update() {
+  update(_time: number, delta: number) {
+    this.preview3D?.update(Math.min(0.05, delta / 1000));
     const advancePressed = Phaser.Input.Keyboard.JustDown(this.spaceKey)
       || Phaser.Input.Keyboard.JustDown(this.enterKey);
     if (this.professorDialogueActive) {
@@ -258,12 +347,12 @@ export class StarterSelectScene extends Phaser.Scene {
       return;
     }
     if (Phaser.Input.Keyboard.JustDown(this.leftKey)) {
-      this.selectedIdx = Math.max(0, this.selectedIdx - 1);
-      this.refreshSelection(true);
+      const next = Math.max(0, this.selectedIdx - 1);
+      if (next !== this.selectedIdx) { this.selectedIdx = next; this.refreshSelection(true); }
     }
     if (Phaser.Input.Keyboard.JustDown(this.rightKey)) {
-      this.selectedIdx = Math.min(STARTERS.length - 1, this.selectedIdx + 1);
-      this.refreshSelection(true);
+      const next = Math.min(STARTERS.length - 1, this.selectedIdx + 1);
+      if (next !== this.selectedIdx) { this.selectedIdx = next; this.refreshSelection(true); }
     }
     if (advancePressed) this.openConfirm();
   }
@@ -272,29 +361,117 @@ export class StarterSelectScene extends Phaser.Scene {
 
   private refreshSelection(animated: boolean) {
     const s = STARTERS[this.selectedIdx];
-    this.cards.forEach((card, i) => {
+    const changed = this.openedIdx !== this.selectedIdx;
+    if (changed && animated) sfxMove(this);
+
+    this.balls.forEach((ball, i) => {
       const selected = i === this.selectedIdx;
-      const bg = card.list[0] as Phaser.GameObjects.Rectangle;
-      bg.setStrokeStyle(selected ? 4 : 2, selected ? 0xffe44e : 0x334466);
-      bg.setFillStyle(selected ? 0xfffbe8 : 0xf5f0e8);
       if (animated) {
         this.tweens.add({
-          targets: card,
-          scaleX: selected ? 1.08 : 1,
-          scaleY: selected ? 1.08 : 1,
-          y: selected ? 300 : 310,
-          duration: 150, ease: 'Back.Out',
+          targets: ball,
+          scaleX: selected ? 1.18 : 1,
+          scaleY: selected ? 1.18 : 1,
+          y: selected ? 322 : 330,
+          duration: 160, ease: 'Back.Out',
         });
       } else {
-        card.setScale(selected ? 1.08 : 1);
-        card.setY(selected ? 300 : 310);
+        ball.setScale(selected ? 1.18 : 1);
+        ball.setY(selected ? 322 : 330);
       }
+      // The chosen ball keeps a slow idle wobble so the row never looks static.
+      ball.setAngle(selected ? 0 : 0);
     });
+
+    if (changed) this.openBall(this.selectedIdx, animated);
     this.flavText.setText(s.flavorA);
+  }
+
+  /**
+   * Open the selected Poké Ball and present its occupant: a flash at the ball,
+   * then the starter rises on the reveal stage — as a real 3D model when one has
+   * been generated for that species, otherwise as its artwork.
+   */
+  private openBall(idx: number, animated: boolean) {
+    this.openedIdx = idx;
+    const s = STARTERS[idx];
+    const ball = this.balls[idx];
+
+    if (animated && ball) {
+      sfxBallOpen(this);
+      // A burst of light at the ball, expanding and fading.
+      const flash = this.add.circle(ball.x, ball.y, 10, 0xffffff, 0.9).setDepth(20);
+      this.tweens.add({
+        targets: flash, radius: 64, alpha: 0,
+        duration: 340, ease: 'Cubic.Out',
+        onComplete: () => flash.destroy(),
+      });
+      this.tweens.add({
+        targets: ball, scaleX: 1.42, scaleY: 0.82,
+        duration: 90, yoyo: true, ease: 'Quad.Out',
+      });
+    }
+
+    // Name + ability plate.
+    this.nameText.setText(pokeNameEn(s.data.name));
+    this.abilityText.setText(`${t('Ability', '특성')}: ${abilityName(s.ability)}`);
+    this.buildTypeBadges(s);
+
+    // 3D model when available; 2D artwork otherwise. A listed model still has
+    // to download, so the artwork also stands in if the mesh hasn't arrived
+    // shortly — the reveal is never allowed to be empty.
+    const has3D = StarterPreview3D.available(s.spriteKey);
+    if (has3D && this.preview3D) {
+      this.preview3D.show(s.spriteKey);
+      this.revealSprite?.setVisible(false);
+      this.time.delayedCall(1200, () => {
+        if (this.openedIdx !== idx) return;
+        if (this.preview3D?.isShowing()) return;
+        this.showArtwork(s, false);
+      });
+    } else {
+      this.preview3D?.hide();
+      this.showArtwork(s, animated);
+    }
+  }
+
+  /** Present the starter's 2D artwork on the reveal stage. */
+  private showArtwork(s: StarterDef, animated: boolean) {
+    {
+      if (this.revealSprite && this.textures.exists(s.spriteKey)) {
+        this.revealSprite.setTexture(s.spriteKey).setVisible(true).setAlpha(1).setY(212);
+        const tex = this.textures.get(s.spriteKey).getSourceImage();
+        const dim = Math.max((tex.width as number) || 1, (tex.height as number) || 1);
+        this.revealSprite.setScale(170 / dim);
+        if (animated) {
+          this.revealSprite.setAlpha(0).setY(228);
+          this.tweens.add({
+            targets: this.revealSprite, alpha: 1, y: 212,
+            duration: 260, ease: 'Back.Out',
+          });
+        }
+      }
+    }
+  }
+
+  /** Type chips under the reveal, rebuilt whenever the starter changes. */
+  private buildTypeBadges(s: StarterDef) {
+    this.typeBadges.forEach(b => b.destroy());
+    this.typeBadges = [];
+    const types = [s.data.type1, s.data.type2].filter(Boolean) as string[];
+    types.forEach((ty, ti) => {
+      const bx = 400 + (types.length === 1 ? 0 : ti === 0 ? -36 : 36);
+      const badge = this.add.rectangle(bx, 302, 66, 18, TYPE_COLORS[ty] ?? 0x888888, 1)
+        .setStrokeStyle(1, 0x000000, 0.35).setDepth(12);
+      const label = this.add.text(bx, 302, ty.toUpperCase(), {
+        fontSize: '9px', color: '#ffffff', fontStyle: 'bold',
+      }).setOrigin(0.5).setDepth(13);
+      this.typeBadges.push(badge, label);
+    });
   }
 
   private openConfirm() {
     if (this.professorDialogueActive || this.transitioning) return;
+    sfxConfirm(this);
     const s = STARTERS[this.selectedIdx];
     this.confirming = true;
     this.confirmIdx = 0;
