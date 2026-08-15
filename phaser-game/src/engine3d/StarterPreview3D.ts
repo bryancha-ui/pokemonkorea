@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import * as THREE from 'three';
-import { getModel, hasModel, modelBaseYawRad, primeManifest } from './GlbModels';
+import { getModel, hasModel, modelBaseYawRad, modelNormalizedHeight, primeManifest } from './GlbModels';
 
 // ── Starter preview ──────────────────────────────────────────────────────────
 // A small self-contained Three.js stage that shows ONE generated creature model
@@ -16,6 +16,8 @@ export interface PreviewRect {
   x: number; y: number; w: number; h: number;
 }
 
+const PREVIEW_MODEL_HEIGHT = 1.6;
+
 export class StarterPreview3D {
   private scene: Phaser.Scene;
   private renderer: THREE.WebGLRenderer | null = null;
@@ -29,6 +31,7 @@ export class StarterPreview3D {
   private rect: PreviewRect;
   private t = 0;
   private entry = 0;              // 0→1 pop-in progress
+  private currentScale = PREVIEW_MODEL_HEIGHT;
   private failed = false;
 
   constructor(scene: Phaser.Scene, rect: PreviewRect) {
@@ -118,6 +121,7 @@ export class StarterPreview3D {
     }
     this.currentKey = '';
     this.entry = 0;
+    this.currentScale = PREVIEW_MODEL_HEIGHT;
   }
 
   update(dt: number): void {
@@ -130,8 +134,11 @@ export class StarterPreview3D {
       if (loaded) {
         const g = loaded.group;
         g.rotation.y = modelBaseYawRad(this.pending);
-        // Models are normalised to 1 unit tall; a starter reads best at ~1.6.
-        g.scale.setScalar(1.6);
+        // Battle/overworld manifest scales remain untouched. The selection
+        // stage compensates for them so all three choices share one visual
+        // height (Vipour and Onnurian are intentionally 0.6 elsewhere).
+        this.currentScale = PREVIEW_MODEL_HEIGHT / modelNormalizedHeight(this.pending);
+        g.scale.setScalar(this.currentScale);
         this.holder.add(g);
         this.current = g;
         this.currentKey = this.pending;
@@ -144,7 +151,7 @@ export class StarterPreview3D {
       this.entry = Math.min(1, this.entry + dt * 3.2);
       const e = 1 - Math.pow(1 - this.entry, 3);
       const pop = 0.86 + 0.14 * e + Math.sin(e * Math.PI) * 0.06;
-      this.current.scale.setScalar(1.6 * pop);
+      this.current.scale.setScalar(this.currentScale * pop);
       this.holder.rotation.y = this.t * 0.6;
       this.holder.position.y = Math.sin(this.t * 1.8) * 0.05;
     }

@@ -13,7 +13,7 @@ export class StarterSelectScene extends Phaser.Scene {
   private cards: Phaser.GameObjects.Container[] = [];
   /** One Poké Ball per starter, resting on the lab desk. */
   private balls: Phaser.GameObjects.Container[] = [];
-  /** The reveal stage above the desk: 3D model (when available) + name plate. */
+  /** The reveal stage above the desk: name plate + 3D model when available. */
   private preview3D?: StarterPreview3D;
   private revealSprite?: Phaser.GameObjects.Image;
   private nameText!: Phaser.GameObjects.Text;
@@ -188,7 +188,10 @@ export class StarterSelectScene extends Phaser.Scene {
     this.revealSprite = this.add.image(400, 212, '__none__')
       .setDepth(6).setVisible(false);
 
-    this.nameText = this.add.text(400, 284, '', {
+    // Keep the name completely above the separate Three.js canvas. Phaser
+    // depth cannot lift canvas text over that DOM layer, which previously let
+    // the creature cover its own label.
+    this.nameText = this.add.text(400, 104, '', {
       fontSize: '22px', color: '#ffffff', fontStyle: 'bold',
       stroke: '#1a2a4a', strokeThickness: 5,
     }).setOrigin(0.5, 1).setDepth(12);
@@ -200,7 +203,7 @@ export class StarterSelectScene extends Phaser.Scene {
     }).setOrigin(0.5, 0).setDepth(12);
 
     // The 3D stage sits over the same rect the artwork would occupy.
-    this.preview3D = new StarterPreview3D(this, { x: 258, y: 108, w: 284, h: 176 });
+    this.preview3D = new StarterPreview3D(this, { x: 258, y: 112, w: 284, h: 172 });
   }
 
   /** Three Poké Balls in a row on the desk — the actual selectors. */

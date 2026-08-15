@@ -164,6 +164,12 @@ export function modelBaseYawRad(key: string): number {
   return spec?.rot ? THREE.MathUtils.degToRad(spec.rot.y) : 0;
 }
 
+/** The normalized height authored by the manifest (1 when no correction exists). */
+export function modelNormalizedHeight(key: string): number {
+  const scale = manifest?.get(normalizeKey(key))?.scale ?? 1;
+  return Number.isFinite(scale) && scale > 0 ? scale : 1;
+}
+
 /**
  * Get a normalized clone of the model for `key` (height 1, feet at y=0)
  * together with its animation clips, or null while it loads / when unavailable.
