@@ -80,6 +80,10 @@ export class Route5Scene extends Phaser.Scene {
   public grassTileIds3D = [T.TALLGRASS];
   public grassDensity3D = 1.5;
   public grassTone3D = 0x3f9f37;
+  /** Moss, paths and authored roots are floor artwork. In particular ROOT's
+   *  dark brown must never be interpreted as a raised wall anywhere in the
+   *  Ancient Forest; collision remains governed by the original tile grid. */
+  public flatTileIds3D = [T.MOSS, T.PATH, T.ROOT, T.FLOWER, T.GLOW];
   private playerG!: Phaser.GameObjects.Graphics;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd!: Record<string, Phaser.Input.Keyboard.Key>;

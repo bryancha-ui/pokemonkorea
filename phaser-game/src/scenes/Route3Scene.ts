@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { installSurfing, isSurfing } from '../systems/SurfSystem';
 import { tr, speakerName } from '../systems/i18n';
 import { vanishesAfterDefeat } from '../data/Villains';
 import { playBgm } from '../systems/Music';
@@ -129,6 +130,11 @@ export class Route3Scene extends Phaser.Scene {
     this.drawTrainers();
     if (!this.ryeoDone) this.drawRyeo();
     this.createPlayer();
+    installSurfing(this, {
+      map: () => this.map, player: () => this.playerG,
+      position: () => ({ x: this.px, y: this.py }), tileSize: TILE,
+      waterTiles: [T.RIVER], solidTiles: SOLID,
+    });
     this.setupCamera();
     this.setupInput();
     this.createUI();
@@ -363,6 +369,7 @@ export class Route3Scene extends Phaser.Scene {
   }
 
   private checkExits() {
+    if (isSurfing(this.playerG)) return;
     if (this.cutsceneActive || this.spawnGuard) return;
     if (Math.hypot(this.px - this.spawnPx, this.py - this.spawnPy) < 1.4 * TILE) return;
     // South → Seolbong City

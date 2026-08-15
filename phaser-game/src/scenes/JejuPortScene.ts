@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { installSurfing, isSurfing } from '../systems/SurfSystem';
 import { tr } from '../systems/i18n';
 import { drawTrainerBody, playerDesign } from '../data/CharacterSprite';
 import { DialogBox } from '../ui/DialogBox';
@@ -82,6 +83,11 @@ export class JejuPortScene extends Phaser.Scene {
     this.drawMap();
     this.drawWorker();
     this.createPlayer();
+    installSurfing(this, {
+      map: () => this.map, player: () => this.playerG,
+      position: () => ({ x: this.px, y: this.py }), tileSize: TILE,
+      waterTiles: [T.SEA], solidTiles: SOLID,
+    });
     this.setupCamera();
     this.setupInput();
     this.createUI();
@@ -271,6 +277,7 @@ export class JejuPortScene extends Phaser.Scene {
   }
 
   private checkExit() {
+    if (isSurfing(this.playerG)) return;
     if (this.cutsceneActive || this.spawnGuard) return;
     if (Math.hypot(this.px - this.spawnPx, this.py - this.spawnPy) < 1.4 * TILE) return;
     // North → to Jeju City

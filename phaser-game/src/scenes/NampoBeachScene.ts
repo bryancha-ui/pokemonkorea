@@ -5,7 +5,7 @@ import { playBgm } from '../systems/Music';
 import { drawTrainerBody, drawNpcBody, playerDesign } from '../data/CharacterSprite';
 import { DialogBox } from '../ui/DialogBox';
 import { SaveManager } from '../utils/SaveManager';
-import { PartySystem } from '../systems/PartySystem';
+import { canUseSurf } from '../systems/SurfSystem';
 import { maybeLaunchEvolution } from '../systems/EvolutionSystem';
 import { isTouchDevice, MOBILE_ACTION_EVENT } from '../systems/TouchControls';
 
@@ -96,7 +96,7 @@ export class NampoBeachScene extends Phaser.Scene {
   private get gyaradosDone() { return !!this.registry.get('trainerDefeated_' + THREAT_KEY); }
   // Owning the Haean badge/TM only unlocks Surf teaching; a current party
   // member must actually know the move before the player can enter the bay.
-  private canSurf() { return PartySystem.anyKnows(this.registry, 'Surf'); }
+  private canSurf() { return canUseSurf(this.registry); }
   private tileAt(x: number, y: number): Tile | undefined { return this.map[Math.floor(y / TILE)]?.[Math.floor(x / TILE)]; }
   private get onWater() { return this.tileAt(this.px, this.py) === T.WATER; }
 

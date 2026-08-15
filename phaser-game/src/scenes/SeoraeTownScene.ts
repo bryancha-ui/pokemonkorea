@@ -7,7 +7,7 @@ import { drawTrainerBody, drawRiderBody, drawNpcBody, playerDesign } from '../da
 import { hasBike, BIKE_SPEED, isBikeRiding, setBikeRiding } from '../data/Bike';
 
 // ── Seorae Town (서래 마을) — The Alpine Frost Town ───────────────────────────────
-// A broad snowbound resort town: the Frostbell Shrine, a full Pokémon Center,
+// A broad snowbound resort town: the Frostbell Gym, a full Pokémon Center,
 // frozen market, hot springs, pine groves, and the eastbound Skate Link.
 
 const T = { SNOW: 0, PATH: 1, WALL: 2, ROOF: 3 } as const;
@@ -39,7 +39,7 @@ const ENTERABLE_BUILDINGS = [
   { kind: 'skateshop' as const, col: SKATE_SHOP.col, row: SKATE_SHOP.row, prompt: 'Enter the Skate Shop' },
 ];
 const BUILDINGS: Building[] = [
-  { x: 7, y: 6, w: 8, h: 6, doorCol: GYM.col, doorRow: GYM.row, roof: 0x3a5060, label: '🔔 FROSTBELL SHRINE' },
+  { x: 7, y: 6, w: 8, h: 6, doorCol: GYM.col, doorRow: GYM.row, roof: 0x3a5060, label: '🔔 FROSTBELL GYM' },
   { x: 31, y: 6, w: 7, h: 6, doorCol: CENTER.col, doorRow: CENTER.row, roof: 0xcc2233, label: '✚ Pokémon Center' },
   { x: 4, y: 18, w: 8, h: 5, doorCol: 7, doorRow: 22, roof: 0x76513a, label: '❄ Alpine Lodge' },
   { x: 12, y: 30, w: 8, h: 5, doorCol: 15, doorRow: 34, roof: 0x6f9a9c, label: '♨ Snowmelt Baths' },
@@ -49,7 +49,7 @@ const BUILDINGS: Building[] = [
 
 export class SeoraeTownScene extends Phaser.Scene {
   private map!: Tile[][];
-  public buildingPlots = BUILDINGS.map((b, i) => ({ x: b.x, y: b.y, w: b.w, h: b.h, model: ['frostbell', 'pokecenter', 'alpinelodge', 'snowmeltbaths', 'mart', 'skateshop'][i] }));
+  public buildingPlots = BUILDINGS.map((b, i) => ({ x: b.x, y: b.y, w: b.w, h: b.h, model: ['frostgym', 'pokecenter', 'alpinelodge', 'snowmeltbaths', 'mart', 'skateshop'][i] }));
   public onlyNamedBuildings = true;
   // The town's lanterns, pine groves and ice sculptures rendered as real 3D
   // props (coordinates mirror the 2D drawPine / lantern / snow-sculpture spots).
@@ -110,7 +110,7 @@ export class SeoraeTownScene extends Phaser.Scene {
         this.cutsceneActive = true;
         this.dialog.show([
           'The treeline opens into Seorae Town (서래 마을), a wide alpine village of pine groves, steaming baths, and enormous snow sculptures.',
-          'The Frostbell Shrine waits in the northwest. The Pokémon Center has a nurse and PC inside, while the Skate Link carries travelers east toward Sunrise City.',
+          'The Frostbell Gym waits in the northwest. The Pokémon Center has a nurse and PC inside, while the Skate Link carries travelers east toward Sunrise City.',
         ], () => { this.cutsceneActive = false; });
       });
     }
@@ -269,7 +269,7 @@ export class SeoraeTownScene extends Phaser.Scene {
   private checkInteractions() {
     const distance = (col: number, row: number) => Math.hypot(this.px - (col * TILE + 16), this.py - (row * TILE + 16));
     if (distance(GYM.col, GYM.row) < TILE * 1.35) {
-      this.enterPrompt.setText(tr('SPACE — Enter the Frostbell Shrine')).setVisible(true);
+      this.enterPrompt.setText(tr('SPACE — Enter the Frostbell Gym')).setVisible(true);
       if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) this.enterScene('SeoraeGymScene', GYM.col, GYM.row);
       return;
     }

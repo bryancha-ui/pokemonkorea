@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { canUseSurf, installSurfing, isSurfing } from '../systems/SurfSystem';
 import { tr, speakerName } from '../systems/i18n';
 import { playBgm } from '../systems/Music';
 import { drawTrainerBody, drawRiderBody, playerDesign } from '../data/CharacterSprite';
@@ -9,6 +10,7 @@ import { maybeLaunchEvolution } from '../systems/EvolutionSystem';
 import { PartySystem } from '../systems/PartySystem';
 import { markRivalPortrait } from '../data/BattlePortraits';
 import { Inventory } from '../systems/Items';
+import type { PropPlot } from '../engine3d/TerrainBuilder';
 
 // ── Tiles ───────────────────────────────────────────────────────────────────
 const T = { ROAD: 0, PATH: 1, BUILDING: 2, PALM: 3, LAMP: 4, SEA: 5, DOCK: 6, SAND: 7 } as const;
@@ -19,6 +21,7 @@ const COLORS: Record<Tile, number> = {
   [T.LAMP]: 0x886644, [T.SEA]: 0x2570c0, [T.DOCK]: 0x9a7a4a, [T.SAND]: 0x3a3a44,
 };
 const SOLID = new Set<Tile>([T.BUILDING, T.PALM, T.LAMP, T.SEA]);
+const HAEAN_PALMS: Array<[number, number]> = [[17,5],[17,24]];
 
 interface Building { label: string; scene: string; x: number; y: number; w: number; h: number; doorCol: number; doorRow: number; roof: number; }
 const BUILDINGS: Building[] = [
@@ -41,7 +44,7 @@ function buildMap(): Tile[][] {
   fill(19, 23, 9, 11, T.DOCK);   // a pier reaching into the water
   fill(19, 23, 18, 20, T.DOCK);
   // Decorative palms (kept clear of the main path and building door approaches)
-  for (const [r,c] of [[17,5],[17,24]] as [number,number][]) m[r][c] = T.PALM;
+  for (const [r, c] of HAEAN_PALMS) m[r][c] = T.PALM;
   return m;
 }
 
@@ -49,6 +52,35 @@ export class HaeanCityScene extends Phaser.Scene {
   private map!: Tile[][];
   public buildingPlots = BUILDINGS.map((b, i) => ({ x: b.x, y: b.y, w: b.w, h: b.h, model: ['pokecenter', 'tidalgym', 'mart'][i] }));
   public onlyNamedBuildings = true;
+  /** Black sand and timber are surfaces, never walls; this removes the tall
+   *  black strips that colour classification raised in front of the harbour. */
+  public flatTileIds3D = [T.ROAD, T.PATH, T.DOCK, T.SAND, T.PALM];
+  public noVehicles = true;
+  /** Full 3D harbour dressing. The two bridges match the authored DOCK plots,
+   *  while Dosik's ferry sits safely in the water berth between them. */
+  public propPlots: PropPlot[] = [
+    ...HAEAN_PALMS.map(([r, c], i) => ({
+      x: c, y: r, kind: 'palm' as const, scale: 1.12 + i * 0.08, rot: i * 1.7,
+    })),
+    { x: 9.5, y: 20.5, kind: 'woodbridge', w: 2, d: 4 },
+    { x: 18.5, y: 20.5, kind: 'woodbridge', w: 2, d: 4 },
+    { x: 14, y: 23.5, kind: 'ferry', len: 6.2, w: 2.4, rot: Math.PI / 2 },
+    { x: 4.5, y: 23.5, kind: 'boat', scale: 0.9, rot: 0.12 },
+    ...([[9,22],[10,22],[18,22],[19,22]] as Array<[number, number]>)
+      .map(([x, y]) => ({ x, y, kind: 'bollard' as const })),
+    { x: 8, y: 18, kind: 'streetlamp' },
+    { x: 20, y: 18, kind: 'streetlamp' },
+    { x: 6, y: 17, kind: 'fishstall', rot: Math.PI },
+    { x: 22, y: 17, kind: 'fishstall', rot: Math.PI },
+    { x: 8, y: 19, kind: 'crates', rot: 0.25 },
+    { x: 20, y: 19, kind: 'crates', rot: -0.2 },
+    { x: 5, y: 20, kind: 'dryingrack', rot: Math.PI / 2 },
+    { x: 23, y: 20, kind: 'dryingrack', rot: Math.PI / 2 },
+    { x: 7, y: 20, kind: 'net', rot: 0.2 },
+    { x: 21, y: 20, kind: 'net', rot: -0.2 },
+    { x: 2, y: 23, kind: 'buoy', rot: 0.2 },
+    { x: 27, y: 24, kind: 'buoy', rot: -0.2 },
+  ];
   private playerG!: Phaser.GameObjects.Graphics;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd!: Record<string, Phaser.Input.Keyboard.Key>;
@@ -90,6 +122,11 @@ export class HaeanCityScene extends Phaser.Scene {
     this.drawMap();
     this.drawNPCs();
     this.createPlayer();
+    installSurfing(this, {
+      map: () => this.map, player: () => this.playerG,
+      position: () => ({ x: this.px, y: this.py }), tileSize: TILE,
+      waterTiles: [T.SEA], solidTiles: SOLID,
+    });
     this.setupCamera();
     this.setupInput();
     this.createUI();
@@ -250,7 +287,7 @@ export class HaeanCityScene extends Phaser.Scene {
   private checkSurf() {
     if (this.cutsceneActive) { this.surfPrompt?.setVisible(false); return; }
     const row = Math.floor(this.py / TILE);
-    const canSurf = !!this.registry.get('haeanGymDefeated') || PartySystem.anyKnows(this.registry, 'Surf');
+    const canSurf = canUseSurf(this.registry);
     const atBeach = row >= 19 && row <= 21 && this.facing === 0;   // on the sand, facing the water
     if (!canSurf || !atBeach) { this.surfPrompt?.setVisible(false); return; }
     if (!this.surfPrompt) {
@@ -353,6 +390,7 @@ export class HaeanCityScene extends Phaser.Scene {
   }
 
   private checkExit() {
+    if (isSurfing(this.playerG)) return;
     if (this.cutsceneActive || this.spawnGuard) return;
     if (Math.hypot(this.px - this.spawnPx, this.py - this.spawnPy) < 1.4 * TILE) return;
     // West → Route 4 (Coastal Road)

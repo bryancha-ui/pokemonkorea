@@ -29,6 +29,8 @@ export interface PropDef {
   url?: string;
   /** Optional material library for CC0 OBJ assets. */
   mtl?: string;
+  /** Treat Wavefront `Tr 1` as opaque (some exporters write Tr like `d`). */
+  invertTr?: boolean;
   /** optional authored scale hint (world units of height) */
   height?: number;
 }
@@ -40,7 +42,6 @@ const propUse = new Map<string, number>();
 let propClock = 0;
 const loader = new GLTFLoader();
 const objLoader = new OBJLoader();
-const mtlLoader = new MTLLoader();
 
 export function primeProps(): void {
   if (props || loading) return;
@@ -75,6 +76,7 @@ export function getProp(def: PropDef): THREE.Group | null {
   const url = def.url || `assets/models3d/${def.id}.glb`;
   const finish = (model: THREE.Object3D) => {
     try {
+      sanitizeLegacyObjUvs(model);
       const root = new THREE.Group();
       root.add(model);
       if (!isRenderableModel(root)) { fail(); return; }
@@ -100,7 +102,9 @@ export function getProp(def: PropDef): THREE.Group | null {
 
   if (url.toLowerCase().endsWith('.obj')) {
     if (def.mtl) {
-      mtlLoader.load(def.mtl, (materials) => {
+      const materialLoader = new MTLLoader();
+      if (def.invertTr) materialLoader.setMaterialOptions({ invertTrProperty: true });
+      materialLoader.load(def.mtl, (materials) => {
         materials.preload();
         const withMaterials = new OBJLoader();
         withMaterials.setMaterials(materials);
@@ -113,6 +117,29 @@ export function getProp(def: PropDef): THREE.Group | null {
     loader.load(url, gltf => finish(gltf.scene), undefined, fail);
   }
   return null;
+}
+
+/**
+ * A few legacy map-object OBJs contain `NaN` in otherwise valid UV rows. Three's
+ * OBJLoader preserves those values and the GPU then rejects or corrupts the
+ * affected mesh. Keep the authored geometry/materials and repair only the bad
+ * texture coordinates before renderability and bounds checks run.
+ */
+function sanitizeLegacyObjUvs(root: THREE.Object3D): void {
+  root.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    const uv = object.geometry.getAttribute('uv');
+    if (!uv || uv.itemSize < 2) return;
+    let changed = false;
+    for (let i = 0; i < uv.count; i++) {
+      const u = uv.getX(i);
+      const v = uv.getY(i);
+      if (Number.isFinite(u) && Number.isFinite(v)) continue;
+      uv.setXY(i, Number.isFinite(u) ? u : 0, Number.isFinite(v) ? v : 0);
+      changed = true;
+    }
+    if (changed) uv.needsUpdate = true;
+  });
 }
 
 /** True once this prop's GLB is known to be unavailable (bad URL / offline). */

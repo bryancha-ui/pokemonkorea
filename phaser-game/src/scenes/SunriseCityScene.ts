@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { installSurfing, isSurfing } from '../systems/SurfSystem';
 import { tr, speakerName } from '../systems/i18n';
 import { playBgm } from '../systems/Music';
 import { drawRiderBody, drawTrainerBody, playerDesign, rivalDesign, rivalTrainerName } from '../data/CharacterSprite';
@@ -8,6 +9,7 @@ import { DialogBox } from '../ui/DialogBox';
 import { SaveManager } from '../utils/SaveManager';
 import { maybeLaunchEvolution } from '../systems/EvolutionSystem';
 import { PartySystem } from '../systems/PartySystem';
+import type { CrowdPlot } from '../engine3d/AmbientCrowd';
 
 // ── Tiles ───────────────────────────────────────────────────────────────────
 const T = {
@@ -170,36 +172,104 @@ export class SunriseCityScene extends Phaser.Scene {
       .map(([x, y]) => ({ x, y, kind: 'streetlamp' as const })),
   ];
 
-  /** Decorative townsfolk — merchants working the fish market and locals out on
-   *  the quay. These are 3D-only: no collision, no dialogue, no save state. */
-  public crowdPlots = [
-    // Fishmongers standing behind their counters, facing the shoppers.
-    { x: 41, y: 11, look: 'merchant', rot: Math.PI, behaviour: 'stand' as const },
-    { x: 43, y: 11, look: 'merchant', rot: Math.PI, behaviour: 'stand' as const },
-    { x: 45, y: 11, look: 'merchant', rot: Math.PI, behaviour: 'stand' as const },
-    // Shoppers standing at the market row, facing the stalls.
-    { x: 41, y: 13, rot: Math.PI, behaviour: 'stand' as const },
-    { x: 44, y: 13, rot: Math.PI, behaviour: 'stand' as const },
-    // Fishers working the piers.
-    { x: 44, y: 18, look: 'fisher', rot: Math.PI / 2, behaviour: 'stand' as const },
-    { x: 50, y: 17, look: 'fisher', rot: -Math.PI / 2, behaviour: 'stand' as const },
-    // Locals standing along the quay road and the old boulevard.
-    { x: 48, y: 13, rot: Math.PI, behaviour: 'stand' as const },
-    { x: 30, y: 13, rot: Math.PI, behaviour: 'stand' as const },
-    { x: 12, y: 13, rot: Math.PI, behaviour: 'stand' as const },
-    // A couple taking in the view from the seaside park.
-    { x: 27, y: 18, rot: Math.PI, behaviour: 'stand' as const },
-    { x: 28, y: 18, rot: Math.PI, behaviour: 'stand' as const },
-    // The second market aisle: its own vendors and browsing customers.
-    { x: 48, y: 10, look: 'merchant', rot: Math.PI, behaviour: 'stand' as const },
-    { x: 50, y: 10, look: 'merchant', rot: Math.PI, behaviour: 'stand' as const },
-    { x: 52, y: 10, look: 'merchant', rot: Math.PI, behaviour: 'stand' as const },
-    { x: 47, y: 12, rot: Math.PI, behaviour: 'stand' as const },
-    { x: 42, y: 10, rot: Math.PI, behaviour: 'stand' as const },
-    { x: 53, y: 12, rot: -Math.PI / 2, behaviour: 'stand' as const },
-    // Porters standing with the catch between the hall and the boats.
-    { x: 45, y: 14, look: 'fisher', rot: 0, behaviour: 'stand' as const },
-    { x: 51, y: 14, look: 'fisher', rot: 0, behaviour: 'stand' as const },
+  /** Twenty individually authored 3D townsfolk. Their silhouettes, clothes and
+   *  placement reflect a dawn fishing port rather than a repeated generic NPC. */
+  public crowdPlots: CrowdPlot[] = [
+    // Fish-market row: three generations of sellers behind the counters.
+    { x: 41, y: 11, look: 'sunrise_fishmonger', rot: Math.PI, behaviour: 'stand', profile: {
+      skin: 0xb8794f, hair: 0x30241d, outfit: 0x244f68, secondary: 0xe7dcc4, accent: 0xe46b32,
+      trousers: 0x273842, shoes: 0x17191b, body: 'broad', outfitStyle: 'uniform', hairStyle: 'short', hat: 'wide', height: 1.04,
+    } },
+    { x: 43, y: 11, look: 'sunrise_crab_seller', rot: Math.PI, behaviour: 'stand', profile: {
+      skin: 0xe1ad82, hair: 0x57504a, outfit: 0x8d3f52, secondary: 0xf0dfc8, accent: 0xe3a63c,
+      trousers: 0x44313a, shoes: 0x272125, body: 'average', outfitStyle: 'hanbok', hairStyle: 'bun', glasses: true, height: 0.96,
+    } },
+    { x: 45, y: 11, look: 'sunrise_sashimi_vendor', rot: Math.PI, behaviour: 'stand', profile: {
+      skin: 0xf0c49b, hair: 0x1b2024, outfit: 0x26786f, secondary: 0xe8f0df, accent: 0xf28a3a,
+      trousers: 0x203b3a, shoes: 0x172020, body: 'slim', outfitStyle: 'uniform', hairStyle: 'braid', scarf: 0xf0d9a8, height: 1.01,
+    } },
+
+    // Early shoppers move slowly along the market frontage.
+    { x: 41, y: 13, look: 'sunrise_photographer', rot: Math.PI, behaviour: 'stroll', axis: 'x', range: 1.1, speed: 0.34, profile: {
+      skin: 0xd99d72, hair: 0x36231d, outfit: 0xb85b35, secondary: 0x2d4359, accent: 0xf0c85a,
+      trousers: 0x26303b, shoes: 0x202126, body: 'slim', outfitStyle: 'coat', hairStyle: 'bob', hat: 'beret', glasses: true, height: 0.94,
+    } },
+    { x: 44, y: 13, look: 'sunrise_market_chef', rot: Math.PI, behaviour: 'stroll', axis: 'x', range: 0.9, speed: 0.3, profile: {
+      skin: 0xf1c8a2, hair: 0x211c18, outfit: 0xeee8dc, secondary: 0x285d78, accent: 0xd34738,
+      trousers: 0x283847, shoes: 0x1a1d20, body: 'average', outfitStyle: 'uniform', hairStyle: 'spiky', scarf: 0xd34738, height: 1.06,
+    } },
+
+    // Working waterfront: a rain-slicker fisher and a haenyeo diver.
+    { x: 44, y: 18, look: 'sunrise_pier_fisher', rot: Math.PI / 2, behaviour: 'stand', profile: {
+      skin: 0xc8895d, hair: 0x40342b, outfit: 0xe1ad2f, secondary: 0x24465e, accent: 0xf5df76,
+      trousers: 0x293f50, shoes: 0x17222a, body: 'broad', outfitStyle: 'winter', hairStyle: 'short', hat: 'wide', scarf: 0xc64235, height: 1.08,
+    } },
+    { x: 50, y: 17, look: 'sunrise_haenyeo', rot: -Math.PI / 2, behaviour: 'stand', profile: {
+      skin: 0xa96f49, hair: 0x17181b, outfit: 0x172f43, secondary: 0x3b8da3, accent: 0xf09a3e,
+      trousers: 0x132638, shoes: 0x11191e, body: 'slim', outfitStyle: 'uniform', hairStyle: 'short', hat: 'hood', glasses: true, height: 0.92,
+    } },
+    { x: 48, y: 13, look: 'sunrise_harbour_foreman', rot: Math.PI, behaviour: 'stand', profile: {
+      skin: 0xd39b72, hair: 0x76716b, outfit: 0x334e64, secondary: 0xd7e0df, accent: 0xe57b32,
+      trousers: 0x293845, shoes: 0x171b1e, body: 'heroic', outfitStyle: 'uniform', hairStyle: 'short', glasses: true, height: 1.07,
+    } },
+
+    // Landmark keepers anchor the old town to the sunrise lookout.
+    { x: 31.5, y: 4, look: 'sunrise_astronomer', rot: 0, behaviour: 'stand', profile: {
+      skin: 0xf0c6a0, hair: 0x2c2538, outfit: 0xcadbe4, secondary: 0x3d5674, accent: 0xf2ba45,
+      trousers: 0x35435a, shoes: 0x222632, body: 'slim', outfitStyle: 'coat', hairStyle: 'long', glasses: true, scarf: 0x596aa0, height: 1.03,
+    } },
+    { x: 6, y: 4, look: 'sunrise_lighthouse_keeper', rot: -Math.PI / 2, behaviour: 'stand', profile: {
+      skin: 0xc98b63, hair: 0xe4e0d6, outfit: 0xf1ead9, secondary: 0x284d6b, accent: 0xc83e35,
+      trousers: 0x294354, shoes: 0x20252a, body: 'average', outfitStyle: 'uniform', hairStyle: 'topknot', prop: 'lantern', height: 1.0,
+    } },
+
+    // A locally dressed couple watches dawn from the seaside park.
+    { x: 27, y: 18, look: 'sunrise_park_artist', rot: Math.PI, behaviour: 'stand', profile: {
+      skin: 0xf1caa5, hair: 0x5f3829, outfit: 0xd86d63, secondary: 0xf4d6b2, accent: 0x2e7185,
+      trousers: 0x784d58, shoes: 0x392a2d, body: 'slim', outfitStyle: 'hanbok', hairStyle: 'braid', scarf: 0xf3b64a, height: 0.97,
+    } },
+    { x: 28, y: 18, look: 'sunrise_park_boatbuilder', rot: Math.PI, behaviour: 'stand', profile: {
+      skin: 0xb87850, hair: 0x29211c, outfit: 0x527b9b, secondary: 0xe8d8bb, accent: 0xc67a35,
+      trousers: 0x35495c, shoes: 0x25272a, body: 'broad', outfitStyle: 'hanbok', hairStyle: 'topknot', height: 1.1,
+    } },
+
+    // Second market aisle: shellfish, seaweed and ice vendors each read distinctly.
+    { x: 48, y: 10, look: 'sunrise_shellfish_vendor', rot: Math.PI, behaviour: 'stand', profile: {
+      skin: 0xdcaa82, hair: 0x462e23, outfit: 0xa74e2f, secondary: 0xe8c68d, accent: 0x315d76,
+      trousers: 0x48352f, shoes: 0x211b19, body: 'broad', outfitStyle: 'coat', hairStyle: 'wild', hat: 'wide', height: 1.02,
+    } },
+    { x: 50, y: 10, look: 'sunrise_seaweed_vendor', rot: Math.PI, behaviour: 'stand', profile: {
+      skin: 0xc98d65, hair: 0x272921, outfit: 0x3e714f, secondary: 0xd8d3a4, accent: 0x9fbd55,
+      trousers: 0x30483a, shoes: 0x20241f, body: 'average', outfitStyle: 'hanbok', hairStyle: 'bun', scarf: 0xd4a543, height: 0.91,
+    } },
+    { x: 52, y: 10, look: 'sunrise_ice_vendor', rot: Math.PI, behaviour: 'stand', profile: {
+      skin: 0xedc39e, hair: 0x73523a, outfit: 0x8fc7d8, secondary: 0xf2f4eb, accent: 0x276783,
+      trousers: 0x3b6070, shoes: 0x1c2a31, body: 'slim', outfitStyle: 'winter', hairStyle: 'spiky', scarf: 0xf4e07b, height: 1.09,
+    } },
+
+    // Browsers, net-mender and ferry passenger fill the quay without cloning silhouettes.
+    { x: 27, y: 13, look: 'sunrise_gym_fan', rot: Math.PI, behaviour: 'stroll', axis: 'x', range: 0.8, speed: 0.42, profile: {
+      skin: 0xe2ad85, hair: 0x213552, outfit: 0xe4bb2e, secondary: 0x252c3a, accent: 0xf5e66b,
+      trousers: 0x2b3140, shoes: 0x1a1c22, body: 'slim', outfitStyle: 'trainer', hairStyle: 'bob', hat: 'beret', height: 0.95,
+    } },
+    { x: 46, y: 11, look: 'sunrise_net_mender', rot: Math.PI, behaviour: 'stand', profile: {
+      skin: 0xa86d48, hair: 0xe7e3da, outfit: 0x715641, secondary: 0xc6ad82, accent: 0x3f7181,
+      trousers: 0x4a4038, shoes: 0x29231f, body: 'slim', outfitStyle: 'robe', hairStyle: 'bun', glasses: true, height: 0.89,
+    } },
+    { x: 53, y: 12, look: 'sunrise_ferry_traveller', rot: -Math.PI / 2, behaviour: 'stand', profile: {
+      skin: 0xf0c7a1, hair: 0x362a43, outfit: 0x534f88, secondary: 0xd9d5eb, accent: 0xe49b3e,
+      trousers: 0x363653, shoes: 0x252334, body: 'average', outfitStyle: 'coat', hairStyle: 'long', hat: 'beret', scarf: 0xe4c76f, height: 1.05,
+    } },
+
+    // Porters nearest the catch use the heaviest work silhouettes in the crowd.
+    { x: 45, y: 14, look: 'sunrise_dock_porter', rot: 0, behaviour: 'stand', profile: {
+      skin: 0x9f633f, hair: 0x241d18, outfit: 0xc5652f, secondary: 0x3f4b50, accent: 0xf0b94c,
+      trousers: 0x343d43, shoes: 0x181b1d, body: 'heroic', outfitStyle: 'uniform', hairStyle: 'wild', scarf: 0x263f54, height: 1.12,
+    } },
+    { x: 51, y: 14, look: 'sunrise_deckhand', rot: 0, behaviour: 'stand', profile: {
+      skin: 0xd9986c, hair: 0x101820, outfit: 0x2f6681, secondary: 0xd9e5e8, accent: 0xd8493d,
+      trousers: 0x263e50, shoes: 0x151c22, body: 'broad', outfitStyle: 'uniform', hairStyle: 'short', scarf: 0xd8493d, height: 0.99,
+    } },
   ];
   private playerG!: Phaser.GameObjects.Graphics;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -241,6 +311,11 @@ export class SunriseCityScene extends Phaser.Scene {
     this.drawMap();
     if (this.rivalHere) this.drawRival();
     this.createPlayer();
+    installSurfing(this, {
+      map: () => this.map, player: () => this.playerG,
+      position: () => ({ x: this.px, y: this.py }), tileSize: TILE,
+      waterTiles: [T.SEA], solidTiles: SOLID,
+    });
     this.setupCamera();
     this.setupInput();
     this.createUI();
@@ -465,6 +540,7 @@ export class SunriseCityScene extends Phaser.Scene {
 
   /** The cliff lookout is the trailhead — climbing leads up the Sunrise Cliffs. */
   private checkCliffTrail() {
+    if (isSurfing(this.playerG)) return;
     if (this.cutsceneActive) return;
     if (this.py < 2 * TILE) {
       this.cutsceneActive = true;
@@ -507,6 +583,7 @@ export class SunriseCityScene extends Phaser.Scene {
   }
 
   private checkExit() {
+    if (isSurfing(this.playerG)) return;
     if (this.cutsceneActive || this.spawnGuard) return;
     if (Math.hypot(this.px - this.spawnPx, this.py - this.spawnPy) < 1.4 * TILE) return;
     if (this.py > (ROWS - 1) * TILE) {

@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { installSurfing } from '../systems/SurfSystem';
 import { tr } from '../systems/i18n';
 import { playBgm } from '../systems/Music';
 import { drawTrainerBody, drawRiderBody, playerDesign, rivalDesign } from '../data/CharacterSprite';
@@ -92,6 +93,11 @@ export class GeumgangCityScene extends Phaser.Scene {
     this.drawMap();
     if (!this.registry.get('trainerDefeated_suri-chaeyeon-1')) this.drawChaeyeon();
     this.createPlayer();
+    installSurfing(this, {
+      map: () => this.map, player: () => this.playerG,
+      position: () => ({ x: this.px, y: this.py }), tileSize: TILE,
+      waterTiles: [T.RIVER], solidTiles: SOLID,
+    });
     this.setupCamera();
     this.setupInput();
     this.createUI();

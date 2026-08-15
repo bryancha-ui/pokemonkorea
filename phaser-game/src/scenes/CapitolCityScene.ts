@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { installSurfing, isSurfing } from '../systems/SurfSystem';
 import { tr } from '../systems/i18n';
 import { playBgm } from '../systems/Music';
 import { drawTrainerBody, drawRiderBody, drawNpcBody, playerDesign, rivalDesign } from '../data/CharacterSprite';
@@ -54,7 +55,9 @@ interface CapitalLandmark {
 const CAPITAL_LANDMARKS: CapitalLandmark[] = [
   { label: 'Onnuri National Museum', x: 52, y: 44, w: 10, h: 7,  model: 'contesthall', wallColor: 0xd8d1c5, roofColor: 0x4b6078 },
   { label: 'State Shrine',           x: 5,  y: 72, w: 12, h: 7,  model: 'jongmyo',     wallColor: 0xcaa574, roofColor: 0x314d3a },
-  { label: 'So-ol Central Station',  x: 52, y: 72, w: 9,  h: 7,  model: 'soolstation', wallColor: 0xbfcbd5, roofColor: 0x334d70 },
+  // So-ol Central Station removed: its assets/map3d/soolstation.glb rendered as a
+  // black box at the city's south-east corner. (Its bottom-left twin, jongmyo, uses
+  // the same map3d pipeline — flag if that one also shows up black.)
 ];
 
 function buildCityMap(): CTile[][] {
@@ -192,6 +195,9 @@ function buildCityMap(): CTile[][] {
   fill(34, 2, 36, CCOLS - 2, R);
   fill(51, 2, 53, CCOLS - 2, R);
   fill(68, 2, 70, CCOLS - 2, R);
+  // Fold the market's isolated south-east kerb spur into the junction so the
+  // crossing has one continuous, structure-free road surface.
+  map[50][21] = R;
   // Restore both bridge decks after stamping the boulevards through the river.
   fill(36, 21, 43, 27, BR);
   fill(36, 46, 43, 52, BR);
@@ -274,6 +280,53 @@ const LOCATIONS: CityLocation[] = [
     x: 26, y: 3, w: 20, h: 12, roofColor: 0x222266, wallColor: 0x334477 },
 ];
 
+interface CapitalBuildingPlot {
+  x: number; y: number; w: number; h: number;
+  model?: string;
+}
+
+/** Keep every 3D building footprint outside the authored street grid. Several
+ *  commercial plots include their walkable door row in the 2D rectangle; using
+ *  that same rectangle for 3D lets the model extend into the boulevard. */
+function buildCapital3DBuildingPlots(): CapitalBuildingPlot[] {
+  const map = buildCityMap();
+  const isStreet = (r: number, c: number) => map[r]?.[c] === C.ROAD || map[r]?.[c] === C.BRIDGE;
+  const trimStreetEdges = (source: CapitalBuildingPlot): CapitalBuildingPlot => {
+    const p = { ...source };
+    let changed = true;
+    while (changed && p.w > 1 && p.h > 1) {
+      changed = false;
+      if (Array.from({ length: p.w }, (_, i) => p.x + i).some(c => isStreet(p.y, c))) {
+        p.y++; p.h--; changed = true; continue;
+      }
+      if (Array.from({ length: p.w }, (_, i) => p.x + i).some(c => isStreet(p.y + p.h - 1, c))) {
+        p.h--; changed = true; continue;
+      }
+      if (Array.from({ length: p.h }, (_, i) => p.y + i).some(r => isStreet(r, p.x))) {
+        p.x++; p.w--; changed = true; continue;
+      }
+      if (Array.from({ length: p.h }, (_, i) => p.y + i).some(r => isStreet(r, p.x + p.w - 1))) {
+        p.w--; changed = true;
+      }
+    }
+    return p;
+  };
+
+  const authored = [...LOCATIONS, ...CAPITAL_LANDMARKS].map(l => ({
+    x: l.x, y: l.y, w: l.w, h: l.h,
+    // These two generated GLBs contain large dark exterior fragments. The clean
+    // procedural versions retain their identity without spilling geometry into streets.
+    model: l.model === 'mart' ? 'mart-procedural'
+      : l.model === 'pokecenter' ? 'pokecenter-procedural'
+        : l.model,
+  }));
+  const apartments: CapitalBuildingPlot[] = [
+    { x: 3, y: 59, w: 5, h: 8 }, { x: 10, y: 59, w: 5, h: 8 },
+    { x: 28, y: 63, w: 6, h: 4 }, { x: 36, y: 63, w: 6, h: 4 },
+  ];
+  return [...authored, ...apartments].map(trimStreetEdges);
+}
+
 // ── Scene ─────────────────────────────────────────────────────────────────────
 export class CapitolCityScene extends Phaser.Scene {
   private map!: CTile[][];
@@ -296,15 +349,7 @@ export class CapitolCityScene extends Phaser.Scene {
 
   /** Authoritative building rectangles (tiles) for the 3D renderer — includes
    *  the Gym and every landmark, so none depend on color detection. */
-  public buildingPlots: { x: number; y: number; w: number; h: number; model?: string }[] = [
-    ...[...LOCATIONS, ...CAPITAL_LANDMARKS].map(l => ({ x: l.x, y: l.y, w: l.w, h: l.h, model: l.model })),
-    // The residential apartment blocks are procedural (no GLB) but must be named
-    // plots too, so heuristic building-detection can be turned OFF — otherwise it
-    // hallucinated stray brown boxes (e.g. beside the Ancient Palace). Same
-    // footprints the map paints as B tiles at rows 59-67.
-    { x: 3, y: 59, w: 5, h: 8 }, { x: 10, y: 59, w: 5, h: 8 },
-    { x: 28, y: 63, w: 6, h: 4 }, { x: 36, y: 63, w: 6, h: 4 },
-  ];
+  public buildingPlots: CapitalBuildingPlot[] = buildCapital3DBuildingPlots();
   /** Every real building is now a named plot (landmarks + apartments), so the
    *  color/variance heuristic is off — no more phantom boxes around the palace. */
   public onlyNamedBuildings = true;
@@ -314,6 +359,7 @@ export class CapitolCityScene extends Phaser.Scene {
   /** Disable authored props and colour-inferred boulders. The latter produced
    *  two stray rocks directly behind the Ancient Palace. */
   public propPlots: import('../engine3d/TerrainBuilder').PropPlot[] = [];
+  public noVehicles = true;
   public noRocks3D = true;
   /** The painted street trees (가로수) grow as real 3D trees, not flat ground art. */
   public treeTileIds3D = [C.TREE];
@@ -361,6 +407,11 @@ export class CapitolCityScene extends Phaser.Scene {
     this.map = buildCityMap();
     this.drawCity();
     this.createPlayer();
+    installSurfing(this, {
+      map: () => this.map, player: () => this.playerG,
+      position: () => ({ x: this.px, y: this.py }), tileSize: TILE,
+      waterTiles: [C.WATER], solidTiles: SOLID_C,
+    });
     this.setupCamera();
     this.setupInput();
     this.createUI();
@@ -963,6 +1014,7 @@ export class CapitolCityScene extends Phaser.Scene {
   }
 
   private checkNorthExit() {
+    if (isSurfing(this.playerG)) return;
     if (this.spawnGuard) return;
     // North gate opens after the gym is defeated → Route 2 (Scholar's Road)
     if (!this.registry.get('route2Unlocked')) return;
@@ -1011,6 +1063,7 @@ export class CapitolCityScene extends Phaser.Scene {
   }
 
   private checkEastExit() {
+    if (isSurfing(this.playerG)) return;
     if (this.spawnGuard) return;
     // A key held through the transition can't bounce us back; a fresh press does.
     if (!this.freshInput) return;
@@ -1028,6 +1081,7 @@ export class CapitolCityScene extends Phaser.Scene {
   /** West edge, central-road rows → Scholars' Road (opens with the 8th badge,
    *  same condition and spawn point as the in-city trailhead gate). */
   private checkWestExit() {
+    if (isSurfing(this.playerG)) return;
     if (this.spawnGuard) return;
     if (!this.registry.get('sunriseGymDefeated')) return;
     if (!this.freshInput) return;
@@ -1041,6 +1095,7 @@ export class CapitolCityScene extends Phaser.Scene {
   }
 
   private checkSouthExit() {
+    if (isSurfing(this.playerG)) return;
     if (this.spawnGuard) return;
     // A key held through the transition can't bounce us back; a fresh press does.
     if (!this.freshInput) return;

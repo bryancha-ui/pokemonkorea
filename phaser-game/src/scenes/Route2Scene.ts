@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { installSurfing } from '../systems/SurfSystem';
 import { tr, speakerName } from '../systems/i18n';
 import { playBgm } from '../systems/Music';
 import { vanishesAfterDefeat } from '../data/Villains';
@@ -162,6 +163,11 @@ export class Route2Scene extends Phaser.Scene {
     this.drawTrainers();
     this.drawPavilionNPC();
     this.createPlayer();
+    installSurfing(this, {
+      map: () => this.map, player: () => this.playerG,
+      position: () => ({ x: this.px, y: this.py }), tileSize: TILE,
+      waterTiles: [T.WATER], solidTiles: SOLID,
+    });
     this.setupCamera();
     this.setupInput();
     this.createUI();

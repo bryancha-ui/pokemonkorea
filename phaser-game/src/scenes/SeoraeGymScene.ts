@@ -5,7 +5,7 @@ import { drawTrainerBody, playerDesign, drawGymLeader } from '../data/CharacterS
 import { vanishesAfterDefeat } from '../data/Villains';
 import { DialogBox } from '../ui/DialogBox';
 
-// ── Seorae Town Gym — The Frostbell Shrine (서리종 신전) · Ice ─────────────────────
+// ── Seorae Town Gym — The Frostbell Gym (서리종 체육관) · Ice ─────────────────────
 // Two shrine-attendant gym trainers, then Leader Yeona "The Winter Bell" for the
 // Frostbell Badge + TM Aurora Veil.
 
@@ -87,7 +87,7 @@ export class SeoraeGymScene extends Phaser.Scene {
     }
 
     this.dialog.show([
-      'You slide onto the frozen floor of the Frostbell Shrine (서리종 신전)!',
+      'You slide onto the frozen floor of the Frostbell Gym (서리종 체육관)!',
       'A sheet of blue ice, frost-bells hung in rows, hot-spring steam curling at the eaves.',
       'Defeat the two Gym Trainers, then face Leader Yeona — The Winter Bell.',
     ], () => { this.cutsceneActive = false; });
@@ -120,7 +120,7 @@ export class SeoraeGymScene extends Phaser.Scene {
     g.generateTexture(texKey, W, H); g.destroy();
     this.add.image(0, 0, texKey).setOrigin(0, 0).setDepth(0);
 
-    this.add.text(W / 2, IT * 1.7, tr('🔔 FROSTBELL SHRINE'), {
+    this.add.text(W / 2, IT * 1.7, tr('🔔 FROSTBELL GYM'), {
       fontSize: '11px', color: '#26506a', fontStyle: 'bold', stroke: '#fff', strokeThickness: 3,
     }).setOrigin(0.5).setDepth(5);
     if (this.trainers.every(t => t.defeated) && !this.registry.get('seoraeGymDefeated'))

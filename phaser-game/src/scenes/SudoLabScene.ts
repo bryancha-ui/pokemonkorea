@@ -226,6 +226,26 @@ export class SudoLabScene extends Phaser.Scene {
     g.fillStyle(0x6a4a2a, 1); g.fillRect(W * 0.15, H * 0.53, 22, 20);
     g.fillStyle(0x3a8a4a, 1); g.fillCircle(W * 0.15 + 11, H * 0.51, 15);
 
+    // ── The three starter Poké Balls, presented on the bench ──
+    // Prof. Song keeps them out on a felt tray, so a visitor sees the choice
+    // waiting for them as soon as they enter the lab.
+    const trayX = W * 0.58, trayY = H * 0.545;
+    g.fillStyle(0x2c4a6e, 0.95); g.fillRoundedRect(trayX - 8, trayY - 6, 168, 34, 6);
+    g.fillStyle(0x3f6796, 0.9); g.fillRect(trayX - 6, trayY - 4, 164, 4);
+    for (let i = 0; i < 3; i++) {
+      const bx = trayX + 26 + i * 52, by = trayY + 12, R = 14;
+      g.fillStyle(0x000000, 0.22); g.fillEllipse(bx, by + 12, 30, 9);
+      g.fillStyle(0xd8342c, 1); g.slice(bx, by, R, Phaser.Math.DegToRad(180), Phaser.Math.DegToRad(360), false); g.fillPath();
+      g.fillStyle(0xf2f2f0, 1); g.slice(bx, by, R, Phaser.Math.DegToRad(0), Phaser.Math.DegToRad(180), false); g.fillPath();
+      g.fillStyle(0x24262b, 1); g.fillRect(bx - R, by - 2, R * 2, 4);
+      g.fillStyle(0x24262b, 1); g.fillCircle(bx, by, 5);
+      g.fillStyle(0xf2f2f0, 1); g.fillCircle(bx, by, 3);
+      g.fillStyle(0xffffff, 0.45); g.fillEllipse(bx - 5, by - 6, 7, 4);
+    }
+    this.add.text(trayX + 78, trayY - 16, tr('Starter Poké Balls'), {
+      fontSize: '10px', color: '#12325a', backgroundColor: '#ffffffcc', padding: { x: 4, y: 2 },
+    }).setOrigin(0.5, 1).setDepth(5);
+
     this.add.text(W / 2, 28, tr("🔬 Professor Song's Lab — Sudo City (수도 시티)"), {
       fontSize: '15px', color: '#12325a', fontStyle: 'bold', backgroundColor: '#ffffffaa', padding: { x: 6, y: 3 },
     }).setOrigin(0.5).setDepth(5);

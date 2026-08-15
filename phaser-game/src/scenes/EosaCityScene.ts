@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { canUseSurf } from '../systems/SurfSystem';
 import { tr, speakerName } from '../systems/i18n';
 import { playBgm } from '../systems/Music';
 import { drawTrainerBody, drawRiderBody, drawNpcBody, playerDesign } from '../data/CharacterSprite';
@@ -735,7 +736,7 @@ export abstract class EosaCityScene extends Phaser.Scene {
 
   /** Does the player have a Pokémon that can Surf (or the Surf TM from Haean)? */
   private canSurf(): boolean {
-    return !!this.registry.get('haeanGymDefeated') || PartySystem.anyKnows(this.registry, 'Surf');
+    return canUseSurf(this.registry);
   }
   private tileAt(x: number, y: number): Tile | undefined {
     return this.map[Math.floor(y / TILE)]?.[Math.floor(x / TILE)];

@@ -58,6 +58,17 @@
       ]
     },
     {
+      "id": "dolmoe-pokemon-gym",
+      "role": "building",
+      "tags": [
+        "gym",
+        "dolmoe"
+      ],
+      "url": "assets/bgm/DS%20_%20DSi%20-%20Pokemon%20Diamond%20_%20Pearl%20-%20Map%20Objects%20-%20Pokemon%20Gym/Poke%CC%81mon%20Gym.obj",
+      "mtl": "assets/bgm/DS%20_%20DSi%20-%20Pokemon%20Diamond%20_%20Pearl%20-%20Map%20Objects%20-%20Pokemon%20Gym/Poke%CC%81mon%20Gym.mtl",
+      "invertTr": true
+    },
+    {
       "id": "palace",
       "role": "building",
       "tags": [

@@ -22,6 +22,7 @@ export class StarterSelectScene extends Phaser.Scene {
   private openedIdx = -1;
   private flavText!: Phaser.GameObjects.Text;
   private profText!: Phaser.GameObjects.Text;
+  private bubbleGfx!: Phaser.GameObjects.Graphics;
   private profAdvance!: Phaser.GameObjects.Text;
   private confirmPanel!: Phaser.GameObjects.Container;
   private confirmIdx = 0;
@@ -63,6 +64,7 @@ export class StarterSelectScene extends Phaser.Scene {
     this.createInfoArea();
     this.createConfirmPanel();
     this.setupInput();
+    this.setDialogueMode(false);
     this.refreshSelection(false);
 
     // Prof speech bubble — animated
@@ -135,12 +137,17 @@ export class StarterSelectScene extends Phaser.Scene {
     g.lineStyle(2, 0x333333, 1);
     g.strokeRect(x - 8, y - 26, 6, 5); g.strokeRect(x + 2, y - 26, 6, 5);
     g.lineBetween(x - 2, y - 24, x + 2, y - 24);
-    // Speech bubble
-    const bx = 150, by = 48, bw = 630, bh = 122;
-    g.fillStyle(0xffffff, 0.97); g.fillRoundedRect(bx, by, bw, bh, 12);
-    g.lineStyle(3, 0x334466, 1); g.strokeRoundedRect(bx, by, bw, bh, 12);
-    g.fillStyle(0xffffff, 0.95);
-    g.fillTriangle(bx + 12, by + bh - 18, bx - 18, by + bh + 4, bx + 42, by + bh - 18);
+    // Speech bubble — anchored along the BOTTOM of the screen. It used to sit
+    // across the upper third, which is exactly where the chosen starter now
+    // appears, so the professor was talking over the Pokémon. It lives on its
+    // own graphics layer so it can be hidden while the player is browsing.
+    const bx = 24, by = 380, bw = 752, bh = 96;
+    const bub = this.add.graphics().setDepth(5);
+    this.bubbleGfx = bub;
+    bub.fillStyle(0xffffff, 0.97); bub.fillRoundedRect(bx, by, bw, bh, 12);
+    bub.lineStyle(3, 0x334466, 1); bub.strokeRoundedRect(bx, by, bw, bh, 12);
+    bub.fillStyle(0xffffff, 0.95);
+    bub.fillTriangle(bx + 40, by + 6, bx + 96, by + 6, bx + 52, by - 26);
     this.profText = this.add.text(bx + 18, by + 14, '', {
       fontSize: '14px', color: '#1a2a4a',
       wordWrap: { width: bw - 36, useAdvancedWrap: true }, lineSpacing: 6,
@@ -187,7 +194,7 @@ export class StarterSelectScene extends Phaser.Scene {
     }).setOrigin(0.5, 1).setDepth(12);
 
     // Ability sits BELOW the desk so nothing crowds the balls on it.
-    this.abilityText = this.add.text(400, 388, '', {
+    this.abilityText = this.add.text(400, 402, '', {
       fontSize: '11px', color: '#ffe9a8',
       stroke: '#1a2a4a', strokeThickness: 3,
     }).setOrigin(0.5, 0).setDepth(12);
@@ -291,12 +298,14 @@ export class StarterSelectScene extends Phaser.Scene {
 
   private createInfoArea() {
     const g = this.add.graphics().setDepth(8);
-    g.fillStyle(0x1a2a4a, 0.9); g.fillRect(0, 420, 800, 80);
+    g.fillStyle(0x1a2a4a, 0.9); g.fillRect(0, 480, 800, 20);
     g.lineStyle(2, 0x5577aa, 1); g.lineBetween(0, 420, 800, 420);
-    this.flavText = this.add.text(400, 460, '', {
-      fontSize: '12px', color: '#e8e0cc', wordWrap: { width: 760 }, align: 'center',
+    // Flavour sits just under the reveal plate; the control hint gets the bar.
+    this.flavText = this.add.text(400, 428, '', {
+      fontSize: '12px', color: '#f2ede2', wordWrap: { width: 720 }, align: 'center',
+      stroke: '#16233c', strokeThickness: 4,
     }).setOrigin(0.5).setDepth(9);
-    this.add.text(400, 492, t('◀ ▶ to browse     SPACE / ENTER to choose', '◀ ▶ 둘러보기     SPACE / ENTER 선택'), {
+    this.add.text(400, 490, t('◀ ▶ to browse     SPACE / ENTER to choose', '◀ ▶ 둘러보기     SPACE / ENTER 선택'), {
       fontSize: '11px', color: '#ffe44e',
     }).setOrigin(0.5).setDepth(9);
   }
@@ -358,6 +367,16 @@ export class StarterSelectScene extends Phaser.Scene {
   }
 
   // ── Selection refresh ─────────────────────────────────────────────────────
+
+  /** The bubble and the starter's own text share the lower band, so exactly one
+   *  of them is on screen at a time and nothing ever overlaps. */
+  private setDialogueMode(active: boolean) {
+    this.bubbleGfx?.setVisible(active);
+    this.profText?.setVisible(active);
+    if (!active) this.profAdvance?.setVisible(false);
+    this.flavText?.setVisible(!active);
+    this.abilityText?.setVisible(!active);
+  }
 
   private refreshSelection(animated: boolean) {
     const s = STARTERS[this.selectedIdx];
@@ -552,6 +571,7 @@ export class StarterSelectScene extends Phaser.Scene {
     this.professorPages = lines.map(tr).flatMap(line => this.paginateProfessorLine(line));
     this.professorPageIdx = -1;
     this.professorDialogueActive = true;
+    this.setDialogueMode(true);
     this.professorTyping = false;
     this.professorOnDone = onDone;
     this.showNextProfessorPage();
@@ -572,6 +592,7 @@ export class StarterSelectScene extends Phaser.Scene {
     this.professorPageIdx++;
     if (this.professorPageIdx >= this.professorPages.length) {
       this.professorDialogueActive = false;
+      this.setDialogueMode(false);
       this.professorTyping = false;
       const done = this.professorOnDone;
       this.professorOnDone = undefined;

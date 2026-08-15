@@ -20,6 +20,7 @@ const COLORS: Record<Tile, number> = {
   [T.GRASS]: 0x6a7050, [T.TREE]: 0x1f3a20, [T.CLIFF]: 0x4a453c, [T.DOLMEN]: 0x5a544a, [T.DIG]: 0x3f3a32, [T.GATE]: 0x8a7a5a,
 };
 const SOLID = new Set<Tile>([T.TREE, T.CLIFF, T.DOLMEN, T.DIG]);
+const DOLMEN_TILES = [[3,4],[3,20],[6,16],[8,22],[12,4],[14,18],[16,10],[5,10],[15,23],[11,17],[17,6],[4,14]] as const;
 
 interface Grunt {
   key: string; name: string; line: string; col: number; row: number;
@@ -31,13 +32,13 @@ export class DolmoeRuinsScene extends Phaser.Scene {
   // the generated 고인돌 model on their exact tile.
   public buildingPlots = [
     { x: 6, y: 8, w: 3, h: 3, model: 'dolmen' },
-    ...([[3,4],[3,20],[6,16],[8,22],[12,4],[14,18],[16,10],[5,10],[15,23],[11,17],[17,6],[4,14]] as [number,number][])
+    ...DOLMEN_TILES
       .map(([r, c]) => ({ x: c, y: r, w: 1, h: 1, model: 'dolmen' })),
   ];
   public onlyNamedBuildings = true;
-  /** Keep the archaeological field completely readable: cliff, tree, rock and
-   * dark dig tiles stay painted on the ground instead of rising into tall 3D
-   * walls. Authored dolmen models in buildingPlots remain standing. */
+  /** Keep the archaeological field completely readable: terrain stays flat,
+   * while the authored dolmen models in buildingPlots are the only standing
+   * stone structures. */
   public clearSight3D = true;
   public flatTerrain3D = true;
   public noRocks3D = true;
@@ -91,7 +92,7 @@ export class DolmoeRuinsScene extends Phaser.Scene {
     // East gate → Dolmoe City (an opening in the east cliff)
     m[9][this.W - 1] = T.GATE; m[10][this.W - 1] = T.GATE; m[11][this.W - 1] = T.GATE;
     // Scattered standing dolmens across the field
-    for (const [r, c] of [[3,4],[3,20],[6,16],[8,22],[12,4],[14,18],[16,10],[5,10],[15,23],[11,17],[17,6],[4,14]] as [number,number][]) m[r][c] = T.DOLMEN;
+    for (const [r, c] of DOLMEN_TILES) m[r][c] = T.DOLMEN;
     // Frozen pines dotting the ridge
     for (const [r, c] of [[2,7],[2,17],[17,13],[13,24],[6,3]] as [number,number][]) m[r][c] = T.TREE;
     // The great SEALED dolmen (dig site) — a 2×2 block the guardian rises from.
@@ -143,19 +144,17 @@ export class DolmoeRuinsScene extends Phaser.Scene {
     const g = this.add.graphics().setDepth(0);
     for (let r = 0; r < this.H; r++) for (let c = 0; c < this.W; c++) {
       const t = this.map[r][c]; const x = c * IT, y = r * IT;
-      g.fillStyle(COLORS[t], 1); g.fillRect(x, y, IT, IT);
-      if (t === T.GRASS)  { g.fillStyle(0x5a6044, 0.6); g.fillRect(x+6, y+20, 4, 6); g.fillRect(x+20, y+10, 4, 6); }
+      // CLIFF and DOLMEN are logical collision/placement markers only. Paint
+      // ordinary ground beneath them so no flat mountain or dolmen silhouette
+      // competes with the authored 3D dolmen models.
+      const groundTile = t === T.CLIFF || t === T.DOLMEN ? T.GRASS : t;
+      g.fillStyle(COLORS[groundTile], 1); g.fillRect(x, y, IT, IT);
+      if (groundTile === T.GRASS) { g.fillStyle(0x5a6044, 0.6); g.fillRect(x+6, y+20, 4, 6); g.fillRect(x+20, y+10, 4, 6); }
       if (t === T.TREE)   { g.fillStyle(0x14301a); g.fillTriangle(x+18, y+2, x+2, y+30, x+34, y+30); }
-      if (t === T.CLIFF)  { g.fillStyle(0x3a352e); g.fillRect(x+4, y+4, 12, 10); g.fillRect(x+18, y+16, 12, 12); }
-      if (t === T.DOLMEN) { g.fillStyle(0x4a453c); g.fillRect(x+5, y+10, 6, 20); g.fillRect(x+25, y+10, 6, 20); g.fillStyle(0x6a6458); g.fillRect(x-2, y+2, IT+4, 12); }
       if (t === T.GATE)   { g.fillStyle(0x6b5a3a); g.fillRect(x+6, y+2, IT-12, IT-4); }
     }
-    // The great sealed dolmen (dig site) — big capstone + 노스단 scaffolding.
-    const dx = (this.digCol - 1) * IT, dy = (this.digRow - 1) * IT;
-    g.fillStyle(0x3f3a32); g.fillRect(dx, dy + IT, 3 * IT, 2 * IT);
-    g.fillStyle(0x5a544a); g.fillRect(dx - 4, dy + IT - 8, 3 * IT + 8, 16);   // capstone
-    g.lineStyle(2, 0xcaa860); g.strokeRect(dx - 4, dy + IT - 8, 3 * IT + 8, 16);
-    g.fillStyle(0x161616); g.fillRect(dx + 2, dy + IT, 4, 2 * IT); g.fillRect(dx + 3 * IT - 6, dy + IT, 4, 2 * IT);   // struts
+    // The DIG tiles remain a flat excavation footprint. Its sealed capstone is
+    // supplied exclusively by the 3D dolmen model above, never by 2D artwork.
 
     const key = '__dolmoeRuinsMap__';
     if (this.textures.exists(key)) this.textures.remove(key);

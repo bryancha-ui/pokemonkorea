@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { installSurfing } from '../systems/SurfSystem';
 import { tr } from '../systems/i18n';
 import { drawTrainerBody, drawRiderBody, playerDesign } from '../data/CharacterSprite';
 import { hasBike, BIKE_SPEED, isBikeRiding, setBikeRiding } from '../data/Bike';
@@ -158,6 +159,11 @@ export class JejuCityScene extends Phaser.Scene {
     this.map = buildMap();
 
     this.createPlayer();
+    installSurfing(this, {
+      map: () => this.map, player: () => this.playerG,
+      position: () => ({ x: this.px, y: this.py }), tileSize: TILE,
+      waterTiles: [T.WATER, T.SHALLOW], solidTiles: SOLID,
+    });
     this.setupCamera();
     this.setupInput();
     this.createUI();

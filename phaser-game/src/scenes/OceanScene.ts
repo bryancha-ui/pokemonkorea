@@ -10,7 +10,7 @@ import { EncounterEntry, pickEncounter, randomLevel } from '../data/CustomPokemo
 // ── The Open Ocean (surf) ────────────────────────────────────────────────────
 // Reached by surfing off any coast. The player rides the water on a mount; wild
 // sea Pokémon and Swimmer trainers roam, and the currents lead to Haean, Route 6,
-// and out to the Jeju vents.
+// and Jeju City's southern harbour.
 
 const T = { WATER: 0, DEEP: 1, ROCK: 2, FOAM: 3 } as const;
 type Tile = typeof T[keyof typeof T];
@@ -116,7 +116,7 @@ export class OceanScene extends Phaser.Scene {
         this.cutsceneActive = true;
         this.dialog.show([
           'You paddle out onto the open sea, your Pokémon carrying you over the swells.',
-          'Currents run north to the Jeju vents, east to the Route 6 shore, and back south to Haean. Sea Pokémon surface all around you.',
+          'Currents run north to Jeju City, east to the Route 6 shore, and back south to Haean. Sea Pokémon surface all around you.',
         ], () => { this.cutsceneActive = false; });
       });
     } else {
@@ -142,7 +142,7 @@ export class OceanScene extends Phaser.Scene {
     const sign = (x: number, y: number, text: string) => this.add.text(x, y, text, {
       fontSize: '10px', color: '#fff', backgroundColor: '#0a3a5a99', padding: { x: 4, y: 2 },
     }).setOrigin(0.5).setDepth(5);
-    sign(16 * TILE, 0.7 * TILE, '↑ Jeju Vents');
+    sign(16 * TILE, 0.7 * TILE, tr('↑ Jeju City'));
     sign(16 * TILE, (ROWS - 1.4) * TILE, '↓ Haean City');
     sign((COLS - 1.5) * TILE, 20 * TILE, 'Route 6 →');
   }
@@ -292,12 +292,15 @@ export class OceanScene extends Phaser.Scene {
         this.registry.set('haeanCityReturnX', 15 * 32); this.registry.set('haeanCityReturnY', 20 * 32);
         this.scene.start('HaeanCityScene');
       });
-    } else if (this.py < 1 * TILE) {   // north → the Jeju vents
+    } else if (this.py < 1 * TILE) {   // north → Jeju City's southern harbour
       this.cutsceneActive = true;
-      this.registry.set('chapter9Done', true);   // reaching Jeju by sea opens its ferry too
+      this.registry.set('chapter9Done', true);   // reaching Jeju by sea keeps the return ferry available
       this.cameras.main.fadeOut(400, 0, 0, 0, () => {
-        this.registry.set('jejuPortReturnX', 12 * 32 + 16); this.registry.set('jejuPortReturnY', 17 * 32 + 16);
-        this.scene.start('JejuPortScene');
+        // Land on the central waterfront road, far enough inside the map that
+        // Jeju City's south-edge exit cannot immediately bounce the player out.
+        this.registry.set('jejuCityReturnX', 20 * TILE + TILE / 2);
+        this.registry.set('jejuCityReturnY', 24 * TILE + TILE / 2);
+        this.scene.start('JejuCityScene');
       });
     } else if (this.px > (COLS - 1) * TILE) {   // east → Route 6 shore
       this.cutsceneActive = true;

@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { installSurfing } from '../systems/SurfSystem';
 import { tr } from '../systems/i18n';
 import { playBgm } from '../systems/Music';
 import { vanishesAfterDefeat } from '../data/Villains';
@@ -153,6 +154,11 @@ export class BaekduSummitScene extends Phaser.Scene {
     this.drawFoes();
     if (!this.gateOpen) this.drawFigure(12, 10, 0x0c0c14, 0xcc3344, 'Executive\nMubaek', '#ff99aa');
     this.createPlayer();
+    installSurfing(this, {
+      map: () => this.map, player: () => this.playerG,
+      position: () => ({ x: this.px, y: this.py }), tileSize: TILE,
+      waterTiles: [T.LAKE], solidTiles: SOLID,
+    });
     this.setupCamera();
     this.setupInput();
     this.createUI();

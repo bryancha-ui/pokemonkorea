@@ -40,10 +40,10 @@ export class DolmoeCityScene extends Phaser.Scene {
   public clearSight3D = true;
   public flatTileIds3D = [T.GROUND, T.ROAD, T.WALL, T.ROOF];
   public noRocks3D = true;
-  // Quarry gym, Pokémon Center and mart reuse the shared models; the moth-
-  // grandmother (나비할망) statue gets its own generated model on the plaza.
+  // The quarry gym uses its authored Pokémon Gym OBJ; the Center and mart keep
+  // the shared models. The moth-grandmother statue has its own plaza model.
   public buildingPlots = [
-    { x: 3,  y: 4,  w: 6, h: 5, model: 'gym' },
+    { x: 3,  y: 4,  w: 6, h: 5, model: 'dolmoe-pokemon-gym' },
     { x: 14, y: 4,  w: 6, h: 5, model: 'pokecenter' },
     { x: 23, y: 4,  w: 6, h: 5, model: 'mart' },
     { x: 7,  y: 12, w: 2, h: 2, model: 'nabihalmang' },

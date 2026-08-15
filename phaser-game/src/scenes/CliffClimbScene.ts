@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { installSurfing, isSurfing } from '../systems/SurfSystem';
 import { tr, speakerName } from '../systems/i18n';
 import { vanishesAfterDefeat } from '../data/Villains';
 import { drawTrainerBody, drawNpcBody, playerDesign } from '../data/CharacterSprite';
@@ -99,6 +100,11 @@ export abstract class CliffClimbScene extends Phaser.Scene {
     this.drawTrainers();
     this.drawExtras();
     this.createPlayer();
+    installSurfing(this, {
+      map: () => this.map, player: () => this.playerG,
+      position: () => ({ x: this.px, y: this.py }), tileSize: TILE,
+      waterTiles: [T.SEA], solidTiles: SOLID,
+    });
     this.setupCamera();
     this.setupInput();
     this.createUI();
@@ -278,6 +284,7 @@ export abstract class CliffClimbScene extends Phaser.Scene {
   }
 
   protected checkExits() {
+    if (isSurfing(this.playerG)) return;
     if (this.cutsceneActive) return;
     if (this.py > (ROWS - 1) * TILE) { this.cutsceneActive = true; this.exitSouth(); }
     else if (this.py < 1 * TILE) { if (this.exitNorth()) this.cutsceneActive = true; else this.py = 1.2 * TILE; }

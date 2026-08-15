@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { installSurfing } from '../systems/SurfSystem';
 import { tr, speakerName } from '../systems/i18n';
 import { vanishesAfterDefeat } from '../data/Villains';
 import { playBgm } from '../systems/Music';
@@ -151,6 +152,11 @@ export class RyesongValleyScene extends Phaser.Scene {
     this.drawMap();
     this.drawTrainers();
     this.createPlayer();
+    installSurfing(this, {
+      map: () => this.map, player: () => this.playerG,
+      position: () => ({ x: this.px, y: this.py }), tileSize: TILE,
+      waterTiles: [T.WATER], solidTiles: SOLID,
+    });
     this.setupCamera();
     this.setupInput();
     this.createUI();

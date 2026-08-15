@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { canUseSurf, installSurfing, isSurfing } from '../systems/SurfSystem';
 import { tr, speakerName } from '../systems/i18n';
 import { playBgm } from '../systems/Music';
 import { vanishesAfterDefeat } from '../data/Villains';
@@ -127,6 +128,11 @@ export class Route6Scene extends Phaser.Scene {
     this.drawMap();
     this.drawTrainers();
     this.createPlayer();
+    installSurfing(this, {
+      map: () => this.map, player: () => this.playerG,
+      position: () => ({ x: this.px, y: this.py }), tileSize: TILE,
+      waterTiles: [T.SEA], solidTiles: SOLID,
+    });
     this.setupCamera();
     this.setupInput();
     this.createUI();
@@ -350,7 +356,7 @@ export class Route6Scene extends Phaser.Scene {
     if (this.cutsceneActive) { this.surfPrompt?.setVisible(false); return; }
     const col = Math.floor(this.px / TILE);
     const onShore = (col === 16 || col === 17) && this.facing === 3;   // sand edge, facing the sea
-    if (!this.registry.get('haeanGymDefeated') || !onShore) { this.surfPrompt?.setVisible(false); return; }
+    if (!canUseSurf(this.registry) || !onShore) { this.surfPrompt?.setVisible(false); return; }
     if (!this.surfPrompt) {
       this.surfPrompt = this.add.text(this.scale.width / 2, 46, tr('🌊 SPACE — Surf out to sea'), {
         fontSize: '12px', color: '#fff', backgroundColor: '#0a3a5acc', padding: { x: 8, y: 4 },
@@ -366,6 +372,7 @@ export class Route6Scene extends Phaser.Scene {
   }
 
   private checkExits() {
+    if (isSurfing(this.playerG)) return;
     if (this.cutsceneActive || this.spawnGuard) return;
     if (Math.hypot(this.px - this.spawnPx, this.py - this.spawnPy) < 1.4 * TILE) return;
     if (this.py > (ROWS - 1) * TILE) {   // south → back to Forest City

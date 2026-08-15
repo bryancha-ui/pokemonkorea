@@ -68,7 +68,13 @@ export const STARTERS: StarterDef[] = [
     ability: 'Blaze',
     flavorA: 'Smoke from burning food drifts from its neck organ. Elements in the smoke make prey feel strangely at ease.',
     flavorB: 'It draws attention with S-shaped movements. When prey lets its guard down, Vipour bites and paralyzes them.',
-    startingMoves: [TACKLE, FLAME_BURST, FIRE_FANG, SMOKESCREEN],
+    // Bite (Dark) replaces the redundant Tackle: as a pure Fire/Poison mon, Vipour
+    // otherwise has NO way to touch its rival counter Onnurian (Water/Ghost) — Fire
+    // and Poison are both resisted and Normal is a flat immunity against the Ghost
+    // half. Its own flavour ("Vipour bites … prey") makes the fang a natural fit, and
+    // Dark strikes the Ghost side super-effectively, turning a hopeless opening into a
+    // fair speed race (Vipour outspeeds Onnurian 85→65).
+    startingMoves: [BITE_M, FLAME_BURST, FIRE_FANG, SMOKESCREEN],
     data: {
       id: 902, name: 'Vipour',
       type1: 'fire', type2: 'poison',

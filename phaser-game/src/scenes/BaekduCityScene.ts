@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { installSurfing } from '../systems/SurfSystem';
 import { tr } from '../systems/i18n';
 import { playBgm } from '../systems/Music';
 import { drawTrainerBody, drawRiderBody, playerDesign } from '../data/CharacterSprite';
@@ -9,14 +10,19 @@ import { maybeLaunchEvolution } from '../systems/EvolutionSystem';
 import { PartySystem } from '../systems/PartySystem';
 
 // ── Tiles ───────────────────────────────────────────────────────────────────
-const T = { SNOW: 0, PATH: 1, BUILDING: 2, PINE: 3, LANTERN: 4, LAKE: 5, ROCK: 6, STEAM: 7 } as const;
+const T = { SNOW: 0, PATH: 1, BUILDING: 2, PINE: 3, LANTERN: 4, LAKE: 5, ROCK: 6, STEAM: 7, MOUNTAIN: 8 } as const;
 type Tile = typeof T[keyof typeof T];
-const TILE = 32, COLS = 30, ROWS = 26;
+// Seolbong grew into a proper highland town. The original 30×26 core keeps every
+// coordinate (saves, doors and NPC positions are all absolute), and the new
+// columns/rows hold the summit training terrace to the east and a wider snowy
+// approach to the south. Both exits read from COLS/ROWS, so they move with it.
+const TILE = 32, COLS = 46, ROWS = 36;
 const COLORS: Record<Tile, number> = {
   [T.SNOW]: 0xe6edf4, [T.PATH]: 0xc2b9a8, [T.BUILDING]: 0xddd2c0, [T.PINE]: 0x1f4d36,
   [T.LANTERN]: 0x9a7a4a, [T.LAKE]: 0x2f6fbf, [T.ROCK]: 0x6f6558, [T.STEAM]: 0xdfe8ee,
+  [T.MOUNTAIN]: 0x8b8a92,
 };
-const SOLID = new Set<Tile>([T.BUILDING, T.PINE, T.LANTERN, T.LAKE, T.ROCK]);
+const SOLID = new Set<Tile>([T.BUILDING, T.PINE, T.LANTERN, T.LAKE, T.ROCK, T.MOUNTAIN]);
 
 interface Building { label: string; scene: string; x: number; y: number; w: number; h: number; doorCol: number; doorRow: number; roof: number; }
 const BUILDINGS: Building[] = [
@@ -39,7 +45,7 @@ function buildMap(): Tile[][] {
     fill(b.y, b.y + b.h, b.x, b.x + b.w, T.BUILDING);
     m[b.doorRow][b.doorCol] = T.PATH;
   }
-  // Cheonji — the volcanic crater lake (top-right open water, ringed by rock)
+  // Seolbong Lake — the crater lake at the town's head (ringed by rock)
   fill(1, 6, 9, 21, T.LAKE);
   for (let c = 8; c <= 21; c++) { if (m[6]?.[c] === T.SNOW) m[6][c] = T.ROCK; }
   m[1][8] = T.ROCK; m[1][21] = T.ROCK;
@@ -48,16 +54,152 @@ function buildMap(): Tile[][] {
   // Snowy pines + stone lanterns
   for (const [r,c] of [[8,11],[8,18],[16,5],[16,24],[22,11],[22,18],[7,2]] as [number,number][]) m[r][c] = T.PINE;
   m[10][11] = T.LANTERN; m[10][18] = T.LANTERN;
+
+  // ══ EAST: the summit training terrace (cols 30-45) ═══════════════════════
+  // A cleared, wind-swept shelf beside the dojo where the school drills in the
+  // snow — deliberately open, ringed by pines and rock so it reads as a plateau.
+  fill(2, 26, 30, COLS, T.SNOW);
+  fill(11, 15, 30, COLS - 2, T.PATH);          // the boulevard runs onto the shelf
+  fill(4, 10, 32, 44, T.SNOW);                 // swept drill yard (packed snow)
+  fill(17, 22, 33, 43, T.SNOW);                // lower sparring court
+  // Stone kerbs mark the swept edges without turning the shelf brown.
+  for (let c = 32; c < 44; c++) { m[3][c] = T.ROCK; m[10][c] = T.ROCK; }
+  for (let c = 33; c < 43; c++) { m[16][c] = T.ROCK; m[22][c] = T.ROCK; }
+  // Rock lip along the north and east edges — the drop to the crater below.
+  fill(1, 3, 30, COLS, T.ROCK);
+  fill(1, 26, COLS - 2, COLS, T.ROCK);
+  // Wind-break pines around the terrace.
+  for (const [r, c] of [[3,31],[3,36],[3,42],[10,31],[10,43],[16,31],[16,43],[23,33],[23,38],[23,43]] as [number,number][]) m[r][c] = T.PINE;
+  // Lanterns lining the approach to the drill yard.
+  m[10][35] = T.LANTERN; m[10][40] = T.LANTERN;
+
+  // ══ SOUTH: the widened approach (rows 26-35) ═════════════════════════════
+  fill(26, ROWS, 0, COLS, T.SNOW);
+  fill(26, ROWS, 13, 17, T.PATH);              // the main road continues to the pass
+  fill(27, 30, 4, 12, T.STEAM);                // a second open-air spring pool
+  fill(28, 32, 24, 34, T.LAKE);                // a frozen tarn on the way down
+  for (let c = 23; c <= 34; c++) { if (m[27]?.[c] === T.SNOW) m[27][c] = T.ROCK; }
+  for (const [r, c] of [[27,19],[30,20],[33,12],[33,20],[29,38],[32,30],[34,6],[31,44]] as [number,number][]) m[r][c] = T.PINE;
+
+  // ══ The ring of peaks ═════════════════════════════════════════════════════
+  // Seolbong sits in a bowl. The map border is a band of mountain tiles which
+  // the 3D engine replaces with real ranges, so the town is framed by summits
+  // instead of a painted wall.
+  fill(0, 2, 0, COLS, T.MOUNTAIN);             // north wall (behind the lake)
+  fill(ROWS - 2, ROWS, 0, COLS, T.MOUNTAIN);   // south
+  fill(0, ROWS, 0, 2, T.MOUNTAIN);             // west
+  fill(0, ROWS, COLS - 2, COLS, T.MOUNTAIN);   // east
+  // Shoulders pushing into the bowl, so the skyline isn't a straight box.
+  fill(2, 5, 0, 6, T.MOUNTAIN);
+  fill(2, 4, 24, 30, T.MOUNTAIN);
+  fill(24, 28, 0, 4, T.MOUNTAIN);
+  fill(30, 34, 38, COLS, T.MOUNTAIN);
+  fill(26, 29, 40, COLS, T.MOUNTAIN);
+  // Keep both gates clear: the road out south and the pass east. The southern
+  // shoulder gives mountain cones two full tiles of clearance from the road.
+  fill(ROWS - 2, ROWS, 11, 19, T.SNOW);
+  fill(ROWS - 2, ROWS, 13, 17, T.PATH);
+  fill(11, 15, COLS - 2, COLS, T.PATH);
+
   return m;
 }
 
 export class BaekduCityScene extends Phaser.Scene {
   private map!: Tile[][];
-  public buildingPlots = BUILDINGS.map((b, i) => ({ x: b.x, y: b.y, w: b.w, h: b.h, model: ['pokecenter', 'dojo', 'gearshop'][i] }));
+  public buildingPlots = [
+    ...BUILDINGS.map((b, i) => ({
+      x: b.x, y: b.y, w: b.w, h: b.h,
+      model: ['pokecenter', 'dojo', 'gearshop', 'snowmeltbaths'][i],
+    })),
+    // ── Summit terrace landmarks ──
+    // A bell shrine on the rock lip above the drill yard, the school's hall of
+    // masters behind it, and a lodge for visiting students.
+    { x: 33, y: 2, w: 5, h: 3, model: 'frostbell' },
+    { x: 39, y: 2, w: 5, h: 3, model: 'templegym' },
+    { x: 31, y: 22, w: 5, h: 4, model: 'alpinelodge' },
+    { x: 38, y: 22, w: 6, h: 4, model: 'hanok' },
+  ];
   public onlyNamedBuildings = true;
-  // Street lamps with a lit head, as 3D props (coords mirror the T.LANTERN tiles).
-  public propPlots = ([[11, 10], [18, 10]] as [number, number][])
-    .map(([x, y]) => ({ x, y, kind: 'streetlamp' as const }));
+  /** Snowy peaks read as bright, open sky — keep tall rock from walling the view. */
+  public clearSight3D = true;
+  /** The painted pines grow as real 3D conifers instead of flat ground art. */
+  public treeTileIds3D = [T.PINE];
+  /** The painted border peaks are replaced by real 3D mountain ranges. */
+  public mountainTileIds3D = [T.MOUNTAIN];
+  /** Never let colour classification raise the main travel lanes into walls. */
+  public flatTileIds3D = [T.PATH];
+  /** Seolbong Lake is glacial: deep base, pale shallows, drifting sun glitter. */
+  public waterStyle3D = 'alpine' as const;
+  public propPlots = [
+    // Original boulevard lamps (coords mirror the T.LANTERN tiles).
+    ...([[11, 10], [18, 10], [35, 10], [40, 10]] as [number, number][])
+      .map(([x, y]) => ({ x, y, kind: 'streetlamp' as const })),
+
+    // ── The drill yard: striking posts in a disciplined row ──
+    ...([33, 35, 37, 39, 41] as number[])
+      .map(x => ({ x, y: 5, kind: 'trainingpost' as const })),
+    ...([34, 38, 42] as number[])
+      .map(x => ({ x, y: 8, kind: 'strawdummy' as const })),
+    { x: 32, y: 8, kind: 'weaponrack' as const },
+    { x: 43, y: 5, kind: 'weaponrack' as const, rot: Math.PI / 2 },
+    // Banner poles framing the yard entrance.
+    { x: 32, y: 3, kind: 'banner' as const, color: 0x9a3c34 },
+    { x: 42, y: 3, kind: 'banner' as const, color: 0x2f5f8f },
+    { x: 32, y: 10, kind: 'banner' as const, color: 0x2f5f8f },
+    { x: 42, y: 10, kind: 'banner' as const, color: 0x9a3c34 },
+
+    // ── The lower court: a roped sparring ring and the dawn bell ──
+    { x: 36, y: 18, kind: 'sparringring' as const, len: 5 },
+    { x: 41, y: 18, kind: 'bellframe' as const },
+    { x: 34, y: 20, kind: 'meditationrock' as const },
+    ...([[33, 16], [42, 21]] as [number, number][])
+      .map(([x, y]) => ({ x, y, kind: 'firewood' as const })),
+
+    // ── Around the old town: the dojo's overflow training gear ──
+    { x: 19, y: 13, kind: 'trainingpost' as const },
+    { x: 27, y: 8, kind: 'strawdummy' as const },
+    { x: 28, y: 13, kind: 'meditationrock' as const },
+    { x: 10, y: 22, kind: 'firewood' as const },
+    // Lanterns and a banner welcoming climbers at the southern approach.
+    ...([[14, 28], [17, 28], [14, 33], [17, 33]] as [number, number][])
+      .map(([x, y]) => ({ x, y, kind: 'lantern' as const })),
+    { x: 12, y: 30, kind: 'banner' as const, color: 0x9a3c34 },
+    { x: 19, y: 30, kind: 'banner' as const, color: 0x2f5f8f },
+  ];
+
+  /** Iconic locals standing around the mountain. Decorative 3D only — they have
+   *  no collision, no dialogue and no save state, so nothing about the town's
+   *  logic changes. */
+  public crowdPlots = [
+    // The grandmaster with his staff, overseeing the drill yard.
+    { x: 37, y: 3, look: 'seolbong_master', rot: 0, behaviour: 'stand' as const },
+    // Five students in a line — each a different build, hair and belt colour,
+    // so the row reads as individual people rather than one repeated body.
+    { x: 33, y: 6, look: 'seolbong_disciple_a', rot: 0, behaviour: 'stand' as const },
+    { x: 35, y: 6, look: 'seolbong_disciple_b', rot: 0, behaviour: 'stand' as const },
+    { x: 37, y: 6, look: 'seolbong_disciple_c', rot: 0, behaviour: 'stand' as const },
+    { x: 39, y: 6, look: 'seolbong_disciple_d', rot: 0, behaviour: 'stand' as const },
+    { x: 41, y: 6, look: 'seolbong_disciple_e', rot: 0, behaviour: 'stand' as const },
+    // The swordsman drilling apart from the line.
+    { x: 43, y: 8, look: 'seolbong_swordsman', rot: -Math.PI / 2, behaviour: 'stand' as const },
+    // Red and blue corner squared up in the ring, senior instructor judging.
+    { x: 35, y: 18, look: 'seolbong_fighter_a', rot: Math.PI / 2, behaviour: 'stand' as const },
+    { x: 37, y: 18, look: 'seolbong_fighter_b', rot: -Math.PI / 2, behaviour: 'stand' as const },
+    { x: 36, y: 21, look: 'seolbong_sensei', rot: Math.PI, behaviour: 'stand' as const },
+    // The elder meditating on the rock, and the monk who rings the dawn bell.
+    { x: 34, y: 21, look: 'seolbong_elder', rot: Math.PI, behaviour: 'stand' as const },
+    { x: 42, y: 19, look: 'seolbong_monk', rot: Math.PI / 2, behaviour: 'stand' as const },
+    // Old town: the gear-shop smith, the inn keeper, a bathhouse guest.
+    { x: 14, y: 20, look: 'seolbong_smith', rot: Math.PI, behaviour: 'stand' as const },
+    { x: 6, y: 19, look: 'seolbong_keeper', rot: Math.PI, behaviour: 'stand' as const },
+    { x: 7, y: 21, look: 'seolbong_bather', rot: 0, behaviour: 'stand' as const },
+    // Students jogging the boulevard, and a porter on the southern road.
+    { x: 20, y: 13, look: 'seolbong_disciple_c', behaviour: 'stroll' as const, axis: 'x' as const, range: 6, speed: 0.75 },
+    { x: 24, y: 13, look: 'seolbong_disciple_a', behaviour: 'stroll' as const, axis: 'x' as const, range: 5, speed: 0.6 },
+    { x: 15, y: 27, look: 'seolbong_keeper', behaviour: 'stroll' as const, axis: 'z' as const, range: 5, speed: 0.55 },
+    // The mountain guide watching the lake from the rim.
+    { x: 15, y: 7, look: 'seolbong_guide', rot: 0, behaviour: 'stand' as const },
+  ];
   private playerG!: Phaser.GameObjects.Graphics;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd!: Record<string, Phaser.Input.Keyboard.Key>;
@@ -66,7 +208,7 @@ export class BaekduCityScene extends Phaser.Scene {
   private dialog!: DialogBox;
   private enterPrompt!: Phaser.GameObjects.Text;
 
-  private px = 15 * TILE; private py = 24 * TILE;
+  private px = 15 * TILE; private py = (ROWS - 2) * TILE;
   private facing = 1; private walkFrame = 0; private walkTimer = 0;
   private cutsceneActive = false;
   private get cycling(): boolean { return isBikeRiding(this.registry); }
@@ -99,6 +241,11 @@ export class BaekduCityScene extends Phaser.Scene {
     this.drawMap();
     this.drawSuriOperative();
     this.createPlayer();
+    installSurfing(this, {
+      map: () => this.map, player: () => this.playerG,
+      position: () => ({ x: this.px, y: this.py }), tileSize: TILE,
+      waterTiles: [T.LAKE], solidTiles: SOLID,
+    });
     this.setupCamera();
     this.setupInput();
     this.createUI();
@@ -111,7 +258,7 @@ export class BaekduCityScene extends Phaser.Scene {
         this.cutsceneActive = true;
         this.dialog.show([
           'You reach Seolbong City (설봉시티).',
-          'A rugged highland city built around a brilliant blue crater lake — Cheonji, the Heaven Lake.',
+          'A rugged highland city built around a brilliant blue crater lake — Seolbong Lake.',
           'Mountaineers in heavy coats trade gear and soak in hot springs.',
           'But here and there, figures in black coats with red thread linger... watching.',
         ], () => { this.cutsceneActive = false; });
@@ -130,7 +277,6 @@ export class BaekduCityScene extends Phaser.Scene {
       if (t === T.PINE) { g.fillStyle(0x163d28); g.fillTriangle(c*TILE+16, r*TILE+2, c*TILE+3, r*TILE+24, c*TILE+29, r*TILE+24); g.fillStyle(0xffffff,0.85); g.fillTriangle(c*TILE+16, r*TILE+2, c*TILE+10, r*TILE+12, c*TILE+22, r*TILE+12); g.fillStyle(0x4a3020); g.fillRect(c*TILE+13, r*TILE+24, 6, 6); }
       if (t === T.LANTERN) { g.fillStyle(0x777066); g.fillRect(c*TILE+12, r*TILE+6, 8, 20); g.fillStyle(0xffdd88); g.fillRect(c*TILE+11, r*TILE+4, 10, 8); }
       if (t === T.LAKE) { g.fillStyle(0x66aadd, 0.5); g.fillRect(c*TILE+4, r*TILE+8, 12, 3); g.fillRect(c*TILE+14, r*TILE+18, 10, 3); }
-      if (t === T.ROCK) { g.fillStyle(0x5a5044); g.fillTriangle(c*TILE+16, r*TILE+6, c*TILE+4, r*TILE+28, c*TILE+28, r*TILE+28); }
       if (t === T.STEAM) { g.fillStyle(0xffffff, 0.35); g.fillCircle(c*TILE+10, r*TILE+12, 7); g.fillCircle(c*TILE+22, r*TILE+20, 6); }
     }
     const key = '__baekduCityMap__';
@@ -152,7 +298,7 @@ export class BaekduCityScene extends Phaser.Scene {
         fontSize: '9px', color: '#fff', backgroundColor: '#00000099', padding: { x: 4, y: 2 },
       }).setOrigin(0.5, 1).setDepth(3);
     }
-    this.add.text(15 * TILE, 4 * TILE, tr('🌊 Cheonji — Heaven Lake'), {
+    this.add.text(15 * TILE, 4 * TILE, tr('🌊 Seolbong Lake'), {
       fontSize: '10px', color: '#fff', backgroundColor: '#1a4a8acc', padding: { x: 4, y: 2 },
     }).setOrigin(0.5).setDepth(5);
     this.add.text(6 * TILE, 20 * TILE, tr('♨ Hot Spring Inn'), {
@@ -261,7 +407,7 @@ export class BaekduCityScene extends Phaser.Scene {
       const beaten = !!this.registry.get('baekduGymDefeated');
       this.dialog.show(beaten ? [
         "Team Suri Operative: ...So you took the Summit Seal too. The Director is watching you now.",
-        "Team Suri Operative: Whatever's stirring under Cheonji — stay out of it. That's a warning, not a threat.",
+        "Team Suri Operative: Whatever's stirring under Seolbong Lake — stay out of it. That's a warning, not a threat.",
       ] : [
         "Team Suri Operative: Move along, challenger. Nothing here concerns you.",
         "Team Suri Operative: ...The lake? Don't mind the lake. The lake minds itself.",

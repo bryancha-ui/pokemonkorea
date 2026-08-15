@@ -43,10 +43,39 @@ service cloud.firestore {
         && (data.badgeTimes[7] == null || data.badgeCount >= 8);
     }
 
+    function validMapaeTimes(data) {
+      return data.mapaeTimes is list
+        && data.mapaeTimes.size() == 8
+        && validTime(data.mapaeTimes[0], data.playMs)
+        && validTime(data.mapaeTimes[1], data.playMs)
+        && validTime(data.mapaeTimes[2], data.playMs)
+        && validTime(data.mapaeTimes[3], data.playMs)
+        && validTime(data.mapaeTimes[4], data.playMs)
+        && validTime(data.mapaeTimes[5], data.playMs)
+        && validTime(data.mapaeTimes[6], data.playMs)
+        && validTime(data.mapaeTimes[7], data.playMs)
+        && optional(data, 'mapae1Ms') == data.mapaeTimes[0]
+        && optional(data, 'mapae2Ms') == data.mapaeTimes[1]
+        && optional(data, 'mapae3Ms') == data.mapaeTimes[2]
+        && optional(data, 'mapae4Ms') == data.mapaeTimes[3]
+        && optional(data, 'mapae5Ms') == data.mapaeTimes[4]
+        && optional(data, 'mapae6Ms') == data.mapaeTimes[5]
+        && optional(data, 'mapae7Ms') == data.mapaeTimes[6]
+        && optional(data, 'mapae8Ms') == data.mapaeTimes[7]
+        && (data.mapaeTimes[0] == null || data.mapaeCount >= 1)
+        && (data.mapaeTimes[1] == null || data.mapaeCount >= 2)
+        && (data.mapaeTimes[2] == null || data.mapaeCount >= 3)
+        && (data.mapaeTimes[3] == null || data.mapaeCount >= 4)
+        && (data.mapaeTimes[4] == null || data.mapaeCount >= 5)
+        && (data.mapaeTimes[5] == null || data.mapaeCount >= 6)
+        && (data.mapaeTimes[6] == null || data.mapaeCount >= 7)
+        && (data.mapaeTimes[7] == null || data.mapaeCount >= 8);
+    }
+
     function validShape(data, uid) {
       return data.keys().hasAll([
           'schema', 'ownerUid', 'playerCode', 'runId', 'displayName',
-          'startedAt', 'playMs', 'badgeCount', 'badgeTimes',
+          'startedAt', 'playMs', 'badgeCount', 'badgeTimes', 'mapaeCount', 'mapaeTimes',
           'southLeagueCleared', 'northLeagueCleared', 'totalCaught',
           'uniqueCaught', 'legacyImported', 'progressScore', 'updatedAt'
         ])
@@ -55,6 +84,9 @@ service cloud.firestore {
           'startedAt', 'playMs', 'badgeCount', 'badgeTimes',
           'badge1Ms', 'badge2Ms', 'badge3Ms', 'badge4Ms',
           'badge5Ms', 'badge6Ms', 'badge7Ms', 'badge8Ms',
+          'mapaeCount', 'mapaeTimes',
+          'mapae1Ms', 'mapae2Ms', 'mapae3Ms', 'mapae4Ms',
+          'mapae5Ms', 'mapae6Ms', 'mapae7Ms', 'mapae8Ms',
           'southLeagueCleared', 'southLeagueMs', 'northLeagueCleared',
           'northLeagueMs', 'totalCaught', 'uniqueCaught',
           'legacyImported', 'progressScore', 'updatedAt'
@@ -77,10 +109,14 @@ service cloud.firestore {
         && data.badgeCount is int
         && data.badgeCount >= 0
         && data.badgeCount <= 8
+        && data.mapaeCount is int
+        && data.mapaeCount >= 0
+        && data.mapaeCount <= 8
         && data.southLeagueCleared is bool
         && data.northLeagueCleared is bool
         && (!data.southLeagueCleared || data.badgeCount == 8)
         && (!data.northLeagueCleared || data.southLeagueCleared)
+        && (!data.northLeagueCleared || data.mapaeCount == 8)
         && validTime(optional(data, 'southLeagueMs'), data.playMs)
         && validTime(optional(data, 'northLeagueMs'), data.playMs)
         && (optional(data, 'southLeagueMs') == null || data.southLeagueCleared)
@@ -95,10 +131,12 @@ service cloud.firestore {
         && data.uniqueCaught <= 5000
         && data.legacyImported == false
         && data.progressScore == data.badgeCount
+          + data.mapaeCount
           + (data.southLeagueCleared ? 100 : 0)
           + (data.northLeagueCleared ? 100 : 0)
         && data.updatedAt == request.time
-        && validBadgeTimes(data);
+        && validBadgeTimes(data)
+        && validMapaeTimes(data);
     }
 
     function preservedMilestones(data, old) {
@@ -118,10 +156,26 @@ service cloud.firestore {
             && optional(data, 'northLeagueMs') <= optional(old, 'northLeagueMs')));
     }
 
+    function oldMapaeTime(old, index) {
+      return optional(old, 'mapaeTimes') == null ? null : old.mapaeTimes[index];
+    }
+
+    function preservedMapaeMilestones(data, old) {
+      return (oldMapaeTime(old, 0) == null || (data.mapaeTimes[0] != null && data.mapaeTimes[0] <= oldMapaeTime(old, 0)))
+        && (oldMapaeTime(old, 1) == null || (data.mapaeTimes[1] != null && data.mapaeTimes[1] <= oldMapaeTime(old, 1)))
+        && (oldMapaeTime(old, 2) == null || (data.mapaeTimes[2] != null && data.mapaeTimes[2] <= oldMapaeTime(old, 2)))
+        && (oldMapaeTime(old, 3) == null || (data.mapaeTimes[3] != null && data.mapaeTimes[3] <= oldMapaeTime(old, 3)))
+        && (oldMapaeTime(old, 4) == null || (data.mapaeTimes[4] != null && data.mapaeTimes[4] <= oldMapaeTime(old, 4)))
+        && (oldMapaeTime(old, 5) == null || (data.mapaeTimes[5] != null && data.mapaeTimes[5] <= oldMapaeTime(old, 5)))
+        && (oldMapaeTime(old, 6) == null || (data.mapaeTimes[6] != null && data.mapaeTimes[6] <= oldMapaeTime(old, 6)))
+        && (oldMapaeTime(old, 7) == null || (data.mapaeTimes[7] != null && data.mapaeTimes[7] <= oldMapaeTime(old, 7)));
+    }
+
     function validUpdate(data, old) {
       return data.ownerUid == old.ownerUid
         && data.playerCode == old.playerCode
         && data.badgeCount >= old.badgeCount
+        && data.mapaeCount >= (optional(old, 'mapaeCount') == null ? 0 : old.mapaeCount)
         && data.totalCaught >= old.totalCaught
         && data.uniqueCaught >= old.uniqueCaught
         && data.progressScore >= old.progressScore
@@ -129,6 +183,7 @@ service cloud.firestore {
         && (!old.southLeagueCleared || data.southLeagueCleared)
         && (!old.northLeagueCleared || data.northLeagueCleared)
         && preservedMilestones(data, old)
+        && preservedMapaeMilestones(data, old)
         && ((data.runId == old.runId
             && data.startedAt == old.startedAt
             && data.legacyImported == old.legacyImported)

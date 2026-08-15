@@ -25,6 +25,8 @@ export class IntroScene extends Phaser.Scene {
   private textObj!: Phaser.GameObjects.Text;
   private prompt!: Phaser.GameObjects.Text;
   private portrait?: Phaser.GameObjects.Image;
+  private currentLine = '';
+  private typingEvent?: Phaser.Time.TimerEvent;
   private busy = false;
 
   private get W() { return this.scale.width; }
@@ -92,15 +94,19 @@ export class IntroScene extends Phaser.Scene {
 
   private showLine() {
     this.busy = true;
-    const full = tr(LINES[this.idx]);
+    this.currentLine = tr(LINES[this.idx]);
     this.textObj.setText('');
     let i = 0;
     // simple typewriter reveal
-    this.time.addEvent({
-      delay: 18, repeat: full.length - 1,
+    this.typingEvent?.destroy();
+    this.typingEvent = this.time.addEvent({
+      delay: 18, repeat: this.currentLine.length - 1,
       callback: () => {
-        this.textObj.setText(full.slice(0, ++i));
-        if (i >= full.length) this.busy = false;
+        this.textObj.setText(this.currentLine.slice(0, ++i));
+        if (i >= this.currentLine.length) {
+          this.typingEvent = undefined;
+          this.busy = false;
+        }
       },
     });
   }
@@ -108,8 +114,9 @@ export class IntroScene extends Phaser.Scene {
   private advance() {
     if (this.busy) {
       // reveal the whole line instantly on the first tap
-      this.time.removeAllEvents();
-      this.textObj.setText(LINES[this.idx]);
+      this.typingEvent?.destroy();
+      this.typingEvent = undefined;
+      this.textObj.setText(this.currentLine);
       this.busy = false;
       return;
     }

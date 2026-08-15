@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { installSurfing, isSurfing } from '../systems/SurfSystem';
 import { tr, speakerName } from '../systems/i18n';
 import { playBgm } from '../systems/Music';
 import { vanishesAfterDefeat } from '../data/Villains';
@@ -9,6 +10,7 @@ import { DialogBox } from '../ui/DialogBox';
 import { SaveManager } from '../utils/SaveManager';
 import { maybeLaunchEvolution } from '../systems/EvolutionSystem';
 import { EncounterEntry, pickEncounter, randomLevel } from '../data/CustomPokemon';
+import type { PropPlot } from '../engine3d/TerrainBuilder';
 
 // ── Tiles ───────────────────────────────────────────────────────────────────
 const T = { GRASS: 0, PATH: 1, TALLGRASS: 2, CLIFF: 3, ROCK: 4, SEA: 5, SAND: 6, RAIL: 7 } as const;
@@ -23,6 +25,7 @@ const ENCOUNTER = new Set<Tile>([T.TALLGRASS]);
 
 const BARRIER_ROWS = [24, 25];
 const BARRIER_COLS = [9, 10, 11, 12, 13, 14];
+const R4_ROCKS: Array<[number, number]> = [[8,5],[20,5],[40,6],[52,5],[14,16],[34,16],[48,16]];
 
 // Coastal cliffside encounters — seabirds, cliff goats, shallows fish (mostly new)
 const R4_ENCOUNTERS: EncounterEntry[] = [
@@ -50,7 +53,7 @@ function buildMap(): Tile[][] {
   fill(0, ROWS, 18, COLS, T.SEA);
   fill(0, ROWS, 16, 18, T.SAND);   // thin beach edge
   // Cliff rocks and tide pools
-  for (const [r, c] of [[8,5],[20,5],[40,6],[52,5],[14,16],[34,16],[48,16]] as [number,number][]) m[r][c] = T.ROCK;
+  for (const [r, c] of R4_ROCKS) m[r][c] = T.ROCK;
   // Tall grass clearings
   fill(8, 14, 15, 16, T.TALLGRASS); // narrow strip
   fill(34, 42, 5, 9, T.TALLGRASS);
@@ -61,6 +64,16 @@ function buildMap(): Tile[][] {
 
 export class Route4Scene extends Phaser.Scene {
   public grassTileIds3D = [T.TALLGRASS];
+  /** Replace the complete painted west cliff with continuous 3D mountain ranges. */
+  public mountainTileIds3D = [T.CLIFF];
+  /** Road, beach and boulder footprints remain ground-level in the 3D pass. */
+  public flatTileIds3D = [T.PATH, T.SAND, T.ROCK];
+  public noRocks3D = true;
+  /** Isolated rock markings become correctly sized 3D boulders, not full peaks. */
+  public propPlots: PropPlot[] = R4_ROCKS.map(([r, c], i) => ({
+    x: c, y: r, kind: 'rock' as const,
+    scale: 0.86 + (i % 3) * 0.08, rot: i * 0.71,
+  }));
   private map!: Tile[][];
   /** Coastal road: no random bus scatter (its flat road tiles were sprouting buses). */
   public noVehicles = true;
@@ -120,6 +133,11 @@ export class Route4Scene extends Phaser.Scene {
     this.drawTrainers();
     if (!this.ryeoDone) this.drawRyeo();
     this.createPlayer();
+    installSurfing(this, {
+      map: () => this.map, player: () => this.playerG,
+      position: () => ({ x: this.px, y: this.py }), tileSize: TILE,
+      waterTiles: [T.SEA], solidTiles: SOLID,
+    });
     this.setupCamera();
     this.setupInput();
     this.createUI();
@@ -135,7 +153,6 @@ export class Route4Scene extends Phaser.Scene {
       const t = this.map[r][c];
       g.fillStyle(COLORS[t], 1); g.fillRect(c * TILE, r * TILE, TILE, TILE);
       if (t === T.TALLGRASS) { g.fillStyle(0x2c6a22, 0.7); for (let i=0;i<3;i++){ g.fillRect(c*TILE+5+i*8, r*TILE+16, 2, 12); g.fillRect(c*TILE+7+i*8, r*TILE+12, 2, 16);} }
-      if (t === T.ROCK) { g.fillStyle(0x5a5044); g.fillTriangle(c*TILE+16, r*TILE+5, c*TILE+3, r*TILE+28, c*TILE+29, r*TILE+28); }
       if (t === T.CLIFF) { g.fillStyle(0x7f7565); g.fillRect(c*TILE+3, r*TILE+5, 7, 7); g.fillRect(c*TILE+18, r*TILE+17, 8, 8); }
       if (t === T.SEA) { g.fillStyle(0x66bbe6, 0.4); g.fillRect(c*TILE+4, r*TILE+8, 12, 3); g.fillRect(c*TILE+12, r*TILE+22, 10, 3); }
     }
@@ -350,6 +367,7 @@ export class Route4Scene extends Phaser.Scene {
   }
 
   private checkExits() {
+    if (isSurfing(this.playerG)) return;
     if (this.cutsceneActive || this.spawnGuard) return;
     if (Math.hypot(this.px - this.spawnPx, this.py - this.spawnPy) < 1.4 * TILE) return;
     // South → Geumgang City

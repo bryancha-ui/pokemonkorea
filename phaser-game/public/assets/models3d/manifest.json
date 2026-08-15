@@ -40,7 +40,11 @@
     },
     "frysm",
     "munkain",
-    "onnurian",
+    {
+      "key": "onnurian",
+      "scale": 0.6,
+      "rotY": 270
+    },
     "thanatoat",
     "banderado",
     {

@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { installSurfing } from '../systems/SurfSystem';
 import { tr, speakerName } from '../systems/i18n';
 import { vanishesAfterDefeat } from '../data/Villains';
 import { playBgm } from '../systems/Music';
@@ -111,6 +112,11 @@ export class WonsanBeachScene extends Phaser.Scene {
     this.drawIcons();
     this.drawTrainers();
     this.playerG = this.add.graphics().setDepth(20); this.drawChar();
+    installSurfing(this, {
+      map: () => this.map, player: () => this.playerG,
+      position: () => ({ x: this.px, y: this.py }), tileSize: TILE,
+      waterTiles: [T.SEA], solidTiles: SOLID,
+    });
     this.cameras.main.setBounds(0, 0, COLS * TILE, ROWS * TILE);
     this.cameras.main.setZoom(1.6);
     this.cameras.main.startFollow(this.playerG, true, 0.1, 0.1);

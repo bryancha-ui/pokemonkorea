@@ -3,7 +3,12 @@ import {
   InstancedProp, WallBuilder, makeBronzeStatue, makeFlowers, makeGrandObelisk,
   makeCherryTree, makeFlowerBed, makeForestTree, makeGlowPlants, makeGrassTufts, makeIceStatue, makeMineCart, makePineTree, makePines, makePot, makeRailTrack,
   makeBollard, makeBuoy, makeCrateStack, makeDryingRack, makeFishStall, makeFishingNet,
-  makeRocks, makeScenicRock, makeGrandPalace, makeHanokPalace, makeMountainRange, makeNosdanHQ, makePalmTree, makePokemonCenter, makePokeMart, makeSacredPeakCloudSea, makeStall, makeStoneLantern, makeStoreFixture, makeStreetlamp, makeTrees, makeTriumphalArch, makeWater, makeWaterfall, makeWoodBridge, makeBoat, toonRamp,
+  makePokeBallProp,
+  makeStarterBenchProp,
+  makeBellFrame, makeFirewoodStack, makeMeditationRock, makeSchoolBanner, makeSparringRing,
+  makeStrawDummy, makeTrainingPost, makeWeaponRack,
+  makeAlpineLake,
+  makeRocks, makeScenicRock, makeFerry, makeFrostGym, makeGrandPalace, makeHanokPalace, makeMountainRange, makeNosdanHQ, makePalmTree, makePokemonCenter, makePokeMart, makeSacredPeakCloudSea, makeStall, makeStoneLantern, makeStoreFixture, makeStreetlamp, makeTrees, makeTriumphalArch, makeWater, makeWaterfall, makeWoodBridge, makeBoat, toonRamp,
   type StoreFixtureKind,
 } from './Props';
 import { buildCityDetail, CityTileSpec } from './CityDetail3D';
@@ -12,10 +17,12 @@ import { buildAmbientCrowd, type CrowdPlot } from './AmbientCrowd';
 /** A decorative procedural prop the scene pins to an exact tile. */
 export interface PropPlot {
   x: number; y: number;
-  kind: 'tree' | 'pine' | 'palm' | 'lantern' | 'rock' | 'flower' | 'glowplant' | 'woodbridge' | 'icestatue' | 'rail' | 'obelisk' | 'statue' | 'arch' | 'pot' | 'streetlamp' | 'minecart' | 'cherry' | 'stall' | 'waterfall' | 'boat' | 'fishstall' | 'crates' | 'dryingrack' | 'bollard' | 'buoy' | 'net' | StoreFixtureKind;
+  kind: 'tree' | 'pine' | 'palm' | 'lantern' | 'rock' | 'flower' | 'glowplant' | 'woodbridge' | 'icestatue' | 'rail' | 'obelisk' | 'statue' | 'arch' | 'pot' | 'streetlamp' | 'minecart' | 'cherry' | 'stall' | 'waterfall' | 'boat' | 'fishstall' | 'crates' | 'dryingrack' | 'bollard' | 'buoy' | 'net'
+  | 'trainingpost' | 'strawdummy' | 'weaponrack' | 'sparringring' | 'banner' | 'bellframe' | 'meditationrock' | 'firewood' | 'pokeball' | 'starterbench' | 'ferry'
+  | StoreFixtureKind;
   scale?: number; rot?: number;
-  len?: number;   // 'rail' span in tiles (laid along X, rotated by `rot`)
-  w?: number; d?: number; color?: number; // authored interior-fixture footprint/theme
+  len?: number;   // rail span or ferry length in tiles
+  w?: number; d?: number; color?: number; // fixture footprint / ferry beam / theme
 }
 import { getProp, pickProp, primeProps, propById, propFailed, propLoading, propsFor } from './PropModels';
 import type { EnvProfile } from './ThreeStage';
@@ -357,6 +364,9 @@ export function buildTerrain(
   // Decorative townspeople (merchants, strollers). Visual only — they are not
   // Phaser objects and never affect collision, events or save state.
   crowdPlots: CrowdPlot[] = [],
+  // 'alpine' swaps flat blue water for a layered glacial lake (deep base,
+  // shallow shore ring, drifting sun glitter).
+  waterStyle3D: 'default' | 'alpine' = 'default',
 ): TerrainResult {
   const group = new THREE.Group();
   const cols = Math.max(1, Math.round(worldW / PX));
@@ -466,13 +476,22 @@ export function buildTerrain(
     const grassIds = new Set(grassTileIds3D);
     const treeIds = new Set(treeTileIds3D);
     const flatIds = new Set(flatTileIds3D);
+    // City streets must be flattened before WallBuilder consumes the classified
+    // cells. The street-detail pass also flattens them later, but that was too
+    // late: a misclassified dark road pixel had already become merged wall geometry.
+    const streetIds = new Set([
+      ...(cityTiles3D?.road ?? []),
+      ...(cityTiles3D?.sidewalk ?? []),
+      ...(cityTiles3D?.bridge ?? []),
+    ]);
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         const i = r * cols + c;
         const tileId = tileMap[r]?.[c];
         // Scenes can publish their painted tree tiles so they grow real 3D trees
         // instead of being flattened to painted ground by the grass suppression below.
-        if (tileId !== undefined && flatIds.has(tileId)) cells[i] = 'flat';
+        if (tileId !== undefined && streetIds.has(tileId)) cells[i] = 'flat';
+        else if (tileId !== undefined && flatIds.has(tileId)) cells[i] = 'flat';
         else if (tileId !== undefined && treeIds.has(tileId)) cells[i] = snowy ? 'pine' : 'tree';
         else if (tileId !== undefined && grassIds.has(tileId)) cells[i] = 'grass';
         else if (cells[i] === 'grass') cells[i] = 'flat';
@@ -1073,6 +1092,17 @@ export function buildTerrain(
       blockers.push({ node: holder, r: Math.max(b.w, b.d) / 2 + 0.6, fade: 0 });
       continue;
     }
+    // The Seorae ice gym (서리종 체육관) — a bespoke glacier-blue hall with a
+    // crystal spire and golden frost-bell, guaranteed on every device instead of
+    // the old shrine GLB fallback.
+    if (b.model === 'frostgym') {
+      const holder = new THREE.Group();
+      holder.position.set(b.x + b.w / 2, 0, b.z + b.d / 2);
+      holder.add(makeFrostGym(b.w, b.d));
+      group.add(holder);
+      blockers.push({ node: holder, r: Math.max(b.w, b.d) / 2 + 0.6, fade: 0 });
+      continue;
+    }
     // A scenic 3D mountain range backdrop in place of flat painted 2D mountains.
     // No fade-blocker: it sits at the map edge, behind all gameplay.
     if (b.model === 'mountainrange') {
@@ -1080,6 +1110,23 @@ export function buildTerrain(
       holder.position.set(b.x + b.w / 2, 0, b.z + b.d / 2);
       holder.add(makeMountainRange(b.w, b.d));
       group.add(holder);
+      continue;
+    }
+    // Scene-authored safe aliases opt out of generated GLBs whose meshes or
+    // textures contain stray exterior fragments. These procedural exteriors are
+    // bounded exactly by the road-trimmed plot and never project into a street.
+    if (b.model === 'pokecenter-procedural' || b.model === 'mart-procedural') {
+      const holder = new THREE.Group();
+      holder.position.set(b.x + b.w / 2, 0, b.z + b.d / 2);
+      // Both procedural roofs have a 0.7-unit overhang. Inset the body by the
+      // same amount so even the eaves remain inside the road-cleared plot.
+      const safeW = Math.max(1, b.w - 0.7);
+      const safeD = Math.max(1, b.d - 0.7);
+      holder.add(b.model === 'pokecenter-procedural'
+        ? makePokemonCenter(safeW, safeD)
+        : makePokeMart(safeW, safeD));
+      group.add(holder);
+      blockers.push({ node: holder, r: Math.max(b.w, b.d) / 2 + 0.6, fade: 0 });
       continue;
     }
     const def = b.model ? propById(b.model) : null;
@@ -1182,7 +1229,7 @@ export function buildTerrain(
   // Merge water rows into one animated sheet spanning their bounding box each row-run.
   const waters: { mesh: THREE.Mesh; update(t: number): void }[] = [];
   for (const wr of waterRects) {
-    const w = makeWater(wr.w, wr.d);
+    const w = waterStyle3D === 'alpine' ? makeAlpineLake(wr.w, wr.d) : makeWater(wr.w, wr.d);
     w.mesh.position.set(wr.x + wr.w / 2, 0.06, wr.z + wr.d / 2);
     group.add(w.mesh);
     waters.push(w);
@@ -1212,18 +1259,32 @@ export function buildTerrain(
                         : p.kind === 'stall' ? makeStall()
                           : p.kind === 'waterfall' ? makeWaterfall(p.len ?? 3)
                             : p.kind === 'boat' ? makeBoat()
+                              : p.kind === 'ferry' ? makeFerry(p.len ?? 6.5, p.w ?? 2.4)
                               : p.kind === 'fishstall' ? makeFishStall()
                                 : p.kind === 'crates' ? makeCrateStack()
                                   : p.kind === 'dryingrack' ? makeDryingRack()
                                     : p.kind === 'bollard' ? makeBollard()
                                       : p.kind === 'buoy' ? makeBuoy()
                                         : p.kind === 'net' ? makeFishingNet()
-                                          : makeIceStatue();
+                                          : p.kind === 'trainingpost' ? makeTrainingPost()
+                                            : p.kind === 'strawdummy' ? makeStrawDummy()
+                                              : p.kind === 'weaponrack' ? makeWeaponRack()
+                                                : p.kind === 'sparringring' ? makeSparringRing(p.len ?? 3)
+                                                  : p.kind === 'banner' ? makeSchoolBanner(p.color)
+                                                    : p.kind === 'bellframe' ? makeBellFrame()
+                                                      : p.kind === 'meditationrock' ? makeMeditationRock()
+                                                        : p.kind === 'firewood' ? makeFirewoodStack()
+                                                          : p.kind === 'pokeball' ? makePokeBallProp()
+                                                          : p.kind === 'starterbench' ? makeStarterBenchProp()
+                                                          : makeIceStatue();
     obj.position.set(p.x + (storeFixture ? (p.w ?? 1) / 2 : 0.5), 0, p.y + (storeFixture ? (p.d ?? 1) / 2 : 0.5));
     if (p.scale) obj.scale.setScalar(p.scale);
     if (p.rot) obj.rotation.y = p.rot;
     group.add(obj);
-    blockers.push({ node: obj, r: Math.max(0.7, storeFixture ? Math.max(p.w ?? 1, p.d ?? 1) / 2 : (p.scale ?? 1)), fade: 0 });
+    const propRadius = p.kind === 'ferry'
+      ? Math.max(p.len ?? 6.5, p.w ?? 2.4) / 2
+      : storeFixture ? Math.max(p.w ?? 1, p.d ?? 1) / 2 : (p.scale ?? 1);
+    blockers.push({ node: obj, r: Math.max(0.7, propRadius), fade: 0 });
   }
 
   // ── AAA street layer ──

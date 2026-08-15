@@ -73,8 +73,8 @@ function buildMap(): Tile[][] {
   // Rocky cliffs framing both sides
   fill(0, ROWS, 0, 4, T.CLIFF);
   fill(0, ROWS, 20, COLS, T.CLIFF);
-  // Scattered boulders
-  for (const [r, c] of [[8,5],[14,18],[34,6],[40,17],[48,5],[52,18],[20,18]] as [number,number][]) m[r][c] = T.ROCK;
+  // Scattered boulders. Keep the northern approach open around the city gate.
+  for (const [r, c] of [[34,6],[40,17],[48,5],[52,18],[20,18]] as [number,number][]) m[r][c] = T.ROCK;
 
   // Snowy pines
   for (const [r, c] of [[6,6],[6,17],[12,7],[18,16],[44,7],[50,16],[55,6],[55,17],[10,16]] as [number,number][]) m[r][c] = T.PINE;
@@ -92,22 +92,26 @@ function buildMap(): Tile[][] {
   fill(9, 16, 5, 9, T.SNOWGRASS);
   fill(10, 17, 15, 19, T.SNOWGRASS);
 
-  // The cave mouth at the top (the path narrows into the mountain)
-  fill(0, 6, 4, 9, T.CLIFF);
-  fill(0, 6, 15, 20, T.CLIFF);
-  fill(2, 4, 9, 15, T.CAVE);   // dark cave opening behind the choke
-  // Keep a walkable corridor straight through the cave to the north edge,
-  // so the player can exit to Seolbong City after clearing Team Suri.
-  fill(0, ROWS, 10, 14, T.PATH);
+  // The city gate at the top. Leave two snow tiles between the road and each
+  // mountain range so low-poly peaks cannot project into the travel lane.
+  fill(0, 6, 4, 7, T.CLIFF);
+  fill(0, 6, 17, 20, T.CLIFF);
+  // Keep the entire six-tile road clear through the north edge. Previously a
+  // CAVE strip was painted across it and only its middle four tiles were
+  // restored; the two dark shoulder tiles were therefore raised by WallBuilder
+  // as the pair of black blocks visible at the Seolbong City transition.
+  fill(0, ROWS, 9, 15, T.PATH);
 
   return m;
 }
 
 export class BaekduPassScene extends Phaser.Scene {
   public grassTileIds3D = [T.SNOWGRASS];
-  // Seolbong Highland Pass: the 2D rock/cliff mountains engraved in the snow rise as
-  // real 3D mountain ranges (their flat art is erased); the pines grow as 3D snow-pines.
-  public mountainTileIds3D = [T.ROCK, T.CLIFF];
+  // Only continuous cliffs become mountain ranges. Isolated ROCK tiles are
+  // ordinary boulders; turning a one-tile rock into a full peak can crowd roads.
+  public mountainTileIds3D = [T.CLIFF];
+  /** The authored travel lane is authoritative and must never become a 3D wall. */
+  public flatTileIds3D = [T.PATH, T.CAVE];
   public treeTileIds3D = [T.PINE];
   private map!: Tile[][];
   /** A mountain pass, not a town: suppress any building the terrain heuristics
@@ -412,7 +416,8 @@ export class BaekduPassScene extends Phaser.Scene {
       this.cutsceneActive = true;
       this.cameras.main.fadeOut(400, 0, 0, 0, () => {
         this.registry.set('baekduCityReturnX', 15 * 32 + 16);
-        this.registry.set('baekduCityReturnY', 24 * 32);
+        // Baekdu City was expanded southward; arrive at its actual pass gate.
+        this.registry.set('baekduCityReturnY', 34 * 32);
         this.scene.start('BaekduCityScene');
       });
     }

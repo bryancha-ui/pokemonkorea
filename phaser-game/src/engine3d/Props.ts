@@ -776,6 +776,99 @@ export function makeNosdanHQ(width: number, depth: number): THREE.Group {
   return g;
 }
 
+/**
+ * Bespoke Ice-type Gym — the Frostbell Gym of Seorae (서리종 체육관). A pale
+ * glacier-blue hall crowned by a translucent crystal spire and flanked by
+ * ice-shard towers, with a great golden frost-bell hung above glowing cyan
+ * doors and icicles dripping from the eaves. Procedural (like the Nosdan HQ and
+ * the two palaces) so it always reads as a proper ice gym on every device,
+ * never a flat grey fallback box. Front faces +Z toward the street.
+ */
+export function makeFrostGym(width: number, depth: number): THREE.Group {
+  const g = new THREE.Group();
+  const h = Math.max(3.2, Math.min(4.6, Math.min(width, depth) * 0.8));
+  const frontZ = depth / 2;
+  const ICE = 0xcfe8f5, ICE_DEEP = 0x7fb4d4, ICE_GLASS = 0x9fd8f0, GOLD = 0xe8c34a;
+
+  // Frozen plinth the whole hall sits on.
+  const plinth = new THREE.Mesh(new THREE.BoxGeometry(width + 0.4, 0.4, depth + 0.4), toonMat(0x9fc6dc));
+  plinth.position.y = 0.2; g.add(plinth);
+
+  // Main glacier-blue hall.
+  const body = new THREE.Mesh(new THREE.BoxGeometry(width, h, depth), toonMat(ICE));
+  body.position.y = h / 2 + 0.4; g.add(body);
+
+  // Deep-blue corner pilasters give the facade some crystalline structure.
+  for (const sx of [-width / 2 + 0.25, width / 2 - 0.25]) {
+    const col = new THREE.Mesh(new THREE.BoxGeometry(0.5, h, 0.5), toonMat(ICE_DEEP));
+    col.position.set(sx, h / 2 + 0.4, frontZ - 0.25); g.add(col);
+  }
+
+  // Eave band + a row of hanging icicles across the front.
+  const eave = new THREE.Mesh(new THREE.BoxGeometry(width + 0.4, 0.26, depth + 0.4), toonMat(ICE_DEEP));
+  eave.position.y = h + 0.4; g.add(eave);
+  for (let i = 0; i < 6; i++) {
+    const icicle = new THREE.Mesh(
+      new THREE.ConeGeometry(0.08, 0.35 + (i % 3) * 0.18, 6),
+      toonMat(0xdff4ff, { transparent: true, opacity: 0.9 }),
+    );
+    icicle.rotation.x = Math.PI;   // point the tip downward
+    icicle.position.set(-width / 2 + 0.5 + i * (width - 1) / 5, h + 0.26, frontZ + 0.04);
+    g.add(icicle);
+  }
+
+  // Great translucent crystal spire crowning the hall.
+  const spireH = Math.min(3.4, width * 0.5);
+  const spire = new THREE.Mesh(
+    new THREE.ConeGeometry(width * 0.6, spireH, 4),
+    toonMat(ICE_GLASS, { transparent: true, opacity: 0.8 }),
+  );
+  spire.rotation.y = Math.PI / 4;
+  spire.position.y = h + 0.53 + spireH / 2; g.add(spire);
+  const spireTip = new THREE.Mesh(new THREE.OctahedronGeometry(0.35), toonMat(0xeafbff, { transparent: true, opacity: 0.95 }));
+  spireTip.position.y = h + 0.53 + spireH + 0.2; g.add(spireTip);
+
+  // Flanking ice-shard towers.
+  for (const sx of [-width * 0.42, width * 0.42]) {
+    const shardH = h * 0.95;
+    const shard = new THREE.Mesh(
+      new THREE.ConeGeometry(0.6, shardH, 5),
+      toonMat(0xafe0f5, { transparent: true, opacity: 0.85 }),
+    );
+    shard.position.set(sx, 0.4 + shardH / 2, frontZ - 0.5); g.add(shard);
+  }
+
+  // Glowing cyan windows either side of the door.
+  const glow = new THREE.MeshBasicMaterial({ color: 0x7fefff });
+  for (const sx of [-width * 0.29, width * 0.29]) {
+    const win = new THREE.Mesh(new THREE.BoxGeometry(width * 0.15, h * 0.34, 0.12), glow);
+    win.position.set(sx, h * 0.55 + 0.4, frontZ + 0.06); g.add(win);
+  }
+
+  // Icy entrance.
+  const doorW = Math.min(1.8, width * 0.26), doorH = h * 0.5;
+  const door = new THREE.Mesh(new THREE.BoxGeometry(doorW, doorH, 0.14), toonMat(0x274a5e));
+  door.position.set(0, doorH / 2 + 0.4, frontZ + 0.07); g.add(door);
+  const doorGlow = new THREE.Mesh(
+    new THREE.BoxGeometry(doorW - 0.24, doorH - 0.22, 0.08),
+    new THREE.MeshBasicMaterial({ color: 0x4a86a6 }),
+  );
+  doorGlow.position.set(0, doorH / 2 + 0.4, frontZ + 0.13); g.add(doorGlow);
+
+  // The gym's emblem — a great golden frost-bell hung on a beam over the door.
+  const yBell = doorH + 0.4 + 0.55;
+  const beam = new THREE.Mesh(new THREE.BoxGeometry(doorW + 0.7, 0.18, 0.3), toonMat(0x6b4a2c));
+  beam.position.set(0, yBell + 0.34, frontZ + 0.26); g.add(beam);
+  const bell = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.44, 0.52, 14), toonMat(GOLD));
+  bell.position.set(0, yBell, frontZ + 0.26); g.add(bell);
+  const bellCrown = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), toonMat(GOLD));
+  bellCrown.position.set(0, yBell + 0.28, frontZ + 0.26); g.add(bellCrown);
+  const clapper = new THREE.Mesh(new THREE.SphereGeometry(0.11, 8, 6), toonMat(0x8a6a2a));
+  clapper.position.set(0, yBell - 0.3, frontZ + 0.26); g.add(clapper);
+
+  return g;
+}
+
 /** Snow-dusted alpine pine: a trunk under three stacked needle tiers, each
  *  capped with a little snow cone — a true 3D version of the town's 2D pines. */
 export function makePineTree(): THREE.Group {
@@ -1617,5 +1710,362 @@ export function makeFishingNet(): THREE.Group {
     f.position.set(fx, 0.2, 0.05);
     g.add(f);
   }
+  return g;
+}
+
+// ── Summit training village ──────────────────────────────────────────────────
+// Seolbong's dojo district: the gear a mountain martial-arts school leaves out
+// in the snow. Primitive-built so the whole terrace costs almost nothing.
+
+/** A wooden striking post (목인방) — a padded trunk with three strike arms. */
+export function makeTrainingPost(): THREE.Group {
+  const g = new THREE.Group();
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.16, 1.7, 8), toonMat(0x7d5a34));
+  trunk.position.y = 0.85;
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.34, 0.18, 8), toonMat(0x574024));
+  base.position.y = 0.09;
+  g.add(trunk, base);
+  // Strike arms at staggered heights/angles.
+  const arms: [number, number][] = [[1.24, 0], [1.06, 2.1], [0.82, 4.2]];
+  for (const [y, a] of arms) {
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.62, 6), toonMat(0x8f6a3e));
+    arm.rotation.z = Math.PI / 2;
+    arm.rotation.y = a;
+    arm.position.y = y;
+    g.add(arm);
+  }
+  // Rope wrap where the strikes land, and a cap of settled snow.
+  const wrap = new THREE.Mesh(new THREE.CylinderGeometry(0.155, 0.155, 0.34, 8), toonMat(0xd8c39a));
+  wrap.position.y = 1.42;
+  const snow = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.06, 8), toonMat(0xf2f7fb));
+  snow.position.y = 1.72;
+  g.add(wrap, snow);
+  return g;
+}
+
+/** A straw practice dummy on a stake, snow gathered on its shoulders. */
+export function makeStrawDummy(): THREE.Group {
+  const g = new THREE.Group();
+  const stake = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 1.1, 6), toonMat(0x6b4e2c));
+  stake.position.y = 0.55;
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.2, 0.72, 9), toonMat(0xd9c184));
+  body.position.y = 1.16;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.17, 9, 7), toonMat(0xe0cb94));
+  head.position.y = 1.64;
+  const belt = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.09, 9), toonMat(0x9a3c34));
+  belt.position.y = 1.1;
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.17, 9, 6, 0, Math.PI * 2, 0, Math.PI / 2), toonMat(0xf4f8fc));
+  cap.position.y = 1.66;
+  g.add(stake, body, head, belt, cap);
+  return g;
+}
+
+/** A rack of training staves and practice blades leaning under a small roof. */
+export function makeWeaponRack(): THREE.Group {
+  const g = new THREE.Group();
+  const frame = 0x6f5230;
+  for (const x of [-0.55, 0.55]) {
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.09, 1.25, 0.09), toonMat(frame));
+    leg.position.set(x, 0.62, 0);
+    g.add(leg);
+  }
+  for (const y of [1.18, 0.5]) {
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.08, 0.1), toonMat(frame));
+    bar.position.set(0, y, 0);
+    g.add(bar);
+  }
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.07, 0.44), toonMat(0x3f4a58));
+  roof.position.set(0, 1.34, 0.06);
+  roof.rotation.x = -0.16;
+  g.add(roof);
+  // Staves and a couple of wooden blades.
+  const staves = [-0.42, -0.2, 0.04, 0.28, 0.48];
+  staves.forEach((x, i) => {
+    const isBlade = i % 3 === 2;
+    const w = new THREE.Mesh(
+      isBlade ? new THREE.BoxGeometry(0.07, 1.0, 0.03) : new THREE.CylinderGeometry(0.032, 0.032, 1.25, 6),
+      toonMat(isBlade ? 0xb98f52 : 0x8d6a3c),
+    );
+    w.position.set(x, 0.66, 0.12);
+    w.rotation.z = 0.1 - i * 0.045;
+    g.add(w);
+    if (isBlade) {
+      const guard = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.04, 0.06), toonMat(0x55402a));
+      guard.position.set(x, 0.3, 0.12);
+      g.add(guard);
+    }
+  });
+  return g;
+}
+
+/** A roped sparring ring: four posts, a hemp rope and a swept-clear floor. */
+export function makeSparringRing(size = 3): THREE.Group {
+  const g = new THREE.Group();
+  const h = size / 2;
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(h * 0.98, 24), toonMat(0xb9a685));
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.y = 0.03;
+  g.add(floor);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(h * 0.99, 0.05, 6, 28), toonMat(0xd8c8a4));
+  ring.rotation.x = Math.PI / 2;
+  ring.position.y = 0.62;
+  g.add(ring);
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 0.86, 7), toonMat(0x6b4e2c));
+    post.position.set(Math.cos(a) * h, 0.43, Math.sin(a) * h);
+    const knob = new THREE.Mesh(new THREE.SphereGeometry(0.09, 7, 5), toonMat(0x54402a));
+    knob.position.set(post.position.x, 0.9, post.position.z);
+    g.add(post, knob);
+  }
+  return g;
+}
+
+/** A tall banner pole with a school pennant that hangs stiff in the cold. */
+export function makeSchoolBanner(color = 0x9a3c34): THREE.Group {
+  const g = new THREE.Group();
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.07, 3.1, 7), toonMat(0x5f462a));
+  pole.position.y = 1.55;
+  const finial = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.24, 7), toonMat(0xd8b45a));
+  finial.position.y = 3.2;
+  const cloth = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.5, 0.52), toonMat(color));
+  cloth.position.set(0.06, 2.2, 0.28);
+  const trim = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.12, 0.54), toonMat(0xf0e6cc));
+  trim.position.set(0.06, 1.5, 0.28);
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.3, 0.2, 8), toonMat(0x6d6560));
+  base.position.y = 0.1;
+  g.add(pole, finial, cloth, trim, base);
+  return g;
+}
+
+/** A temple bell hung in a timber frame — struck at dawn to start training. */
+export function makeBellFrame(): THREE.Group {
+  const g = new THREE.Group();
+  const timber = 0x6f5230;
+  for (const x of [-0.7, 0.7]) {
+    for (const z of [-0.28, 0.28]) {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 2.0, 7), toonMat(timber));
+      leg.position.set(x, 1.0, z);
+      leg.rotation.z = -Math.sign(x) * 0.07;
+      g.add(leg);
+    }
+  }
+  const beam = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.16, 0.2), toonMat(0x54401f));
+  beam.position.y = 2.02;
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(1.5, 0.5, 4), toonMat(0x3a4b5c));
+  roof.rotation.y = Math.PI / 4;
+  roof.position.y = 2.34;
+  g.add(beam, roof);
+  const bell = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.42, 0.72, 12), toonMat(0x7a6a3c));
+  bell.position.y = 1.5;
+  const lip = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.05, 6, 14), toonMat(0x5d5030));
+  lip.rotation.x = Math.PI / 2; lip.position.y = 1.16;
+  const crown = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.035, 6, 10), toonMat(0x5d5030));
+  crown.position.y = 1.9;
+  // The striking beam, slung on ropes beside the bell.
+  const striker = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.9, 7), toonMat(0x8a6438));
+  striker.rotation.z = Math.PI / 2;
+  striker.position.set(0.85, 1.5, 0);
+  g.add(bell, lip, crown, striker);
+  return g;
+}
+
+/** A snow-capped meditation boulder with a swept stone apron. */
+export function makeMeditationRock(): THREE.Group {
+  const g = new THREE.Group();
+  const geo = new THREE.IcosahedronGeometry(0.62, 0);
+  geo.scale(1.25, 0.85, 1.1);
+  const rock = new THREE.Mesh(geo, toonMat(0x6f6a66));
+  rock.position.y = 0.5;
+  const snow = new THREE.Mesh(new THREE.SphereGeometry(0.55, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2.6), toonMat(0xf4f8fc));
+  snow.scale.set(1.2, 0.7, 1.05);
+  snow.position.y = 0.86;
+  const apron = new THREE.Mesh(new THREE.CircleGeometry(1.0, 18), toonMat(0xa9a29a));
+  apron.rotation.x = -Math.PI / 2;
+  apron.position.y = 0.02;
+  g.add(apron, rock, snow);
+  return g;
+}
+
+/** A stack of split firewood under a plank lid, snow on top. */
+export function makeFirewoodStack(): THREE.Group {
+  const g = new THREE.Group();
+  for (let row = 0; row < 3; row++) {
+    for (let i = 0; i < 5; i++) {
+      const log = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.9, 7), toonMat(row % 2 ? 0x8a6438 : 0x77552f));
+      log.rotation.z = Math.PI / 2;
+      log.position.set(0, 0.09 + row * 0.16, -0.32 + i * 0.16);
+      g.add(log);
+    }
+  }
+  const lid = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.05, 0.9), toonMat(0x5f4a2e));
+  lid.position.y = 0.52;
+  const snow = new THREE.Mesh(new THREE.BoxGeometry(1.02, 0.07, 0.92), toonMat(0xf2f7fb));
+  snow.position.y = 0.57;
+  g.add(lid, snow);
+  return g;
+}
+
+/**
+ * An alpine crater lake: deep glacial water rather than a flat blue plane.
+ *
+ * Three stacked layers sell the depth — an opaque dark base, the animated
+ * surface sheet drifting over it, and a pale shallow ring where the water meets
+ * the shore — plus a slow sun glitter band. Same interface as makeWater(), so a
+ * scene can swap one for the other.
+ */
+export function makeAlpineLake(width: number, depth: number): { mesh: THREE.Mesh; update(t: number): void } {
+  const group = new THREE.Group() as unknown as THREE.Mesh;   // container, used as the "mesh"
+
+  // ── Deep base: a dark teal floor read through the translucent surface. ──
+  const base = new THREE.Mesh(
+    new THREE.PlaneGeometry(width, depth),
+    new THREE.MeshBasicMaterial({ color: 0x0e3a5c }),
+  );
+  base.rotation.x = -Math.PI / 2;
+  base.position.y = -0.06;
+  group.add(base);
+
+  // ── Shallow shelf: a lighter inset ring that fades the shoreline. ──
+  const shelfTex = (() => {
+    const c = document.createElement('canvas');
+    c.width = c.height = 128;
+    const ctx = c.getContext('2d')!;
+    const g = ctx.createRadialGradient(64, 64, 30, 64, 64, 64);
+    g.addColorStop(0, 'rgba(120,200,230,0)');
+    g.addColorStop(0.72, 'rgba(150,215,235,0.35)');
+    g.addColorStop(1, 'rgba(225,245,252,0.85)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, 128, 128);
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  })();
+  const shelf = new THREE.Mesh(
+    new THREE.PlaneGeometry(width, depth),
+    new THREE.MeshBasicMaterial({ map: shelfTex, transparent: true, depthWrite: false }),
+  );
+  shelf.rotation.x = -Math.PI / 2;
+  shelf.position.y = -0.03;
+  shelf.renderOrder = 2;
+  group.add(shelf);
+
+  // ── Surface: the existing animated ripple sheet, tinted colder. ──
+  const surface = makeWater(width, depth);
+  surface.mesh.position.y = 0.01;
+  (surface.mesh.material as THREE.MeshLambertMaterial).color = new THREE.Color(0x9fd8ee);
+  (surface.mesh.material as THREE.MeshLambertMaterial).opacity = 0.72;
+  group.add(surface.mesh);
+
+  // ── Sun glitter: a soft bright band that drifts across the water. ──
+  const glintTex = (() => {
+    const c = document.createElement('canvas');
+    c.width = 128; c.height = 32;
+    const ctx = c.getContext('2d')!;
+    const g = ctx.createLinearGradient(0, 0, 0, 32);
+    g.addColorStop(0, 'rgba(255,255,255,0)');
+    g.addColorStop(0.5, 'rgba(255,255,255,0.5)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, 128, 32);
+    for (let i = 0; i < 90; i++) {
+      ctx.fillStyle = `rgba(255,255,255,${0.15 + Math.random() * 0.4})`;
+      ctx.fillRect(Math.random() * 128, 8 + Math.random() * 16, 2 + Math.random() * 4, 1.5);
+    }
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    return t;
+  })();
+  const glint = new THREE.Mesh(
+    new THREE.PlaneGeometry(width, depth * 0.34),
+    new THREE.MeshBasicMaterial({
+      map: glintTex, transparent: true, opacity: 0.5,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    }),
+  );
+  glint.rotation.x = -Math.PI / 2;
+  glint.position.y = 0.03;
+  glint.renderOrder = 4;
+  group.add(glint);
+
+  return {
+    mesh: group,
+    update(t: number) {
+      surface.update(t);
+      glint.position.z = Math.sin(t * 0.16) * depth * 0.22;
+      (glint.material as THREE.MeshBasicMaterial).opacity = 0.34 + Math.sin(t * 0.7) * 0.14;
+      glintTex.offset.x = t * 0.02;
+    },
+  };
+}
+
+/** A Poké Ball resting on a bench — the classic red/white shell with a lit
+ *  centre button, sized for a lab table (about a third of a tile across). */
+/** Prof. Song's presentation bench: a lab counter with a felt tray and the
+ *  three starter Poké Balls resting on top, at a height a visitor actually
+ *  reads from the interior camera. One prop so the set always stays aligned. */
+export function makeStarterBenchProp(): THREE.Group {
+  const g = new THREE.Group();
+  const W = 2.8, D = 1.0, H = 0.62;
+
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(W, H, D),
+    new THREE.MeshToonMaterial({ color: 0xe7ecf5 }),
+  );
+  body.position.y = H / 2;
+  body.castShadow = body.receiveShadow = true;
+  g.add(body);
+
+  // Brushed-steel worktop with a slight overhang.
+  const top = new THREE.Mesh(
+    new THREE.BoxGeometry(W + 0.12, 0.08, D + 0.12),
+    new THREE.MeshToonMaterial({ color: 0xb4bfd2 }),
+  );
+  top.position.y = H + 0.04;
+  top.castShadow = top.receiveShadow = true;
+  g.add(top);
+
+  // Navy felt tray the balls sit in.
+  const tray = new THREE.Mesh(
+    new THREE.BoxGeometry(2.0, 0.06, 0.52),
+    new THREE.MeshToonMaterial({ color: 0x2c4a6e }),
+  );
+  tray.position.set(0, H + 0.11, 0.02);
+  g.add(tray);
+
+  for (let i = 0; i < 3; i++) {
+    const ball = makePokeBallProp();
+    ball.scale.setScalar(1.15);
+    ball.position.set(-0.66 + i * 0.66, H + 0.14, 0.02);
+    g.add(ball);
+  }
+  return g;
+}
+
+export function makePokeBallProp(): THREE.Group {
+  const g = new THREE.Group();
+  const R = 0.17;
+  const top = new THREE.Mesh(
+    new THREE.SphereGeometry(R, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2),
+    toonMat(0xd8342c),
+  );
+  const bottom = new THREE.Mesh(
+    new THREE.SphereGeometry(R, 14, 10, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2),
+    toonMat(0xf2f2f0),
+  );
+  const band = new THREE.Mesh(new THREE.CylinderGeometry(R * 1.01, R * 1.01, R * 0.14, 16), toonMat(0x24262b));
+  const button = new THREE.Mesh(new THREE.CylinderGeometry(R * 0.3, R * 0.3, R * 0.16, 12), toonMat(0x24262b));
+  button.rotation.x = Math.PI / 2;
+  button.position.set(0, 0, R * 0.94);
+  const lens = new THREE.Mesh(
+    new THREE.CylinderGeometry(R * 0.17, R * 0.17, R * 0.2, 12),
+    new THREE.MeshBasicMaterial({ color: 0xfdfdfa }),
+  );
+  lens.rotation.x = Math.PI / 2;
+  lens.position.set(0, 0, R * 1.0);
+  for (const part of [top, bottom, band, button, lens]) { part.position.y += R; g.add(part); }
+  // A shallow cradle so the ball sits on the bench instead of floating.
+  const cradle = new THREE.Mesh(new THREE.CylinderGeometry(R * 0.8, R * 0.9, 0.04, 14), toonMat(0x8f9aa8));
+  cradle.position.y = 0.02;
+  g.add(cradle);
   return g;
 }

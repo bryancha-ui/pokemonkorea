@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { buildCharacterModel, type PlayerModel } from './CharacterModel';
+import { buildCharacterModel, type CharacterProfile, type PlayerModel } from './CharacterModel';
 
 // ── Ambient crowd ────────────────────────────────────────────────────────────
 // Purely decorative townspeople for the 3D view. They are NOT game objects:
@@ -21,6 +21,8 @@ export interface CrowdPlot {
   y: number;
   /** which character look to build (falls back to a generic villager) */
   look?: string;
+  /** scene-authored silhouette, palette and accessories for this exact person */
+  profile?: Partial<CharacterProfile>;
   /** facing in radians (stand) or initial heading (stroll) */
   rot?: number;
   behaviour?: 'stand' | 'stroll';
@@ -60,7 +62,7 @@ export function buildAmbientCrowd(plots: CrowdPlot[]): AmbientCrowdResult {
     // buildCharacterModel falls back to a default profile for unknown keys, so
     // an unnamed villager still gets a complete body.
     const look = plot.look ?? LOOKS[i % LOOKS.length];
-    const model = buildCharacterModel(look, i % 2 ? 'girl' : 'boy');
+    const model = buildCharacterModel(look, i % 2 ? 'girl' : 'boy', plot.profile);
     const holder = new THREE.Group();
     holder.position.set(plot.x + 0.5, 0, plot.y + 0.5);
     if (plot.scale) model.group.scale.setScalar(plot.scale);

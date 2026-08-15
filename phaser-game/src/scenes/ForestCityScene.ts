@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { installSurfing } from '../systems/SurfSystem';
 import { tr } from '../systems/i18n';
 import { playBgm } from '../systems/Music';
 import { drawTrainerBody, drawRiderBody, playerDesign } from '../data/CharacterSprite';
@@ -108,6 +109,11 @@ export class ForestCityScene extends Phaser.Scene {
     this.drawMap();
     this.drawElder();
     this.createPlayer();
+    installSurfing(this, {
+      map: () => this.map, player: () => this.playerG,
+      position: () => ({ x: this.px, y: this.py }), tileSize: TILE,
+      waterTiles: [T.POND], solidTiles: SOLID,
+    });
     this.setupCamera();
     this.setupInput();
     this.createUI();

@@ -265,6 +265,27 @@ const DEFAULT_PROFILE: CharacterProfile = {
  * describe silhouettes and signature colours rather than copying portrait
  * pixels: every result is a genuine, rotatable low-poly humanoid. */
 const CHARACTER_PROFILES: Record<string, CharacterProfile> = {
+  // ── Seolbong summit school ──
+  // The mountain dojo's people, each built to read as a distinct person at a
+  // glance: rank shows in the belt/sash colour, role in the silhouette (staff,
+  // sword, hood, apron), and seniority in body shape and hair.
+  seolbong_master:   { skin: 0xe8c49a, hair: 0xe9e4dc, outfit: 0x2f3a52, secondary: 0xd8c39a, accent: 0x1d2433, trousers: 0x2a3244, outfitStyle: 'martial', hairStyle: 'topknot', body: 'broad', prop: 'staff', scarf: 0x8c2f2a },
+  seolbong_sensei:   { skin: 0xd9a97a, hair: 0x2a2320, outfit: 0xf2efe6, secondary: 0x1d2433, accent: 0x8c2f2a, trousers: 0x232a36, outfitStyle: 'martial', hairStyle: 'bun', body: 'average', scarf: 0x2f5f8f },
+  seolbong_swordsman:{ skin: 0xf0c8a0, hair: 0x1c1a19, outfit: 0x3d4f6b, secondary: 0xe6e2d8, accent: 0xd8b45a, outfitStyle: 'martial', hairStyle: 'topknot', body: 'heroic', prop: 'sword' },
+  seolbong_monk:     { skin: 0xc98f5e, hair: 0x3a2c22, outfit: 0x9a5a2a, secondary: 0xd8a44a, accent: 0x6b3a18, outfitStyle: 'robe', hairStyle: 'short', body: 'average', prop: 'lantern' },
+  seolbong_elder:    { skin: 0xdcb98f, hair: 0xf0ece4, outfit: 0x4a4f6a, secondary: 0xcdc6b6, accent: 0x6f7590, outfitStyle: 'robe', hairStyle: 'long', body: 'slim', glasses: true, prop: 'staff' },
+  seolbong_disciple_a:{ skin: 0xf2cfa6, hair: 0x241f1c, outfit: 0xf4f1e8, secondary: 0x2f3a52, accent: 0xffffff, trousers: 0xe8e3d8, outfitStyle: 'martial', hairStyle: 'short', body: 'slim' },
+  seolbong_disciple_b:{ skin: 0xc98f5e, hair: 0x14100e, outfit: 0xf4f1e8, secondary: 0x2f3a52, accent: 0xd8b45a, trousers: 0xe8e3d8, outfitStyle: 'martial', hairStyle: 'braid', body: 'slim' },
+  seolbong_disciple_c:{ skin: 0xe8c49a, hair: 0x5a3a20, outfit: 0xf4f1e8, secondary: 0x2f3a52, accent: 0x3f8f5a, trousers: 0xe8e3d8, outfitStyle: 'martial', hairStyle: 'spiky', body: 'average' },
+  seolbong_disciple_d:{ skin: 0xa9713f, hair: 0x100d0c, outfit: 0xf4f1e8, secondary: 0x2f3a52, accent: 0x8c2f2a, trousers: 0xe8e3d8, outfitStyle: 'martial', hairStyle: 'bun', body: 'average' },
+  seolbong_disciple_e:{ skin: 0xf0c8a0, hair: 0x6a4a22, outfit: 0xf4f1e8, secondary: 0x2f3a52, accent: 0x2f5f8f, trousers: 0xe8e3d8, outfitStyle: 'martial', hairStyle: 'wild', body: 'slim' },
+  seolbong_fighter_a:{ skin: 0xd9a97a, hair: 0x241f1c, outfit: 0xb03a32, secondary: 0x2a2f38, accent: 0xf0e6cc, trousers: 0x2a2f38, outfitStyle: 'martial', hairStyle: 'spiky', body: 'broad' },
+  seolbong_fighter_b:{ skin: 0xf2cfa6, hair: 0x2f4a8a, outfit: 0x2f5f8f, secondary: 0x2a2f38, accent: 0xf0e6cc, trousers: 0x2a2f38, outfitStyle: 'martial', hairStyle: 'bob', body: 'broad' },
+  seolbong_guide:    { skin: 0xc98f5e, hair: 0x3a2c22, outfit: 0x3f6b4a, secondary: 0xd8c39a, accent: 0xd8b45a, outfitStyle: 'winter', hairStyle: 'short', body: 'average', hat: 'wide', scarf: 0xb03a32 },
+  seolbong_keeper:   { skin: 0xe8c49a, hair: 0x4a3524, outfit: 0x8a5a34, secondary: 0xf0e6cc, accent: 0x5f4326, outfitStyle: 'hanbok', hairStyle: 'bun', body: 'average' },
+  seolbong_bather:   { skin: 0xf0c8a0, hair: 0x1c1a19, outfit: 0xdfe8ee, secondary: 0x9ec7dd, accent: 0xf2f7fb, outfitStyle: 'robe', hairStyle: 'bun', body: 'average', scarf: 0xf2f7fb },
+  seolbong_smith:    { skin: 0xa9713f, hair: 0x2a2320, outfit: 0x4a4038, secondary: 0x8a5a34, accent: 0xd86a2a, outfitStyle: 'uniform', hairStyle: 'wild', body: 'broad' },
+
   // Pokémon Center staff use opaque low-poly characters. Previously their
   // generic Graphics were extruded as alpha-blended reliefs, which made faces
   // appear transparent against the bright Center interior.

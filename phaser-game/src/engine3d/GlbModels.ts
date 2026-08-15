@@ -15,6 +15,8 @@ const MOBILE_ALLOWED = new Set<string>([
   'hwanwoong',
   'snoqueen',    // 스노퀸 — Ice/Fairy frost sovereign
   'yeomtaeja',   // 염태자 — the flame prince
+  'vipour',      // 염혈목이 — local optimized GLB (4.0 MB); it is a starter, so
+                 //            its 3D form must survive the mobile gate too
   'onnurian',    // 온누리안 — local optimized GLB (3.5 MB)
   'munkain',     // 월식매 — local optimized GLB (4.6 MB)
   'bosongnun', 'camerghoost', 'hambillet', 'kkaakdang', 'luninari',
