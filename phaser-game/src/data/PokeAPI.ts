@@ -174,6 +174,10 @@ export async function fetchMove(idOrName: number | string): Promise<MoveData> {
   const res = await fetch(`${BASE}/move/${idOrName}`);
   if (!res.ok) throw new Error(`PokeAPI: move "${idOrName}" not found`);
   const json = await res.json();
+  // PokeAPI represents draining attacks with a positive meta.drain value and
+  // recoil attacks with a negative one. Preserve both halves instead of
+  // clamping recoil (for example Brave Bird's -33) away.
+  const drainPercent = Number(json.meta?.drain ?? 0);
 
   const data: MoveData = {
     name:     json.name as string,
@@ -184,7 +188,8 @@ export async function fetchMove(idOrName: number | string): Promise<MoveData> {
     pp:       json.pp as number,
     priority: Number(json.priority ?? 0),
     healing:  Math.max(0, Number(json.meta?.healing ?? 0)),
-    drain:    Math.max(0, Number(json.meta?.drain ?? 0)),
+    drain:    Math.max(0, drainPercent),
+    recoil:   Math.max(0, -drainPercent),
     statChanges: (json.stat_changes as { change: number; stat: { name: string } }[] ?? [])
       .map(s => ({ stat: ({
         attack: 'atk', defense: 'def', 'special-attack': 'spAtk',

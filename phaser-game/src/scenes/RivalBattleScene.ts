@@ -475,8 +475,13 @@ export class RivalBattleScene extends Phaser.Scene {
       animateTargetHp: done => this.animateHpBar('rival', done),
       onPpUsed: () => persistMovePP(this.registry, this.activeSlot, this.player),
       onComplete: result => {
+        PartySystem.updateSlotHP(this.registry, this.activeSlot, this.player.hp, this.player.status);
         if (this.rival.isKO) {
           this.typeDialog(`${pokeNameEn(this.rival.name).toUpperCase()} fainted!`, () => this.handleWin());
+          return;
+        }
+        if (this.player.isKO) {
+          this.typeDialog(`${pokeNameEn(this.player.name).toUpperCase()} fainted...`, () => this.rivalSendNextOrLose());
           return;
         }
         void result;
@@ -526,6 +531,10 @@ export class RivalBattleScene extends Phaser.Scene {
       animateTargetHp: done => this.animateHpBar('player', done),
       onComplete: () => {
         PartySystem.updateSlotHP(this.registry, this.activeSlot, this.player.hp, this.player.status);
+        if (this.rival.isKO) {
+          this.typeDialog(`${pokeNameEn(this.rival.name).toUpperCase()} fainted!`, () => this.handleWin());
+          return;
+        }
         if (this.player.isKO) {
           this.typeDialog(`${pokeNameEn(this.player.name).toUpperCase()} fainted...`, () => this.rivalSendNextOrLose());
         } else {

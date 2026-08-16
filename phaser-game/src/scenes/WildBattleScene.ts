@@ -760,12 +760,17 @@ export class WildBattleScene extends Phaser.Scene {
       animateTargetHp: done => this.animateHpBar('wild', done),
       onPpUsed: () => persistMovePP(this.registry, this.activeSlot, this.player),
       onComplete: () => {
+        PartySystem.updateSlotHP(this.registry, this.activeSlot, this.player.hp, this.player.status);
         if (this.wild.isKO) {
           this.typeDialog(`${pokeNameEn(this.wild.name).toUpperCase()} fainted!`, () => {
             this.registry.set('wildOutcome', 'won');
             const gained = Math.round(this.wild.level * 15 * expMultiplierFor(this.registry));
             this.showExpAndLevelUp(gained, () => this.returnToRoute());
           });
+          return;
+        }
+        if (this.player.isKO) {
+          this.typeDialog(`${pokeNameEn(this.player.name).toUpperCase()} fainted!`, () => this.sendNextOrLose());
           return;
         }
         onDone();
@@ -793,6 +798,14 @@ export class WildBattleScene extends Phaser.Scene {
       animateTargetHp: done => this.animateHpBar('player', done),
       onComplete: () => {
         PartySystem.updateSlotHP(this.registry, this.activeSlot, this.player.hp, this.player.status);
+        if (this.wild.isKO) {
+          this.typeDialog(`${pokeNameEn(this.wild.name).toUpperCase()} fainted!`, () => {
+            this.registry.set('wildOutcome', 'won');
+            const gained = Math.round(this.wild.level * 15 * expMultiplierFor(this.registry));
+            this.showExpAndLevelUp(gained, () => this.returnToRoute());
+          });
+          return;
+        }
         if (this.player.isKO) {
           this.typeDialog(`${pokeNameEn(this.player.name).toUpperCase()} fainted!`, () => this.sendNextOrLose());
         } else {

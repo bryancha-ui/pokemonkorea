@@ -5,8 +5,11 @@ import { t, tr } from '../systems/i18n';
 import { SaveManager } from '../utils/SaveManager';
 
 /** Default stock sold in town marts. */
-const STOCK = ['potion', 'superpotion', 'hyperpotion', 'antidote', 'paralyzeheal', 'fullheal',
-               'revive', 'ether', 'elixir', 'pokeball', 'greatball', 'ultraball'];
+export const DEFAULT_MART_STOCK = [
+  'potion', 'superpotion', 'hyperpotion', 'maxpotion',
+  'antidote', 'paralyzeheal', 'fullheal', 'revive',
+  'ether', 'elixir', 'pokeball', 'greatball', 'ultraball',
+];
 
 export class ShopScene extends Phaser.Scene {
   private parentKey = 'CapitolCityScene';
@@ -14,7 +17,7 @@ export class ShopScene extends Phaser.Scene {
   private feedbackText!: Phaser.GameObjects.Text;
   private rows: { def: ItemDef; ownedText: Phaser.GameObjects.Text }[] = [];
   private escKey!: Phaser.Input.Keyboard.Key;
-  private stock: string[] = STOCK;
+  private stock: string[] = DEFAULT_MART_STOCK;
   private shopTitle = '🏪  POKÉ MART';
 
   private get W() { return this.scale.width; }
@@ -24,7 +27,7 @@ export class ShopScene extends Phaser.Scene {
 
   init(data: { parentKey?: string; stock?: string[]; title?: string }) {
     this.parentKey = data.parentKey ?? 'CapitolCityScene';
-    this.stock = (data.stock && data.stock.length) ? data.stock : STOCK;
+    this.stock = (data.stock && data.stock.length) ? data.stock : DEFAULT_MART_STOCK;
     this.shopTitle = data.title ?? '🏪  POKÉ MART';
   }
 
@@ -55,13 +58,16 @@ export class ShopScene extends Phaser.Scene {
     this.add.text(this.W / 2, this.H - 8, t('Click BUY ×1 or BUY ×5   ·   ESC to exit', '구매 ×1 또는 구매 ×5 클릭   ·   ESC로 나가기'), { fontSize: '11px', color: '#778' }).setOrigin(0.5);
 
     // Item rows
-    const startY = 86, rowH = 52;
+    const startY = 82;
+    // The default mart now carries all four healing tiers. Compress long stock
+    // lists just enough to keep every BUY button above the feedback/footer area.
+    const rowH = Math.min(52, Math.max(40, Math.floor((this.H - startY - 58) / Math.max(1, this.stock.length))));
     this.stock.forEach((key, i) => {
       const def = ITEMS.find(it => it.key === key);
       if (!def) return;
       const y = startY + i * rowH;
       const cx = this.W / 2;
-      this.add.rectangle(cx, y, 900, rowH - 6, 0x111526).setStrokeStyle(1, 0x2a3550);
+      this.add.rectangle(cx, y, 900, rowH - 4, 0x111526).setStrokeStyle(1, 0x2a3550);
       this.add.text(cx - 430, y, def.icon, { fontSize: '24px' }).setOrigin(0.5);
       this.add.text(cx - 400, y - 12, itemName(def), { fontSize: '16px', color: '#fff', fontStyle: 'bold' });
       this.add.text(cx - 400, y + 9, itemDescription(def), { fontSize: '11px', color: '#99aabb' });

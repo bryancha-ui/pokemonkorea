@@ -12,6 +12,7 @@ type TwoTurnMode = 'air' | 'underground' | 'charge';
 interface EffectSpec {
   healing?: number;
   drain?: number;
+  recoil?: number;
   statChanges?: MoveStatChange[];
   target?: EffectTarget;
   chance?: number;
@@ -38,6 +39,10 @@ const EFFECTS: Record<string, EffectSpec> = {
   'drain punch': { drain: 50 }, 'leech life': { drain: 50 }, 'horn leech': { drain: 50 },
   'parabolic charge': { drain: 50 }, 'dream eater': { drain: 50 },
   'draining kiss': { drain: 75 }, 'oblivion wing': { drain: 75 },
+
+  // Recoil attacks. Brave Bird is authored locally as well as obtainable from
+  // PokeAPI, so this fallback also repairs existing cached/local move records.
+  'brave bird': { recoil: 33 },
 
   // Self rank-up moves
   'swords dance': { statChanges: [sc('atk', 2)], target: 'user' },
@@ -123,6 +128,7 @@ function specFor(move: MoveData): EffectSpec {
   return {
     healing: move.healing && move.healing > 0 ? move.healing : fallback.healing,
     drain: move.drain && move.drain > 0 ? move.drain : fallback.drain,
+    recoil: move.recoil && move.recoil > 0 ? move.recoil : fallback.recoil,
     statChanges: move.statChanges?.length ? move.statChanges : fallback.statChanges,
     // Hand-authored overrides win for exceptional damaging moves such as
     // Close Combat, whose stat drop affects the user although it targets a foe.
@@ -216,6 +222,7 @@ const STAT_LABEL: Record<BattleStat, string> = {
 
 interface AppliedEffects {
   healed: number;
+  recoilDamage: number;
   hpTarget: EffectTarget;
   drain: boolean;
   messages: string[];
@@ -228,6 +235,7 @@ function applyEffects(user: Pokemon, target: Pokemon, move: MoveData, damage: nu
   const spec = specFor(move);
   const messages: string[] = [];
   let healed = 0;
+  let recoilDamage = 0;
   let changeDirection: -1 | 0 | 1 = 0;
   const changeTarget = spec.target ?? (move.category === 'status' ? 'target' : 'user');
   const affected = changeTarget === 'user' ? user : target;
@@ -247,6 +255,13 @@ function applyEffects(user: Pokemon, target: Pokemon, move: MoveData, damage: nu
     const gained = user.hp - before;
     healed += gained;
     if (gained > 0) messages.push(`${user.name} absorbed ${gained} HP!`);
+  }
+  if (spec.recoil && damage > 0 && !user.hasAbility('Rock Head') && !user.hasAbility('Magic Guard')) {
+    const before = user.hp;
+    const recoil = Math.max(1, Math.floor(damage * spec.recoil / 100));
+    user.hp = Math.max(0, user.hp - recoil);
+    recoilDamage = before - user.hp;
+    if (recoilDamage > 0) messages.push(`${user.name} was damaged by recoil!`);
   }
   if (spec.clearNegative) {
     affected.clearNegativeStages();
@@ -287,6 +302,7 @@ function applyEffects(user: Pokemon, target: Pokemon, move: MoveData, damage: nu
   }
   return {
     healed,
+    recoilDamage,
     hpTarget,
     drain: !!spec.drain && damage > 0,
     messages,
@@ -326,12 +342,16 @@ function showMessages(ctx: BattleMoveContext, messages: string[], done: () => vo
 
 function effectAnimation(ctx: BattleMoveContext, fx: AppliedEffects, done: () => void): void {
   const affectedSprite = fx.changeTarget === 'user' ? ctx.userSprite : ctx.targetSprite;
+  const afterUserHp = () => {
+    if (fx.recoilDamage > 0) ctx.animateUserHp(done);
+    else done();
+  };
   const afterStatus = () => {
     if (fx.healed > 0) {
-      if (fx.hpTarget === 'user') ctx.animateUserHp(done);
-      else ctx.animateTargetHp(done);
+      if (fx.hpTarget === 'user') ctx.animateUserHp(afterUserHp);
+      else ctx.animateTargetHp(afterUserHp);
     }
-    else done();
+    else afterUserHp();
   };
   if (fx.drain) {
     playDrainFX(ctx.scene, ctx.targetSprite, ctx.userSprite, ctx.move.data, afterStatus);
@@ -381,13 +401,17 @@ export function executeBattleMove(ctx: BattleMoveContext): void {
         if (breaksUndergroundCharge(ctx.target, ctx.move.data)) {
           cancelCharge(ctx.scene, ctx.target, ctx.targetSprite);
         }
+        const hpBeforeHit = ctx.target.hp;
         const hit = ctx.target.takeDamage(ctx.move, ctx.user);
+        // Recoil and draining moves are based on damage actually removed, not
+        // uncapped overkill damage from the raw damage formula.
+        const damageDealt = Math.min(hpBeforeHit, hit.dmg);
         // Reactive abilities such as Cursed Body can alter the used move's PP
         // after impact; persist that final value for player-owned Pokémon.
         ctx.onPpUsed?.();
         if (ctx.target.isKO) cancelCharge(ctx.scene, ctx.target, ctx.targetSprite);
         playMoveFX(ctx.scene, ctx.userSprite, ctx.targetSprite, ctx.move.data, hit.effectiveness, () => ctx.animateTargetHp(() => {
-          const fx = applyEffects(ctx.user, ctx.target, ctx.move.data, hit.dmg);
+          const fx = applyEffects(ctx.user, ctx.target, ctx.move.data, damageDealt);
           effectAnimation(ctx, fx, () => {
             const messages: string[] = [];
             if (hit.critical) messages.push('A critical hit!');
@@ -397,7 +421,7 @@ export function executeBattleMove(ctx: BattleMoveContext): void {
             messages.push(...hit.abilityMessages);
             messages.push(...fx.messages);
             showMessages(ctx, messages, () => ctx.onComplete({
-              damage: hit.dmg, critical: hit.critical, effectiveness: hit.effectiveness,
+              damage: damageDealt, critical: hit.critical, effectiveness: hit.effectiveness,
               charged: false, missed: false,
             }));
           });

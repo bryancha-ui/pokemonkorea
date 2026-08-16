@@ -132,7 +132,7 @@ const OVERRIDES: Record<string, LearnEntry[]> = {
   onnujang:   [{ level: 21, move: M('Ominous Wind', 'ghost', 'special', 60, 100) }],
   // New custom lines — signature moves on top of the generic type kit.
   jakdangchi: [{ level: 20, move: M('Sucker Punch', 'dark', 'physical', 70, 100) }],
-  kkaakdang:  [{ level: 36, move: M('Brave Bird', 'flying', 'physical', 95, 100) }, { level: 40, move: M('Foul Play', 'dark', 'physical', 95, 100) }],
+  kkaakdang:  [{ level: 36, move: { ...M('Brave Bird', 'flying', 'physical', 95, 100), recoil: 33 } }, { level: 40, move: M('Foul Play', 'dark', 'physical', 95, 100) }],
   norigung:   [{ level: 20, move: M('Mega Drain', 'grass', 'special', 60, 100) }],
   mugungmama: [{ level: 36, move: M('Giga Drain', 'grass', 'special', 85, 100) }, { level: 40, move: M('Hyper Voice', 'normal', 'special', 90, 100) }],
   danachungi: [{ level: 20, move: M('Bug Bite', 'bug', 'physical', 60, 100) }],

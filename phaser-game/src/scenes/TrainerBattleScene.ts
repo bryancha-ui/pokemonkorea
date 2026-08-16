@@ -36,6 +36,7 @@ import { BattleStatusBadge } from '../systems/BattleStatusBadge';
 import { showRewardCeremony } from '../systems/RewardCeremony';
 import { createBattleHud, hpColor, modernButton, modernMoveButton, syncBattleHudTypes, type BattleHud } from '../systems/ProductionUi';
 import { animateBattleHp, BATTLE_PACING, snapBattleHp } from '../systems/BattlePacing';
+import { BossPotionAI, type BossTrainerRank, type BossPotionUse } from '../systems/BossTrainerItems';
 
 // ── Enemy movesets ──────────────────────────────────────────────────────────
 // Strong authored move data is reserved for Elite Four / Champion teams below.
@@ -53,7 +54,7 @@ const TYPE_MOVES: Record<string, MoveData[]> = {
   fighting: [mv('Close Combat', 'fighting', 'physical', 95, 100, 5), mv('Brick Break', 'fighting', 'physical', 75, 100, 15)],
   poison:   [mv('Sludge Bomb', 'poison', 'special', 90, 100, 10), mv('Poison Jab', 'poison', 'physical', 80, 100, 20)],
   ground:   [mv('Earthquake', 'ground', 'physical', 95, 100, 10), mv('Earth Power', 'ground', 'special', 90, 100, 10)],
-  flying:   [mv('Brave Bird', 'flying', 'physical', 95, 100, 15), mv('Air Slash', 'flying', 'special', 85, 95, 15)],
+  flying:   [{ ...mv('Brave Bird', 'flying', 'physical', 95, 100, 15), recoil: 33 }, mv('Air Slash', 'flying', 'special', 85, 95, 15)],
   psychic:  [mv('Psychic', 'psychic', 'special', 90, 100, 10), mv('Psyshock', 'psychic', 'special', 80, 100, 10)],
   bug:      [mv('Bug Buzz', 'bug', 'special', 90, 100, 10), mv('X-Scissor', 'bug', 'physical', 80, 100, 15)],
   rock:     [mv('Stone Edge', 'rock', 'physical', 95, 80, 5), mv('Rock Slide', 'rock', 'physical', 85, 90, 10)],
@@ -134,6 +135,7 @@ export class TrainerBattleScene extends Phaser.Scene {
   private badgeName = '';
   private badgeTM   = '';
   private winLine   = '';
+  private bossPotionAI?: BossPotionAI;
 
   private dialogText!: Phaser.GameObjects.Text;
   private playerHpBar!: Phaser.GameObjects.Rectangle;
@@ -211,6 +213,11 @@ export class TrainerBattleScene extends Phaser.Scene {
     this.badgeName = (this.registry.get('trainerBadgeName') as string) ?? '';
     this.badgeTM   = (this.registry.get('trainerBadgeTM')   as string) ?? '';
     this.winLine   = (this.registry.get('trainerWinLine')   as string) ?? '';
+    const bossRank: BossTrainerRank | undefined = this.trainerKey.startsWith('champion-')
+      || this.trainerKey.startsWith('north-taewang') ? 'champion'
+      : this.trainerKey.startsWith('e4-') || this.trainerKey.startsWith('north-') ? 'elite'
+        : this.badgeFlag ? 'gym' : undefined;
+    this.bossPotionAI = bossRank ? new BossPotionAI(bossRank) : undefined;
     this.registry.set('trainerBadgeFlag', '');
     this.registry.set('trainerBadgeName', '');
     this.registry.set('trainerBadgeTM', '');
@@ -747,6 +754,8 @@ export class TrainerBattleScene extends Phaser.Scene {
 
   private runTurn(playerMove: Move) {
     this.state = 'busy';
+    if (this.maybeUseBossPotion(() =>
+      this.doPlayerMove(playerMove, () => this.playerAction()))) return;
     const enemyMoves = this.enemy.moves.filter(m => m.pp > 0);
     const enemyMove = pendingMoveFor(this.enemy)
       ?? this.pickEnemyMove(enemyMoves.length ? enemyMoves : this.enemy.moves);
@@ -777,8 +786,13 @@ export class TrainerBattleScene extends Phaser.Scene {
       animateTargetHp: done => this.animateHpBar('enemy', done),
       onPpUsed: () => persistMovePP(this.registry, this.activeSlot, this.player),
       onComplete: () => {
+        PartySystem.updateSlotHP(this.registry, this.activeSlot, this.player.hp, this.player.status);
         if (this.enemy.isKO) {
           this.typeDialog(`${pokeNameEn(this.enemy.name).toUpperCase()} fainted!`, () => this.afterEnemyKO());
+          return;
+        }
+        if (this.player.isKO) {
+          this.typeDialog(`${pokeNameEn(this.player.name).toUpperCase()} fainted!`, () => this.sendNextOrLose());
           return;
         }
         onDone();
@@ -788,6 +802,24 @@ export class TrainerBattleScene extends Phaser.Scene {
 
   private get isElite() {
     return this.trainerKey.startsWith('e4-') || this.trainerKey.startsWith('champion-');
+  }
+
+  /** Major trainers may spend their action healing a badly injured Pokémon. */
+  private maybeUseBossPotion(onDone: () => void): boolean {
+    // A Pokémon committed to Fly/Dig/etc. must release that move rather than
+    // silently abandoning its stored two-turn state to use an item.
+    if (!this.bossPotionAI || pendingMoveFor(this.enemy)) return false;
+    const use = this.bossPotionAI.tryUse(this.enemy, this.enemyIdx);
+    if (!use) return false;
+    this.playBossPotion(use, onDone);
+    return true;
+  }
+
+  private playBossPotion(use: BossPotionUse, onDone: () => void): void {
+    const name = pokeNameEn(this.enemy.name).toUpperCase();
+    this.typeDialog(`${this.trainerName} used ${use.itemName} on ${name}!`, () =>
+      this.animateHpBar('enemy', () =>
+        this.typeDialog(`${name} restored ${use.healed} HP!`, onDone)));
   }
 
   /** Hwangeum is an idol before he is a battler: he gets a real 3D figure on the
@@ -821,7 +853,10 @@ export class TrainerBattleScene extends Phaser.Scene {
   }
 
   /** The enemy attacks (after a switch or item use, this is its single turn). */
-  private enemyTurn() { this.doEnemyMove(() => this.playerAction()); }
+  private enemyTurn() {
+    if (this.maybeUseBossPotion(() => this.playerAction())) return;
+    this.doEnemyMove(() => this.playerAction());
+  }
 
   /** Resolve the enemy's move; on a KO, hand off to sendNextOrLose instead of continuing. */
   private doEnemyMove(onDone: () => void, selectedMove?: Move) {
@@ -841,6 +876,10 @@ export class TrainerBattleScene extends Phaser.Scene {
       animateTargetHp: done => this.animateHpBar('player', done),
       onComplete: () => {
         PartySystem.updateSlotHP(this.registry, this.activeSlot, this.player.hp, this.player.status);
+        if (this.enemy.isKO) {
+          this.typeDialog(`${pokeNameEn(this.enemy.name).toUpperCase()} fainted!`, () => this.afterEnemyKO());
+          return;
+        }
         if (this.player.isKO) {
           this.typeDialog(`${pokeNameEn(this.player.name).toUpperCase()} fainted!`, () => this.sendNextOrLose());
         } else {
@@ -928,7 +967,11 @@ export class TrainerBattleScene extends Phaser.Scene {
           `${this.trainerName} sent out ${pokeNameEn(this.enemy.name).toUpperCase()}!`,
           () => {
             this.advancingEnemy = false;
-            this.offerSwitchAfterKO();
+            if (this.player.isKO) {
+              this.typeDialog(`${pokeNameEn(this.player.name).toUpperCase()} fainted!`, () => this.sendNextOrLose());
+            } else {
+              this.offerSwitchAfterKO();
+            }
           },
         ),
       });

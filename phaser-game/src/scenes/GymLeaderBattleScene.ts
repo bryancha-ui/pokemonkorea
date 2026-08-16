@@ -28,6 +28,7 @@ import { blackoutMessage, blackoutToCenter } from '../systems/Blackout';
 import { showRewardCeremony } from '../systems/RewardCeremony';
 import { createBattleHud, hpColor, modernButton, modernMoveButton, syncBattleHudTypes, type BattleHud } from '../systems/ProductionUi';
 import { animateBattleHp, BATTLE_PACING } from '../systems/BattlePacing';
+import { BossPotionAI, type BossPotionUse } from '../systems/BossTrainerItems';
 
 type State = 'intro' | 'playerAction' | 'playerMove' | 'busy' | 'over';
 const HP_W = 200;
@@ -43,6 +44,7 @@ export class GymLeaderBattleScene extends Phaser.Scene {
   // double-fired dialog advance). Without it, the second call runs after the
   // switch-in, zeroes the freshly sent-in Pokémon and falsely reports a wipe.
   private resolvingFaint = false;
+  private bossPotionAI = new BossPotionAI('gym');
 
   // Leader's team (Umbreon → Murkrow → Corrpanda)
   private leaderTeam: Pokemon[] = [];
@@ -91,6 +93,7 @@ export class GymLeaderBattleScene extends Phaser.Scene {
 
   async create() {
     this.cameras.main.fadeIn(500);
+    this.bossPotionAI = new BossPotionAI('gym');
     // Dark gym-leader battle theme; restore the ambient track when the fight ends.
     pushBgm(this, 'gymleader');
     this.events.once('shutdown', () => { popBgm(this); deckHideBattleActions(); deckHideMoves(); });
@@ -506,6 +509,8 @@ export class GymLeaderBattleScene extends Phaser.Scene {
 
   private runTurn(move: Move) {
     this.state = 'busy';
+    if (this.maybeUseBossPotion(() =>
+      this.doPlayerMove(move, () => this.playerAction()))) return;
     const avail = this.enemy.moves.filter(m => m.pp > 0);
     const enemyMove = pendingMoveFor(this.enemy)
       ?? (avail.length ? avail[Math.floor(Math.random() * avail.length)] : this.enemy.moves[0]);
@@ -533,9 +538,14 @@ export class GymLeaderBattleScene extends Phaser.Scene {
       animateTargetHp: done => this.animateHp('enemy', done),
       onPpUsed: () => persistMovePP(this.registry, this.activeSlot, this.player),
       onComplete: () => {
+        PartySystem.updateSlotHP(this.registry, this.activeSlot, this.player.hp, this.player.status);
         if (this.enemy.isKO) {
           this.typeDialog(`${pokeNameEn(this.enemy.name).toUpperCase()} fainted!`,
             () => this.awardExp(this.enemy.level * 28, () => this.leaderSendNext()));
+          return;
+        }
+        if (this.player.isKO) {
+          this.typeDialog(`${pokeNameEn(this.player.name).toUpperCase()} fainted!`, () => this.playerFainted());
           return;
         }
         onDone();
@@ -543,7 +553,23 @@ export class GymLeaderBattleScene extends Phaser.Scene {
     });
   }
 
+  private maybeUseBossPotion(onDone: () => void): boolean {
+    if (pendingMoveFor(this.enemy)) return false;
+    const use = this.bossPotionAI.tryUse(this.enemy, this.leaderSlot);
+    if (!use) return false;
+    this.playBossPotion(use, onDone);
+    return true;
+  }
+
+  private playBossPotion(use: BossPotionUse, onDone: () => void): void {
+    const name = pokeNameEn(this.enemy.name).toUpperCase();
+    this.typeDialog(`Leader Jin used ${use.itemName} on ${name}!`, () =>
+      this.animateHp('enemy', () =>
+        this.typeDialog(`${name} restored ${use.healed} HP!`, onDone)));
+  }
+
   private enemyTurn() {
+    if (this.maybeUseBossPotion(() => this.playerAction())) return;
     this.doEnemyMove(() => this.playerAction());
   }
 
@@ -564,6 +590,11 @@ export class GymLeaderBattleScene extends Phaser.Scene {
       animateTargetHp: done => this.animateHp('player', done),
       onComplete: () => {
         PartySystem.updateSlotHP(this.registry, this.activeSlot, this.player.hp, this.player.status);
+        if (this.enemy.isKO) {
+          this.typeDialog(`${pokeNameEn(this.enemy.name).toUpperCase()} fainted!`,
+            () => this.awardExp(this.enemy.level * 28, () => this.leaderSendNext()));
+          return;
+        }
         if (this.player.isKO) {
           this.typeDialog(`${pokeNameEn(this.player.name).toUpperCase()} fainted!`, () => this.playerFainted());
         } else {
@@ -592,7 +623,13 @@ export class GymLeaderBattleScene extends Phaser.Scene {
       this.enemySprite.setAlpha(0);
       this.tweens.add({
         targets: this.enemySprite, alpha: 1, x: ENEMY_STAGE_X, y: ENEMY_STAGE_Y, duration: 400,
-        onComplete: () => this.playerAction(),
+        onComplete: () => {
+          if (this.player.isKO) {
+            this.typeDialog(`${pokeNameEn(this.player.name).toUpperCase()} fainted!`, () => this.playerFainted());
+          } else {
+            this.playerAction();
+          }
+        },
       });
     });
     void names;

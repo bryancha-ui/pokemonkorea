@@ -19,6 +19,7 @@ export interface MoveData {
   /** Optional PokeAPI/bespoke effect metadata used by the shared move engine. */
   healing?: number;       // percent of the user's max HP
   drain?: number;         // percent of damage dealt restored to the user
+  recoil?: number;        // percent of damage dealt taken by the user
   statChanges?: MoveStatChange[];
   effectTarget?: 'user' | 'target';
   effectChance?: number;
