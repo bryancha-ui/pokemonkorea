@@ -610,13 +610,15 @@ export class OverworldMirror {
 
   private hideFrom2D(obj: GO): void {
     this.hiddenFrom2D.add(obj);
-    const cam = this.scene.cameras.main;
+    const cam = this.scene.cameras?.main;
+    if (!cam) return;
     cam.ignore(obj as Phaser.GameObjects.GameObject);
   }
 
   private show2D(obj: GO): void {
-    const cam = this.scene.cameras.main as Phaser.Cameras.Scene2D.Camera & { id: number };
-    const o = obj as unknown as { cameraFilter: number };
+    const cam = this.scene.cameras?.main as (Phaser.Cameras.Scene2D.Camera & { id: number }) | undefined;
+    const o = obj as unknown as { cameraFilter?: number };
+    if (!cam || typeof o.cameraFilter !== 'number') return;
     o.cameraFilter &= ~cam.id;
   }
 

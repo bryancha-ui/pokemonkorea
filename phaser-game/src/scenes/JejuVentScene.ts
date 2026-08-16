@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { tr, speakerName } from '../systems/i18n';
+import { t, tr, speakerName } from '../systems/i18n';
 import { vanishesAfterDefeat } from '../data/Villains';
 import { drawTrainerBody, drawNpcBody, playerDesign, rivalDesign, rivalTrainerName } from '../data/CharacterSprite';
 import { markRivalPortrait, markTrainerPortrait } from '../data/BattlePortraits';
@@ -13,6 +13,7 @@ import { maybeLaunchEvolution } from '../systems/EvolutionSystem';
 import { EncounterEntry, pickEncounter, randomLevel } from '../data/CustomPokemon';
 import { customForm } from '../data/CustomBattle';
 import { playNabihalmangEntranceVideo } from '../systems/NabihalmangEntranceVideo';
+import { HWANGEUM_STORY, recordHwangeumBeat, spawnHwangeum } from '../systems/HwangeumStory';
 
 // ── Tiles ───────────────────────────────────────────────────────────────────
 const T = { ROCK: 0, ASH: 1, TALLGRASS: 2, LAVA: 3, VENT: 4, SUMMIT: 5 } as const;
@@ -259,10 +260,22 @@ export class JejuVentScene extends Phaser.Scene {
           ], () => {
             visual.destroy();
             this.postCaptureRyeoVisual = undefined;
-            this.cutsceneActive = false;
+            this.runHwangeumJejuRescue();
           });
         });
+      } else if (this.registry.get('ryeoDefeatScene')
+        && !this.registry.get(HWANGEUM_STORY.jejuRescue)
+        && !this.registry.get('championDefeated')) {
+        // Backward-compatible path for saves made after Ryeo's departure but
+        // before this recurring-Champion chapter was added.
+        this.time.delayedCall(350, () => this.runHwangeumJejuRescue());
       }
+    } else if (this.caught
+      && this.registry.get('trainerDefeated_jeju-ryeo-final')
+      && this.registry.get('ryeoDefeatScene')
+      && !this.registry.get(HWANGEUM_STORY.jejuRescue)
+      && !this.registry.get('championDefeated')) {
+      this.time.delayedCall(350, () => this.runHwangeumJejuRescue());
     } else if (!this.registry.get('jejuClimbStarted')) {
       this.registry.set('jejuClimbStarted', true);
       this.time.delayedCall(500, () => {
@@ -275,6 +288,45 @@ export class JejuVentScene extends Phaser.Scene {
     } else {
       this.time.delayedCall(300, () => maybeLaunchEvolution(this));
     }
+  }
+
+  /** The summit battle is the player's victory; Hwangeum arrives for the equally
+   *  important aftermath — grounding the rig and coordinating the evacuation. */
+  private runHwangeumJejuRescue() {
+    if (this.registry.get(HWANGEUM_STORY.jejuRescue) || this.registry.get('championDefeated')) {
+      this.cutsceneActive = false;
+      return;
+    }
+    this.cutsceneActive = true;
+    const hx = Phaser.Math.Clamp(this.px + TILE, 10 * TILE, 15 * TILE);
+    // Normally this is the summit. An older save can resume lower on the vent
+    // trail, so keep the actor beside the player rather than off camera.
+    const hy = Phaser.Math.Clamp(this.py - 2 * TILE, 3 * TILE, 66 * TILE);
+    const actor = spawnHwangeum(this, hx, hy, {
+      lookAt: { x: this.px, y: this.py },
+    });
+    this.playerG.setData('characterLookAt3D', { x: hx, y: hy });
+    this.dialog.show([
+      t('League rescue sirens rise through the ash. Hwangeum reaches the summit with rangers, engineers and Gym Leader Harang\'s coastal crews moving below.',
+        '화산재 사이로 리그 구조대의 사이렌이 울린다. 황금이 레인저와 기술진을 이끌고 정상에 도착하고, 아래에서는 하랑 관장의 해안 구조대가 움직인다.'),
+      t('Hwangeum: Bonejoillion has grounded the ruptured restraint grid. Harang\'s boats are clearing the shore, and Namsun turned the Contest Hall into an evacuation shelter.',
+        '황금: 보내조에일리언이 파열된 구속 장치를 접지시켰어. 하랑의 배들이 해안을 비우고 있고, 남순은 콘테스트 홀을 대피소로 바꿨다.'),
+      t('Hwangeum: You faced the choice none of us could make for you — and 나비할망 chose your answer. The battle was yours; now let us carry the aftermath together.',
+        '황금: 누구도 대신할 수 없는 선택을 네가 마주했고 — 나비할망은 네 대답을 선택했어. 싸움은 네 것이었지만, 이제 그 뒤의 무게는 우리가 함께 나르자.'),
+      t('Hwangeum: This is what protecting Onnuri means. Not arriving for the applause — staying until the last frightened person is home.',
+        '황금: 이게 온누리를 지킨다는 뜻이야. 박수를 받을 때 나타나는 게 아니라 — 두려움에 떠는 마지막 한 사람이 집에 돌아갈 때까지 남는 것.'),
+      t('Hwangeum: Earn the final badge and come to the League. When we battle, I want the full answer from the trainer I have watched become a guardian.',
+        '황금: 마지막 배지를 얻고 리그로 와. 우리가 싸울 때, 내가 지켜본 그 수호자가 어떤 트레이너인지 온전한 대답을 보여 줘.'),
+    ], () => {
+      recordHwangeumBeat(this.registry, HWANGEUM_STORY.jejuRescue);
+      this.registry.set('commanderRyeoDefeated', true);
+      SaveManager.save(this.registry, this.px, this.py, 'JejuVentScene');
+      this.playerG.setData('characterLookAt3D', null);
+      this.tweens.add({ targets: [actor.graphic, actor.label], alpha: 0, duration: 340,
+        onComplete: () => actor.destroy() });
+      this.cutsceneActive = false;
+      this.time.delayedCall(250, () => maybeLaunchEvolution(this));
+    });
   }
 
   // ── Map ─────────────────────────────────────────────────────────────────

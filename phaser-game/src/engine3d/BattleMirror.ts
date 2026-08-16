@@ -1221,8 +1221,8 @@ export class BattleMirror {
     }
 
     // 2D camera shake → 3D shake (existing battle code shakes on hits).
-    const cam = this.scene.cameras.main as unknown as { shakeEffect?: { isRunning?: boolean } };
-    if (cam.shakeEffect?.isRunning) this.rig.addShake(0.4);
+    const cam = this.scene.cameras?.main as unknown as { shakeEffect?: { isRunning?: boolean } } | undefined;
+    if (cam?.shakeEffect?.isRunning) this.rig.addShake(0.4);
 
     this.rig.update(dt, null);
     this.syncFallback2DCombatants(dt);
@@ -1231,8 +1231,11 @@ export class BattleMirror {
 
   restore2D(): void {
     this.active3D = false;
-    const cam = this.scene.cameras.main as Phaser.Cameras.Scene2D.Camera & { id: number };
-    const unhide = (o: GO) => { (o as unknown as { cameraFilter: number }).cameraFilter &= ~cam.id; };
+    const cam = this.scene.cameras?.main as (Phaser.Cameras.Scene2D.Camera & { id: number }) | undefined;
+    const unhide = (o: GO) => {
+      const filterable = o as unknown as { cameraFilter?: number };
+      if (cam && typeof filterable.cameraFilter === 'number') filterable.cameraFilter &= ~cam.id;
+    };
     for (const cb of this.combatants.values()) unhide(cb.obj);
     for (const cb of this.combatants.values()) cb.fallbackSprite?.setVisible(false);
     for (const w of this.trainers) unhide(w.obj);
@@ -1244,11 +1247,13 @@ export class BattleMirror {
 
   apply3D(): void {
     this.active3D = true;
+    const cam = this.scene.cameras?.main;
+    if (!cam) return;
     for (const cb of this.combatants.values()) {
-      this.scene.cameras.main.ignore(cb.obj);
+      cam.ignore(cb.obj);
       if (cb.fallback2D) this.syncFallback2DCombatant(cb);
     }
-    for (const w of this.trainers) this.scene.cameras.main.ignore(w.obj);
-    for (const b of this.hiddenBackdrops) this.scene.cameras.main.ignore(b);
+    for (const w of this.trainers) cam.ignore(w.obj);
+    for (const b of this.hiddenBackdrops) cam.ignore(b);
   }
 }

@@ -209,6 +209,7 @@ let layerBeforeLeadPicker: 'control' | 'actions' | 'move' = 'control';
 let mobile = false;
 let releaseMovement: (() => void) | null = null;
 let mobileLayoutFrame = 0;
+let mobileLayoutSettleTimers: number[] = [];
 
 /**
  * Size the two-screen shell from the browser's *visible* viewport, like a
@@ -230,12 +231,26 @@ function syncMobileLayout(): void {
       immersiveView,
     );
     const {
-      viewportWidth: vw, viewportHeight: vh, portrait, direction,
+      viewportWidth: vw, viewportHeight: vh, portrait, stacked, direction,
       gameWidth, gameHeight, deckWidth, deckHeight,
     } = layout;
 
+    // index.html supplies min-height:100% for desktop. Override it in the
+    // mobile shell: on Samsung fold transitions that minimum can remain tied
+    // to the pre-fold layout viewport and centre the whole console off-screen.
+    document.body.style.minHeight = '0px';
+    document.body.style.maxHeight = `${vh}px`;
+    document.body.style.width = `${vw}px`;
     document.body.style.height = `${vh}px`;
     document.body.style.flexDirection = direction;
+    const unusedPrimarySpace = direction === 'column'
+      ? vh - gameHeight - deckHeight
+      : vw - gameWidth - deckWidth;
+    // On a tall cover display, place the game against the top and the controls
+    // against the bottom instead of centring a small console in a sea of black.
+    document.body.style.justifyContent = !immersiveView && direction === 'column' && unusedPrimarySpace > 40
+      ? 'space-between'
+      : 'center';
     gamePane.style.width = `${Math.round(gameWidth)}px`;
     gamePane.style.height = `${Math.round(gameHeight)}px`;
     gamePane.style.flexBasis = `${Math.round(direction === 'row' ? gameWidth : gameHeight)}px`;
@@ -246,16 +261,31 @@ function syncMobileLayout(): void {
       : `${Math.round(direction === 'row' ? deckWidth : deckHeight)}px`;
     deck.style.borderTop = direction === 'column' ? '3px solid #33406a' : '0';
     deck.style.borderLeft = direction === 'row' ? '3px solid #33406a' : '0';
-    deck.dataset.layout = portrait ? 'portrait' : 'landscape';
+    deck.dataset.layout = stacked ? (portrait ? 'portrait' : 'fold-stacked') : 'landscape';
     deck.dataset.viewport = `${vw}x${vh}`;
+    gamePane.dataset.layout = deck.dataset.layout;
+    gamePane.dataset.viewport = deck.dataset.viewport;
     updateUnit();
 
     // Phaser watches resize, but visualViewport can change without a window
     // resize when mobile browser chrome expands/collapses.
     window.dispatchEvent(new CustomEvent('pokemonkorea:mobile-layout', {
-      detail: { width: vw, height: vh, portrait, direction, gameWidth, gameHeight, deckWidth, deckHeight },
+      detail: { width: vw, height: vh, portrait, stacked, direction, gameWidth, gameHeight, deckWidth, deckHeight },
     }));
   });
+}
+
+/** Fold posture changes arrive as a short burst of resize events. Samsung
+ * Internet can expose the cover-screen visualViewport for one or two frames
+ * after the inner display has opened, so repeat the pure layout pass while the
+ * viewport settles instead of trusting the first measurement. */
+function syncMobileLayoutSettled(): void {
+  for (const timer of mobileLayoutSettleTimers) window.clearTimeout(timer);
+  mobileLayoutSettleTimers = [];
+  syncMobileLayout();
+  for (const delay of [80, 220, 520]) {
+    mobileLayoutSettleTimers.push(window.setTimeout(syncMobileLayout, delay));
+  }
 }
 
 /**
@@ -412,7 +442,7 @@ export function setupMobileShell(force = false): { parent: HTMLElement | undefin
   // Body becomes a vertical split: game pane on top, control deck below.
   document.body.style.cssText =
     'margin:0;padding:0;background:#000;display:flex;flex-direction:column;' +
-    'justify-content:center;align-items:center;height:100vh;height:100dvh;width:100vw;overflow:hidden;' +
+    'justify-content:center;align-items:center;height:100vh;height:100dvh;min-height:0;width:100vw;overflow:hidden;' +
     'font-family:system-ui,-apple-system,sans-serif;touch-action:none;overscroll-behavior:none;';
 
   // Safari-specific safety net: prevent double-tap and pinch gestures from
@@ -483,12 +513,14 @@ export function setupMobileShell(force = false): { parent: HTMLElement | undefin
 
   // Keep the emulator shell and its sizing unit in step with rotate, folds,
   // split-screen, and Safari's expanding/collapsing browser chrome.
-  syncMobileLayout();
+  syncMobileLayoutSettled();
   if ('ResizeObserver' in window) new ResizeObserver(updateUnit).observe(deckEl);
-  window.addEventListener('resize', syncMobileLayout);
-  window.visualViewport?.addEventListener('resize', syncMobileLayout);
+  window.addEventListener('resize', syncMobileLayoutSettled);
+  window.visualViewport?.addEventListener('resize', syncMobileLayoutSettled);
   window.visualViewport?.addEventListener('scroll', syncMobileLayout);
-  window.addEventListener('orientationchange', () => setTimeout(syncMobileLayout, 150));
+  window.addEventListener('orientationchange', () => setTimeout(syncMobileLayoutSettled, 150));
+  window.screen.orientation?.addEventListener?.('change', syncMobileLayoutSettled);
+  window.addEventListener('pageshow', syncMobileLayoutSettled);
   return { parent: gamePane, mobile: true };
 }
 

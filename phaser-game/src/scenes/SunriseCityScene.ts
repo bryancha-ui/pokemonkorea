@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { installSurfing, isSurfing } from '../systems/SurfSystem';
-import { tr, speakerName } from '../systems/i18n';
+import { t, tr, speakerName } from '../systems/i18n';
 import { playBgm } from '../systems/Music';
 import { drawRiderBody, drawTrainerBody, playerDesign, rivalDesign, rivalTrainerName } from '../data/CharacterSprite';
 import { BIKE_SPEED, hasBike, isBikeRiding, setBikeRiding } from '../data/Bike';
@@ -10,6 +10,10 @@ import { SaveManager } from '../utils/SaveManager';
 import { maybeLaunchEvolution } from '../systems/EvolutionSystem';
 import { PartySystem } from '../systems/PartySystem';
 import type { CrowdPlot } from '../engine3d/AmbientCrowd';
+import {
+  HWANGEUM_STORY, hwangeumMeetingCount, recordHwangeumBeat, spawnHwangeum,
+  type HwangeumActor,
+} from '../systems/HwangeumStory';
 
 // ── Tiles ───────────────────────────────────────────────────────────────────
 const T = {
@@ -281,6 +285,7 @@ export class SunriseCityScene extends Phaser.Scene {
   private px = 19 * TILE + 16; private py = 24 * TILE + 16;
   private facing = 1; private walkFrame = 0; private walkTimer = 0;
   private cutsceneActive = false;
+  private hwangeumActor?: HwangeumActor;
   private get cycling(): boolean { return isBikeRiding(this.registry); }
   private set cycling(value: boolean) { setBikeRiding(this.registry, value); }
   private spawnGuard = false;
@@ -311,6 +316,16 @@ export class SunriseCityScene extends Phaser.Scene {
     this.drawMap();
     if (this.rivalHere) this.drawRival();
     this.createPlayer();
+    const championInvitationPending = !!this.registry.get('sunriseGymDefeated')
+      && !this.registry.get(HWANGEUM_STORY.leagueInvitation)
+      && !this.registry.get('championDefeated');
+    if (championInvitationPending) {
+      const hx = Phaser.Math.Clamp(this.px + TILE * 1.35, 14 * TILE, 28 * TILE);
+      const hy = Phaser.Math.Clamp(this.py - TILE * 0.35, 7 * TILE, 20 * TILE);
+      this.hwangeumActor = spawnHwangeum(this, hx, hy, {
+        lookAt: { x: this.px, y: this.py },
+      });
+    }
     installSurfing(this, {
       map: () => this.map, player: () => this.playerG,
       position: () => ({ x: this.px, y: this.py }), tileSize: TILE,
@@ -322,7 +337,9 @@ export class SunriseCityScene extends Phaser.Scene {
     this.cameras.main.fadeIn(400);
     SaveManager.save(this.registry, this.px, this.py, 'SunriseCityScene');
 
-    if (!this.registry.get('sunriseVisited')) {
+    if (championInvitationPending) {
+      this.time.delayedCall(500, () => this.runLeagueInvitation());
+    } else if (!this.registry.get('sunriseVisited')) {
       this.registry.set('sunriseVisited', true);
       this.time.delayedCall(700, () => {
         this.cutsceneActive = true;
@@ -335,6 +352,48 @@ export class SunriseCityScene extends Phaser.Scene {
     } else {
       this.time.delayedCall(300, () => maybeLaunchEvolution(this));
     }
+  }
+
+  /** Personal invitation after badge eight: the League encounter now completes
+   *  a relationship built across the journey instead of introducing a stranger. */
+  private runLeagueInvitation() {
+    if (!this.hwangeumActor || this.registry.get(HWANGEUM_STORY.leagueInvitation)) return;
+    this.cutsceneActive = true;
+    this.facing = this.hwangeumActor.graphic.y < this.py ? 1 : 0;
+    this.drawChar();
+    this.playerG.setData('characterLookAt3D', {
+      x: this.hwangeumActor.graphic.x, y: this.hwangeumActor.graphic.y,
+    });
+    const meetings = hwangeumMeetingCount(this.registry);
+    const sharedHistory = this.registry.get(HWANGEUM_STORY.contest)
+      ? t('Hwangeum: No press rail this time, no scores and no ribbons. Just the eastern sea, your eighth badge, and an honest invitation.',
+          '황금: 이번에는 기자석도, 점수도, 리본도 없어. 동쪽 바다와 네 여덟 번째 배지, 그리고 솔직한 초대만 있을 뿐이야.')
+      : t('Hwangeum: Eight badges. We have crossed paths whenever this region was under strain; now we finally meet without an alarm sounding.',
+          '황금: 여덟 개의 배지라. 이 지방이 흔들릴 때마다 마주쳤는데, 이제야 경보음 없이 만나는군.');
+    this.dialog.show([
+      t('At the lighthouse relay, League crews replace storm-burned cables. Hwangeum closes the final junction box as the beacon turns steadily toward the sea.',
+        '등대 중계소에서 리그 작업대가 폭풍에 타 버린 케이블을 교체한다. 황금이 마지막 배전함을 닫자 등대 불빛이 바다를 향해 고르게 회전한다.'),
+      t('Hwangeum: The eastern shipping lane is open again. Beonge kept the city grid alive; I only brought enough hands to finish before nightfall.',
+        '황금: 동쪽 항로가 다시 열렸어. 번개가 도시 전력을 버텨 냈고, 나는 해 지기 전에 끝낼 손을 데려왔을 뿐이지.'),
+      sharedHistory,
+      t(`Hwangeum: I have seen ${meetings} chapters of your journey with my own eyes. I know what you do when nobody promises a victory.`,
+        `황금: 네 여정의 ${meetings}개 장면을 내 눈으로 직접 봤어. 승리를 약속해 주는 사람이 없을 때 네가 어떻게 행동하는지 알아.`),
+      t('Hwangeum: The Scholars’ Road is open from the Capitol. Cross it, defeat the Elite Four, and come find me at the top.',
+        '황금: 소올시티에서 이어지는 선비로가 열렸어. 그 길을 건너 사천왕을 이기고, 정상에 있는 나를 찾아와.'),
+      t('Hwangeum: I will not be testing a stranger. I will be battling the trainer who stood beside this region. Bring everything we have both learned.',
+        '황금: 나는 낯선 사람을 시험하는 게 아니야. 이 지방의 곁에 섰던 트레이너와 싸우는 거지. 우리 둘이 배운 모든 것을 가져와.'),
+    ], () => {
+      recordHwangeumBeat(this.registry, HWANGEUM_STORY.leagueInvitation);
+      this.registry.set('onnuriLeaguePersonallyInvited', true);
+      SaveManager.save(this.registry, this.px, this.py, 'SunriseCityScene');
+      this.playerG.setData('characterLookAt3D', null);
+      const actor = this.hwangeumActor!;
+      this.hwangeumActor = undefined;
+      this.tweens.add({ targets: [actor.graphic, actor.label], alpha: 0, duration: 340,
+        onComplete: () => actor.destroy() });
+      this.cutsceneActive = false;
+      this.time.delayedCall(250, () => maybeLaunchEvolution(this));
+    });
   }
 
   // ── Map ──────────────────────────────────────────────────────────────────

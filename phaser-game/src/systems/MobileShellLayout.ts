@@ -2,6 +2,10 @@ export interface MobileShellLayout {
   viewportWidth: number;
   viewportHeight: number;
   portrait: boolean;
+  /** True when the play screen and controls should be arranged vertically.
+   *  Foldables can be physically landscape while their visible browser area is
+   *  almost square, so this is intentionally not the same as `portrait`. */
+  stacked: boolean;
   direction: 'row' | 'column';
   gameWidth: number;
   gameHeight: number;
@@ -11,6 +15,11 @@ export interface MobileShellLayout {
 
 const GAME_ASPECT = 16 / 9;
 const DECK_ASPECT = 17.5 / 9.4;
+// A barely-wide / near-square foldable is much better served by a full-width
+// play screen with the compact deck underneath. Side-by-side is reserved for a
+// genuinely wide landscape viewport; otherwise the game can remain stuck at
+// roughly the folded phone width after the device is opened.
+const SIDE_BY_SIDE_MIN_ASPECT = 1.48;
 
 /** Pure viewport-to-shell geometry. No crop or stretch is ever applied. */
 export function calculateMobileShellLayout(
@@ -24,6 +33,7 @@ export function calculateMobileShellLayout(
   // the controls, so retain only a small malformed-viewport safety floor.
   const vh = Math.max(180, Math.round(visibleHeight));
   const portrait = vh >= vw;
+  const stacked = vw / vh < SIDE_BY_SIDE_MIN_ASPECT;
   let gameWidth: number;
   let gameHeight: number;
   let deckWidth: number;
@@ -34,10 +44,11 @@ export function calculateMobileShellLayout(
     gameHeight = gameWidth / GAME_ASPECT;
     deckWidth = 0;
     deckHeight = 0;
-  } else if (portrait) {
-    // Width limits a 16:9 game on portrait phones. Use all of it, then size the
-    // controls from their authored 17.5u × 9.4u footprint. The remaining tall-
-    // phone space stays neutral instead of inflating and separating the keys.
+  } else if (stacked) {
+    // Width limits a 16:9 game on portrait and near-square foldable screens.
+    // Use all of it, then size the controls from their authored footprint. On
+    // an unfolded Fold this nearly doubles the play-screen width compared with
+    // treating a 1.01:1 browser area as an ordinary landscape phone.
     gameWidth = vw;
     gameHeight = gameWidth / GAME_ASPECT;
     const deckHeightCap = Math.min(260, vh * 0.30);
@@ -69,7 +80,8 @@ export function calculateMobileShellLayout(
     viewportWidth: vw,
     viewportHeight: vh,
     portrait,
-    direction: !immersive && !portrait ? 'row' : 'column',
+    stacked: immersive || stacked,
+    direction: !immersive && !stacked ? 'row' : 'column',
     gameWidth,
     gameHeight,
     deckWidth,

@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { installSurfing, isSurfing } from '../systems/SurfSystem';
-import { tr, speakerName } from '../systems/i18n';
+import { t, tr, speakerName } from '../systems/i18n';
 import { vanishesAfterDefeat } from '../data/Villains';
 import { playBgm } from '../systems/Music';
 import { drawTrainerBody, drawRiderBody, playerDesign, rivalDesign, rivalTrainerName } from '../data/CharacterSprite';
@@ -10,6 +10,9 @@ import { DialogBox } from '../ui/DialogBox';
 import { SaveManager } from '../utils/SaveManager';
 import { maybeLaunchEvolution } from '../systems/EvolutionSystem';
 import { EncounterEntry, pickEncounter, randomLevel } from '../data/CustomPokemon';
+import {
+  HWANGEUM_STORY, recordHwangeumBeat, spawnHwangeum, type HwangeumActor,
+} from '../systems/HwangeumStory';
 
 // ── Tiles ───────────────────────────────────────────────────────────────────
 const T = { GRASS: 0, PATH: 1, TALLGRASS: 2, PINE: 3, CLIFF: 4, ROCK: 5, RIVER: 6, SAND: 7 } as const;
@@ -90,6 +93,7 @@ export class Route3Scene extends Phaser.Scene {
   private spawnPx = 0; private spawnPy = 0;   // exits lock until the player moves inward
   private steps = 0; private nextEnc = 5;
   private ryeoCutsceneRival?: { g: Phaser.GameObjects.Graphics; label: Phaser.GameObjects.Text };
+  private hwangeumActor?: HwangeumActor;
   private readonly SPEED = 120; private readonly RUN = 250;
 
   private readonly TRAINERS = [
@@ -130,6 +134,19 @@ export class Route3Scene extends Phaser.Scene {
     this.drawTrainers();
     if (!this.ryeoDone) this.drawRyeo();
     this.createPlayer();
+    const championRescuePending = this.ryeoDone
+      && !this.registry.get(HWANGEUM_STORY.gorgeRescue)
+      && !this.registry.get('championDefeated');
+    if (championRescuePending) {
+      // Returning directly from Ryeo places this at the damaged checkpoint;
+      // an older save revisiting from either exit still gets the missed scene
+      // beside the player instead of looking at an off-screen actor.
+      const hx = Phaser.Math.Clamp(this.px + TILE, 10 * TILE, 14 * TILE);
+      const hy = Phaser.Math.Clamp(this.py - 2 * TILE, 3 * TILE, 56 * TILE);
+      this.hwangeumActor = spawnHwangeum(this, hx, hy, {
+        lookAt: { x: this.px, y: this.py },
+      });
+    }
     installSurfing(this, {
       map: () => this.map, player: () => this.playerG,
       position: () => ({ x: this.px, y: this.py }), tileSize: TILE,
@@ -140,7 +157,45 @@ export class Route3Scene extends Phaser.Scene {
     this.createUI();
     this.cameras.main.fadeIn(400);
     SaveManager.save(this.registry, this.px, this.py, 'Route3Scene');
-    this.time.delayedCall(300, () => maybeLaunchEvolution(this));
+    if (championRescuePending) this.time.delayedCall(450, () => this.runGorgeRescueMeeting());
+    else this.time.delayedCall(300, () => maybeLaunchEvolution(this));
+  }
+
+  /** First proper meeting: Hwangeum is already doing the unglamorous rescue
+   *  work after Ryeo's blockade, which establishes the Champion as a regional
+   *  guardian long before the League finale. */
+  private runGorgeRescueMeeting() {
+    if (!this.hwangeumActor || this.registry.get(HWANGEUM_STORY.gorgeRescue)) return;
+    this.cutsceneActive = true;
+    this.facing = this.hwangeumActor.graphic.y < this.py ? 1 : 0;
+    this.drawChar();
+    this.playerG.setData('characterLookAt3D', {
+      x: this.hwangeumActor.graphic.x, y: this.hwangeumActor.graphic.y,
+    });
+    this.dialog.show([
+      t('Above the broken checkpoint, a gold-white electric field braces the fractured cliff while rangers lead the last trapped hikers to safety.',
+        '무너진 검문소 위에서 금빛과 흰빛의 전기장이 갈라진 절벽을 지탱하고, 레인저들이 고립된 마지막 등산객들을 안전한 곳으로 이끈다.'),
+      t('Hwangeum: Bonejoillion can hold the rock face for six more minutes. That is enough — everyone below is clear.',
+        '황금: 보내조에일리언이 절벽을 앞으로 6분은 더 붙잡을 수 있어. 충분해 — 아래쪽 사람들은 모두 대피했으니까.'),
+      t('Ranger: Champion Hwangeum! The trainer who stopped Commander Ryeo is right here.',
+        '레인저: 챔피언 황금님! 려 사령관을 막아 낸 트레이너가 여기 있습니다.'),
+      t('Hwangeum: So that was you. I am Hwangeum. Thank you for winning the battle I could not abandon this rescue to fight.',
+        '황금: 그게 너였군. 나는 황금이야. 내가 구조를 버리고 치를 수 없었던 싸움에서 이겨 줘서 고맙다.'),
+      t('Hwangeum: A Champion is not only the last opponent in a tall building. Most days, the work looks like this.',
+        '황금: 챔피언은 높은 건물의 마지막 상대만을 뜻하지 않아. 대부분의 날에는 이런 일이 내 일이야.'),
+      t('Hwangeum: I am entering the Geumgang Grand Contest tomorrow. The whole regional press corps followed me there — come take some of that spotlight for yourself.',
+        '황금: 내일 금강 그랜드 콘테스트에 출전해. 온누리 전역의 기자단이 나를 따라왔지 — 와서 그 스포트라이트를 네 힘으로 가져가 봐.'),
+    ], () => {
+      recordHwangeumBeat(this.registry, HWANGEUM_STORY.gorgeRescue);
+      SaveManager.save(this.registry, this.px, this.py, 'Route3Scene');
+      this.playerG.setData('characterLookAt3D', null);
+      const actor = this.hwangeumActor!;
+      this.hwangeumActor = undefined;
+      this.tweens.add({ targets: [actor.graphic, actor.label], alpha: 0, duration: 320,
+        onComplete: () => actor.destroy() });
+      this.cutsceneActive = false;
+      this.time.delayedCall(250, () => maybeLaunchEvolution(this));
+    });
   }
 
   // ── Map ─────────────────────────────────────────────────────────────────

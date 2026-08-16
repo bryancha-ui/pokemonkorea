@@ -56,7 +56,7 @@ export const STORY_SCENE_KEYS = [
   'PineNeedleTownScene', 'PineNeedlePCScene', 'PineNeedleStudioScene',
   'NurseryScene', 'NurseryManageScene', 'PokedexScene', 'ShopScene', 'BoxScene',
   'BaekduPassScene', 'BaekduCityScene', 'BaekduPCScene', 'BaekduGymScene',
-  'Route3Scene', 'GeumgangCityScene', 'GeumgangPCScene', 'GeumgangGymScene',
+  'Route3Scene', 'GeumgangCityScene', 'GeumgangContestScene', 'GeumgangPCScene', 'GeumgangGymScene',
   'Route4Scene', 'HaeanCityScene', 'HaeanPCScene', 'HaeanGymScene', 'SudoLabScene',
   'Route5Scene', 'ForestCityScene', 'ForestPCScene', 'ForestGymScene',
   'ForestShrineScene', 'FerryScene', 'FerryDepartScene', 'FerryCorridorScene',

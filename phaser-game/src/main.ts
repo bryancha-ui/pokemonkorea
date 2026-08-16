@@ -545,9 +545,32 @@ const game = new Phaser.Game({
 
 // visualViewport may resize after Safari's browser chrome moves without firing
 // a second ordinary resize after the emulator shell applies its new dimensions.
-// Refresh Phaser against the exact pane rectangle emitted by TouchControls.
+// Refresh Phaser only after the exact pane rectangle emitted by TouchControls
+// has passed through browser layout. Foldables otherwise keep the cover-screen
+// canvas size when their larger inner display opens.
 if (shell.mobile) {
-  window.addEventListener('pokemonkorea:mobile-layout', () => game.scale.refresh());
+  let mobileRefitFrame = 0;
+  let mobileRefitTimer = 0;
+  const refitMobileCanvas = () => {
+    if (mobileRefitFrame) cancelAnimationFrame(mobileRefitFrame);
+    if (mobileRefitTimer) window.clearTimeout(mobileRefitTimer);
+    mobileRefitFrame = requestAnimationFrame(() => {
+      mobileRefitFrame = requestAnimationFrame(() => {
+        mobileRefitFrame = 0;
+        game.scale.refresh();
+      });
+    });
+    // Samsung Internet can finish its fold posture animation after the next
+    // paint. This final pass is cheap and guarantees the settled parent size.
+    mobileRefitTimer = window.setTimeout(() => {
+      mobileRefitTimer = 0;
+      game.scale.refresh();
+    }, 180);
+  };
+  window.addEventListener('pokemonkorea:mobile-layout', refitMobileCanvas);
+  if ('ResizeObserver' in window && shell.parent) {
+    new ResizeObserver(refitMobileCanvas).observe(shell.parent);
+  }
 }
 
 initI18n(game);   // load the saved KO/EN language preference before any scene renders

@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { installSurfing } from '../systems/SurfSystem';
-import { tr } from '../systems/i18n';
+import { t, tr } from '../systems/i18n';
 import { playBgm } from '../systems/Music';
 import { drawTrainerBody, drawRiderBody, playerDesign, rivalDesign } from '../data/CharacterSprite';
 import { markRivalPortrait, markTrainerPortrait } from '../data/BattlePortraits';
@@ -9,6 +9,7 @@ import { DialogBox } from '../ui/DialogBox';
 import { SaveManager } from '../utils/SaveManager';
 import { maybeLaunchEvolution } from '../systems/EvolutionSystem';
 import { PartySystem } from '../systems/PartySystem';
+import { HWANGEUM_STORY } from '../systems/HwangeumStory';
 
 // ── Tiles ───────────────────────────────────────────────────────────────────
 const T = { GRASS: 0, PATH: 1, BUILDING: 2, TREE: 3, LANTERN: 4, RIVER: 5, BRIDGE: 6, FLOWER: 7 } as const;
@@ -91,6 +92,7 @@ export class GeumgangCityScene extends Phaser.Scene {
 
     this.map = buildMap();
     this.drawMap();
+    this.drawContestBroadcast();
     if (!this.registry.get('trainerDefeated_suri-chaeyeon-1')) this.drawChaeyeon();
     this.createPlayer();
     installSurfing(this, {
@@ -108,12 +110,16 @@ export class GeumgangCityScene extends Phaser.Scene {
       this.registry.set('geumgangVisited', true);
       this.time.delayedCall(700, () => {
         this.cutsceneActive = true;
-        this.dialog.show([
+        const cityIntro = [
           'You arrive in Geumgang City (금강 시티).',
           'An elegant river city famous for its Contest Hall and thousand-lantern stage.',
           "Rival: 노스단 — that's what the locals call them. \"Group North.\" Ryeo's people.",
           'Rival: A Fairy-type gym runs the Lantern Stage here. Win the badge — then we keep moving south.',
-        ], () => { this.cutsceneActive = false; });
+        ];
+        if (!this.registry.get(HWANGEUM_STORY.contest)) cityIntro.splice(2, 0,
+          t('Broadcast vans and reporters from all across Onnuri surround the Contest Hall. Champion Hwangeum is entering today.',
+            '온누리 전역에서 온 중계차와 기자들이 콘테스트 홀을 에워싸고 있다. 오늘 챔피언 황금이 출전한다.'));
+        this.dialog.show(cityIntro, () => { this.cutsceneActive = false; });
       });
     } else {
       this.time.delayedCall(300, () => maybeLaunchEvolution(this));
@@ -170,6 +176,26 @@ export class GeumgangCityScene extends Phaser.Scene {
     this.add.text(this.chaeCol * TILE + 16, this.chaeRow * TILE - 12, tr('Team Suri Admin'), {
       fontSize: '8px', color: '#ff8899', backgroundColor: '#00000099', padding: { x: 3, y: 1 },
     }).setOrigin(0.5).setDepth(9);
+  }
+
+  /** The requested region-wide press turnout is visible from the street before
+   *  the player enters the playable contest event. */
+  private drawContestBroadcast() {
+    if (this.registry.get(HWANGEUM_STORY.contest)) return;
+    const hall = BUILDINGS.find(building => building.scene === '__CONTEST__');
+    if (!hall) return;
+    const x = (hall.x + hall.w / 2) * TILE;
+    const y = (hall.y + hall.h + 0.7) * TILE;
+    const press = this.add.graphics().setDepth(7);
+    for (let i = -2; i <= 2; i++) {
+      const px = x + i * 25, py = y + Math.abs(i % 2) * 9;
+      press.fillStyle(i % 2 === 0 ? 0x24476a : 0x3d315f, 1);
+      press.fillCircle(px, py - 13, 6); press.fillRect(px - 6, py - 7, 12, 14);
+      press.fillStyle(0xb9e7ff, 0.9); press.fillRect(px + 5, py - 13, 8, 5);
+    }
+    this.add.text(x, y + 17, t('● LIVE · Champion Hwangeum enters today', '● 생중계 · 오늘 챔피언 황금 출전'), {
+      fontSize: '9px', color: '#fff3a5', backgroundColor: '#651b32dd', padding: { x: 5, y: 3 },
+    }).setOrigin(0.5).setDepth(8);
   }
 
   // ── Player / camera / input ──────────────────────────────────────────────
@@ -281,10 +307,9 @@ export class GeumgangCityScene extends Phaser.Scene {
         if (b.scene === '__SHOP__') { this.registry.set('martReturnScene', this.scene.key); this.registry.set('geumgangCityReturnX', b.doorCol * TILE + TILE / 2); this.registry.set('geumgangCityReturnY', (b.y + b.h) * TILE + TILE / 2); this.cutsceneActive = true; this.cameras.main.fadeOut(400, 0, 0, 0, () => this.scene.start('MartScene')); return; }
         if (b.scene === '__CONTEST__') {
           this.cutsceneActive = true;
-          this.dialog.show([
-            'Contest Hall Usher: Welcome to the Geumgang Contest Hall!',
-            'Usher: Coordinators dazzle the crowd here with their Pokémon. (Contests coming soon!)',
-          ], () => { this.cutsceneActive = false; });
+          this.registry.set('geumgangCityReturnX', b.doorCol * TILE + TILE / 2);
+          this.registry.set('geumgangCityReturnY', (b.y + b.h) * TILE + TILE / 2);
+          this.cameras.main.fadeOut(400, 0, 0, 0, () => this.scene.start('GeumgangContestScene'));
           return;
         }
         this.registry.set('geumgangCityReturnX', b.doorCol * TILE + TILE / 2);
@@ -308,6 +333,23 @@ export class GeumgangCityScene extends Phaser.Scene {
     }
     // North → Rival Battle #2, then onward to Route 4 (coast)
     if (this.py < 1 * TILE) {
+      // The Champion contest is a real main-story meeting, not an optional
+      // "coming soon" side door. Keep the coastal chapter closed until the
+      // player has actually shared the Geumgang stage with Hwangeum. Existing
+      // Hall-of-Fame saves are exempt so post-game traversal never regresses.
+      if (!this.registry.get(HWANGEUM_STORY.contest) && !this.registry.get('championDefeated')) {
+        this.px = 15 * TILE; this.py = 3 * TILE; this.facing = 0; this.drawChar();
+        this.cutsceneActive = true;
+        this.dialog.show([
+          t('A Contest Hall broadcast drone sweeps across the north gate, projecting today\'s program over the road.',
+            '콘테스트 홀 중계 드론이 북쪽 관문을 가로지르며 오늘의 프로그램을 도로 위에 투사한다.'),
+          t('Rival: Hold on — Champion Hwangeum put your name on the open coordinator slot. The whole region is watching that hall.',
+            '라이벌: 잠깐 — 챔피언 황금이 공개 코디네이터 자리에 네 이름을 올려 뒀어. 온 지방이 그 홀을 보고 있다고.'),
+          t('Rival: We are not leaving Geumgang before you step onto that stage. The Contest Hall is in the center plaza.',
+            '라이벌: 네가 그 무대에 오르기 전에는 금강시티를 떠나지 않을 거야. 콘테스트 홀은 중앙 광장에 있어.'),
+        ], () => { this.cutsceneActive = false; });
+        return;
+      }
       if (!this.registry.get('trainerDefeated_rival-2')) {
         // Snap the player just inside the north path so there's room above for the
         // rival to actually walk down into view before the challenge.

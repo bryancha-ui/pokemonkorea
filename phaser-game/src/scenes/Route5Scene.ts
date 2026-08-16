@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { tr, speakerName } from '../systems/i18n';
+import { t, tr, speakerName } from '../systems/i18n';
 import { playBgm } from '../systems/Music';
 import { vanishesAfterDefeat } from '../data/Villains';
 import { drawTrainerBody, drawRiderBody, playerDesign } from '../data/CharacterSprite';
@@ -8,6 +8,9 @@ import { DialogBox } from '../ui/DialogBox';
 import { SaveManager } from '../utils/SaveManager';
 import { maybeLaunchEvolution } from '../systems/EvolutionSystem';
 import { EncounterEntry, pickEncounter, randomLevel } from '../data/CustomPokemon';
+import {
+  HWANGEUM_STORY, recordHwangeumBeat, spawnHwangeum, type HwangeumActor,
+} from '../systems/HwangeumStory';
 
 // ── Tiles ───────────────────────────────────────────────────────────────────
 const T = { MOSS: 0, PATH: 1, TALLGRASS: 2, TREE: 3, ROOT: 4, SHRINE: 5, FLOWER: 6, GLOW: 7 } as const;
@@ -100,6 +103,7 @@ export class Route5Scene extends Phaser.Scene {
   private spawnGuard = false;
   private spawnPx = 0; private spawnPy = 0;   // exits lock until the player moves inward
   private steps = 0; private nextEnc = 10;
+  private hwangeumActor?: HwangeumActor;
   private readonly SPEED = 120; private readonly RUN = 250;
 
   private readonly TRAINERS = [
@@ -141,12 +145,61 @@ export class Route5Scene extends Phaser.Scene {
     this.drawTrainers();
     if (!this.chaeDone) this.drawShrineScene();
     this.createPlayer();
+    const championGuardPending = this.chaeDone
+      && !this.registry.get(HWANGEUM_STORY.forestGuard)
+      && !this.registry.get('championDefeated');
+    if (championGuardPending) {
+      const hx = Phaser.Math.Clamp(this.px + TILE, 10 * TILE, 14 * TILE);
+      const hy = Phaser.Math.Clamp(this.py - 2 * TILE, 3 * TILE, 56 * TILE);
+      this.hwangeumActor = spawnHwangeum(this, hx, hy, {
+        lookAt: { x: this.px, y: this.py },
+      });
+    }
     this.setupCamera();
     this.setupInput();
     this.createUI();
     this.cameras.main.fadeIn(400);
     SaveManager.save(this.registry, this.px, this.py, 'Route5Scene');
-    this.time.delayedCall(300, () => maybeLaunchEvolution(this));
+    if (championGuardPending) this.time.delayedCall(450, () => this.runForestGuardMeeting());
+    else this.time.delayedCall(300, () => maybeLaunchEvolution(this));
+  }
+
+  /** Hwangeum contains the wider disaster while the player remains the one who
+   *  earns access to the shrine — visible competence without stealing agency. */
+  private runForestGuardMeeting() {
+    if (!this.hwangeumActor || this.registry.get(HWANGEUM_STORY.forestGuard)) return;
+    this.cutsceneActive = true;
+    this.facing = this.hwangeumActor.graphic.y < this.py ? 1 : 0;
+    this.drawChar();
+    this.playerG.setData('characterLookAt3D', {
+      x: this.hwangeumActor.graphic.x, y: this.hwangeumActor.graphic.y,
+    });
+    const contestMemory = this.registry.get(HWANGEUM_STORY.contest)
+      ? t('Hwangeum: You read a battlefield the same way you read that contest stage — by watching your partner first.',
+          '황금: 너는 콘테스트 무대를 읽을 때처럼 전장도 읽는군 — 언제나 파트너를 먼저 보고 있어.')
+      : t('Hwangeum: We keep arriving at the same storms. That usually means the region is trying to tell us something.',
+          '황금: 자꾸 같은 폭풍 속에서 만나게 되는군. 보통 이런 건 지방이 우리에게 무언가를 말하고 있다는 뜻이야.');
+    this.dialog.show([
+      t('League rangers carry injured excavation workers down the eastern ridge. Above them, Hwangeum directs a glowing barrier around the wounded shrine grove.',
+        '리그 레인저들이 다친 발굴 인부들을 동쪽 능선 아래로 옮긴다. 그 위에서 황금이 상처 입은 사당 숲 둘레에 빛나는 방벽을 지휘하고 있다.'),
+      t('Hwangeum: Team Suri opened the ground; 노스단 tried to seize what woke beneath it. The villagers are clear, and the firebreak is holding.',
+        '황금: 수리단이 땅을 열었고, 노스단은 그 아래에서 깨어난 것을 빼앗으려 했어. 주민들은 대피했고 방화선도 버티고 있다.'),
+      contestMemory,
+      t('Hwangeum: The monks say the inner spirit will answer only the trainer who stood at the gate. That is you. I will hold the perimeter — you protect what is inside.',
+        '황금: 스님들 말로는 안쪽 정령이 문 앞에 섰던 트레이너에게만 응답한대. 그건 너야. 바깥은 내가 지킬 테니 — 안쪽의 존재는 네가 지켜 줘.'),
+      t('Hwangeum: This is how a region survives: not one Champion solving everything, but each person refusing to abandon their part.',
+        '황금: 지방은 이렇게 살아남는 거야. 챔피언 한 사람이 모든 걸 해결해서가 아니라, 각자가 자기 몫을 포기하지 않아서.'),
+    ], () => {
+      recordHwangeumBeat(this.registry, HWANGEUM_STORY.forestGuard);
+      SaveManager.save(this.registry, this.px, this.py, 'Route5Scene');
+      this.playerG.setData('characterLookAt3D', null);
+      const actor = this.hwangeumActor!;
+      this.hwangeumActor = undefined;
+      this.tweens.add({ targets: [actor.graphic, actor.label], alpha: 0, duration: 320,
+        onComplete: () => actor.destroy() });
+      this.cutsceneActive = false;
+      this.time.delayedCall(250, () => maybeLaunchEvolution(this));
+    });
   }
 
   // ── Map ─────────────────────────────────────────────────────────────────

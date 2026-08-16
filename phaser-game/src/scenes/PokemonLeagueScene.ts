@@ -7,6 +7,7 @@ import { SaveManager } from '../utils/SaveManager';
 import { PartySystem } from '../systems/PartySystem';
 import { customForm } from '../data/CustomBattle';
 import { markTrainerPortrait } from '../data/BattlePortraits';
+import { HWANGEUM_STORY, hwangeumMeetingCount } from '../systems/HwangeumStory';
 
 // On a Hall-of-Fame rematch (unlocked after catching 환웅) the Elite Four and the
 // Champion return far stronger: every team level is raised by this amount, putting
@@ -477,7 +478,35 @@ export class PokemonLeagueScene extends Phaser.Scene {
       ? '(Backstage support restores your team to full health before the headline match.)'
       : '(The floor\'s healing machine restores your team to full health.)';
     // On a rematch the masters return far stronger and challenge the Champion first.
-    const intro = this.isRematch && m.rematchIntro ? m.rematchIntro : m.intro;
+    let intro = this.isRematch && m.rematchIntro ? m.rematchIntro : m.intro;
+    if (!this.isRematch && m.key === 'champion-hwangeum') {
+      const meetings = hwangeumMeetingCount(this.registry);
+      if (meetings > 0) {
+        const rememberedPlaces = [
+          this.registry.get(HWANGEUM_STORY.gorgeRescue) ? t('Diamond Gorge', '금강 협곡') : '',
+          this.registry.get(HWANGEUM_STORY.contest) ? t('the Contest stage', '콘테스트 무대') : '',
+          this.registry.get(HWANGEUM_STORY.forestGuard) ? t('the Forest Shrine', '고대 숲 사당') : '',
+          this.registry.get(HWANGEUM_STORY.jejuRescue) ? t('the Jeju summit', '제주 정상') : '',
+          this.registry.get(HWANGEUM_STORY.leagueInvitation) ? t('the Sunrise lighthouse', '일출시티 등대') : '',
+        ].filter(Boolean).join(t(', ', ', '));
+        intro = [
+          this.registry.get(HWANGEUM_STORY.leagueInvitation)
+            ? t('Hwangeum: You accepted my invitation. Welcome to the one stage neither of us can leave unfinished.',
+                '황금: 내 초대를 받아들였군. 우리 둘 다 끝내지 않고는 떠날 수 없는 무대에 온 걸 환영해.')
+            : t('Hwangeum: You made it. This time there is no emergency between us — only the battle we both chose.',
+                '황금: 왔구나. 이번에는 우리 사이에 위급한 일은 없어 — 우리 둘이 선택한 배틀만 있을 뿐이지.'),
+          t(`Hwangeum: We met through ${meetings} turning points — ${rememberedPlaces}. I watched what you protected when winning was not the whole objective.`,
+            `황금: 우리는 ${meetings}번의 전환점에서 만났지 — ${rememberedPlaces}. 승리가 전부가 아닐 때 네가 무엇을 지켰는지 나는 보았다.`),
+          this.registry.get(HWANGEUM_STORY.contest)
+            ? t('Hwangeum: No judges, cameras or appeal scores today. Our Pokémon will give the only verdict that matters here.',
+                '황금: 오늘은 심사위원도, 카메라도, 어필 점수도 없어. 여기서는 우리 포켓몬이 유일한 답을 내릴 거야.')
+            : t('Hwangeum: Eight badges and a region that trusts you brought you here. Now show me the trainer behind those deeds.',
+                '황금: 여덟 배지와 너를 믿는 지방이 널 여기까지 데려왔어. 이제 그 행동 뒤의 트레이너를 보여 줘.'),
+          t('Hwangeum: I will answer as Champion — with every partner, every lesson, and nothing held back. Begin!',
+            '황금: 나도 챔피언으로서 답하겠다 — 모든 파트너와, 모든 배움과, 한 점의 여유도 남기지 않고. 시작하자!'),
+        ];
+      }
+    }
     const team = this.isRematch
       ? m.pokemon.map(p => ({ ...p, level: p.level + REMATCH_LEVEL_BONUS }))
       : m.pokemon;

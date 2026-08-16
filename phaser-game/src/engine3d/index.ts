@@ -38,6 +38,7 @@ class Engine3D {
   private blockedScene: Phaser.Scene | null = null;
   private mirrorApplied = false;
   private camPatched = new WeakSet<Phaser.Cameras.Scene2D.Camera>();
+  private watchedScenes = new WeakSet<Phaser.Scene>();
   private readonly performance: PerformanceProfile;
   private renderAccumulator = 1;
   private frameMsEma = 1000 / 60;
@@ -61,11 +62,10 @@ class Engine3D {
     });
 
     game.events.on(Phaser.Core.Events.POST_STEP, (_t: number, dms: number) => this.step(dms / 1000));
-    // Watch every scene's shutdown to drop its mirror.
-    for (const sc of game.scene.scenes) {
-      sc.events.on(Phaser.Scenes.Events.SHUTDOWN, () => this.onSceneDown(sc));
-      sc.events.on(Phaser.Scenes.Events.DESTROY, () => this.onSceneDown(sc));
-    }
+    // Watch every scene's shutdown to drop its mirror. LazyScenes replaces its
+    // lightweight placeholders with new Scene instances at runtime, so active
+    // scenes are also registered in stepSafe() when they first appear.
+    for (const sc of game.scene.scenes) this.watchScene(sc);
   }
 
   /** Visual systems use this to suppress their 2D fallback particles only
@@ -148,15 +148,27 @@ class Engine3D {
 
   private onSceneDown(sc: Phaser.Scene): void {
     if (this.mirrorScene === sc) {
-      this.mirror?.restore2D();
-      this.setCamTransparent(sc, false);
-      this.mirror?.destroy();
+      // Phaser can remove CameraManager.main before DESTROY is observed on
+      // slower mobile transitions. Visual recovery is best-effort here; the
+      // important part is always releasing the old mirror and its WebGL data.
+      try { this.mirror?.restore2D(); } catch (error) {
+        console.warn('[engine3d] could not restore a shutting-down scene:', error);
+      }
+      try { this.setCamTransparent(sc, false); } catch { /* camera already gone */ }
+      try { this.mirror?.destroy(); } catch { /* mirror already released */ }
       this.mirror = null;
       this.mirrorScene = null;
       this.mirrorApplied = false;
       this.stage?.setVisible(false);
     }
     if (this.blockedScene === sc) this.blockedScene = null;
+  }
+
+  private watchScene(sc: Phaser.Scene): void {
+    if (this.watchedScenes.has(sc)) return;
+    this.watchedScenes.add(sc);
+    sc.events.on(Phaser.Scenes.Events.SHUTDOWN, () => this.onSceneDown(sc));
+    sc.events.on(Phaser.Scenes.Events.DESTROY, () => this.onSceneDown(sc));
   }
 
   private setCamTransparent(scene: Phaser.Scene, on: boolean): void {
@@ -251,6 +263,7 @@ class Engine3D {
   private stepSafe(dt: number): void {
     if (!this.enabled || this.failed) return;
     const pick = this.pickScene();
+    if (pick) this.watchScene(pick.scene);
 
     // A renderer/mirror failure disables 3D only for the affected scene. The
     // complete Phaser view remains playable, and the next map/battle gets a
