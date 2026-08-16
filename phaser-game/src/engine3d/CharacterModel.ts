@@ -13,12 +13,36 @@ const SKIN = 0xf0c8a0, HAIR = 0x1a1410, BLAZER = 0x33363e, COLLAR = 0xffffff;
 const TROUSER = 0x555560, SKIRT = 0x2e3038, SHOE = 0xffffff, TIE = 0xcc2233;
 const BACKPACK = 0xe86fa0;
 
+/** A hand-authored limb pose, used for choreographed cutscene motion (the
+ *  Champion's stage routine) instead of the procedural walk cycle. Every field
+ *  is optional and defaults to the rest pose, so a keyframe only needs to name
+ *  the joints it actually moves. Angles are radians. */
+export interface ChoreoPose {
+  armLX?: number; armLZ?: number; armLY?: number; elbowL?: number;
+  armRX?: number; armRZ?: number; armRY?: number; elbowR?: number;
+  legLX?: number; legRX?: number;
+  torsoTilt?: number;    // lean, rotation.z
+  torsoTwist?: number;   // rotation.y
+  headTilt?: number;
+  headTurn?: number;
+  hop?: number;          // vertical offset of the whole figure
+  spin?: number;         // yaw added on top of the facing direction
+}
+
 export interface PlayerModel {
   group: THREE.Group;
   /** phase advances while moving; moving=false eases limbs back to rest. */
   setWalk(phase: number, moving: boolean, dt: number): void;
   /** smoothly turn to face a world-space direction (dx, dz). */
   face(dx: number, dz: number, dt: number): void;
+  /** Drive the limbs directly from a keyframed pose. Present on the generic NPC
+   *  figure; the protagonist model keeps its own walk/ride rig. */
+  setChoreo?(pose: ChoreoPose): void;
+  /** World-space position of the right hand — where a thrown ball leaves from. */
+  rightHandWorld?(out: THREE.Vector3): THREE.Vector3;
+  /** The forearm node, so a held prop (a Poké Ball) can ride the hand until it
+   *  is released. */
+  rightHandAttach?(): THREE.Object3D;
   /** Optional vehicle pose used by the protagonist's true-3D bicycle. */
   setRiding?(riding: boolean): void;
   /** Water-mount pose: the hero sits on the Surf Pokémon instead of walking. */
@@ -296,7 +320,11 @@ const CHARACTER_PROFILES: Record<string, CharacterProfile> = {
   npc_hwageum:   { hair: 0x31352d, outfit: 0x536b54, secondary: 0x313b35, accent: 0xb89a53, outfitStyle: 'armor', hairStyle: 'topknot', prop: 'sword' },
   npc_baram:     { hair: 0xd9e0e7, outfit: 0x33485c, secondary: 0x899bab, accent: 0x6b91b3, outfitStyle: 'coat', hairStyle: 'spiky', cape: 0x8fa2ae, body: 'slim' },
   npc_saleum:    { hair: 0x201813, outfit: 0xb42332, secondary: 0x2d846e, accent: 0xe8b844, outfitStyle: 'hanbok', hairStyle: 'bun', hat: 'crown' },
-  npc_hwangeum:  { hair: 0x17130f, outfit: 0x14181e, secondary: 0xeee9db, accent: 0xc69c48, outfitStyle: 'uniform', hairStyle: 'short' },
+  // Champion Hwangeum — idol-styled stage uniform: black military jacket with
+  // white lapel piping and bright gold trim/chain, black trousers with a gold
+  // side stripe, white-and-gold high-tops, swept indigo hair. Matches the
+  // champion battle portrait (npc_hwangeum.png).
+  npc_hwangeum:  { skin: 0xf0c8a0, hair: 0x342a57, outfit: 0x14181e, secondary: 0xf4f4f2, accent: 0xe0b52e, trousers: 0x15171c, shoes: 0xf2f2f0, body: 'slim', outfitStyle: 'uniform', hairStyle: 'spiky', height: 1.05 },
   npc_jin:       { hair: 0x17161a, outfit: 0x202129, secondary: 0x373844, accent: 0x7d578f, outfitStyle: 'coat', hairStyle: 'bob', hat: 'beret', body: 'slim' },
   npc_byeoksan:  { hair: 0x24201d, outfit: 0xf3f0e8, secondary: 0xe2ded5, accent: 0x17171a, outfitStyle: 'martial', hairStyle: 'short', body: 'broad' },
   npc_namsun:    { hair: 0x55352b, outfit: 0x4c4891, secondary: 0x783b50, accent: 0xd19c55, outfitStyle: 'uniform', hairStyle: 'short', body: 'broad' },
@@ -409,13 +437,25 @@ export function buildCharacterModel(
   }
   group.add(torso);
 
+  // Arms are two-bone: shoulder → elbow → hand. A single rigid arm cannot throw
+  // — a real throw leads with the elbow and extends late — so the forearm is its
+  // own group. At rest both joints sit at zero and the silhouette is identical to
+  // the old one-piece arm, so every other NPC looks unchanged.
   const armL = new THREE.Group(), armR = new THREE.Group();
-  for (const [arm, off] of [[armL, -0.215 * width], [armR, 0.215 * width]] as [THREE.Group, number][]) {
-    const sleeve = capsule(0.1 * width, 0.25, 0.12 * width, p.outfit);
-    sleeve.position.y = -0.105;
+  const foreL = new THREE.Group(), foreR = new THREE.Group();
+  const ELBOW_Y = -0.13;
+  for (const [arm, fore, off] of [
+    [armL, foreL, -0.215 * width], [armR, foreR, 0.215 * width],
+  ] as [THREE.Group, THREE.Group, number][]) {
+    const upper = capsule(0.1 * width, 0.13, 0.12 * width, p.outfit);
+    upper.position.y = -0.06;
+    const lower = capsule(0.095 * width, 0.11, 0.115 * width, p.outfit);
+    lower.position.y = -0.055;
     const hand = ellipsoid(0.09 * width, 0.08, 0.1, skin);
-    hand.position.y = -0.255;
-    arm.add(sleeve, hand);
+    hand.position.y = -0.125;
+    fore.add(lower, hand);
+    fore.position.y = ELBOW_Y;
+    arm.add(upper, fore);
     arm.position.set(off, 0.72, 0);
     group.add(arm);
   }
@@ -507,6 +547,24 @@ export function buildCharacterModel(
       const breathe = moving ? 0 : Math.sin(phase * 0.35) * 0.007;
       torso.scale.y = 1 + breathe; head.position.y = breathe * 0.5;
     },
+    setChoreo(pose: ChoreoPose) {
+      armL.rotation.x = pose.armLX ?? 0; armL.rotation.z = pose.armLZ ?? 0;
+      armL.rotation.y = pose.armLY ?? 0; foreL.rotation.x = pose.elbowL ?? 0;
+      armR.rotation.x = pose.armRX ?? 0; armR.rotation.z = pose.armRZ ?? 0;
+      armR.rotation.y = pose.armRY ?? 0; foreR.rotation.x = pose.elbowR ?? 0;
+      legL.rotation.x = pose.legLX ?? 0; legR.rotation.x = pose.legRX ?? 0;
+      torso.rotation.z = pose.torsoTilt ?? 0; torso.rotation.y = pose.torsoTwist ?? 0;
+      head.rotation.z = pose.headTilt ?? 0; head.rotation.y = pose.headTurn ?? 0;
+      group.position.y = pose.hop ?? 0;
+      group.rotation.y = yaw + (pose.spin ?? 0);
+    },
+    rightHandWorld(out: THREE.Vector3) {
+      // The hand hangs off the FOREARM, so the release point follows the elbow
+      // through the whip instead of pivoting rigidly at the shoulder.
+      foreR.updateWorldMatrix(true, false);
+      return out.set(0, -0.125, 0).applyMatrix4(foreR.matrixWorld);
+    },
+    rightHandAttach() { return foreR; },
     face(dx: number, dz: number, dt: number) {
       if (Math.abs(dx) + Math.abs(dz) > 0.001) targetYaw = Math.atan2(dx, dz);
       let d = targetYaw - yaw;

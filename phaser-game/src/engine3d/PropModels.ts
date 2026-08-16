@@ -3,6 +3,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader.js';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { allowsHeavy3DAssets, isRenderableModel } from './GlbModels';
+import { performanceProfile } from './PerformanceProfile';
 
 // ── Generated environment prop registry ──────────────────────────────────────
 // Buildings, vehicles and other scenery GLBs (generated from prompts / art) are
@@ -177,11 +178,21 @@ export function propById(id: string): PropDef | null {
   return found && propAllowed(found) ? found : null;
 }
 
-/** Drop cached prop GPU allocations between maps while retaining CPU data. */
+/** Drop cached prop GPU allocations between maps. On constrained devices keep
+ * only the two most recently used decoded props, limiting JS heap growth while
+ * retaining a small hot cache for commonly repeated buildings. */
 export function releasePropGpuResources(): void {
   for (const entry of cache.values()) {
     if (entry === 'loading' || entry === 'failed') continue;
     disposePropGpu(entry);
+  }
+  if (!performanceProfile().constrained) return;
+  const loaded = [...cache.entries()]
+    .filter((entry): entry is [string, THREE.Group] => entry[1] !== 'loading' && entry[1] !== 'failed')
+    .sort(([left], [right]) => (propUse.get(right) ?? 0) - (propUse.get(left) ?? 0));
+  for (const [key] of loaded.slice(2)) {
+    cache.delete(key);
+    propUse.delete(key);
   }
 }
 
@@ -200,8 +211,9 @@ function propAllowed(def: PropDef): boolean {
 }
 
 function trimPropCache(except: string): void {
+  const maxEntries = performanceProfile().constrained ? 4 : 10;
   const loaded = [...cache.entries()].filter(([, v]) => v !== 'loading' && v !== 'failed') as [string, THREE.Group][];
-  while (loaded.length > 10) {
+  while (loaded.length > maxEntries) {
     loaded.sort(([a], [b]) => (propUse.get(a) ?? 0) - (propUse.get(b) ?? 0));
     const index = loaded.findIndex(([key]) => key !== except);
     if (index < 0) break;

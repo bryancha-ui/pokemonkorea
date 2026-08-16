@@ -10,7 +10,7 @@ import { runLevelUpLearning, runBenchLevelUpLearning } from '../systems/MoveLear
 import type { BenchLevelUp } from '../systems/BattleExp';
 import { Pokemon, Move, MoveData } from '../battle/Pokemon';
 import { getEffectiveness } from '../battle/TypeChart';
-import { STARTERS, TYPE_COLORS, findForm } from '../data/StarterData';
+import { STARTERS, findForm } from '../data/StarterData';
 import { fetchPokemon } from '../data/PokeAPI';
 import { customForm } from '../data/CustomBattle';
 import { PartySystem } from '../systems/PartySystem';
@@ -34,6 +34,8 @@ import { actsBefore } from '../systems/AbilitySystem';
 import { enemyLearnset, mergeLearnset } from '../data/Learnsets';
 import { BattleStatusBadge } from '../systems/BattleStatusBadge';
 import { showRewardCeremony } from '../systems/RewardCeremony';
+import { createBattleHud, hpColor, modernButton, modernMoveButton, syncBattleHudTypes, type BattleHud } from '../systems/ProductionUi';
+import { animateBattleHp, BATTLE_PACING, snapBattleHp } from '../systems/BattlePacing';
 
 // ── Enemy movesets ──────────────────────────────────────────────────────────
 // Strong authored move data is reserved for Elite Four / Champion teams below.
@@ -145,6 +147,8 @@ export class TrainerBattleScene extends Phaser.Scene {
   private enemyNameText!: Phaser.GameObjects.Text;
   private playerStatusBadge?: BattleStatusBadge;
   private enemyStatusBadge?: BattleStatusBadge;
+  private playerBattleHud?: BattleHud;
+  private enemyBattleHud?: BattleHud;
   private enemySprite!: Phaser.GameObjects.Image;
   private playerSprite!: Phaser.GameObjects.Image;
   private trainerPortrait?: Phaser.GameObjects.Image;
@@ -280,6 +284,9 @@ export class TrainerBattleScene extends Phaser.Scene {
       }
       playBallSendOut(this, this.enemySprite, {
         side: 'enemy', targetX: ENEMY_STAGE_X, targetY: ENEMY_STAGE_Y,
+        // The Champion's 3D routine already threw a real ball across the arena;
+        // drawing the flat one on top would show two balls for one send-out.
+        skipBall: this.isChampionHwangeum && this.using3D,
         onComplete: () => this.typeDialog(`${this.trainerName} sent out ${pokeNameEn(this.enemy.name).toUpperCase()}!`, leadPlayer),
       });
     };
@@ -288,7 +295,9 @@ export class TrainerBattleScene extends Phaser.Scene {
     // "wants to battle!" card; everyone else still gets it.
     if (this.trainerPortrait) this.tweens.add({ targets: this.trainerPortrait, alpha: 1, duration: 300 });
     if (!this.trainerKey.startsWith('rival')) this.typeDialog(`${this.trainerName} wants to battle!`);
-    this.time.delayedCall(3000, sendOut);
+    // The stage routine runs ~4.0s and releases the ball on its 8th beat, so the
+    // Champion holds a beat longer than everyone else before his Pokémon lands.
+    this.time.delayedCall(this.isChampionHwangeum && this.using3D ? 4150 : 3000, sendOut);
   }
 
   // ── Pokémon loading ───────────────────────────────────────────────────────
@@ -408,29 +417,30 @@ export class TrainerBattleScene extends Phaser.Scene {
   }
 
   private createHUDs() {
-    // Widen the name boxes on mobile so the enlarged font isn't clipped: the enemy
-    // box grows rightward (its name is left-anchored) and the player box grows
-    // leftward with its left-anchored name/HP. Lv stays right-anchored. ex = 0 on
-    // desktop, so that layout is unchanged.
-    const ex = Math.round(150 * (fontScaleForScene(this) - 1));
-    // Grow the HP bar alongside the box so a wide mobile box isn't mostly empty behind
-    // a stubby bar. Leave a small right margin (36) for the Lv label.
-    this.hpW = HP_W + Math.max(0, ex - 36);
-    this.add.rectangle(5 + (220 + ex) / 2, 50, 220 + ex, 60, 0x0d0d2e, 0.92).setStrokeStyle(1, 0x5577aa);
-    this.enemyNameText = this.add.text(12, 24, this.enemyHudName(), { fontSize: '13px', color: '#fff', fontStyle: 'bold' });
-    this.enemyLvText  = this.add.text(220 + ex, 24, `Lv.${this.enemy.level}`, { fontSize: '12px', color: '#ffe44e' }).setOrigin(1, 0);
+    const enemy = createBattleHud(this, {
+      side: 'enemy', name: this.enemyHudName(), level: this.enemy.level,
+      hp: this.enemy.hp, maxHp: this.enemy.maxHp,
+      types: [this.enemy.data.type1, this.enemy.data.type2],
+    });
+    this.enemyBattleHud = enemy;
+    this.enemyNameText = enemy.nameText;
+    this.enemyLvText = enemy.levelText;
+    this.enemyHpBar = enemy.hpBar;
+    this.enemyHpText = enemy.hpText;
     this.enemyStatusBadge = new BattleStatusBadge(this.enemyNameText, () => this.enemyLvText.x - 34);
-    this.add.rectangle(25 + this.hpW / 2, 52, this.hpW + 6, 10, 0x333355);
-    this.enemyHpBar   = this.add.rectangle(25, 52, this.hpW, 8, 0x44cc44).setOrigin(0, 0.5);
-    this.enemyHpText  = this.add.text(12, 60, `${this.enemy.hp}/${this.enemy.maxHp}`, { fontSize: '10px', color: '#aaa' });
 
-    this.add.rectangle(1140 - (220 + ex) / 2, 545, 220 + ex, 60, 0x0d0d2e, 0.92).setStrokeStyle(1, 0x5577aa);
-    this.playerNameText = this.add.text(922 - ex, 519, this.playerHudName(), { fontSize: '13px', color: '#fff', fontStyle: 'bold' });
-    this.playerLvText = this.add.text(1100, 519, `Lv.${this.player.level}`, { fontSize: '12px', color: '#ffe44e' }).setOrigin(1, 0);
+    const player = createBattleHud(this, {
+      side: 'player', name: this.playerHudName(), level: this.player.level,
+      hp: this.player.hp, maxHp: this.player.maxHp,
+      types: [this.player.data.type1, this.player.data.type2],
+    });
+    this.playerBattleHud = player;
+    this.playerNameText = player.nameText;
+    this.playerLvText = player.levelText;
+    this.playerHpBar = player.hpBar;
+    this.playerHpText = player.hpText;
     this.playerStatusBadge = new BattleStatusBadge(this.playerNameText, () => this.playerLvText.x - 34);
-    this.add.rectangle(940 - ex + this.hpW / 2, 547, this.hpW + 6, 10, 0x333355);
-    this.playerHpBar  = this.add.rectangle(940 - ex, 547, this.hpW, 8, 0x44cc44).setOrigin(0, 0.5);
-    this.playerHpText = this.add.text(922 - ex, 557, `${this.player.hp}/${this.player.maxHp}`, { fontSize: '10px', color: '#aaa' });
+    this.hpW = player.hpWidth;
   }
 
   private createSprites() {
@@ -455,9 +465,21 @@ export class TrainerBattleScene extends Phaser.Scene {
     if (portrait && this.textures.exists(portrait.key)) {
       this.trainerPortrait = this.add.image(ENEMY_STAGE_X, ENEMY_STAGE_Y, portrait.key)
         .setDepth(6)
-        .setAlpha(0)
-        .setData('no3d', true)
-        .setData('battleTrainer2DAnchor', 'enemy');
+        .setAlpha(0);
+      if (this.isChampionHwangeum) {
+        // Promote the Champion to a 3D character standing on the arena floor so
+        // he can dance and throw. With 3D off, this same image simply plays as
+        // the flat portrait it has always been.
+        this.trainerPortrait
+          .setData('battleTrainerEnemyAnchor', true)
+          .setData('characterModel3DKey', 'npc_hwangeum')
+          .setData('characterGender3D', 'boy')
+          .setData('battleChoreo', true);
+      } else {
+        this.trainerPortrait
+          .setData('no3d', true)
+          .setData('battleTrainer2DAnchor', 'enemy');
+      }
       fitPortrait(this.trainerPortrait);
     }
 
@@ -552,10 +574,10 @@ export class TrainerBattleScene extends Phaser.Scene {
     this.dialogText.setText('');
     let i = 0;
     const ev = this.time.addEvent({
-      delay: 12, repeat: text.length - 1,   // faster typewriter for snappier battles
+      delay: BATTLE_PACING.dialogCharacterMs, repeat: text.length - 1,
       callback: () => {
         this.dialogText.setText(text.slice(0, ++i));
-        if (i >= text.length) { ev.destroy(); if (onDone) this.time.delayedCall(280, onDone); }
+        if (i >= text.length) { ev.destroy(); if (onDone) this.time.delayedCall(BATTLE_PACING.dialogHoldMs, onDone); }
       },
     });
   }
@@ -563,51 +585,39 @@ export class TrainerBattleScene extends Phaser.Scene {
   // ── Panels ────────────────────────────────────────────────────────────────
 
   private createActionPanel() {
-    this.actionPanel = this.add.container(this.W * 0.60, this.H - 120).setDepth(10);
-    const bg = this.add.rectangle(80, 60, 316, 120, 0x111133).setStrokeStyle(1, 0x5577aa);
-    this.actionPanel.add(bg);
-
+    this.actionPanel = this.add.container(0, this.H - 120).setDepth(10);
     const actions = [
-      { label: 'FIGHT',       x: 16,  y: 16, cb: () => this.onFight(),         enabled: true },
-      { label: 'BAG',         x: 170, y: 16, cb: () => this.onBag(),           enabled: true },
-      { label: "CAN'T\nRUN",  x: 16,  y: 68, cb: () => this.typeDialog("Can't run from a trainer!", () => this.playerAction()), enabled: false },
-      { label: 'POKÉMON',     x: 170, y: 68, cb: () => this.onSwitchPokemon(), enabled: true },
+      { label: '⚔ FIGHT', accent: 0xef776b, cb: () => this.onFight(), enabled: true },
+      { label: '◉ BAG', accent: 0xe0b64d, cb: () => this.onBag(), enabled: true },
+      { label: "× CAN'T RUN", accent: 0x596573, cb: () => {}, enabled: false },
+      { label: '◇ POKÉMON', accent: 0x62bde7, cb: () => this.onSwitchPokemon(), enabled: true },
     ];
-    actions.forEach(a => {
-      const t = this.add.text(a.x, a.y, tr(a.label), { fontSize: '18px', color: a.enabled ? '#fff' : '#888' })
-        .setInteractive({ useHandCursor: a.enabled })
-        .on('pointerover',  () => { if (a.enabled) t.setColor('#ffe44e'); })
-        .on('pointerout',   () => t.setColor(a.enabled ? '#ffffff' : '#888888'))
-        .on('pointerdown',  a.cb);
-      this.actionPanel.add(t);
+    const left = this.W * 0.61;
+    const gap = 8;
+    const buttonW = (this.W - left - 16 - gap) / 2;
+    actions.forEach((action, index) => {
+      modernButton(this, this.actionPanel, {
+        label: tr(action.label), x: left + buttonW / 2 + (index % 2) * (buttonW + gap),
+        y: 29 + Math.floor(index / 2) * 58, width: buttonW, height: 50,
+        accent: action.accent, disabled: !action.enabled, onPick: action.cb,
+      });
     });
   }
 
   private createMovePanel() {
     this.movePanel = this.add.container(0, this.H - 120).setDepth(10).setVisible(false);
-    const bg = this.add.rectangle(this.W / 2, 60, this.W - 16, 120, 0x111133, 0.95).setStrokeStyle(1, 0x5577aa);
-    this.movePanel.add(bg);
-    this.movePanel.add(
-      this.add.text(this.W - 30, 10, tr('← BACK'), { fontSize: '12px', color: '#aaa' })
-        .setOrigin(1, 0)
-        .setInteractive({ useHandCursor: true })
-        .on('pointerdown', () => this.playerAction()),
-    );
-
-    const cols = [40, 226, 412, 598];
+    const backW = 110;
+    const gap = 8;
+    const cardW = (this.W - 24 - backW - gap * 4) / 4;
     this.player.moves.forEach((move, i) => {
-      const x = cols[i] ?? cols[3];
-      const pill = this.add.rectangle(x + 80, 28, 164, 50, TYPE_COLORS[move.data.type] ?? 0x444466, 0.25)
-        .setStrokeStyle(1, TYPE_COLORS[move.data.type] ?? 0x444466, 0.8).setOrigin(0.5);
-      const btn = this.add.text(x + 6, 10, tr(move.data.name).toUpperCase(), { fontSize: '14px', color: '#fff', fontStyle: 'bold' })
-        .setInteractive({ useHandCursor: true })
-        .on('pointerover',  () => btn.setColor('#ffe44e'))
-        .on('pointerout',   () => btn.setColor('#ffffff'))
-        .on('pointerdown',  () => this.onMoveSelected(move));
-      this.movePanel.add([pill, btn,
-        this.add.text(x + 6, 30, `PP ${move.pp}/${move.data.pp}`, { fontSize: '10px', color: '#ccc' }),
-        this.add.text(x + 6, 46, move.data.type.toUpperCase(), { fontSize: '9px', color: '#aaa' }),
-      ]);
+      modernMoveButton(this, this.movePanel, {
+        move, x: 12 + cardW / 2 + i * (cardW + gap), y: 60,
+        width: cardW, height: 102, onPick: () => this.onMoveSelected(move),
+      });
+    });
+    modernButton(this, this.movePanel, {
+      label: tr('← BACK'), x: this.W - 12 - backW / 2, y: 60,
+      width: backW, height: 102, accent: 0x60758a, onPick: () => this.playerAction(),
     });
   }
 
@@ -780,6 +790,19 @@ export class TrainerBattleScene extends Phaser.Scene {
     return this.trainerKey.startsWith('e4-') || this.trainerKey.startsWith('champion-');
   }
 
+  /** Hwangeum is an idol before he is a battler: he gets a real 3D figure on the
+   *  arena floor, a choreographed opening and a hand-thrown ball. */
+  private get isChampionHwangeum() { return this.trainerKey === 'champion-hwangeum'; }
+
+  /** True only while the 3D battle mirror is actually drawing this scene. The 2D
+   *  presentation stays byte-for-byte unchanged when it is not. */
+  private get using3D() {
+    const engine = (window as unknown as {
+      __pk3d?: { isRendering(scene: Phaser.Scene): boolean };
+    }).__pk3d;
+    return !!engine?.isRendering(this);
+  }
+
   /** Enemy move choice. E4/Champion pick a WEIGHTED-random move (weight = power ×
    *  type effectiveness vs the player), so they mix their own STAB with super-effective
    *  coverage — leaning toward damage without spamming a single best move. Others random. */
@@ -842,10 +865,47 @@ export class TrainerBattleScene extends Phaser.Scene {
         return;
       }
 
+      // The Champion steps back out when his FIFTH Pokémon falls — one line
+      // before his ace. This only wraps the roster advance; the advance itself
+      // still runs through sendNextEnemy untouched.
+      if (this.isChampionHwangeum && nextIdx === 5) {
+        this.championCutIn(() => void this.sendNextEnemy(nextIdx));
+        return;
+      }
+
       // Resolve exactly the captured next slot. enemyIdx changes only after the
       // Pokémon has loaded, so an asset delay cannot mutate or skip the roster.
       void this.sendNextEnemy(nextIdx);
     });
+  }
+
+  /** Hwangeum returns to the floor after his fifth Pokémon faints, says his one
+   *  line, and steps aside for his ace. Purely a cut-in: no battle state is read
+   *  or changed here, and `onDone` continues the roster exactly as before. */
+  private championCutIn(onDone: () => void): void {
+    const portrait = this.resolvePortrait();
+    if (!portrait || !this.textures.exists(portrait.key)) { onDone(); return; }
+    const cut = this.add.image(ENEMY_STAGE_X, ENEMY_STAGE_Y, portrait.key)
+      .setDepth(7)
+      .setAlpha(0);
+    if (this.using3D) {
+      // A fresh tagged image spawns a fresh 3D walker — the intro figure was
+      // retired when its portrait faded for the first send-out.
+      cut.setData('battleTrainerEnemyAnchor', true)
+        .setData('characterModel3DKey', 'npc_hwangeum')
+        .setData('characterGender3D', 'boy');
+    } else {
+      cut.setData('no3d', true).setData('battleTrainer2DAnchor', 'enemy');
+    }
+    fitPortrait(cut);
+    this.tweens.add({ targets: cut, alpha: 1, duration: 320 });
+    this.typeDialog(
+      "Hwangeum: How long has it been since anyone pushed me this far!",
+      () => this.tweens.add({
+        targets: cut, alpha: 0, duration: 320,
+        onComplete: () => { cut.destroy(); onDone(); },
+      }),
+    );
   }
 
   /** Load and present one exact opponent roster slot without advancing past it. */
@@ -853,16 +913,15 @@ export class TrainerBattleScene extends Phaser.Scene {
     try {
       await this.loadEnemyPokemon(nextIdx);
       if (!this.enemy) throw new Error(`Opponent roster slot ${nextIdx} did not produce a Pokémon`);
+      syncBattleHudTypes(this.enemyBattleHud, [this.enemy.data.type1, this.enemy.data.type2]);
       this.enemyIdx = nextIdx;
       this.buffBoss();   // extra HP for a 우두머리 boss
       const teKey = (this.registry.get('_teKey') as string);
       this.enemySprite.setTexture(this.textures.exists(teKey) ? teKey : 'vipour');
       this.fitSprite(this.enemySprite, this.enemySpriteSize());
-      this.animateHpBar('enemy', () => {});
       this.enemyNameText?.setText(this.enemyHudName());
       this.enemyLvText.setText(`Lv.${this.enemy.level}`);
-      this.enemyHpBar.width = this.hpW;
-      this.enemyHpText.setText(`${this.enemy.hp}/${this.enemy.maxHp}`);
+      snapBattleHp(this.enemyHpBar, this.enemyHpText, this.hpW, this.enemy.hp, this.enemy.maxHp);
       playBallSendOut(this, this.enemySprite, {
         side: 'enemy', targetX: ENEMY_STAGE_X, targetY: ENEMY_STAGE_Y,
         onComplete: () => this.typeDialog(
@@ -1129,12 +1188,12 @@ export class TrainerBattleScene extends Phaser.Scene {
     this.participants.add(slotIdx);
     const entry = PartySystem.get(this.registry)[slotIdx];
     this.player = buildFromEntry(entry);
+    syncBattleHudTypes(this.playerBattleHud, [this.player.data.type1, this.player.data.type2]);
     this.refreshMovePanel();
 
     this.playerNameText.setText(this.playerHudName());
     this.playerLvText.setText(`Lv.${this.player.level}`);
-    this.playerHpBar.width = this.hpW;
-    this.animateHpBar('player', () => {});
+    snapBattleHp(this.playerHpBar, this.playerHpText, this.hpW, this.player.hp, this.player.maxHp);
 
     if (this.textures.exists(entry.spriteKey)) {
       this.playerSprite.setTexture(entry.spriteKey);
@@ -1163,12 +1222,12 @@ export class TrainerBattleScene extends Phaser.Scene {
     const party = PartySystem.get(this.registry);
     const entry = party[slotIdx];
     this.player = buildFromEntry(entry);
+    syncBattleHudTypes(this.playerBattleHud, [this.player.data.type1, this.player.data.type2]);
     this.refreshMovePanel();
 
     this.playerNameText.setText(this.playerHudName());
     this.playerLvText.setText(`Lv.${this.player.level}`);
-    this.playerHpBar.width = this.hpW;
-    this.animateHpBar('player', () => {});
+    snapBattleHp(this.playerHpBar, this.playerHpText, this.hpW, this.player.hp, this.player.maxHp);
 
     if (this.textures.exists(entry.spriteKey)) {
       this.playerSprite.setTexture(entry.spriteKey);
@@ -1241,13 +1300,15 @@ export class TrainerBattleScene extends Phaser.Scene {
     this.participants.add(nextIdx);
     const entry = PartySystem.get(this.registry)[nextIdx];
     this.player = buildFromEntry(entry);
+    syncBattleHudTypes(this.playerBattleHud, [this.player.data.type1, this.player.data.type2]);
     this.refreshMovePanel();
 
     // Update HUD
     this.playerNameText.setText(this.playerHudName());
     this.playerLvText.setText(`Lv.${this.player.level}`);
-    this.playerHpBar.fillColor = 0x44cc44;
-    this.playerHpBar.width     = this.hpW;
+    const switchRatio = Phaser.Math.Clamp(this.player.hp / this.player.maxHp, 0, 1);
+    this.playerHpBar.fillColor = hpColor(switchRatio);
+    this.playerHpBar.width     = this.hpW * switchRatio;
     this.playerHpText.setText(`${this.player.hp}/${this.player.maxHp}`);
 
     // Swap sprite
@@ -1280,11 +1341,9 @@ export class TrainerBattleScene extends Phaser.Scene {
     const mon   = who === 'player' ? this.player  : this.enemy;
     const bar   = who === 'player' ? this.playerHpBar  : this.enemyHpBar;
     const label = who === 'player' ? this.playerHpText : this.enemyHpText;
-    const ratio = mon.hp / mon.maxHp;
-    bar.fillColor = ratio > 0.5 ? 0x44cc44 : ratio > 0.25 ? 0xddcc00 : 0xcc4444;
-    this.tweens.add({
-      targets: bar, width: Math.max(0, ratio * this.hpW), duration: 260, ease: 'Linear',
-      onComplete: () => { label.setText(`${mon.hp}/${mon.maxHp}`); onDone(); },
+    animateBattleHp({
+      scene: this, bar, label, maxWidth: this.hpW,
+      targetHp: mon.hp, maxHp: mon.maxHp, onDone,
     });
   }
 }

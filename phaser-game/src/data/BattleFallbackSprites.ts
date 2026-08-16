@@ -7,7 +7,7 @@ import Phaser from 'phaser';
  */
 const ORIGINAL_BATTLE_SPRITES: Readonly<Record<string, string>> = {
   thanatoat: 'assets/dex/thanatoat.png',
-  banderado: 'assets/banderado.png',
+  banderado: 'assets/remaster/banderado-hq.png',
   pipetiger: 'assets/dex/pipetiger.png',
 };
 

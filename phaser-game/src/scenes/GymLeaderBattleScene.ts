@@ -3,7 +3,7 @@ import { Pokemon, Move } from '../battle/Pokemon';
 import {
   deckShowBattleActions, deckHideBattleActions, deckShowMoves, deckHideMoves,
 } from '../systems/TouchControls';
-import { STARTERS, TYPE_COLORS, findForm } from '../data/StarterData';
+import { STARTERS, findForm } from '../data/StarterData';
 import { fetchPokemon, fetchMove } from '../data/PokeAPI';
 import { CORRPANDA_DATA, CORRPANDA_MOVES } from '../data/CustomPokemon';
 import { PartySystem } from '../systems/PartySystem';
@@ -20,13 +20,14 @@ import { battle2DSpriteScale } from '../data/SpriteScale';
 import { runLevelUpLearning, runBenchLevelUpLearning } from '../systems/MoveLearning';
 import type { BenchLevelUp } from '../systems/BattleExp';
 import { tr, pokeNameEn} from '../systems/i18n';
-import { fontScaleForScene } from '../systems/UiScale';
 import { genderedName } from '../data/PokemonGender';
 import { actsBefore } from '../systems/AbilitySystem';
 import { mergeLearnset } from '../data/Learnsets';
 import { BattleStatusBadge } from '../systems/BattleStatusBadge';
 import { blackoutMessage, blackoutToCenter } from '../systems/Blackout';
 import { showRewardCeremony } from '../systems/RewardCeremony';
+import { createBattleHud, hpColor, modernButton, modernMoveButton, syncBattleHudTypes, type BattleHud } from '../systems/ProductionUi';
+import { animateBattleHp, BATTLE_PACING } from '../systems/BattlePacing';
 
 type State = 'intro' | 'playerAction' | 'playerMove' | 'busy' | 'over';
 const HP_W = 200;
@@ -60,6 +61,8 @@ export class GymLeaderBattleScene extends Phaser.Scene {
   private enemyNameText!:  Phaser.GameObjects.Text;
   private playerStatusBadge?: BattleStatusBadge;
   private enemyStatusBadge?: BattleStatusBadge;
+  private playerBattleHud?: BattleHud;
+  private enemyBattleHud?: BattleHud;
   private enemySprite!:  Phaser.GameObjects.Image;
   private playerSprite!: Phaser.GameObjects.Image;
   private leaderPortrait?: Phaser.GameObjects.Image;
@@ -233,34 +236,36 @@ export class GymLeaderBattleScene extends Phaser.Scene {
   }
 
   private createHUDs() {
-    const track = <T extends Phaser.GameObjects.GameObject>(o: T): T => {
-      this.hudGroup.push(o);
-      (o as unknown as { setAlpha(n: number): void }).setAlpha(0);
-      return o;
-    };
-    // Widen the name boxes on mobile so enlarged names fit (enemy grows right,
-    // player grows left with its name/HP). ex = 0 on desktop → unchanged.
-    const ex = Math.round(150 * (fontScaleForScene(this) - 1));
-    // Grow the HP bar with the box (leaving 36px for the Lv label) so it isn't a stub
-    // in a wide mobile box. ex = 0 on desktop → hpW = HP_W, layout unchanged.
-    this.hpW = HP_W + Math.max(0, ex - 36);
-    track(this.add.rectangle(130 + ex / 2, 52, 260 + ex, 68, 0x0d0d2e, 0.9).setStrokeStyle(1, 0x9933cc));
-    this.enemyNameText = track(this.add.text(14, 24, this.enemyHudName(), { fontSize: '14px', color: '#cc88ff', fontStyle: 'bold' }));
-    this.enemyLvText  = track(this.add.text(255 + ex, 24, `Lv.${this.enemy.level}`, { fontSize: '13px', color: '#ffe44e' }).setOrigin(1, 0));
+    const enemy = createBattleHud(this, {
+      side: 'enemy', name: this.enemyHudName(), level: this.enemy.level,
+      hp: this.enemy.hp, maxHp: this.enemy.maxHp,
+      types: [this.enemy.data.type1, this.enemy.data.type2], accent: 0xb268db, hidden: true,
+    });
+    this.enemyBattleHud = enemy;
+    this.hudGroup.push(...enemy.objects);
+    this.enemyNameText = enemy.nameText;
+    this.enemyLvText = enemy.levelText;
+    this.enemyHpBar = enemy.hpBar;
+    this.enemyHpText = enemy.hpText;
     this.enemyStatusBadge = new BattleStatusBadge(this.enemyNameText, () => this.enemyLvText.x - 36);
+    this.enemyStatusBadge.text.setAlpha(0);
     this.hudGroup.push(this.enemyStatusBadge.text);
-    track(this.add.rectangle(30 + this.hpW / 2, 52, this.hpW + 8, 12, 0x333355));
-    this.enemyHpBar   = track(this.add.rectangle(30, 52, this.hpW, 10, 0x44cc44).setOrigin(0, 0.5));
-    this.enemyHpText  = track(this.add.text(14, 62, `${this.enemy.hp}/${this.enemy.maxHp}`, { fontSize: '11px', color: '#aaa' }));
 
-    track(this.add.rectangle(this.W - (260 + ex) / 2, this.H - 175, 260 + ex, 68, 0x0d0d2e, 0.9).setStrokeStyle(1, 0x9933cc));
-    this.playerNameText = track(this.add.text(this.W - 258 - ex, this.H - 203, this.playerHudName(), { fontSize: '14px', color: '#ffffff', fontStyle: 'bold' }));
-    this.playerLvText = track(this.add.text(this.W - 12, this.H - 203, `Lv.${this.player.level}`, { fontSize: '13px', color: '#ffe44e' }).setOrigin(1, 0));
+    const player = createBattleHud(this, {
+      side: 'player', name: this.playerHudName(), level: this.player.level,
+      hp: this.player.hp, maxHp: this.player.maxHp,
+      types: [this.player.data.type1, this.player.data.type2], accent: 0x59d8ff, hidden: true,
+    });
+    this.playerBattleHud = player;
+    this.hudGroup.push(...player.objects);
+    this.playerNameText = player.nameText;
+    this.playerLvText = player.levelText;
+    this.playerHpBar = player.hpBar;
+    this.playerHpText = player.hpText;
     this.playerStatusBadge = new BattleStatusBadge(this.playerNameText, () => this.playerLvText.x - 36);
+    this.playerStatusBadge.text.setAlpha(0);
     this.hudGroup.push(this.playerStatusBadge.text);
-    track(this.add.rectangle(this.W - 258 - ex + this.hpW / 2, this.H - 173, this.hpW + 8, 12, 0x333355));
-    this.playerHpBar  = track(this.add.rectangle(this.W - 258 - ex, this.H - 173, this.hpW, 10, 0x44cc44).setOrigin(0, 0.5));
-    this.playerHpText = track(this.add.text(this.W - 258 - ex, this.H - 161, `${this.player.hp}/${this.player.maxHp}`, { fontSize: '11px', color: '#aaa' }));
+    this.hpW = player.hpWidth;
   }
 
   private createSprites() {
@@ -312,10 +317,10 @@ export class GymLeaderBattleScene extends Phaser.Scene {
     this.dialogText.setText('');
     let i = 0;
     const ev = this.time.addEvent({
-      delay: 12, repeat: text.length - 1,   // faster typewriter for snappier battles
+      delay: BATTLE_PACING.dialogCharacterMs, repeat: text.length - 1,
       callback: () => {
         this.dialogText.setText(text.slice(0, ++i));
-        if (i >= text.length) { ev.destroy(); if (onDone) this.time.delayedCall(280, onDone); }
+        if (i >= text.length) { ev.destroy(); if (onDone) this.time.delayedCall(BATTLE_PACING.dialogHoldMs, onDone); }
       },
     });
   }
@@ -323,49 +328,37 @@ export class GymLeaderBattleScene extends Phaser.Scene {
   // ── Panels ────────────────────────────────────────────────────────────────
 
   private createActionPanel() {
-    this.actionPanel = this.add.container(this.W * 0.60, this.H - 120).setDepth(10);
-    const bg = this.add.rectangle(80, 60, 316, 120, 0x110022).setStrokeStyle(1, 0x9933cc);
-    this.actionPanel.add(bg);
+    this.actionPanel = this.add.container(0, this.H - 120).setDepth(10);
     const actions = [
-      { label: 'FIGHT',    x: 16,  y: 16, cb: () => this.onFight() },
-      { label: "CAN'T RUN",x: 155, y: 16, cb: () => this.typeDialog("You can't flee a Gym Battle!", () => this.playerAction()) },
-      { label: 'BAG',      x: 16,  y: 70, cb: () => this.onBag() },
-      { label: 'POKÉMON',  x: 155, y: 70, cb: () => this.onSwitchPokemon() },
+      { label: '⚔ FIGHT', accent: 0xb268db, cb: () => this.onFight(), disabled: false },
+      { label: "× CAN'T RUN", accent: 0x596573, cb: () => {}, disabled: true },
+      { label: '◉ BAG', accent: 0xe0b64d, cb: () => this.onBag(), disabled: false },
+      { label: '◇ POKÉMON', accent: 0x62bde7, cb: () => this.onSwitchPokemon(), disabled: false },
     ];
-    actions.forEach(a => {
-      const t = this.add.text(a.x, a.y, tr(a.label), {
-        fontSize: '18px', color: a.label === "CAN'T RUN" ? '#556677' : '#ffffff',
-      }).setInteractive({ useHandCursor: !a.label.includes("RUN") })
-        .on('pointerover', () => { if (!a.label.includes("RUN")) t.setColor('#cc88ff'); })
-        .on('pointerout',  () => t.setColor(a.label.includes("RUN") ? '#556677' : '#ffffff'))
-        .on('pointerdown', a.cb);
-      this.actionPanel.add(t);
-    });
+    const left = this.W * 0.61;
+    const gap = 8;
+    const buttonW = (this.W - left - 16 - gap) / 2;
+    actions.forEach((action, index) => modernButton(this, this.actionPanel, {
+      label: tr(action.label), x: left + buttonW / 2 + (index % 2) * (buttonW + gap),
+      y: 29 + Math.floor(index / 2) * 58, width: buttonW, height: 50,
+      accent: action.accent, disabled: action.disabled, onPick: action.cb,
+    }));
   }
 
   private createMovePanel() {
     this.movePanel = this.add.container(0, this.H - 120).setDepth(10).setVisible(false);
-    const bg = this.add.rectangle(this.W / 2 - 60, 60, this.W * 0.76, 120, 0x110022).setStrokeStyle(1, 0x9933cc);
-    this.movePanel.add(bg);
-    this.movePanel.add(
-      this.add.text(this.W - 30, 10, tr('← BACK'), { fontSize: '12px', color: '#aaa' })
-        .setOrigin(1, 0)
-        .setInteractive({ useHandCursor: true }).on('pointerdown', () => this.playerAction()),
-    );
-    const cols = [40, 226, 412, 598];
+    const backW = 110;
+    const gap = 8;
+    const cardW = (this.W - 24 - backW - gap * 4) / 4;
     this.player.moves.forEach((move, i) => {
-      const x = cols[i] ?? cols[3];
-      const pill = this.add.rectangle(x + 80, 28, 164, 50, TYPE_COLORS[move.data.type] ?? 0x330066, 0.25)
-        .setStrokeStyle(1, TYPE_COLORS[move.data.type] ?? 0x330066, 0.8).setOrigin(0.5);
-      const btn = this.add.text(x + 6, 10, tr(move.data.name).toUpperCase(), { fontSize: '14px', color: '#fff', fontStyle: 'bold' })
-        .setInteractive({ useHandCursor: true })
-        .on('pointerover', () => btn.setColor('#cc88ff'))
-        .on('pointerout',  () => btn.setColor('#ffffff'))
-        .on('pointerdown', () => this.onMoveSelected(move));
-      this.movePanel.add([pill, btn,
-        this.add.text(x + 6, 30, `PP ${move.pp}/${move.data.pp}`, { fontSize: '10px', color: '#ccc' }),
-        this.add.text(x + 6, 46, move.data.type.toUpperCase(), { fontSize: '9px', color: '#aaa' }),
-      ]);
+      modernMoveButton(this, this.movePanel, {
+        move, x: 12 + cardW / 2 + i * (cardW + gap), y: 60,
+        width: cardW, height: 102, onPick: () => this.onMoveSelected(move),
+      });
+    });
+    modernButton(this, this.movePanel, {
+      label: tr('← BACK'), x: this.W - 12 - backW / 2, y: 60,
+      width: backW, height: 102, accent: 0x60758a, onPick: () => this.playerAction(),
     });
   }
 
@@ -584,6 +577,7 @@ export class GymLeaderBattleScene extends Phaser.Scene {
     this.leaderSlot++;
     if (this.leaderSlot >= this.leaderTeam.length) { this.handleWin(); return; }
     this.enemy = this.leaderTeam[this.leaderSlot];
+    syncBattleHudTypes(this.enemyBattleHud, [this.enemy.data.type1, this.enemy.data.type2]);
     this.updateEnemySprite();
     this.enemyNameText.setText(this.enemyHudName());
     this.enemyLvText.setText(`Lv.${this.enemy.level}`);
@@ -625,6 +619,7 @@ export class GymLeaderBattleScene extends Phaser.Scene {
     this.participants.add(nextIdx);
     const entry = PartySystem.get(this.registry)[nextIdx];
     this.player = buildFromEntry(entry);
+    syncBattleHudTypes(this.playerBattleHud, [this.player.data.type1, this.player.data.type2]);
     this.refreshMovePanel();
     this.refreshPlayerHud();
     if (this.textures.exists(entry.spriteKey)) {
@@ -657,6 +652,7 @@ export class GymLeaderBattleScene extends Phaser.Scene {
         this.participants.add(idx);
         const entry = PartySystem.get(this.registry)[idx];
         this.player = buildFromEntry(entry);
+        syncBattleHudTypes(this.playerBattleHud, [this.player.data.type1, this.player.data.type2]);
         this.refreshMovePanel();
         this.refreshPlayerHud();
         if (this.textures.exists(entry.spriteKey)) {
@@ -717,11 +713,9 @@ export class GymLeaderBattleScene extends Phaser.Scene {
     const mon  = who === 'player' ? this.player : this.enemy;
     const bar  = who === 'player' ? this.playerHpBar : this.enemyHpBar;
     const lbl  = who === 'player' ? this.playerHpText : this.enemyHpText;
-    const r    = mon.hp / mon.maxHp;
-    bar.fillColor = r > 0.5 ? 0x44cc44 : r > 0.25 ? 0xddcc00 : 0xcc4444;
-    this.tweens.add({
-      targets: bar, width: Math.max(0, r * this.hpW), duration: 260,
-      onComplete: () => { lbl.setText(`${mon.hp}/${mon.maxHp}`); onDone(); },
+    animateBattleHp({
+      scene: this, bar, label: lbl, maxWidth: this.hpW,
+      targetHp: mon.hp, maxHp: mon.maxHp, onDone,
     });
   }
 
@@ -763,7 +757,7 @@ export class GymLeaderBattleScene extends Phaser.Scene {
     this.playerLvText.setText(`Lv.${this.player.level}`);
     const r = this.player.hp / this.player.maxHp;
     this.playerHpBar.width = Math.max(0, r * this.hpW);
-    this.playerHpBar.fillColor = r > 0.5 ? 0x44cc44 : r > 0.25 ? 0xddcc00 : 0xcc4444;
+    this.playerHpBar.fillColor = hpColor(r);
     this.playerHpText.setText(`${this.player.hp}/${this.player.maxHp}`);
   }
 }

@@ -190,8 +190,6 @@ export class PokemonLeagueScene extends Phaser.Scene {
 
   create() {
 
-    // Ambient hall theme — but not when we're about to run the Hall of Fame ceremony.
-    if (!this.registry.get('leagueHallOfFamePending')) playBgm(this, 'leagueinterior');
     this.cutsceneActive = false; this.walkFrame = 0; this.walkTimer = 0;
     this.input.keyboard?.resetKeys();
 
@@ -213,6 +211,14 @@ export class PokemonLeagueScene extends Phaser.Scene {
       this.floor = Phaser.Math.Clamp(Math.floor(savedFloor), 1, 5);
     }
     this.registry.set('hanbandoLeagueFloor', this.floor);
+
+    // Ambient hall theme — but on the Champion's stage play Hwangeum's approach
+    // prelude instead, so the tension builds before the fight (TrainerBattleScene
+    // then switches to the dedicated 'champion' battle BGM). Skipped while the Hall
+    // of Fame ceremony is about to run (it plays its own track).
+    if (!this.registry.get('leagueHallOfFamePending')) {
+      playBgm(this, this.floor === 5 ? 'championapproach' : 'leagueinterior');
+    }
 
     this.px = MEMBER_COL * TILE + 16; this.py = 15 * TILE + 16;
     const rx = this.registry.get('leagueReturnX') as number | undefined;

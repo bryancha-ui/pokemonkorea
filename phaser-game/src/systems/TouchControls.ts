@@ -1,4 +1,5 @@
-import { t, tr } from './i18n';
+import { t, tr, typeName } from './i18n';
+import { calculateMobileShellLayout } from './MobileShellLayout';
 // ── Mobile "dual-screen" shell + on-screen controls ──────────────────────────
 // On touch devices the page is split like a Nintendo DS: the Phaser game canvas
 // lives on the TOP screen, and a solid control DECK fills the BOTTOM screen so the
@@ -207,6 +208,55 @@ let partyLeadLayer: HTMLElement | null = null;
 let layerBeforeLeadPicker: 'control' | 'actions' | 'move' = 'control';
 let mobile = false;
 let releaseMovement: (() => void) | null = null;
+let mobileLayoutFrame = 0;
+
+/**
+ * Size the two-screen shell from the browser's *visible* viewport, like a
+ * handheld emulator. In particular, a tall phone no longer gives the deck a
+ * fixed 47% of its height: the deck follows the controls' own aspect ratio,
+ * while the 16:9 game screen receives the largest uncropped rectangle it can.
+ */
+function syncMobileLayout(): void {
+  if (!mobile || !deckEl || !gamePaneEl) return;
+  const deck = deckEl;
+  const gamePane = gamePaneEl;
+  if (mobileLayoutFrame) cancelAnimationFrame(mobileLayoutFrame);
+  mobileLayoutFrame = requestAnimationFrame(() => {
+    mobileLayoutFrame = 0;
+    const viewport = window.visualViewport;
+    const layout = calculateMobileShellLayout(
+      viewport?.width ?? window.innerWidth,
+      viewport?.height ?? window.innerHeight,
+      immersiveView,
+    );
+    const {
+      viewportWidth: vw, viewportHeight: vh, portrait, direction,
+      gameWidth, gameHeight, deckWidth, deckHeight,
+    } = layout;
+
+    document.body.style.height = `${vh}px`;
+    document.body.style.flexDirection = direction;
+    gamePane.style.width = `${Math.round(gameWidth)}px`;
+    gamePane.style.height = `${Math.round(gameHeight)}px`;
+    gamePane.style.flexBasis = `${Math.round(direction === 'row' ? gameWidth : gameHeight)}px`;
+    deck.style.width = immersiveView ? '0px' : `${Math.round(deckWidth)}px`;
+    deck.style.height = immersiveView ? '0px' : `${Math.round(deckHeight)}px`;
+    deck.style.flexBasis = immersiveView
+      ? '0px'
+      : `${Math.round(direction === 'row' ? deckWidth : deckHeight)}px`;
+    deck.style.borderTop = direction === 'column' ? '3px solid #33406a' : '0';
+    deck.style.borderLeft = direction === 'row' ? '3px solid #33406a' : '0';
+    deck.dataset.layout = portrait ? 'portrait' : 'landscape';
+    deck.dataset.viewport = `${vw}x${vh}`;
+    updateUnit();
+
+    // Phaser watches resize, but visualViewport can change without a window
+    // resize when mobile browser chrome expands/collapses.
+    window.dispatchEvent(new CustomEvent('pokemonkorea:mobile-layout', {
+      detail: { width: vw, height: vh, portrait, direction, gameWidth, gameHeight, deckWidth, deckHeight },
+    }));
+  });
+}
 
 /**
  * PES-style drag joystick. Sliding around the disc continuously changes the
@@ -362,7 +412,7 @@ export function setupMobileShell(force = false): { parent: HTMLElement | undefin
   // Body becomes a vertical split: game pane on top, control deck below.
   document.body.style.cssText =
     'margin:0;padding:0;background:#000;display:flex;flex-direction:column;' +
-    'height:100vh;height:100dvh;width:100vw;overflow:hidden;' +
+    'justify-content:center;align-items:center;height:100vh;height:100dvh;width:100vw;overflow:hidden;' +
     'font-family:system-ui,-apple-system,sans-serif;touch-action:none;overscroll-behavior:none;';
 
   // Safari-specific safety net: prevent double-tap and pinch gestures from
@@ -378,18 +428,20 @@ export function setupMobileShell(force = false): { parent: HTMLElement | undefin
   // The game (play screen) takes the MAJORITY of the height so it always reads
   // larger than the control deck below it; the 16:9 canvas fits to width within it.
   gamePane.style.cssText =
-    'position:relative;width:100vw;flex:1 1 auto;min-height:0;' +
+    'position:relative;flex:0 0 auto;min-width:0;min-height:0;' +
     'background:#000;overflow:hidden;';
   gamePaneEl = gamePane;
 
   deckEl = document.createElement('div');
   deckEl.id = 'deck';
-  // The control deck is a capped minority of the screen (always shorter than the
-  // game pane), so the playfield stays dominant.
+  // Exact dimensions are calculated by syncMobileLayout(). Keeping this element
+  // aspect-correct makes --u fill both axes, eliminating the huge dead space that
+  // a fixed 47vh deck produced on tall phones.
   deckEl.style.cssText =
-    'position:relative;flex:0 0 47vh;height:47vh;max-height:47vh;width:100vw;min-height:0;--u:24px;' +
+    'position:relative;flex:0 0 auto;min-width:0;min-height:0;--u:24px;' +
     'background:linear-gradient(#141a2e,#0b0f1e);border-top:3px solid #33406a;' +
-    'box-shadow:inset 0 3px 8px rgba(0,0,0,0.5);touch-action:none;';
+    'box-shadow:inset 0 3px 8px rgba(0,0,0,0.5),0 14px 38px rgba(0,0,0,0.36);' +
+    'touch-action:none;box-sizing:border-box;overflow:hidden;';
 
   buildControlLayer();
   buildBattleActionLayer();
@@ -418,7 +470,8 @@ export function setupMobileShell(force = false): { parent: HTMLElement | undefin
     'color:#0b0f1e;background:#ffe88a;border:none;border-radius:10px;">Play in portrait anyway</button>';
   document.body.append(rotateHint);
   const syncHint = () => {
-    const portrait = window.innerHeight > window.innerWidth;
+    const viewport = window.visualViewport;
+    const portrait = (viewport?.height ?? window.innerHeight) > (viewport?.width ?? window.innerWidth);
     rotateHint.style.display = (portrait && !hintDismissed && !immersiveView) ? 'flex' : 'none';
   };
   rotateHint.querySelector('#rotate-hint-dismiss')!.addEventListener('click', (e) => {
@@ -428,11 +481,14 @@ export function setupMobileShell(force = false): { parent: HTMLElement | undefin
   window.addEventListener('resize', syncHint);
   window.addEventListener('orientationchange', () => setTimeout(syncHint, 150));
 
-  // Keep the sizing unit in step with the deck's real size across rotate / fold / resize.
-  updateUnit();
+  // Keep the emulator shell and its sizing unit in step with rotate, folds,
+  // split-screen, and Safari's expanding/collapsing browser chrome.
+  syncMobileLayout();
   if ('ResizeObserver' in window) new ResizeObserver(updateUnit).observe(deckEl);
-  window.addEventListener('resize', updateUnit);
-  window.addEventListener('orientationchange', () => setTimeout(updateUnit, 150));
+  window.addEventListener('resize', syncMobileLayout);
+  window.visualViewport?.addEventListener('resize', syncMobileLayout);
+  window.visualViewport?.addEventListener('scroll', syncMobileLayout);
+  window.addEventListener('orientationchange', () => setTimeout(syncMobileLayout, 150));
   return { parent: gamePane, mobile: true };
 }
 
@@ -443,10 +499,10 @@ export function deckSetImmersiveView(enabled: boolean): void {
   if (!mobile || !deckEl || !gamePaneEl) return;
   immersiveView = enabled;
   deckEl.style.display = enabled ? 'none' : 'block';
-  gamePaneEl.style.flex = enabled ? '1 1 100%' : '1 1 auto';
   if (rotateHintEl && enabled) rotateHintEl.style.display = 'none';
+  syncMobileLayout();
   // Phaser's Scale Manager listens for viewport changes, not sibling display
-  // changes. A resize event makes it immediately refit the canvas to the pane.
+  // changes. Refit after the calculated pane dimensions have landed.
   requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
 }
 
@@ -706,12 +762,14 @@ export function deckShowMoves(moves: DeckMove[], onPick: (i: number) => void, on
       `background:${dim ? 'rgba(40,40,50,0.85)' : 'rgba(24,30,54,0.95)'};opacity:${dim ? 0.5 : 1};` +
       // Fonts are clamped so they never blow up on big/unfolded screens; the name wraps
       // instead of overflowing, and nothing gets clipped.
-      'line-height:1.1;padding:clamp(3px,calc(var(--u)*0.3),12px);text-align:center;overflow:visible;';
+      'line-height:1.1;padding:clamp(3px,calc(var(--u)*0.3),12px);text-align:center;overflow:hidden;box-sizing:border-box;';
     // Type + PP share one line so a cell needs only two rows of text — on short
     // landscape decks three rows overflowed the cell box, clipping the last line.
     cell.innerHTML =
       `<div style="font-weight:800;font-size:clamp(13px,calc(var(--u)*0.85),22px);line-height:1.05;word-break:break-word;overflow-wrap:anywhere">${tr(m.data.name).toUpperCase()}</div>` +
-      `<div style="font-size:clamp(9px,calc(var(--u)*0.55),14px);margin-top:clamp(2px,calc(var(--u)*0.2),8px)"><span style="color:${col}">${m.data.type.toUpperCase()}</span><span style="color:#cbd3e6"> · PP ${m.pp}/${m.data.pp}</span></div>`;
+      `<div style="max-width:100%;display:flex;align-items:center;justify-content:center;gap:clamp(3px,calc(var(--u)*0.2),8px);font-size:clamp(9px,calc(var(--u)*0.55),14px);margin-top:clamp(2px,calc(var(--u)*0.2),8px);white-space:nowrap;overflow:hidden">` +
+      `<span style="display:block;min-width:0;max-width:58%;overflow:hidden;text-overflow:ellipsis;color:#fff;background:${col};border-radius:999px;padding:1px 6px">${typeName(m.data.type)}</span>` +
+      `<span style="display:block;min-width:0;color:#cbd3e6;overflow:hidden;text-overflow:ellipsis">PP ${m.pp}/${m.data.pp}</span></div>`;
     if (!dim) bindTap(cell, () => {
       if (!moveInputReady) return;
       onPick(i);

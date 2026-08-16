@@ -208,3 +208,7 @@ for (const cb of CUSTOM) {
 
 export function customForm(key: string): CustomForm | undefined { return FORMS[key]; }
 export function isCustomKey(key: string): boolean { return key in FORMS; }
+/** Evolution/body-size tier used only to keep authored 2D battle art in scale. */
+export function customPokemonStage(key: string): number | undefined {
+  return CUSTOM.find(entry => entry.key === key.toLowerCase())?.stage;
+}

@@ -1,3 +1,5 @@
+import { customPokemonStage } from './CustomBattle';
+
 /**
  * Battle display-size multiplier for physically-large Pokémon. All sprites are
  * normally fit to the same on-screen size; these get scaled up so leviathans,
@@ -37,7 +39,8 @@ export const SPRITE_SCALE: Record<string, number> = {
   scorpent:     1.35,
   munklift:     1.35,
   onnujang:     1.35,
-  pipetiger:     0.675, // 1.35 × 0.5 — halve Pipe Tiger's battle size
+  pipetiger:     1.2,   // flame-king tiger: its 3D GLB frequently falls back to 2D,
+                        //                   and the old 0.675 made that fallback tiny
   tyranitar:     1.45,
   garchomp:      1.45,
   palmcockatoo: 2.2,   // large crest/body; clears the 3D size-bias floor visibly
@@ -68,18 +71,70 @@ const NUMERIC_SPECIES_SCALE: Record<number, number> = {
   699: 1.50,  // Aurorus (아마루르가)
 };
 
+/** Real-species height (decimetres) registered as PokéAPI species are fetched, so
+ *  API Pokémon can be sized to roughly their real-world scale instead of all
+ *  sharing one flat fit. Populated by data/PokeAPI.ts. */
+const SPECIES_HEIGHT_DM = new Map<number, number>();
+export function registerSpeciesHeight(id: number, heightDm: number): void {
+  if (id > 0 && heightDm > 0) SPECIES_HEIGHT_DM.set(id, heightDm);
+}
+
+/** Compress a real height (metres) into a battle-size multiplier. A ~1 m Pokémon
+ *  sits near 1.15 (a small readability lift so API mons aren't dwarfed by the
+ *  authored roster); giants and tiny bugs fan out around it on a gentle curve,
+ *  clamped so a stray leviathan can't overflow the stage. Species with an explicit
+ *  NUMERIC_SPECIES_SCALE entry keep that authored value instead. */
+function heightScale(heightM: number): number {
+  return Math.min(1.7, Math.max(0.9, 1.15 * Math.pow(heightM, 0.4)));
+}
+
 /** Display-size multiplier for a battle sprite key (default 1). */
 export function spriteScale(key: string | undefined): number {
   if (!key) return 1;
   const authored = SPRITE_SCALE[key];
   if (authored) return authored;
   const numeric = key.match(/(?:^|[-_])(\d+)$/)?.[1];
-  return numeric ? (NUMERIC_SPECIES_SCALE[Number(numeric)] ?? 1) : 1;
+  if (!numeric) return 1;
+  const id = Number(numeric);
+  if (NUMERIC_SPECIES_SCALE[id]) return NUMERIC_SPECIES_SCALE[id];
+  const dm = SPECIES_HEIGHT_DM.get(id);
+  return dm ? heightScale(dm / 10) : 1;
 }
 
 /** Small readability lift for authored 2D Pokémon art in battle and hatch UI. */
 export const BATTLE_2D_SPRITE_BOOST = 1.1;
 
+// 2D-only sizing keeps small first forms compact and lets final/legendary
+// silhouettes carry the same visual authority as real-species artwork. These
+// values do not alter a shipped GLB's normalized 3D height.
+const CUSTOM_STAGE_2D_SCALE: Readonly<Record<number, number>> = {
+  1: 0.90,
+  2: 1.08,
+  3: 1.24,
+  4: 1.38,
+};
+
+const BATTLE_2D_OVERRIDES: Readonly<Record<string, number>> = {
+  // The high-resolution fallback has a tall, narrow silhouette and read too
+  // small beside the final-stage starter models.
+  banderado: 1.44,
+  // Orchard matriarch: preserve her broad crown/robe at final-stage scale.
+  secommamma: 1.30,
+};
+
+function canonicalSpriteKey(key: string): string {
+  return key.toLowerCase().replace(/^(wild|enemy|foe|ally|player|te)-/, '');
+}
+
 export function battle2DSpriteScale(key: string | undefined): number {
-  return spriteScale(key) * BATTLE_2D_SPRITE_BOOST;
+  if (!key) return BATTLE_2D_SPRITE_BOOST;
+  const canonical = canonicalSpriteKey(key);
+  const override = BATTLE_2D_OVERRIDES[canonical];
+  if (override) return override * BATTLE_2D_SPRITE_BOOST;
+  // Existing hand-tuned exceptions (tiny spirits, leviathans, bosses, etc.)
+  // take priority over the general evolution-stage curve.
+  if (SPRITE_SCALE[canonical]) return SPRITE_SCALE[canonical] * BATTLE_2D_SPRITE_BOOST;
+  const stage = customPokemonStage(canonical);
+  const stageScale = stage ? CUSTOM_STAGE_2D_SCALE[stage] : undefined;
+  return (stageScale ?? spriteScale(key)) * BATTLE_2D_SPRITE_BOOST;
 }

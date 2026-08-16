@@ -7,6 +7,8 @@ const BACKUP_KEY = 'pokemon_korea_v2_backup';
 const AUTO_SAVE_SETTING_KEY = 'pokemon_korea_auto_save_v1';
 const DURABLE_DB = 'pokemon_korea_saves';
 const DURABLE_STORE = 'slots';
+const PLAY_TIME_KEY = 'playTimeMs';
+const PLAY_SESSION_STARTED_KEY = '_playSessionStartedAt';
 
 function openDurableDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -108,6 +110,7 @@ const TRANSIENT = new Set<string>([
   'trainerBadgeFlag', 'trainerBadgeName', 'trainerBadgeTM', 'trainerWinLine',
   'bagFocusItem',
   '_teKey',
+  PLAY_SESSION_STARTED_KEY,
 ]);
 
 export interface SaveData {
@@ -124,6 +127,22 @@ export interface SaveData {
 }
 
 export const SaveManager = {
+
+  /** Start a fresh real-time segment without discarding the saved total. */
+  beginPlaySession(registry: Phaser.Data.DataManager): void {
+    registry.set(PLAY_SESSION_STARTED_KEY, Date.now());
+  },
+
+  /** Current accumulated play time, including the unsaved part of this session. */
+  playTimeMs(registry: Phaser.Data.DataManager): number {
+    const saved = Math.max(0, Number(registry.get(PLAY_TIME_KEY)) || 0);
+    let started = Number(registry.get(PLAY_SESSION_STARTED_KEY));
+    if (!Number.isFinite(started) || started <= 0 || started > Date.now()) {
+      started = Date.now();
+      registry.set(PLAY_SESSION_STARTED_KEY, started);
+    }
+    return saved + Math.max(0, Date.now() - started);
+  },
 
   /** Auto-save is an install-wide preference, not part of a run. Keeping it
    *  outside SaveData means New Game and backup restore do not reset it. */
@@ -174,6 +193,11 @@ export const SaveManager = {
     // The Commander Ryeo popup is an isolated rehearsal. Never let its copied
     // party, battle damage, rewards, or debug flags reach the real save slot.
     if (registry.get('ryeoBattleTest') || registry.get('sceneFlowTest')) return false;
+    // Commit the current session segment before taking the registry snapshot.
+    // The private segment start is transient; only the durable total is saved.
+    const totalPlayTime = this.playTimeMs(registry);
+    registry.set(PLAY_TIME_KEY, totalPlayTime);
+    registry.set(PLAY_SESSION_STARTED_KEY, Date.now());
     const leaderboardSnapshot = LeaderboardProgress.sync(registry);
     // Remember the current resumable scene/position so menu/battle saves (which
     // don't know the scene) can record it correctly instead of defaulting to WorldMap.
@@ -257,6 +281,7 @@ export const SaveManager = {
       registry.set(data.scene + 'ReturnX', data.px);
       registry.set(data.scene + 'ReturnY', data.py);
     }
+    this.beginPlaySession(registry);
   },
 
   exists(): boolean {

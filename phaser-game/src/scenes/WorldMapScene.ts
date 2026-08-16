@@ -8,6 +8,7 @@ import { DialogBox } from '../ui/DialogBox';
 import { findForm } from '../data/StarterData';
 import { SaveManager } from '../utils/SaveManager';
 import { maybeLaunchEvolution } from '../systems/EvolutionSystem';
+import { mountQuestHint } from '../systems/QuestGuide';
 
 // ── Tile types ────────────────────────────────────────────────────────────────
 const T = {
@@ -561,6 +562,10 @@ export class WorldMapScene extends Phaser.Scene {
 
   // ── UI ────────────────────────────────────────────────────────────────────
   private createUI() {
+    // Top-left objective guide for the opening tutorial (self-hides once a starter
+    // is chosen, so it never shows during the post-game finale).
+    mountQuestHint(this);
+
     // Controls hint
     this.add.text(8, 480, tr('WASD/Arrows  |  SPACE: enter  |  SHIFT: run  |  M: menu'), {
       fontSize: '11px', color: '#cccccc', backgroundColor: '#00000099', padding: { x: 6, y: 3 },

@@ -8,10 +8,12 @@ import { CreatureAnimator, MoveCategory } from './CreatureAnimator';
 import { measureCommands } from './GraphicsRaster';
 import { getModel, hasModel, isRenderableModel, modelLoadStatus, primeManifest } from './GlbModels';
 import { MoveFX3D } from './MoveFX3D';
-import { makeBlobShadow } from './Props';
+import { makeBlobShadow, makePokeBallProp } from './Props';
+import { ROUTINE_LENGTH, sampleChampionIntro } from './ChampionChoreo';
 import { spriteScale } from '../data/SpriteScale';
 import { battleFallbackSprite } from '../data/BattleFallbackSprites';
 import { EnvProfile, ThreeStage } from './ThreeStage';
+import { BATTLE_PACING } from '../systems/BattlePacing';
 
 // ── Battle mirror ────────────────────────────────────────────────────────────
 // Turns the existing 2D battle scenes into a cinematic 3D arena without
@@ -51,6 +53,13 @@ interface Combatant {
   fainted: boolean;
   chargeLift: number;
   chargeTarget: number;
+  /** Grace window between a two-turn move's release message and its attack FX.
+   *  Airborne users stay aloft during this hand-off instead of snapping down. */
+  releaseHold: number;
+  /** Holder-level Fly path, shared by GLB battlers and projected 2D fallbacks. */
+  flight: FlightStrike | null;
+  flightTilt: number;
+  flightScale: number;
   /** texture signature — rebuilt when the game swaps the sprite's texture
    *  (async PokeAPI art arriving, party switches). */
   texSig: string;
@@ -107,6 +116,12 @@ function battleSizeOverride(textureKey: string): number {
 
 // Battle trainers share their side's Pokémon anchor, then retire when the
 // portrait alpha fades for the send-out. Rival trainers walk in from behind.
+// A Poké Ball is a fist-sized object. The held ball is parented inside the
+// figure (which spawnTrainer scales by 1.6), the thrown one is in world space —
+// these two numbers are the same real size expressed in those two spaces.
+const HELD_BALL_SCALE = 0.38;
+const FLIGHT_BALL_SCALE = 0.6;
+
 const TRAINER_START = {
   player: new THREE.Vector3(-3.35, 0, 3.05),
   enemy: new THREE.Vector3(3.4, 0, -4.7),
@@ -123,6 +138,12 @@ interface TrainerWalker {
   side: 'player' | 'enemy';
   start: THREE.Vector3;
   end: THREE.Vector3;
+  /** Champions run a keyframed stage routine instead of the walk cycle. */
+  choreo: boolean;
+  choreoT: number;
+  threwBall: boolean;
+  /** The ball rides his hand through the windup, then detaches at release. */
+  heldBall: THREE.Group | null;
 }
 
 interface Pinned2DTrainer {
@@ -143,6 +164,15 @@ interface ChargeFxRequest {
   target: GO;
   phase: 'charge' | 'release';
   mode: 'air' | 'underground' | 'charge';
+  moveName?: string;
+  cancelled?: boolean;
+}
+
+interface FlightStrike {
+  t: number;
+  dur: number;
+  startLift: number;
+  impact: THREE.Vector3;
 }
 
 export class BattleMirror {
@@ -152,6 +182,10 @@ export class BattleMirror {
   private root: THREE.Group;
   private combatants = new Map<GO, Combatant>();
   private trainers: TrainerWalker[] = [];
+  private balls3D: {
+    mesh: THREE.Group; from: THREE.Vector3; to: THREE.Vector3; t: number; dur: number;
+    arc: number; spinAxis: THREE.Vector3; trail: THREE.Mesh[]; trailAt: number;
+  }[] = [];
   private pinned2DTrainers = new Map<GO & Phaser.GameObjects.Image, Pinned2DTrainer>();
   private hiddenBackdrops = new Set<GO>();
   // Phaser adds factory-created objects to the display list before the caller's
@@ -185,14 +219,42 @@ export class BattleMirror {
     stage.setEnvironment(this.buildArena());
     rig.setMode('battle');
     this.fx = new MoveFX3D(this.root);
-    this.onMoveFx = (d) => this.handleMoveFx(d);
+    this.onMoveFx = (d) => {
+      // Give the move callout a brief anticipation beat before the visible
+      // action, matching the cadence of the production battle reference.
+      scene.time.delayedCall(BATTLE_PACING.effectWindupMs, () => this.handleMoveFx(d));
+    };
     this.onScreenTarget = (d) => this.projectCombatantToScreen(d);
     this.onChargeFx = (d) => {
       const cb = this.combatants.get(d.target);
       if (!cb) return;
-      cb.chargeTarget = d.phase === 'release' ? 0
-        : d.mode === 'air' ? 2.8 : d.mode === 'underground' ? -0.65 : 0.75;
-      if (d.phase === 'charge') this.rig.focusOn(cb.holder.position, 0.65);
+      const moveKey = (d.moveName ?? '').toLowerCase().replace(/-/g, ' ').trim();
+      if (d.phase === 'charge') {
+        cb.flight = null;
+        cb.releaseHold = 0;
+        cb.chargeTarget = d.mode === 'air' ? 2.9 : d.mode === 'underground' ? -0.65 : 0.75;
+        const focus = cb.holder.position.clone();
+        if (d.mode === 'air') {
+          focus.y += 1.9;
+          this.fx.flyTakeoff(cb.holder.position.clone(), cb.targetH);
+        }
+        this.rig.focusOn(focus, 0.78);
+        return;
+      }
+
+      if (d.cancelled || d.mode !== 'air') {
+        cb.releaseHold = 0;
+        cb.chargeTarget = 0;
+        return;
+      }
+
+      // Fly's release message precedes playMoveFX by 300 ms. Keep the user at
+      // altitude across that gap; handleMoveFx replaces this hold with the dive.
+      // The timeout is also a safe landing path when the released move misses.
+      cb.chargeTarget = Math.max(2.9, cb.chargeLift);
+      cb.releaseHold = 0.9;
+      if (moveKey === 'fly') this.fx.flyWindup(cb.holder.position.clone(), cb.targetH);
+      this.rig.focusOn(cb.holder.position, 0.72);
     };
     scene.events.on('pk3d-movefx', this.onMoveFx);
     scene.events.on('pk3d-screen-target', this.onScreenTarget);
@@ -270,6 +332,18 @@ export class BattleMirror {
     const moveKey = (d.moveName ?? '').toLowerCase().replace(/-/g, ' ').trim();
     const isCloseCombat = category === 'physical' && moveKey === 'close combat';
 
+    if (category === 'physical' && moveKey === 'fly') {
+      this.startFlightStrike(atk, tgt);
+      atk.anim?.flightAttack(dir, powerScale);
+      this.rig.focusOn(atk.holder.position, 0.86);
+      this.fx.flyDive(from, to, d.color, d.power ?? 90, d.effectiveness, () => {
+        tgt.anim?.hit(d.effectiveness > 1 ? 1.42 : 1.12);
+        this.rig.focusOn(tgt.holder.position, 0.94);
+        this.rig.addShake((d.effectiveness > 1 ? 0.92 : 0.68));
+      });
+      return;
+    }
+
     if (isCloseCombat) {
       atk.anim?.comboAttack(dir, powerScale);
       this.rig.focusOn(tgt.holder.position, 0.9);
@@ -338,6 +412,100 @@ export class BattleMirror {
     } else {
       // Status move: a layered type aura on the user, no fake projectile.
       this.fx.statusAura(atk.holder.position.clone(), d.moveType ?? 'normal', d.moveName ?? 'Status', d.color);
+    }
+  }
+
+  /** Begin the cinematic holder-level Fly path. Holder motion is deliberate:
+   *  Woonsa and other custom species often use a projected 2D fallback, while
+   *  production species use GLBs. Moving their common anchor keeps both paths
+   *  on the same ascent, dive, contact and landing beats. */
+  private startFlightStrike(attacker: Combatant, target: Combatant): void {
+    const origin = ANCHORS[attacker.side][attacker.slot];
+    const targetAt = target.holder.position.clone();
+    const impact = origin.clone().lerp(targetAt, 0.84);
+    impact.y = 0.22;
+    attacker.flight = {
+      t: 0,
+      dur: 1.1,
+      startLift: Math.max(2.65, attacker.chargeLift),
+      impact,
+    };
+    attacker.chargeLift = attacker.flight.startLift;
+    attacker.chargeTarget = 0;
+    attacker.releaseHold = 0;
+  }
+
+  /** Resolve charge and Fly root motion before either GLB rendering or fallback
+   *  projection. Previously this ran only below the `!cb.glb` early return,
+   *  which is why Woonsa visibly stayed on the ground. */
+  private updateCombatantStageMotion(cb: Combatant, dt: number): void {
+    const anchor = ANCHORS[cb.side][cb.slot];
+    cb.holder.position.copy(anchor);
+
+    if (cb.releaseHold > 0 && !cb.flight) {
+      cb.releaseHold = Math.max(0, cb.releaseHold - dt);
+      if (cb.releaseHold === 0) cb.chargeTarget = 0;
+    }
+
+    const flight = cb.flight;
+    if (!flight) {
+      cb.chargeLift += (cb.chargeTarget - cb.chargeLift) * (1 - Math.exp(-8 * dt));
+      if (Math.abs(cb.chargeLift) < 0.002 && cb.chargeTarget === 0) cb.chargeLift = 0;
+      cb.holder.position.y = cb.chargeLift;
+      cb.flightTilt = 0;
+      cb.flightScale = 1;
+      return;
+    }
+
+    flight.t = Math.min(flight.dur, flight.t + dt);
+    const k = flight.t / flight.dur;
+    const forward = flight.impact.clone().sub(anchor).setY(0);
+    if (forward.lengthSq() < 1e-6) forward.set(cb.side === 'player' ? 1 : -1, 0, 0);
+    forward.normalize();
+    const side = new THREE.Vector3(-forward.z, 0, forward.x);
+    const tiltSign = cb.side === 'player' ? 1 : -1;
+
+    if (k < 0.16) {
+      const gather = k / 0.16;
+      const pulse = Math.sin(gather * Math.PI);
+      cb.holder.position.y = flight.startLift + pulse * 0.24;
+      cb.holder.position.addScaledVector(side, Math.sin(gather * Math.PI * 2) * 0.08);
+      cb.flightTilt = tiltSign * pulse * 5;
+      cb.flightScale = 1 + pulse * 0.045;
+    } else if (k < 0.58) {
+      const local = (k - 0.16) / 0.42;
+      const travel = local * local * (3 - 2 * local);
+      cb.holder.position.lerpVectors(anchor, flight.impact, travel);
+      cb.holder.position.y = THREE.MathUtils.lerp(flight.startLift, flight.impact.y, travel)
+        + Math.sin(local * Math.PI) * 0.12;
+      cb.holder.position.addScaledVector(side, Math.sin(local * Math.PI) * 0.17);
+      cb.flightTilt = tiltSign * (8 + travel * 13);
+      cb.flightScale = 1 + Math.sin(local * Math.PI) * 0.07;
+    } else if (k < 0.72) {
+      const recoil = (k - 0.58) / 0.14;
+      const pop = Math.sin(recoil * Math.PI);
+      cb.holder.position.copy(flight.impact).addScaledVector(forward, -pop * 0.32);
+      cb.holder.position.y = flight.impact.y + pop * 0.44;
+      cb.flightTilt = tiltSign * (21 * (1 - recoil) - pop * 8);
+      cb.flightScale = 1 + pop * 0.1;
+    } else {
+      const local = (k - 0.72) / 0.28;
+      const recover = 1 - Math.pow(1 - local, 3);
+      cb.holder.position.lerpVectors(flight.impact, anchor, recover);
+      cb.holder.position.y = THREE.MathUtils.lerp(flight.impact.y, 0, recover)
+        + Math.sin(local * Math.PI) * 0.62;
+      cb.flightTilt = -tiltSign * Math.sin(local * Math.PI) * 9;
+      cb.flightScale = 1 + Math.sin(local * Math.PI) * 0.035;
+    }
+
+    this.rig.focusOn(k < 0.58 ? cb.holder.position : flight.impact, k < 0.58 ? 0.42 : 0.56);
+    if (flight.t >= flight.dur) {
+      cb.flight = null;
+      cb.chargeLift = 0;
+      cb.chargeTarget = 0;
+      cb.flightTilt = 0;
+      cb.flightScale = 1;
+      cb.holder.position.copy(anchor);
     }
   }
 
@@ -419,6 +587,7 @@ export class BattleMirror {
         modelKey ?? im.texture.key,
         !!trainerDesign,
         trainerAtPlayer ? 'player' : 'enemy',
+        !!(im as Phaser.GameObjects.Image).getData?.('battleChoreo'),
       );
       return;
     }
@@ -477,6 +646,10 @@ export class BattleMirror {
       fainted: false,
       chargeLift: 0,
       chargeTarget: 0,
+      releaseHold: 0,
+      flight: null,
+      flightTilt: 0,
+      flightScale: 1,
       texSig: `${im.texture.key}:${im.frame?.name ?? 0}`,
       fallback2D: true,
       fallbackSprite: null,
@@ -594,7 +767,10 @@ export class BattleMirror {
 
     const camera = this.stage.camera;
     camera.updateMatrixWorld();
-    const feet = this.projectionPoint.copy(ANCHORS[cb.side][cb.slot]).project(camera);
+    // The holder carries two-turn ascent and Fly's full dive path. Project that
+    // live position (not the static arena anchor) so custom 2D battlers such as
+    // Woonsa visibly follow exactly the same motion as GLB battlers.
+    const feet = this.projectionPoint.copy(cb.holder.position).project(camera);
     if (!Number.isFinite(feet.x) || !Number.isFinite(feet.y) || feet.z < -1 || feet.z > 1) {
       im.setVisible(false);
       return;
@@ -604,10 +780,10 @@ export class BattleMirror {
     // sprite has a different source resolution or aspect ratio from HQ art.
     const sourceExtent = Math.max(Math.abs(source.displayWidth ?? 0), Math.abs(source.displayHeight ?? 0));
     const frameExtent = Math.max(1, im.frame.realWidth || im.width, im.frame.realHeight || im.height);
-    im.setScale(sourceExtent / frameExtent)
+    im.setScale((sourceExtent / frameExtent) * cb.flightScale)
       .setFlipX(!!source.flipX)
       .setFlipY(!!source.flipY)
-      .setAngle(source.angle ?? 0)
+      .setAngle((source.angle ?? 0) + cb.flightTilt)
       .setAlpha(source.alpha ?? 1)
       .setVisible(source.visible !== false && (source.alpha ?? 1) > 0.001);
 
@@ -663,6 +839,7 @@ export class BattleMirror {
     modelKey: string,
     walkIn: boolean,
     side: 'player' | 'enemy',
+    choreo = false,
   ): void {
     if (this.trainers.some(w => w.obj === im)) return;
     const model = buildCharacterModel(modelKey, design);
@@ -677,6 +854,7 @@ export class BattleMirror {
     this.trainers.push({
       obj: im, model, group: holder, t: walkIn ? 0 : 1,
       phase: 0, seen: false, walkIn, side, start, end,
+      choreo: choreo && !!model.setChoreo, choreoT: 0, threwBall: false, heldBall: null,
     });
     // The flat 2D portrait stays off the render layer while the 3D walker plays;
     // its alpha tween still drives the walk-in / retirement.
@@ -698,6 +876,36 @@ export class BattleMirror {
         this.trainers.splice(i, 1);
         continue;
       }
+      // A choreographed trainer (the Champion's opening routine) drives its
+      // limbs from the keyframe track instead of the procedural walk cycle.
+      if (w.choreo && visible) {
+        const prev = w.choreoT;
+        w.choreoT += dt;
+        const { pose, release, ballInHand, done } = sampleChampionIntro(w.choreoT, prev);
+        const toFoe = this.facingVector
+          .copy(ANCHORS[w.side === 'player' ? 'enemy' : 'player'][0]).sub(w.end);
+        w.model.face(toFoe.x, toFoe.z, dt);
+        w.model.setChoreo?.(pose);
+        // The ball is a real object in his grip for the whole windup, so the
+        // throw starts from something the eye has already been tracking.
+        if (ballInHand && !w.heldBall && !w.threwBall) this.attachBall(w);
+        // Push the camera in for the throw. At the default battle framing he is
+        // barely 120px tall, and no amount of keyframe work reads at that size.
+        // Re-asserted every frame because focus decays on its own.
+        if (w.choreoT > 2.55 && w.choreoT < 4.05) {
+          this.rig.focusOn(
+            this.projectionPoint.copy(w.group.position).setY(w.group.position.y + 1.25),
+            1,
+          );
+        }
+        if (release && !w.threwBall) {
+          w.threwBall = true;
+          this.launchBall3D(w);
+          this.rig.addShake(0.35);      // the effort lands in the frame
+        }
+        if (done) w.choreo = false;      // hand back to the idle/walk rig
+        continue;
+      }
       if (visible && w.walkIn) w.t = Math.min(1, w.t + dt / 1.5);
       const e = 1 - Math.pow(1 - w.t, 3);       // easeOutCubic
       w.group.position.x = THREE.MathUtils.lerp(w.start.x, w.end.x, e);
@@ -710,6 +918,106 @@ export class BattleMirror {
         ? this.facingVector.copy(w.end).sub(w.start)
         : this.facingVector.copy(ANCHORS[w.side === 'player' ? 'enemy' : 'player'][0]).sub(w.end);
       w.model.face(facing.x, facing.z, dt);
+    }
+  }
+
+  /** Put the ball in his hand for the windup. Parenting it to the forearm means
+   *  it inherits the whole coil for free — no separate animation to keep in
+   *  sync with the arm. */
+  private attachBall(w: TrainerWalker): void {
+    const hand = w.model.rightHandAttach?.();
+    if (!hand) return;
+    const ball = makePokeBallProp();
+    ball.scale.setScalar(HELD_BALL_SCALE);
+    ball.position.set(0, -0.15, 0.03);      // sitting in the palm
+    hand.add(ball);
+    w.heldBall = ball;
+  }
+
+  /** Release: hand the ball from the grip to the world and let it fly. The
+   *  release point and direction are read from where the hand actually IS at
+   *  that frame, so the trajectory always agrees with the pose that threw it. */
+  private launchBall3D(w: TrainerWalker): void {
+    const from = new THREE.Vector3();
+    if (w.heldBall) {
+      w.heldBall.getWorldPosition(from);
+      w.heldBall.removeFromParent();
+    } else if (w.model.rightHandWorld) {
+      w.model.rightHandWorld(from);
+    } else {
+      from.copy(w.group.position).add(new THREE.Vector3(0, 1.15, 0));
+    }
+    const ball = w.heldBall ?? makePokeBallProp();
+    ball.scale.setScalar(FLIGHT_BALL_SCALE);
+    ball.position.copy(from);
+    this.root.add(ball);
+    w.heldBall = null;
+
+    const to = ANCHORS[w.side][0].clone();
+    const dist = from.distanceTo(to);
+    // A hard, flat throw: arc scales with distance but stays low, and the whole
+    // flight is short. Lofting it would undo the snap of the release.
+    const travel = this.facingVector.copy(to).sub(from).normalize();
+    const spinAxis = new THREE.Vector3().crossVectors(travel, new THREE.Vector3(0, 1, 0)).normalize();
+    this.balls3D.push({
+      mesh: ball, from, to, t: 0,
+      dur: THREE.MathUtils.clamp(dist * 0.095, 0.42, 0.62),
+      // A visible arc matters more than a realistic one: the throw runs nearly
+      // along the camera axis, so without loft the ball barely moves on screen.
+      arc: THREE.MathUtils.clamp(dist * 0.26, 0.85, 1.9),
+      spinAxis: spinAxis.lengthSq() > 0.01 ? spinAxis : new THREE.Vector3(1, 0, 0),
+      trail: [], trailAt: 0,
+    });
+  }
+
+  private updateBalls3D(dt: number): void {
+    for (let i = this.balls3D.length - 1; i >= 0; i--) {
+      const b = this.balls3D[i];
+      b.t += dt / b.dur;
+
+      // Motion trail: a short ribbon of fading ghosts. At this speed the ball
+      // would otherwise strobe across the arena in three discrete frames.
+      b.trailAt -= dt;
+      if (b.t < 1 && b.trailAt <= 0) {
+        b.trailAt = 0.016;
+        const ghost = new THREE.Mesh(
+          new THREE.SphereGeometry(0.075, 8, 6),
+          new THREE.MeshBasicMaterial({
+            color: 0xfff0c0, transparent: true, opacity: 0.5,
+            blending: THREE.AdditiveBlending, depthWrite: false,
+          }),
+        );
+        ghost.position.copy(b.mesh.position);
+        this.root.add(ghost);
+        b.trail.push(ghost);
+      }
+      for (let g = b.trail.length - 1; g >= 0; g--) {
+        const ghost = b.trail[g];
+        const mat = ghost.material as THREE.MeshBasicMaterial;
+        mat.opacity -= dt * 3.4;
+        ghost.scale.multiplyScalar(1 - dt * 2.2);
+        if (mat.opacity <= 0.02) {
+          this.root.remove(ghost);
+          ghost.geometry.dispose();
+          mat.dispose();
+          b.trail.splice(g, 1);
+        }
+      }
+
+      if (b.t >= 1) {
+        this.fx.burst(b.to.clone().setY(0.55), 0xffe9a8, 1, 0.85);
+        this.root.remove(b.mesh);
+        for (const ghost of b.trail) this.root.remove(ghost);
+        this.balls3D.splice(i, 1);
+        continue;
+      }
+
+      const k = b.t;
+      b.mesh.position.lerpVectors(b.from, b.to, k);
+      b.mesh.position.y += Math.sin(k * Math.PI) * b.arc;
+      // Spin about the axis perpendicular to travel — a thrown ball tumbles
+      // forward, it does not roll about its own heading.
+      b.mesh.rotateOnAxis(b.spinAxis, dt * 26);
     }
   }
 
@@ -753,11 +1061,13 @@ export class BattleMirror {
       }
     }
     this.time += dt;
-    this.fx.update(dt);
+    // Slow only the particles/projectiles; input, UI and camera remain crisp.
+    this.fx.update(dt * BATTLE_PACING.threeDEffectTimeScale);
     this.updateTrainers(dt);
+    this.updateBalls3D(dt);
     for (let i = this.pendingBursts.length - 1; i >= 0; i--) {
       const p = this.pendingBursts[i];
-      p.t -= dt;
+      p.t -= dt * BATTLE_PACING.threeDEffectTimeScale;
       if (p.t <= 0) {
         this.fx.physicalImpact(p.at, p.moveType, p.moveName, p.color, p.power, p.eff);
         this.rig.addShake(p.eff > 1 ? 0.7 : 0.45);
@@ -822,6 +1132,10 @@ export class BattleMirror {
           this.rejectGlbModel(cb);
         }
       }
+
+      // This must run before the fallback early return: many custom Pokémon do
+      // not ship a GLB, but still need the same charge lift and Fly trajectory.
+      this.updateCombatantStageMotion(cb, dt);
       if (!cb.glb) {
         this.fx.removePersistentStatus(cb.holder);
         if (!cb.fallback2D) this.use2DFallback(cb);
@@ -842,9 +1156,6 @@ export class BattleMirror {
       } else if (!vis) {
         cb.settleTimer = 0;
       }
-
-      const anchor = ANCHORS[cb.side][cb.slot];
-      cb.holder.position.set(anchor.x, 0, anchor.z);
 
       // Scale baseline is captured only when the sprite is SETTLED (still +
       // fully visible), so send-out/switch scale tweens read as relative
@@ -890,8 +1201,6 @@ export class BattleMirror {
       }
       cb.glb.visible = (o.alpha ?? 1) > 0.05;
 
-      cb.chargeLift += (cb.chargeTarget - cb.chargeLift) * Math.min(1, dt * 8);
-      cb.holder.position.y += cb.chargeLift;
       cb.holder.visible = (o.visible !== false) && ((o.alpha ?? 1) > 0.02);
       cb.shadow.visible = cb.holder.position.y < 0.5;
       this.fx.syncPersistentStatus(

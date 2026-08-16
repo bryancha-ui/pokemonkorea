@@ -1,5 +1,6 @@
 import { MoveData, PokemonData } from '../battle/Pokemon';
 import { PokemonType } from '../battle/TypeChart';
+import { registerSpeciesHeight } from './SpriteScale';
 
 const BASE = 'https://pokeapi.co/api/v2';
 
@@ -10,7 +11,7 @@ const BASE = 'https://pokeapi.co/api/v2';
 // round-trip. We cache results in memory (instant within a session) and mirror
 // them to localStorage (instant across reloads), so each species/move is fetched
 // from the network at most once, ever.
-const POKE_CACHE = 'pokeapi_pokemon_v3';   // v3: includes the primary ability
+const POKE_CACHE = 'pokeapi_pokemon_v4';   // v4: adds species height (real-scale battle sizing)
 const MOVE_CACHE = 'pokeapi_move_v4';   // v4 adds major-status metadata for abilities and move effects
 const SPECIES_CACHE = 'pokeapi_species_v1';
 const ABILITY_CACHE = 'pokeapi_ability_v1';
@@ -46,18 +47,18 @@ function saveDisk<T>(key: string, id: string, val: T) {
 export function cachedPokemon(idOrName: number | string): PokemonData | undefined {
   const id = String(idOrName).toLowerCase();
   const mem = pokeMem.get(id);
-  if (mem) return mem;
+  if (mem) { if (mem.heightDm) registerSpeciesHeight(mem.id, mem.heightDm); return mem; }
   const disk = loadDisk<PokemonData>(POKE_CACHE)[id];
-  if (disk) pokeMem.set(id, disk);
+  if (disk) { pokeMem.set(id, disk); if (disk.heightDm) registerSpeciesHeight(disk.id, disk.heightDm); }
   return disk;
 }
 
 export async function fetchPokemon(idOrName: number | string): Promise<PokemonData> {
   const id = String(idOrName).toLowerCase();
   const mem = pokeMem.get(id);
-  if (mem) return mem;
+  if (mem) { if (mem.heightDm) registerSpeciesHeight(mem.id, mem.heightDm); return mem; }
   const disk = loadDisk<PokemonData>(POKE_CACHE)[id];
-  if (disk) { pokeMem.set(id, disk); return disk; }
+  if (disk) { pokeMem.set(id, disk); if (disk.heightDm) registerSpeciesHeight(disk.id, disk.heightDm); return disk; }
 
   const res = await fetch(`${BASE}/pokemon/${idOrName}`);
   if (!res.ok) throw new Error(`PokeAPI: pokemon "${idOrName}" not found`);
@@ -87,9 +88,11 @@ export async function fetchPokemon(idOrName: number | string): Promise<PokemonDa
     spriteUrl: (json.sprites?.other?.home?.front_default
       ?? json.sprites?.other?.['official-artwork']?.front_default
       ?? json.sprites.front_default) as string,
+    heightDm: Number(json.height) || undefined,
   };
   pokeMem.set(id, data);
   saveDisk(POKE_CACHE, id, data);
+  if (data.heightDm) registerSpeciesHeight(data.id, data.heightDm);
   return data;
 }
 

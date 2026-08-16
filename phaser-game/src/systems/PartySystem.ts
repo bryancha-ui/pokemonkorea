@@ -7,6 +7,7 @@ import type { PokemonData } from '../battle/Pokemon';
 import { genderForPokemon } from '../data/PokemonGender';
 import { dexEntry, dexKeyFor, remasteredSpriteUrl } from '../data/Pokedex';
 import { levelUpMoves } from '../data/Learnsets';
+import { hpAfterMaxHpIncrease } from '../battle/LevelUpHp';
 
 export interface PartyBaseStats {
   hp: number;
@@ -50,11 +51,30 @@ export interface PartyEntry {
   abilityKo?: string;
   nameKo?: string;
   caughtAt?: string;
+  /** Optional held-item key. Older saves naturally display this as empty. */
+  heldItem?: string;
+  /** Stable identity used by the visual PC box layout. */
+  storageId?: string;
+}
+
+export interface PokemonStorageBox {
+  name: string;
+  slots: Array<PartyEntry | null>;
+}
+
+export interface PokemonBoxStorage {
+  version: 2;
+  boxes: PokemonStorageBox[];
 }
 
 const KEY = 'party';
 const NURSERY_KEY = 'pokemonNursery';
 const MAX_PARTY_SLOTS = 6;
+const LEGACY_BOX_KEY = 'box';
+const BOX_STORAGE_KEY = 'pokemonBoxesV2';
+const BOX_ID_COUNTER_KEY = 'pokemonBoxIdCounter';
+export const BOX_SLOT_COUNT = 30;
+export const MIN_BOX_COUNT = 8;
 
 /** Eggs are stored in the nursery state until they hatch, but occupy a real
  * party slot for capacity purposes. Reading the small flag here avoids a
@@ -141,6 +161,94 @@ function ensureAllBaseStats(entries: PartyEntry[]): boolean {
   return changed;
 }
 
+function ensureStorageId(registry: Phaser.Data.DataManager, entry: PartyEntry, used?: Set<string>): boolean {
+  if (entry.storageId && !used?.has(entry.storageId)) {
+    used?.add(entry.storageId);
+    return false;
+  }
+  let next = Math.max(1, Number(registry.get(BOX_ID_COUNTER_KEY)) || 1);
+  let id = `box-${next}`;
+  while (used?.has(id)) { next += 1; id = `box-${next}`; }
+  registry.set(BOX_ID_COUNTER_KEY, next + 1);
+  entry.storageId = id;
+  used?.add(id);
+  return true;
+}
+
+function blankBox(index: number): PokemonStorageBox {
+  return { name: `Box ${index + 1}`, slots: Array<PartyEntry | null>(BOX_SLOT_COUNT).fill(null) };
+}
+
+function normaliseBoxStorage(
+  registry: Phaser.Data.DataManager,
+  candidate: Partial<PokemonBoxStorage> | undefined,
+  legacy: PartyEntry[],
+): PokemonBoxStorage {
+  const requested = Array.isArray(candidate?.boxes) ? candidate!.boxes!.length : 0;
+  const count = Math.max(MIN_BOX_COUNT, requested, Math.ceil(legacy.length / BOX_SLOT_COUNT));
+  const boxes = Array.from({ length: count }, (_, index) => blankBox(index));
+
+  if (Array.isArray(candidate?.boxes)) {
+    candidate!.boxes!.forEach((source, boxIndex) => {
+      if (!source || boxIndex >= boxes.length) return;
+      boxes[boxIndex].name = typeof source.name === 'string' && source.name.trim()
+        ? source.name.trim().slice(0, 24) : `Box ${boxIndex + 1}`;
+      if (!Array.isArray(source.slots)) return;
+      for (let slot = 0; slot < BOX_SLOT_COUNT; slot++) {
+        const entry = source.slots[slot];
+        boxes[boxIndex].slots[slot] = entry && typeof entry === 'object' ? entry : null;
+      }
+    });
+  } else {
+    legacy.forEach((entry, index) => {
+      const boxIndex = Math.floor(index / BOX_SLOT_COUNT);
+      const slot = index % BOX_SLOT_COUNT;
+      while (!boxes[boxIndex]) boxes.push(blankBox(boxes.length));
+      boxes[boxIndex].slots[slot] = entry;
+    });
+  }
+
+  const occupied = boxes.flatMap(box => box.slots.filter((entry): entry is PartyEntry => !!entry));
+  ensureAllBaseStats(occupied);
+  const ids = new Set<string>();
+  occupied.forEach(entry => ensureStorageId(registry, entry, ids));
+  return { version: 2, boxes };
+}
+
+function parseLegacyBox(registry: Phaser.Data.DataManager): PartyEntry[] {
+  const raw = registry.get(LEGACY_BOX_KEY) as string | PartyEntry[] | undefined;
+  if (!raw) return [];
+  try {
+    const value = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    return Array.isArray(value) ? value.filter((entry): entry is PartyEntry => !!entry && typeof entry === 'object') : [];
+  } catch { return []; }
+}
+
+function writeBoxStorage(registry: Phaser.Data.DataManager, storage: PokemonBoxStorage): void {
+  const normalised = normaliseBoxStorage(registry, storage, []);
+  const dense = normalised.boxes.flatMap(box => box.slots.filter((entry): entry is PartyEntry => !!entry));
+  registry.set(BOX_STORAGE_KEY, JSON.stringify(normalised));
+  // Keep the original dense key mirrored for old saves and systems outside the
+  // visual box screen. PartySystem's public methods always update both keys.
+  registry.set(LEGACY_BOX_KEY, JSON.stringify(dense));
+}
+
+function readBoxStorage(registry: Phaser.Data.DataManager): PokemonBoxStorage {
+  const raw = registry.get(BOX_STORAGE_KEY) as string | PokemonBoxStorage | undefined;
+  let parsed: PokemonBoxStorage | undefined;
+  if (raw) {
+    try { parsed = (typeof raw === 'string' ? JSON.parse(raw) : raw) as PokemonBoxStorage; }
+    catch { parsed = undefined; }
+  }
+  const storage = normaliseBoxStorage(registry, parsed, parseLegacyBox(registry));
+  writeBoxStorage(registry, storage);
+  return storage;
+}
+
+function occupiedBoxEntries(storage: PokemonBoxStorage): PartyEntry[] {
+  return storage.boxes.flatMap(box => box.slots.filter((entry): entry is PartyEntry => !!entry));
+}
+
 export const PartySystem = {
 
   get(registry: Phaser.Data.DataManager): PartyEntry[] {
@@ -219,20 +327,63 @@ export const PartySystem = {
 
   // ── PC Box storage ────────────────────────────────────────────────────────
   getBox(registry: Phaser.Data.DataManager): PartyEntry[] {
-    const raw = registry.get('box') as string | undefined;
-    if (!raw) return [];
-    try {
-      const box = JSON.parse(raw) as PartyEntry[];
-      if (ensureAllBaseStats(box)) registry.set('box', JSON.stringify(box));
-      return box;
-    } catch { return []; }
+    return occupiedBoxEntries(readBoxStorage(registry));
   },
   setBox(registry: Phaser.Data.DataManager, box: PartyEntry[]): void {
     ensureAllBaseStats(box);
-    registry.set('box', JSON.stringify(box));
+    const storage = readBoxStorage(registry);
+    const incoming = new Map<string, PartyEntry>();
+    const ids = new Set<string>();
+    for (const entry of box) {
+      ensureStorageId(registry, entry, ids);
+      incoming.set(entry.storageId!, entry);
+    }
+
+    // Preserve named-box placement for entries that survived a dense legacy
+    // operation (daycare/filter/migration), replacing their data in place.
+    for (const visualBox of storage.boxes) {
+      visualBox.slots = visualBox.slots.map(existing => {
+        if (!existing?.storageId) return null;
+        const replacement = incoming.get(existing.storageId);
+        if (!replacement) return null;
+        incoming.delete(existing.storageId);
+        return replacement;
+      });
+    }
+    for (const entry of incoming.values()) {
+      let placed = false;
+      for (const visualBox of storage.boxes) {
+        const free = visualBox.slots.findIndex(slot => slot === null);
+        if (free >= 0) { visualBox.slots[free] = entry; placed = true; break; }
+      }
+      if (!placed) {
+        const next = blankBox(storage.boxes.length);
+        next.slots[0] = entry;
+        storage.boxes.push(next);
+      }
+    }
+    writeBoxStorage(registry, storage);
   },
   boxAdd(registry: Phaser.Data.DataManager, entry: PartyEntry): void {
-    const box = this.getBox(registry); box.push(entry); this.setBox(registry, box);
+    const storage = readBoxStorage(registry);
+    ensureStorageId(registry, entry);
+    for (const box of storage.boxes) {
+      const free = box.slots.findIndex(slot => slot === null);
+      if (free >= 0) { box.slots[free] = entry; writeBoxStorage(registry, storage); return; }
+    }
+    const next = blankBox(storage.boxes.length);
+    next.slots[0] = entry;
+    storage.boxes.push(next);
+    writeBoxStorage(registry, storage);
+  },
+
+  /** Full multi-box storage used by BoxScene. Old dense saves migrate on read. */
+  getBoxes(registry: Phaser.Data.DataManager): PokemonBoxStorage {
+    return readBoxStorage(registry);
+  },
+
+  setBoxes(registry: Phaser.Data.DataManager, storage: PokemonBoxStorage): void {
+    writeBoxStorage(registry, storage);
   },
 
   /** Swap a party slot with a box slot (or move box→party / party→box). */
@@ -319,8 +470,11 @@ export const PartySystem = {
       leveled = true;
     }
     if (leveled) {
+      const previousMaxHp = e.maxHp;
       e.maxHp = recomputeMaxHp(e);
-      e.hp = e.maxHp;   // level-up fully restores HP
+      // Shared/bench EXP follows the live battler rule: retain the existing
+      // damage and add only the max-HP increase earned across these levels.
+      e.hp = hpAfterMaxHpIncrease(e.hp, previousMaxHp, e.maxHp);
       e.evoReady = true;   // leveled up → allow evolution
     }
     this.set(registry, party);

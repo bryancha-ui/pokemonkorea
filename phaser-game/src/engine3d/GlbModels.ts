@@ -300,12 +300,18 @@ export function isRenderableModel(root: THREE.Object3D): boolean {
     && Math.max(size.x, size.y, size.z) < 1_000_000;
 }
 
-/** Release only GPU allocations; CPU model data remains cached and can be
- * re-uploaded without another network request if the species reappears. */
+/** Release GPU allocations between worlds. Memory-constrained devices also
+ * evict decoded models: HTTP cache still avoids a network download if a model
+ * reappears, while tens of MB of vertex arrays no longer accumulate in RAM. */
 export function releaseModelGpuResources(): void {
-  for (const entry of models.values()) {
+  const evictDecoded = performanceProfile().constrained;
+  for (const [key, entry] of models) {
     if (entry === 'loading' || entry === 'failed') continue;
     disposeModelGpu(entry.group);
+    if (evictDecoded) {
+      models.delete(key);
+      modelUse.delete(key);
+    }
   }
 }
 

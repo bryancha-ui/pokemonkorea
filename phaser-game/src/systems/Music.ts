@@ -85,6 +85,7 @@ export const TRACKS: Record<string, string> = {
   groupnorth: BASE + 'bgm_groupnorth.mp3',  // 노스단 (Group North)
   elitefour:  BASE + 'bgm_elitefour.mp3',   // Onnuri League Elite Four
   champion:   BASE + 'bgm_champion.mp3',    // Champion Hwangeum
+  championapproach: BASE + 'champion_appoach_hwangeum.mp3', // Prelude on Hwangeum's stage, before the battle
   northelite: BASE + 'bgm_northelite.mp3',  // Northern League Elite Four
   taewang:    BASE + 'bgm_taewang.mp3',     // Northern Champion Taewang
   sovereign:  BASE + 'bgm_sovereign.mp3',   // 노스단 Sovereign-Claimant

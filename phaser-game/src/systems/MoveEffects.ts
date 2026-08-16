@@ -173,7 +173,9 @@ function cancelCharge(scene: Phaser.Scene, mon: Pokemon, sprite: Phaser.GameObje
   const pending = charging.get(mon);
   if (!pending) return;
   charging.delete(mon);
-  scene.events.emit('pk3d-chargefx', { target: sprite, phase: 'release', mode: pending.mode });
+  scene.events.emit('pk3d-chargefx', {
+    target: sprite, phase: 'release', mode: pending.mode, cancelled: true,
+  });
   const originY = Number(sprite.getData('battleChargeOriginY'));
   if (Number.isFinite(originY)) sprite.setY(originY);
   sprite.setAlpha(1);

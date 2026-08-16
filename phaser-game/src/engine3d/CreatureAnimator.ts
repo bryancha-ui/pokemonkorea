@@ -40,7 +40,7 @@ export class CreatureAnimator {
   private phase = Math.random() * Math.PI * 2;
 
   // procedural action state
-  private action: { kind: MoveCategory | 'combo' | 'hit' | 'faint'; t: number; dur: number; dir: THREE.Vector3; power: number } | null = null;
+  private action: { kind: MoveCategory | 'combo' | 'flight' | 'hit' | 'faint'; t: number; dur: number; dir: THREE.Vector3; power: number } | null = null;
   private baseY = 0;
   private facing = 0;
   private onImpact: (() => void) | null = null;
@@ -106,6 +106,20 @@ export class CreatureAnimator {
     if (d.lengthSq() < 1e-6) d.set(0, 0, 1);
     d.normalize();
     this.action = { kind: 'combo', t: 0, dur: 0.92, dir: d, power: Math.max(0.5, Math.min(1.6, power)) };
+    this.onImpact = null;
+    this.impactFired = false;
+    this.state = 'attack';
+    this.play('attack', true);
+  }
+
+  /** Fly-style aerial strike. BattleMirror moves the arena holder through the
+   *  ascent/dive/return path; this animator supplies the matching body pose for
+   *  both rigged and static GLBs so the model does not remain upright in midair. */
+  flightAttack(dir: THREE.Vector3, power = 1): void {
+    const d = dir.clone().setY(0);
+    if (d.lengthSq() < 1e-6) d.set(0, 0, 1);
+    d.normalize();
+    this.action = { kind: 'flight', t: 0, dur: 1.1, dir: d, power: Math.max(0.5, Math.min(1.6, power)) };
     this.onImpact = null;
     this.impactFired = false;
     this.state = 'attack';
@@ -190,6 +204,21 @@ export class CreatureAnimator {
         roll = -Math.sin(k * Math.PI * 8) * 0.11 * forward;
         sx = sz = 1 + strike * 0.06;
         sy = 1 - strike * 0.05;
+      } else if (a.kind === 'flight') {
+        // Hovering wind-up → nose-down dive → recoil → level landing. World
+        // translation is applied by BattleMirror so this pose also lines up
+        // with screen-space fallback sprites and the wind trail.
+        const gather = Math.min(1, k / 0.16);
+        const dive = Math.max(0, Math.min(1, (k - 0.16) / 0.42));
+        const recoil = Math.max(0, Math.min(1, (k - 0.58) / 0.14));
+        const recover = Math.max(0, Math.min(1, (k - 0.72) / 0.28));
+        const divePose = Math.sin(dive * Math.PI * 0.5) * (1 - recoil);
+        pitch = gather * 0.12 - divePose * 0.76 + recover * 0.64;
+        roll = Math.sin(k * Math.PI * 5) * (0.1 + divePose * 0.13) * (1 - recover);
+        yaw = Math.sin(k * Math.PI * 3) * 0.09 * (1 - recover);
+        offY = Math.sin(gather * Math.PI) * 0.12 + Math.sin(recoil * Math.PI) * 0.16;
+        sx = sz = 1 + divePose * 0.08 - Math.sin(recoil * Math.PI) * 0.05;
+        sy = 1 - divePose * 0.08 + Math.sin(recoil * Math.PI) * 0.1;
       } else if (a.kind === 'special') {
         // rear back, charge (glow handled by MoveFX3D), release forward
         const charge = k < 0.42 ? k / 0.42 : 1;

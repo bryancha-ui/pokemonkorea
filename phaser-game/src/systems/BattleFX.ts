@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { MoveData } from '../battle/Pokemon';
 import { TYPE_COLORS } from '../data/StarterData';
+import { BATTLE_PACING, cinematic3DImpactDelay } from './BattlePacing';
 
 const CINEMATIC_3D_IMPACT_DELAY: Readonly<Record<string, number>> = {
   'soul ferry deluge': 515, 'royal kiln roar': 450,
@@ -49,28 +50,39 @@ export function playMoveFX(
 
   const impact = () => {
     flashTarget(scene, target, color, !using3D);
-    scene.cameras.main.shake(150, 0.006);
+    scene.cameras.main.shake(180, 0.0065);
     playHitSfx(scene, effectiveness);
     onImpact();
   };
 
   if (move.category === 'physical') {
     const moveKey = move.name.toLowerCase().replace(/-/g, ' ').trim();
+    if (using3D && moveKey === 'fly') {
+      // BattleMirror's airborne dive reaches the target at 0.58 of its 1.1 s
+      // timeline. Keep damage/HP feedback on that contact instead of the old
+      // 120 ms ground-lunge beat.
+      scene.time.delayedCall(cinematic3DImpactDelay(640), impact);
+      return;
+    }
     if (using3D && moveKey === 'close combat') {
       // The 3D mirror stages four visible contacts over 0.92 s. Resolve battle
       // damage on the finisher instead of during the old single-lunge beat.
-      scene.time.delayedCall(720, impact);
+      scene.time.delayedCall(cinematic3DImpactDelay(850), impact);
       return;
     }
     if (using3D && (moveKey === 'rock slide' || moveKey === 'stone shower' || moveKey === 'stone edge')) {
-      scene.time.delayedCall(moveKey === 'stone edge' ? 370 : 540, impact);
+      scene.time.delayedCall(cinematic3DImpactDelay(moveKey === 'stone edge' ? 500 : 620), impact);
+      return;
+    }
+    if (using3D) {
+      scene.time.delayedCall(cinematic3DImpactDelay(300), impact);
       return;
     }
     scene.tweens.add({
       targets: attacker,
       x: ax + (tx - ax) * 0.3,
       y: ay + (ty - ay) * 0.3,
-      duration: 120, yoyo: true, ease: 'Quad.easeOut',
+      duration: BATTLE_PACING.physicalLungeMs, yoyo: true, ease: 'Quad.easeInOut',
       onYoyo: impact,
       onComplete: () => attacker.setPosition(ax, ay),
     });
@@ -79,14 +91,15 @@ export function playMoveFX(
       // Keep damage timing identical while the richer effect is drawn by the
       // 3D mirror. Drawing the generic 2D orb here would cover that effect.
       const moveKey = move.name.toLowerCase().replace(/-/g, ' ').trim();
-      const delay = CINEMATIC_3D_IMPACT_DELAY[moveKey] ?? 240;
-      scene.time.delayedCall(delay, impact);
+      const delay = CINEMATIC_3D_IMPACT_DELAY[moveKey] ?? 340;
+      scene.time.delayedCall(cinematic3DImpactDelay(delay), impact);
       return;
     }
     const orb  = scene.add.circle(ax, ay, 11, color, 0.95).setDepth(9);
     const glow = scene.add.circle(ax, ay, 20, color, 0.30).setDepth(9);
     scene.tweens.add({
-      targets: [orb, glow], x: tx, y: ty, duration: 240, ease: 'Sine.easeIn',
+      targets: [orb, glow], x: tx, y: ty,
+      duration: BATTLE_PACING.specialProjectileMs, ease: 'Sine.easeInOut',
       onComplete: () => { orb.destroy(); glow.destroy(); impact(); },
     });
   }
@@ -127,13 +140,13 @@ export function playStatusFX(
       x: p.x + Math.cos(a) * (36 + (i % 3) * 8),
       y: p.y - 55 - (i % 3) * 14,
       alpha: 0,
-      duration: 520 + (i % 3) * 80,
+      duration: 515 + (i % 3) * 80,
       onComplete: () => glyph.destroy(),
     });
   }
   affected.setTint(color);
   scene.time.delayedCall(180, () => affected.clearTint());
-  scene.time.delayedCall(650, onComplete);
+  scene.time.delayedCall(670, onComplete);
 }
 
 /** Energy travelling back from the damaged target to the draining user. */
@@ -155,13 +168,13 @@ export function playDrainFX(
       x: to.x, y: to.y,
       scale: 1.15,
       alpha: 0.15,
-      delay: i * 45,
-      duration: 360,
+      delay: i * 43,
+      duration: 370,
       ease: 'Sine.easeInOut',
       onComplete: () => mote.destroy(),
     });
   }
-  scene.time.delayedCall(720, onComplete);
+  scene.time.delayedCall(770, onComplete);
 }
 
 /** First/second phase of Fly, Dig and other charge moves. */
@@ -177,7 +190,7 @@ export function playChargeFX(
   const using3D = !!engine3D?.isRendering(scene);
   scene.events.emit('pk3d-chargefx', { target: user, phase, mode, moveName: move.name });
   if (using3D) {
-    scene.time.delayedCall(phase === 'charge' ? 480 : 300, onComplete);
+    scene.time.delayedCall(phase === 'charge' ? 540 : 370, onComplete);
     return;
   }
   const stored = Number(user.getData('battleChargeOriginY'));
@@ -188,7 +201,7 @@ export function playChargeFX(
     targets: user,
     y: phase === 'charge' ? targetY : originY,
     alpha: phase === 'charge' ? 0.18 : 1,
-    duration: phase === 'charge' ? 430 : 260,
+    duration: phase === 'charge' ? 485 : 315,
     ease: phase === 'charge' ? 'Sine.easeOut' : 'Sine.easeIn',
     onComplete,
   });
@@ -196,10 +209,10 @@ export function playChargeFX(
 
 function flashTarget(scene: Phaser.Scene, target: Phaser.GameObjects.Image, color: number, particles = true): void {
   target.setTint(color);
-  scene.time.delayedCall(100, () => target.clearTint());
+  scene.time.delayedCall(120, () => target.clearTint());
   const ox = target.x;
   scene.tweens.add({
-    targets: target, x: ox - 7, duration: 45, yoyo: true, repeat: 3,
+    targets: target, x: ox - 8, duration: 46, yoyo: true, repeat: 3,
     onComplete: () => target.setX(ox),
   });
   if (!particles) return;
@@ -211,7 +224,7 @@ function flashTarget(scene: Phaser.Scene, target: Phaser.GameObjects.Image, colo
       targets: p,
       x: ox + Math.cos(ang) * dist,
       y: target.y + Math.sin(ang) * dist,
-      alpha: 0, duration: 280 + Math.random() * 220,
+      alpha: 0, duration: 330 + Math.random() * 185,
       onComplete: () => p.destroy(),
     });
   }

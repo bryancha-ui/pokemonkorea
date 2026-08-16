@@ -8,6 +8,7 @@ import { POKEDEX, dexEntry, dexKeyFor } from '../data/Pokedex';
 import { customForm, isCustomKey } from '../data/CustomBattle';
 import { PartySystem, PartyEntry, baseStatsFromData, recomputeMaxHp } from './PartySystem';
 import { syncEntryMoves } from './PartyBattle';
+import { hpAfterMaxHpIncrease } from '../battle/LevelUpHp';
 
 // Combine starter evolutions with custom Pokédex evolution lines.
 const ALL_EVOLUTIONS: Record<string, { to: string; toName: string; level: number; addMoves?: string[] }> = { ...EVOLUTIONS };
@@ -92,7 +93,7 @@ export function applyEvolution(registry: Phaser.Data.DataManager, pending: Pendi
   const oldMax = e.maxHp;
   e.maxHp = recomputeMaxHp(e);
   // Carry HP forward, adding the maxHp gained
-  e.hp = Math.min(e.maxHp, e.hp + (e.maxHp - oldMax));
+  e.hp = hpAfterMaxHpIncrease(e.hp, oldMax, e.maxHp);
   delete e.evoReady;   // consumed — the next evolution needs another level-up
   PartySystem.set(registry, party);
 

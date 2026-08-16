@@ -99,6 +99,10 @@ interface SendOutOptions {
   ballKey?: BattleBallKey;
   duration?: number;
   onComplete?: () => void;
+  /** Skip the flat 2D ball graphic — used when the 3D layer has already thrown a
+   *  real ball (the Champion's stage routine). The landing burst and the
+   *  Pokémon's materialisation still play. */
+  skipBall?: boolean;
 }
 
 /**
@@ -127,8 +131,9 @@ export function playBallSendOut(
   const endY = target.y;
 
   const ball = scene.add.graphics().setDepth(28).setData('no3d', true);
+  ball.setVisible(!options.skipBall);
   const flight = { t: 0 };
-  drawBattleBall(ball, startX, startY, ballKey, 12);
+  if (!options.skipBall) drawBattleBall(ball, startX, startY, ballKey, 12);
 
   scene.tweens.add({
     targets: flight,
@@ -139,10 +144,10 @@ export function playBallSendOut(
       const t = flight.t;
       const x = Phaser.Math.Linear(startX, endX, t);
       const y = Phaser.Math.Linear(startY, endY, t) - Math.sin(t * Math.PI) * 105;
-      drawBattleBall(ball, x, y, ballKey, 12, 0, t * Math.PI * 6);
+      if (!options.skipBall) drawBattleBall(ball, x, y, ballKey, 12, 0, t * Math.PI * 6);
     },
     onComplete: () => {
-      drawBattleBall(ball, endX, endY, ballKey, 12, 7);
+      if (!options.skipBall) drawBattleBall(ball, endX, endY, ballKey, 12, 7);
       const flash = scene.add.circle(endX, endY, 9, 0xdffcff, 0.95)
         .setDepth(27).setBlendMode(Phaser.BlendModes.ADD);
       scene.tweens.add({ targets: flash, scale: 6, alpha: 0, duration: 360, onComplete: () => flash.destroy() });

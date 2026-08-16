@@ -1,4 +1,5 @@
 import { getEffectiveness, PokemonType } from './TypeChart';
+import { hpAfterMaxHpIncrease } from './LevelUpHp';
 
 export type MoveCategory = 'physical' | 'special' | 'status';
 export type BattleStat = 'atk' | 'def' | 'spAtk' | 'spDef' | 'spd' | 'accuracy' | 'evasion';
@@ -47,6 +48,10 @@ export interface PokemonData {
   baseSpDef: number;
   baseSpd: number;
   spriteUrl: string;
+  /** Real species height in decimetres (PokéAPI `height`). Drives battle display
+   *  size so API Pokémon roughly track their real-world scale. Optional: custom
+   *  species and older cached entries omit it. */
+  heightDm?: number;
 }
 
 export class Pokemon {
@@ -71,7 +76,11 @@ export class Pokemon {
   get level() { return this._level; }
 
   constructor(data: PokemonData, level: number, moves: MoveData[]) {
-    this.data = data;
+    // Copy the species record: in-battle type mutations (Protean / Color Change /
+    // Mimicry below) must never write back into the shared singleton definition,
+    // which would permanently strip a species' typing — e.g. wiping a Ghost's
+    // Normal-immunity for every later battle in the session.
+    this.data = { ...data };
     this._level = level;
     this.moves = moves.slice(0, 4).map(m => ({ data: m, pp: m.pp }));
     this.status = data.status ?? 'none';
@@ -112,9 +121,12 @@ export class Pokemon {
   }
 
   levelUp(): number {
+    const previousMaxHp = this.maxHp;
     this._level++;
     this.recalcStats();
-    this.hp = this.maxHp;   // level-up fully restores HP
+    // Preserve damage across a level-up. The Pokémon gains only the newly
+    // added max-HP points instead of being silently healed to full.
+    this.hp = hpAfterMaxHpIncrease(this.hp, previousMaxHp, this.maxHp);
     return this._level;
   }
 
@@ -213,6 +225,14 @@ export class Pokemon {
     // a stray effectiveness rounding, can ever let an Earthquake through on a flyer.
     // Grounding effects (Roost / Smack Down / Gravity) are not modelled here.
     if (moveType === 'ground' && (this.data.type1 === 'flying' || this.data.type2 === 'flying')) {
+      return { dmg: 0, critical: false, effectiveness: 0, abilityMessages: messages };
+    }
+    // Ghost types are categorically immune to Normal and Fighting moves — enforce it
+    // explicitly (belt-and-suspenders over the type chart) so nothing, e.g. a stray
+    // effectiveness path, can ever let a Tackle chip a Ghost like Onnurian (학동자).
+    if ((moveType === 'normal' || moveType === 'fighting')
+      && !attacker.hasAbility('Scrappy')
+      && (this.data.type1 === 'ghost' || this.data.type2 === 'ghost')) {
       return { dmg: 0, critical: false, effectiveness: 0, abilityMessages: messages };
     }
     if (moveType === 'ground' && this.hasAbility('Levitate')) {

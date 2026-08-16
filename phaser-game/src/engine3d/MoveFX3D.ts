@@ -338,6 +338,202 @@ export class MoveFX3D {
     });
   }
 
+  /** First-turn Fly takeoff: a pressure ring and rising air columns make the
+   *  battler's actual ascent readable instead of looking like a teleport. */
+  flyTakeoff(at: THREE.Vector3, height: number): void {
+    const group = new THREE.Group();
+    group.position.copy(at);
+    const scale = Math.max(0.78, Math.min(1.45, height / 1.6));
+    const rings: THREE.Mesh[] = [];
+    for (let i = 0; i < 4; i++) {
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry((0.34 + i * 0.1) * scale, (0.022 + i * 0.004) * scale, 6, 34),
+        glowMaterial(i % 2 ? 0xffffff : 0xbdeeff, 0),
+      );
+      ring.rotation.x = Math.PI / 2;
+      ring.position.y = 0.035 + i * 0.035;
+      group.add(ring); rings.push(ring);
+    }
+    const gusts: THREE.Mesh[] = [];
+    for (let i = 0; i < 16; i++) {
+      const angle = i / 16 * Math.PI * 2;
+      const radius = (0.3 + (i % 4) * 0.11) * scale;
+      const start = new THREE.Vector3(Math.cos(angle) * radius, 0.04, Math.sin(angle) * radius);
+      const end = new THREE.Vector3(
+        Math.cos(angle + 0.34) * radius * 0.72,
+        (0.72 + (i % 5) * 0.16) * scale,
+        Math.sin(angle + 0.34) * radius * 0.72,
+      );
+      const gust = segmentMesh(start, end, (0.009 + (i % 3) * 0.005) * scale,
+        i % 3 ? 0xdff8ff : 0xffffff, 0);
+      group.add(gust); gusts.push(gust);
+    }
+    this.addTask(group, 0.56, (k) => {
+      const rise = Math.sin(Math.min(1, k * 1.25) * Math.PI * 0.5);
+      rings.forEach((ring, i) => {
+        ring.scale.setScalar(0.45 + k * (1.85 + i * 0.17));
+        ring.rotation.z += 0.08 + i * 0.012;
+        opacity(ring, (1 - k) * (0.82 - i * 0.1));
+      });
+      gusts.forEach((gust, i) => {
+        gust.position.y = rise * (0.38 + (i % 4) * 0.1) * scale;
+        gust.rotation.y += (i % 2 ? 1 : -1) * 0.045;
+        opacity(gust, Math.sin(k * Math.PI) * (0.48 + (i % 3) * 0.16));
+      });
+    });
+  }
+
+  /** Brief second-turn hover before the dive. The rotating wind cage mirrors
+   *  the reference video's pause and makes the following acceleration legible. */
+  flyWindup(at: THREE.Vector3, height: number): void {
+    const group = new THREE.Group();
+    group.position.copy(at).add(new THREE.Vector3(0, Math.max(0.45, height * 0.42), 0));
+    const scale = Math.max(0.8, Math.min(1.45, height / 1.6));
+    const rings: THREE.Mesh[] = [];
+    for (let i = 0; i < 5; i++) {
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry((0.38 + i * 0.075) * scale, 0.026 * scale, 6, 36, Math.PI * 1.62),
+        glowMaterial(i % 2 ? 0xffffff : 0xb9ecff, 0),
+      );
+      ring.rotation.x = Math.PI / 2 + (i - 2) * 0.08;
+      ring.rotation.z = i * 1.17;
+      ring.position.y = (i - 2) * 0.16 * scale;
+      group.add(ring); rings.push(ring);
+    }
+    const motes: THREE.Mesh[] = [];
+    for (let i = 0; i < 14; i++) {
+      const mote = new THREE.Mesh(
+        new THREE.ConeGeometry(0.025 * scale, (0.16 + (i % 4) * 0.05) * scale, 5),
+        glowMaterial(i % 3 ? 0xd9f7ff : 0xffffff, 0),
+      );
+      group.add(mote); motes.push(mote);
+    }
+    this.addTask(group, 0.42, (k) => {
+      const pulse = Math.sin(k * Math.PI);
+      rings.forEach((ring, i) => {
+        ring.rotation.z += (i % 2 ? -1 : 1) * (0.09 + i * 0.008);
+        ring.scale.setScalar(0.76 + pulse * 0.34);
+        opacity(ring, pulse * (0.56 + (i % 2) * 0.24));
+      });
+      motes.forEach((mote, i) => {
+        const angle = i / motes.length * Math.PI * 2 + k * Math.PI * 4;
+        const radius = (0.48 + (i % 3) * 0.11) * scale * (1 - k * 0.22);
+        mote.position.set(Math.cos(angle) * radius, ((i % 5) - 2) * 0.15 * scale,
+          Math.sin(angle) * radius);
+        mote.rotation.z = angle;
+        opacity(mote, pulse * (0.55 + (i % 3) * 0.14));
+      });
+    });
+  }
+
+  /** Fly's release: accelerating speed lines and a helical wind wake converge
+   *  on the target, followed by a white aerial slash and ground-level dust. */
+  flyDive(
+    from: THREE.Vector3,
+    to: THREE.Vector3,
+    color: number,
+    power: number,
+    eff: number,
+    onImpact?: () => void,
+  ): void {
+    const group = new THREE.Group();
+    const scale = Math.max(0.86, Math.min(1.5, 0.76 + power / 145));
+    const tangent = to.clone().sub(from);
+    if (tangent.lengthSq() < 1e-6) tangent.set(1, -0.3, 0);
+    tangent.normalize();
+    const side = new THREE.Vector3().crossVectors(tangent, new THREE.Vector3(0, 1, 0));
+    if (side.lengthSq() < 1e-6) side.set(1, 0, 0);
+    side.normalize();
+    const normal = new THREE.Vector3().crossVectors(side, tangent).normalize();
+
+    const spiralPoint = (u: number): THREE.Vector3 => {
+      const center = from.clone().lerp(to, u);
+      const radius = (0.42 - u * 0.19) * scale;
+      const phase = u * Math.PI * 7.2;
+      return center
+        .addScaledVector(side, Math.cos(phase) * radius)
+        .addScaledVector(normal, Math.sin(phase) * radius);
+    };
+
+    const spiral: { mesh: THREE.Mesh; u: number }[] = [];
+    for (let i = 0; i < 34; i++) {
+      const u0 = i / 35, u1 = (i + 1) / 35;
+      const mesh = segmentMesh(spiralPoint(u0), spiralPoint(u1),
+        (0.012 + (i % 4) * 0.0035) * scale, i % 3 ? 0xd9f7ff : 0xffffff, 0);
+      group.add(mesh); spiral.push({ mesh, u: u1 });
+    }
+
+    const streaks: { mesh: THREE.Mesh; u: number }[] = [];
+    const distance = from.distanceTo(to);
+    for (let i = 0; i < 18; i++) {
+      const u = 0.08 + (i % 9) * 0.095;
+      const center = from.clone().lerp(to, u)
+        .addScaledVector(side, ((i % 6) - 2.5) * 0.14 * scale)
+        .addScaledVector(normal, ((i * 3) % 7 - 3) * 0.09 * scale);
+      const half = (0.16 + (i % 4) * 0.045) * Math.min(1.4, distance / 3.5);
+      const mesh = segmentMesh(
+        center.clone().addScaledVector(tangent, -half),
+        center.clone().addScaledVector(tangent, half * 0.65),
+        (0.008 + (i % 3) * 0.004) * scale,
+        i % 4 ? 0xeafaff : color,
+        0,
+      );
+      group.add(mesh); streaks.push({ mesh, u });
+    }
+
+    const pressureRings: { mesh: THREE.Mesh; delay: number }[] = [];
+    for (let i = 0; i < 6; i++) {
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry((0.3 + i * 0.035) * scale, (0.018 + (i % 2) * 0.008) * scale, 6, 34),
+        glowMaterial(i % 2 ? 0xffffff : 0xbceeff, 0),
+      );
+      ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), tangent);
+      group.add(ring); pressureRings.push({ mesh: ring, delay: i * 0.075 });
+    }
+
+    const nose = new THREE.Mesh(
+      new THREE.ConeGeometry(0.42 * scale, 1.35 * scale, 18, 1, true),
+      glowMaterial(mixWhite(color, 0.72), 0),
+    );
+    nose.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tangent);
+    group.add(nose);
+
+    this.addTask(group, 1.1, (k) => {
+      const dive = Math.max(0, Math.min(1, (k - 0.12) / 0.46));
+      const travel = dive * dive * (3 - 2 * dive);
+      const beforeImpact = Math.max(0, 1 - Math.max(0, k - 0.58) / 0.16);
+      const rush = Math.sin(Math.min(1, dive) * Math.PI * 0.5) * beforeImpact;
+
+      nose.position.copy(from).lerp(to, travel).addScaledVector(tangent, -0.34 * scale);
+      nose.rotation.y += 0.18;
+      nose.scale.set(0.76 + rush * 0.34, 0.72 + rush * 0.45, 0.76 + rush * 0.34);
+      opacity(nose, rush * 0.26);
+
+      spiral.forEach(({ mesh, u }, i) => {
+        const wake = Math.max(0, 1 - Math.abs(u - travel) / 0.34);
+        const revealed = u <= travel + 0.07 ? 1 : 0;
+        opacity(mesh, wake * revealed * beforeImpact * (0.52 + (i % 3) * 0.17));
+      });
+      streaks.forEach(({ mesh, u }, i) => {
+        const wave = Math.max(0, 1 - Math.abs(u - travel) / 0.46);
+        mesh.scale.y = 0.55 + rush * 1.65;
+        opacity(mesh, wave * rush * (0.4 + (i % 4) * 0.13));
+      });
+      pressureRings.forEach(({ mesh, delay }, i) => {
+        const local = Math.max(0, Math.min(1, (travel - delay) / 0.36));
+        mesh.position.copy(from).lerp(to, local);
+        mesh.scale.setScalar(0.52 + local * (1.1 + i * 0.05));
+        mesh.rotation.z += (i % 2 ? -1 : 1) * 0.11;
+        opacity(mesh, Math.sin(local * Math.PI) * beforeImpact * (0.5 + (i % 2) * 0.25));
+      });
+    }, 0.58, () => {
+      this.aerialImpact(to, color, scale * 1.12);
+      this.flyLandingImpact(to, color, scale);
+      this.burst(to, mixWhite(color, 0.35), eff, scale * 1.25);
+      onImpact?.();
+    });
+  }
+
   /** Physical moves use the model's lunge, then get an attack-specific contact. */
   physicalImpact(at: THREE.Vector3, moveType: string, moveName: string, color: number, power: number, eff: number): void {
     const type = moveType.toLowerCase(), name = moveName.toLowerCase();
@@ -1694,6 +1890,62 @@ export class MoveFX3D {
         rock.position.y = -0.12 + Math.sin(local * Math.PI) * (0.45 + (i % 3) * 0.12) * scale;
         rock.rotation.set(k * 6 + i, k * 9, i);
         opacity(rock, Math.sin(local * Math.PI));
+      });
+    });
+  }
+
+  private flyLandingImpact(at: THREE.Vector3, color: number, scale: number): void {
+    const group = new THREE.Group();
+    group.position.set(at.x, 0.025, at.z);
+    const shock = new THREE.Mesh(
+      new THREE.RingGeometry(0.22 * scale, 0.34 * scale, 40),
+      glowMaterial(mixWhite(color, 0.62), 0),
+    );
+    shock.rotation.x = -Math.PI / 2;
+    group.add(shock);
+
+    const puffs: THREE.Mesh[] = [];
+    for (let i = 0; i < 18; i++) {
+      const angle = i / 18 * Math.PI * 2;
+      const puff = new THREE.Mesh(
+        new THREE.SphereGeometry((0.1 + (i % 4) * 0.025) * scale, 8, 6),
+        statusMaterial(i % 3 ? 0xd9d4ca : 0xf4f1e9, 0),
+      );
+      puff.userData.angle = angle;
+      puff.userData.lane = 0.34 + (i % 5) * 0.09;
+      group.add(puff); puffs.push(puff);
+    }
+    const debris: THREE.Mesh[] = [];
+    for (let i = 0; i < 12; i++) {
+      const chip = new THREE.Mesh(
+        new THREE.DodecahedronGeometry((0.035 + (i % 3) * 0.014) * scale, 0),
+        statusMaterial(i % 2 ? 0x7b715f : 0xa39884, 0),
+      );
+      chip.userData.angle = i / 12 * Math.PI * 2 + 0.2;
+      group.add(chip); debris.push(chip);
+    }
+
+    this.addTask(group, 0.62, (k) => {
+      const burst = Math.sin(Math.min(1, k * 1.35) * Math.PI * 0.5);
+      shock.scale.setScalar(0.5 + k * 3.6);
+      opacity(shock, (1 - k) * 0.9);
+      puffs.forEach((puff, i) => {
+        const angle = Number(puff.userData.angle);
+        const lane = Number(puff.userData.lane) * scale;
+        const radius = burst * lane * (1.2 + k * 1.7);
+        puff.position.set(Math.cos(angle) * radius, 0.08 + Math.sin(k * Math.PI) * (0.2 + (i % 3) * 0.08) * scale,
+          Math.sin(angle) * radius);
+        puff.scale.setScalar(0.25 + burst * (0.9 + (i % 3) * 0.13));
+        opacity(puff, Math.sin(k * Math.PI) * (0.54 + (i % 3) * 0.12));
+      });
+      debris.forEach((chip, i) => {
+        const angle = Number(chip.userData.angle);
+        const radius = k * (0.65 + (i % 4) * 0.16) * scale;
+        chip.position.set(Math.cos(angle) * radius,
+          Math.sin(k * Math.PI) * (0.48 + (i % 3) * 0.16) * scale,
+          Math.sin(angle) * radius);
+        chip.rotation.set(k * 9 + i, k * 13, k * 7 + i * 0.2);
+        opacity(chip, Math.sin(k * Math.PI));
       });
     });
   }

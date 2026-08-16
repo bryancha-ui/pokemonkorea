@@ -6,7 +6,7 @@ import {
 import { executeBattleMove, pendingMoveFor } from '../systems/MoveEffects';
 import { battle2DSpriteScale } from '../data/SpriteScale';
 import { Pokemon, Move } from '../battle/Pokemon';
-import { STARTERS, TYPE_COLORS, findForm } from '../data/StarterData';
+import { STARTERS, findForm } from '../data/StarterData';
 import { SaveManager } from '../utils/SaveManager';
 import { PartySystem } from '../systems/PartySystem';
 import { awardBenchExp } from '../systems/BattleExp';
@@ -17,11 +17,12 @@ import { AVATAR_URL, playerAvatarKey, rivalAvatarKey } from '../data/PlayerAvata
 import { fitPortrait } from '../data/BattlePortraits';
 import { rivalTrainerName } from '../data/CharacterSprite';
 import { t, tr, pokeNameEn, speakerName } from '../systems/i18n';
-import { fontScaleForScene } from '../systems/UiScale';
 import { genderedName } from '../data/PokemonGender';
 import { actsBefore } from '../systems/AbilitySystem';
 import { enemyLearnset, mergeLearnset } from '../data/Learnsets';
 import { BattleStatusBadge } from '../systems/BattleStatusBadge';
+import { createBattleHud, modernButton, modernMoveButton, syncBattleHudTypes, type BattleHud } from '../systems/ProductionUi';
+import { animateBattleHp, BATTLE_PACING, snapBattleHp } from '../systems/BattlePacing';
 
 type BattleState = 'intro' | 'playerAction' | 'playerMove' | 'busy' | 'levelUp' | 'over';
 const RIVAL_STAGE_X = 580;
@@ -47,13 +48,13 @@ export class RivalBattleScene extends Phaser.Scene {
   private rivalNameText!: Phaser.GameObjects.Text;
   private playerStatusBadge?: BattleStatusBadge;
   private rivalStatusBadge?: BattleStatusBadge;
+  private playerBattleHud?: BattleHud;
   private playerSprite!: Phaser.GameObjects.Image;
   private rivalSprite!: Phaser.GameObjects.Image;
   private playerTrainer?: Phaser.GameObjects.Image;
   private rivalTrainer?: Phaser.GameObjects.Image;
   private actionPanel!: Phaser.GameObjects.Container;
   private movePanel!: Phaser.GameObjects.Container;
-  private moveBtns: Phaser.GameObjects.Text[] = [];
   private spaceKey!: Phaser.Input.Keyboard.Key;
   // All battle-visible elements hidden until after the intro dialogue
   private hudGroup: Phaser.GameObjects.GameObject[] = [];
@@ -193,53 +194,35 @@ export class RivalBattleScene extends Phaser.Scene {
   }
 
   private createHUDs() {
-    const track = <T extends Phaser.GameObjects.GameObject>(o: T): T => {
-      this.hudGroup.push(o);
-      (o as unknown as { setAlpha(n: number): void }).setAlpha(0);
-      return o;
-    };
-
-    // Widen the name boxes on mobile so enlarged names fit (rival grows right,
-    // player grows left with its name/HP). ex = 0 on desktop → unchanged.
-    const ex = Math.round(150 * (fontScaleForScene(this) - 1));
-    // Grow the HP bar with the box (leaving 36px for the Lv label) so it isn't a stub
-    // in a wide mobile box. ex = 0 on desktop → width unchanged.
-    this.HP_BAR_W = 200 + Math.max(0, ex - 36);
-    // Rival HUD — top left
-    track(this.add.rectangle(130 + ex / 2, 52, 248 + ex, 68, 0x0d0d2e, 0.9).setStrokeStyle(1, 0x5577aa));
-    this.rivalNameText = track(this.add.text(14, 24, this.rivalHudName(), { fontSize: '14px', color: '#fff', fontStyle: 'bold' }));
-    this.rivalLvText = track(this.add.text(249 + ex, 24, `Lv.${this.rival.level}`, { fontSize: '13px', color: '#ffe44e' }).setOrigin(1, 0));
-    this.rivalStatusBadge = new BattleStatusBadge(this.rivalNameText, () => this.rivalLvText.x - 36);
-    this.hudGroup.push(this.rivalStatusBadge.text);
-    track(this.add.rectangle(30 + this.HP_BAR_W / 2, 52, this.HP_BAR_W + 8, 12, 0x333355));
-    this.rivalHpBar  = track(this.add.rectangle(30, 52, this.HP_BAR_W, 10, 0x44cc44).setOrigin(0, 0.5));
-    this.rivalHpText = track(this.add.text(14, 62, `${this.rival.hp}/${this.rival.maxHp}`, { fontSize: '11px', color: '#aaa' }));
-
-    // Player HUD — bottom right
-    track(this.add.rectangle(1154 - (248 + ex) / 2, 545, 248 + ex, 68, 0x0d0d2e, 0.9).setStrokeStyle(1, 0x5577aa));
-    this.playerNameText = track(this.add.text(910 - ex, 517, this.playerHudName(), { fontSize: '14px', color: '#fff', fontStyle: 'bold' }));
-    this.playerLvText = track(this.add.text(1090, 517, `Lv.${this.player.level}`, { fontSize: '13px', color: '#ffe44e' }).setOrigin(1, 0));
-    this.playerStatusBadge = new BattleStatusBadge(this.playerNameText, () => this.playerLvText.x - 36);
-    this.hudGroup.push(this.playerStatusBadge.text);
-    track(this.add.rectangle(930 - ex + this.HP_BAR_W / 2, 547, this.HP_BAR_W + 8, 12, 0x333355));
-    this.playerHpBar  = track(this.add.rectangle(930 - ex, 547, this.HP_BAR_W, 10, 0x44cc44).setOrigin(0, 0.5));
-    this.playerHpText = track(this.add.text(910 - ex, 557, `${this.player.hp}/${this.player.maxHp}`, { fontSize: '11px', color: '#aaa' }));
-
-    // Type badges
-    this.drawTypeBadges(14, 76, this.player);
-    this.drawTypeBadges(14, 76 - 280, this.rival);
-  }
-
-  private drawTypeBadges(x: number, _y: number, pokemon: Pokemon) {
-    const types = [pokemon.data.type1, pokemon.data.type2].filter(Boolean) as string[];
-    const baseY = pokemon === this.player ? 345 : 65;
-    types.forEach((t, i) => {
-      const bx = x + i * 65;
-      this.hudGroup.push(
-        this.add.rectangle(bx + 26, baseY, 52, 14, TYPE_COLORS[t] ?? 0x888888).setStrokeStyle(1, 0x000000, 0.3).setAlpha(0),
-        this.add.text(bx + 26, baseY, t.toUpperCase(), { fontSize: '8px', color: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setAlpha(0),
-      );
+    const rival = createBattleHud(this, {
+      side: 'enemy', name: this.rivalHudName(), level: this.rival.level,
+      hp: this.rival.hp, maxHp: this.rival.maxHp,
+      types: [this.rival.data.type1, this.rival.data.type2], hidden: true,
     });
+    this.hudGroup.push(...rival.objects);
+    this.rivalNameText = rival.nameText;
+    this.rivalLvText = rival.levelText;
+    this.rivalHpBar = rival.hpBar;
+    this.rivalHpText = rival.hpText;
+    this.rivalStatusBadge = new BattleStatusBadge(this.rivalNameText, () => this.rivalLvText.x - 36);
+    this.rivalStatusBadge.text.setAlpha(0);
+    this.hudGroup.push(this.rivalStatusBadge.text);
+
+    const player = createBattleHud(this, {
+      side: 'player', name: this.playerHudName(), level: this.player.level,
+      hp: this.player.hp, maxHp: this.player.maxHp,
+      types: [this.player.data.type1, this.player.data.type2], hidden: true,
+    });
+    this.playerBattleHud = player;
+    this.hudGroup.push(...player.objects);
+    this.playerNameText = player.nameText;
+    this.playerLvText = player.levelText;
+    this.playerHpBar = player.hpBar;
+    this.playerHpText = player.hpText;
+    this.playerStatusBadge = new BattleStatusBadge(this.playerNameText, () => this.playerLvText.x - 36);
+    this.playerStatusBadge.text.setAlpha(0);
+    this.hudGroup.push(this.playerStatusBadge.text);
+    this.HP_BAR_W = player.hpWidth;
   }
 
   // ── Sprites ───────────────────────────────────────────────────────────────
@@ -293,12 +276,12 @@ export class RivalBattleScene extends Phaser.Scene {
     this.dialogText.setText('');
     let i = 0;
     const ev = this.time.addEvent({
-      delay: 28, repeat: text.length - 1,
+      delay: BATTLE_PACING.dialogCharacterMs, repeat: text.length - 1,
       callback: () => {
         this.dialogText.setText(text.slice(0, ++i));
         if (i >= text.length) {
           ev.destroy();
-          if (onDone) this.time.delayedCall(700, onDone);
+          if (onDone) this.time.delayedCall(BATTLE_PACING.dialogHoldMs, onDone);
         }
       },
     });
@@ -307,69 +290,42 @@ export class RivalBattleScene extends Phaser.Scene {
   // ── Action panel ──────────────────────────────────────────────────────────
 
   private createActionPanel() {
-    this.actionPanel = this.add.container(this.W * 0.62, this.H - 120).setDepth(10);
-    const bg = this.add.rectangle(76, 60, 296, 120, 0x111133).setStrokeStyle(1, 0x5577aa);
-    this.actionPanel.add(bg);
-
+    this.actionPanel = this.add.container(0, this.H - 120).setDepth(10);
     const actions = [
-      { label: 'FIGHT',      x: 20,  y: 18, cb: () => this.onFight() },
-      { label: "CAN'T RUN",  x: 155, y: 18, cb: () => {
-        this.typeDialog("You can't run from a trainer battle!", () => this.playerAction());
-      }},
-      { label: 'BAG', x: 20, y: 72, cb: () => {
+      { label: '⚔ FIGHT', accent: 0xef776b, cb: () => this.onFight(), disabled: false },
+      { label: "× CAN'T RUN", accent: 0x596573, cb: () => {}, disabled: true },
+      { label: '◉ BAG', accent: 0xe0b64d, cb: () => {
         this.typeDialog(`${this.rivalTName}: No items in a fair fight!`, () => this.playerAction());
-      }},
-      { label: 'POKÉMON',    x: 155, y: 72, cb: () => this.onSwitchPokemon() },
+      }, disabled: false },
+      { label: '◇ POKÉMON', accent: 0x62bde7, cb: () => this.onSwitchPokemon(), disabled: false },
     ];
-
-    for (const a of actions) {
-      const t = this.add.text(a.x, a.y, tr(a.label), {
-        fontSize: '20px',
-        color: a.label === "CAN'T RUN" ? '#666688' : '#ffffff',
-      }).setInteractive({ useHandCursor: a.label !== "CAN'T RUN" })
-        .on('pointerover',  () => { if (a.label !== "CAN'T RUN") t.setColor('#ffff00'); })
-        .on('pointerout',   () => { if (a.label !== "CAN'T RUN") t.setColor('#ffffff'); })
-        .on('pointerdown',  a.cb);
-      this.actionPanel.add(t);
-    }
+    const left = this.W * 0.61;
+    const gap = 8;
+    const buttonW = (this.W - left - 16 - gap) / 2;
+    actions.forEach((action, index) => modernButton(this, this.actionPanel, {
+      label: tr(action.label), x: left + buttonW / 2 + (index % 2) * (buttonW + gap),
+      y: 29 + Math.floor(index / 2) * 58, width: buttonW, height: 50,
+      accent: action.accent, disabled: action.disabled, onPick: action.cb,
+    }));
   }
 
   // ── Move panel ────────────────────────────────────────────────────────────
 
   private createMovePanel() {
     this.movePanel = this.add.container(0, this.H - 120).setDepth(10).setVisible(false);
-    const bg = this.add.rectangle(this.W / 2 - 80, 60, this.W * 0.78, 120, 0x111133).setStrokeStyle(1, 0x5577aa);
-    this.movePanel.add(bg);
-
-    const back = this.add.text(this.W - 36, 12, tr('← BACK'), { fontSize: '13px', color: '#aaa' })
-      .setOrigin(1, 0)
-      .setInteractive({ useHandCursor: true })
-      .on('pointerdown', () => { this.state = 'playerAction'; this.showActionPanel(); });
-    this.movePanel.add(back);
-
-    this.moveBtns = [];
-    const cols = [16, 210, 404, 598];
+    const backW = 110;
+    const gap = 8;
+    const cardW = (this.W - 24 - backW - gap * 4) / 4;
     this.player.moves.forEach((move, i) => {
-      const x = cols[i] ?? cols[3];
-      const typeColor = TYPE_COLORS[move.data.type] ?? 0x888888;
-
-      // Type pill bg
-      const pill = this.add.rectangle(x + 80, 28, 158, 52, typeColor, 0.25)
-        .setStrokeStyle(1, typeColor, 0.8).setOrigin(0.5);
-      this.movePanel.add(pill);
-
-      const btn = this.add.text(x + 6, 10, tr(move.data.name).toUpperCase(), {
-        fontSize: '15px', color: '#fff', fontStyle: 'bold',
-      }).setInteractive({ useHandCursor: true })
-        .on('pointerover',  () => btn.setColor('#ffe44e'))
-        .on('pointerout',   () => btn.setColor('#ffffff'))
-        .on('pointerdown',  () => this.onMoveSelected(move));
-      this.movePanel.add(btn);
-
-      const ppTxt = this.add.text(x + 6, 32, `PP ${move.pp}/${move.data.pp}`, { fontSize: '11px', color: '#cccccc' });
-      const typeTxt = this.add.text(x + 6, 48, move.data.type.toUpperCase(), { fontSize: '10px', color: '#aaaaaa' });
-      this.movePanel.add([ppTxt, typeTxt]);
-      this.moveBtns.push(btn);
+      modernMoveButton(this, this.movePanel, {
+        move, x: 12 + cardW / 2 + i * (cardW + gap), y: 60,
+        width: cardW, height: 102, onPick: () => this.onMoveSelected(move),
+      });
+    });
+    modernButton(this, this.movePanel, {
+      label: tr('← BACK'), x: this.W - 12 - backW / 2, y: 60,
+      width: backW, height: 102, accent: 0x60758a,
+      onPick: () => { this.state = 'playerAction'; this.showActionPanel(); },
     });
   }
 
@@ -604,11 +560,12 @@ export class RivalBattleScene extends Phaser.Scene {
     const party = PartySystem.get(this.registry);
     const entry = party[slotIdx];
     this.player = buildFromEntry(entry);
+    syncBattleHudTypes(this.playerBattleHud, [this.player.data.type1, this.player.data.type2]);
     this.refreshMovePanel();
 
     this.playerNameText.setText(this.playerHudName());
     this.playerLvText.setText(`Lv.${this.player.level}`);
-    this.animateHpBar('player', () => {});
+    snapBattleHp(this.playerHpBar, this.playerHpText, this.HP_BAR_W, this.player.hp, this.player.maxHp);
 
     if (this.textures.exists(entry.spriteKey)) {
       this.playerSprite.setTexture(entry.spriteKey);
@@ -637,10 +594,11 @@ export class RivalBattleScene extends Phaser.Scene {
     this.participants.add(nextIdx);
     const entry = party[nextIdx];
     this.player = buildFromEntry(entry);
+    syncBattleHudTypes(this.playerBattleHud, [this.player.data.type1, this.player.data.type2]);
     this.refreshMovePanel();
     this.playerNameText.setText(this.playerHudName());
     this.playerLvText.setText(`Lv.${this.player.level}`);
-    this.animateHpBar('player', () => {});
+    snapBattleHp(this.playerHpBar, this.playerHpText, this.HP_BAR_W, this.player.hp, this.player.maxHp);
 
     const key = entry.spriteKey;
     if (this.textures.exists(key)) {
@@ -673,16 +631,19 @@ export class RivalBattleScene extends Phaser.Scene {
       this.player.level, this.player.exp, this.player.hp, this.player.maxHp,
     );
 
-    let text = `${this.rivalTName}: Tch. You got me this time.\n${this.player.name} gained ${expGained} EXP!`;
+    // Build the victory message from translated lines — this panel writes straight
+    // to the Text object (no typeDialog), so each fragment must be tr()'d itself or
+    // it renders in English. The first two lines together match a battle pattern.
+    let text = tr(`${this.rivalTName}: Tch. You got me this time.\n${this.player.name} gained ${expGained} EXP!`);
     if (levelledUp) {
       this.playerLvText.setText(`Lv.${this.player.level}`);
-      text += `\n✨ ${this.player.name} grew to Lv. ${this.player.level}!`;
+      text += `\n${tr(`✨ ${this.player.name} grew to Lv. ${this.player.level}!`)}`;
     }
     // Other participants share the EXP too.
     for (const line of awardBenchExp(this.registry, this.participants, this.activeSlot, expGained)) {
-      text += `\n${line}`;
+      text += `\n${tr(line)}`;
     }
-    text += '\nReturning to Waterfall City...';
+    text += `\n${tr('Returning to Waterfall City...')}`;
 
     this.dialogText.setText(text);
 
@@ -764,18 +725,9 @@ export class RivalBattleScene extends Phaser.Scene {
     const pokemon = who === 'player' ? this.player : this.rival;
     const bar     = who === 'player' ? this.playerHpBar : this.rivalHpBar;
     const hpText  = who === 'player' ? this.playerHpText : this.rivalHpText;
-    const ratio   = pokemon.hp / pokemon.maxHp;
-
-    bar.fillColor = ratio > 0.5 ? 0x44cc44 : ratio > 0.25 ? 0xddcc00 : 0xcc4444;
-    this.tweens.add({
-      targets: bar,
-      width: Math.max(0, ratio * this.HP_BAR_W),
-      duration: 500,
-      ease: 'Linear',
-      onComplete: () => {
-        hpText.setText(`${pokemon.hp}/${pokemon.maxHp}`);
-        onDone();
-      },
+    animateBattleHp({
+      scene: this, bar, label: hpText, maxWidth: this.HP_BAR_W,
+      targetHp: pokemon.hp, maxHp: pokemon.maxHp, onDone,
     });
   }
 }

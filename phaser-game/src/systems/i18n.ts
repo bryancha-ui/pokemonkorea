@@ -204,9 +204,34 @@ export function toggleLang(): Lang {
   return currentLang;
 }
 
+// ── Korean particle (josa) resolution ───────────────────────────────────────
+// Many dynamic Korean lines interpolate a name/word then a particle that depends
+// on whether that word ends in a 받침 (final consonant): 은/는, 이/가, 을/를,
+// 과/와, (으)로. Templates author these as placeholders like "(은)는" or "을(를)";
+// this post-pass reads the character right before the placeholder and picks the
+// correct particle, so the player never sees a raw "다람톨(으)로".
+function lastHangulJong(word: string): number {
+  const ch = word.charCodeAt(word.length - 1);
+  if (Number.isNaN(ch) || ch < 0xAC00 || ch > 0xD7A3) return -1;   // not a Hangul syllable
+  return (ch - 0xAC00) % 28;                                        // 0 = no 받침, 8 = ㄹ
+}
+/** Resolve every josa placeholder in a finished Korean string. Non-Hangul words
+ *  (e.g. an English name) fall back to the no-받침 form, which reads naturally. */
+export function resolveJosa(s: string): string {
+  if (typeof s !== 'string' || s.indexOf('(') < 0) return s;   // fast path: no placeholders
+  const hasB = (b: string) => lastHangulJong(b) > 0;
+  return s
+    .replace(/(.)(?:\(은\)는|은\(는\))/g, (_, b) => b + (hasB(b) ? '은' : '는'))
+    .replace(/(.)(?:\(이\)가|이\(가\))/g, (_, b) => b + (hasB(b) ? '이' : '가'))
+    .replace(/(.)(?:을\(를\)|\(을\)를|를\(을\)|\(를\)을)/g, (_, b) => b + (hasB(b) ? '을' : '를'))
+    .replace(/(.)(?:\(과\)와|과\(와\)|\(와\)과|와\(과\))/g, (_, b) => b + (hasB(b) ? '과' : '와'))
+    .replace(/(.)\(으\)로/g, (_, b) => { const j = lastHangulJong(b); return b + (j > 0 && j !== 8 ? '으로' : '로'); })
+    .replace(/(.)\(도\)/g, (_, b) => b + '도');
+}
+
 /** Pick the localized string for the current language (falls back to English). */
 export function t(en: string, ko?: string): string {
-  return currentLang === 'ko' && ko !== undefined ? ko : en;
+  return currentLang === 'ko' && ko !== undefined ? resolveJosa(ko) : en;
 }
 
 /** Look up an English string in the Korean dictionary. Unmapped strings (and English
@@ -507,6 +532,10 @@ const BATTLE_PATTERNS: Array<[RegExp, (m: RegExpMatchArray) => string]> = [
 
 export function tr(en: string): string {
   if (currentLang !== 'ko' || typeof en !== 'string') return en;
+  return resolveJosa(trKo(en));
+}
+
+function trKo(en: string): string {
   const exact = KO_STRINGS[en] ?? KO_STRINGS[en.trim()];
   if (exact) return exact;
   for (const [re, fn] of BATTLE_PATTERNS) {

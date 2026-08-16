@@ -5,6 +5,7 @@ import { genderForPokemon, isLegendaryPokemon } from '../data/PokemonGender';
 import { findForm } from '../data/StarterData';
 import { dexEntry, dexKeyFor } from '../data/Pokedex';
 import { DexTracker } from './DexTracker';
+import { resolveJosa } from './i18n';
 import { PartySystem, type PartyEntry, baseStatsFromData } from './PartySystem';
 
 const STATE_KEY = 'pokemonNursery';
@@ -255,7 +256,7 @@ export const BreedingSystem = {
     state.parents.push({ mon, depositedFrom: source });
     state.eggProgress = 0;
     writeState(registry, state);
-    return { ok: true, message: `${mon.name}을(를) 키우미집에 맡겼습니다.` };
+    return { ok: true, message: resolveJosa(`${mon.name}을(를) 키우미집에 맡겼습니다.`) };
   },
 
   withdraw(registry: Phaser.Data.DataManager, parentIndex: number): { ok: boolean; message: string } {
@@ -265,7 +266,7 @@ export const BreedingSystem = {
     const inParty = PartySystem.add(registry, parent.mon);
     state.eggProgress = 0;
     writeState(registry, state);
-    return { ok: true, message: `${parent.mon.name}을(를) ${inParty ? '동료로' : '보관함으로'} 데려왔습니다.` };
+    return { ok: true, message: resolveJosa(`${parent.mon.name}을(를) ${inParty ? '동료로' : '보관함으로'} 데려왔습니다.`) };
   },
 
   claimEgg(registry: Phaser.Data.DataManager): { ok: boolean; message: string } {

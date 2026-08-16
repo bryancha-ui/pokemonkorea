@@ -194,7 +194,9 @@ export const POKEDEX: DexEntry[] = [
     spriteUrl: D + 'groundzoome.png', evolvesTo: 'groundzomber', evolvesAtLevel: 34, dist: 'Wild', where: 'Old burial grounds' },
   { num: 156, key: 'groundzomber', name: 'Groundzomber', type1: 'ground', type2: 'ghost', ability: 'Cursed Body',
     dexText: 'Risen fully from the earth, it lumbers through the dark dragging chains of packed clay. Its hollow eyes never blink.',
-    spriteUrl: D + 'groundzomber.png', dist: 'Wild', where: 'Evolve Groundzoome' },
+    // Groundzomber intentionally shares this identical authored sprite file;
+    // avoiding a byte-for-byte duplicate saves both download and texture cache.
+    spriteUrl: D + 'groundzoome.png', dist: 'Wild', where: 'Evolve Groundzoome' },
   { num: 157, key: 'kelpoxin', name: 'Kelpoxin', type1: 'poison', type2: 'water', ability: 'Poison Point',
     dexText: 'A tangle of venom-slick kelp. It lurks in murky shallows and stings anything that brushes its fronds.',
     spriteUrl: D + 'kelpoxin.png', dist: 'Wild', where: 'Brackish shallows' },

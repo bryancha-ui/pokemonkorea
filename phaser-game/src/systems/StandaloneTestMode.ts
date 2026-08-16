@@ -1,6 +1,6 @@
 export const STANDALONE_TEST_MODES = [
   'ryeo-battle', 'nabi-entrance', 'hwanung-entrance', 'hwanung-battle', 'true-ending',
-  'battle-regressions', 'ui-localization', 'close-combat', 'special-move-fx', 'move-fx-families', 'status-effects',
+  'battle-regressions', 'ui-localization', 'close-combat', 'fly-move', 'special-move-fx', 'move-fx-families', 'status-effects',
   'starter-select', 'starter-rival-vipour',
   'reward-ceremony',
   'leaderboard', 'leaderboard-live',

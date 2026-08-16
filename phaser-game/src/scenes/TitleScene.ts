@@ -476,6 +476,7 @@ export class TitleScene extends Phaser.Scene {
       if (this.selected === 0) {
         SaveManager.delete();
         this.registry.reset();
+        SaveManager.beginPlaySession(this.registry);
         LeaderboardProgress.startNewRun(this.registry);
         this.scene.start('IntroScene');   // Prof. Song's welcome → boy/girl select → adventure
       } else {

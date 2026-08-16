@@ -24,6 +24,9 @@ import { TMS } from '../data/TMs';
 import { BADGES, reconcileBadgeProgress } from '../data/Badges';
 import { MAPAE, hasMapae, mapaeCount } from '../data/Mapae';
 import { preloadRewardAssets, rewardTextureKey } from '../systems/RewardCeremony';
+import { PROD_UI, roundedPanel } from '../systems/ProductionUi';
+import { sfxCancel, sfxConfirm, sfxMove } from '../systems/UiSfx';
+import { localizedCaughtLocation } from '../data/PokemonOrigin';
 
 export class MenuScene extends Phaser.Scene {
   private tab: 'pokemon' | 'bag' = 'pokemon';
@@ -87,40 +90,49 @@ export class MenuScene extends Phaser.Scene {
     // On mobile the on-canvas font is scaled up, so grow the window to fit; the
     // chrome (header/tabs/buttons) is then positioned relative to the window edges.
     this.mobileMenu = fontScaleForScene(this) > 1;
-    this.winW = this.mobileMenu ? Math.min(this.W - 16, 1248) : 780;
-    this.winH = this.mobileMenu ? Math.min(this.H - 12, 704) : 540;
+    this.winW = this.mobileMenu ? Math.min(this.W - 16, 1248) : Math.min(this.W - 36, 980);
+    this.winH = this.mobileMenu ? Math.min(this.H - 12, 704) : Math.min(this.H - 24, 620);
     const winTop = this.H / 2 - this.winH / 2;
     const winLeft = this.W / 2 - this.winW / 2;
     const winRight = this.W / 2 + this.winW / 2;
 
-    // Dim overlay (covers full canvas)
-    this.add.rectangle(this.W / 2, this.H / 2, this.W, this.H, 0x000000, 0.65);
-
-    // Main panel
-    this.add.rectangle(this.W / 2, this.H / 2, this.winW, this.winH, 0x0d0d2e, 0.97)
-      .setStrokeStyle(2, 0x5577aa);
+    // Cinematic glass overlay: the world remains visible behind a deep blue,
+    // production-style panel instead of being replaced by an opaque pause box.
+    this.add.rectangle(this.W / 2, this.H / 2, this.W, this.H, 0x020812, 0.72);
+    const atmosphere = this.add.graphics();
+    atmosphere.fillGradientStyle(0x0d4971, 0x081a32, 0x07101f, 0x112942, 0.32, 0.18, 0.35, 0.24);
+    atmosphere.fillRect(0, 0, this.W, this.H);
+    roundedPanel(this, winLeft, winTop, this.winW, this.winH, {
+      fill: PROD_UI.ink, alpha: 0.94, stroke: 0x5e8bb4, radius: 22,
+    });
+    this.add.rectangle(winLeft + 4, this.H / 2, 7, this.winH - 24, PROD_UI.cyan, 0.9);
 
     // ── Header ──────────────────────────────────────────────────────────────
-    this.add.text(this.W / 2, winTop + 22, t('— MENU —', '— 메뉴 —'), {
-      fontSize: '18px', color: '#ffe44e', fontStyle: 'bold',
+    this.add.text(this.W / 2, winTop + 24, t('MAIN MENU', '메인 메뉴'), {
+      fontSize: '19px', color: '#f6fbff', fontStyle: 'bold', letterSpacing: 2,
+    }).setOrigin(0.5);
+    this.add.text(this.W / 2, winTop + 44, t('TRAINER CONTROL CENTER', '트레이너 컨트롤 센터'), {
+      fontSize: '8px', color: '#70cce9', letterSpacing: 2,
     }).setOrigin(0.5);
 
     // ── Tab buttons ──────────────────────────────────────────────────────────
-    this.tabPokemon = this.add.text(this.W / 2 - 80, winTop + 52, t('POKÉMON', '포켓몬'), {
-      fontSize: '14px', color: '#ffffff', backgroundColor: '#1a3a6a',
-      padding: { x: 12, y: 6 },
+    const tabY = winTop + (this.mobileMenu ? 120 : 70);
+    this.tabPokemon = this.add.text(this.W / 2 - 102, tabY, t('◈  POKÉMON', '◈  포켓몬'), {
+      fontSize: '14px', color: '#ffffff', backgroundColor: '#267f9f',
+      padding: { x: 20, y: 9 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: true })
       .on('pointerdown', () => this.switchTab('pokemon'));
 
-    this.tabBag = this.add.text(this.W / 2 + 60, winTop + 52, t('BAG', '가방'), {
-      fontSize: '14px', color: '#aaaaaa', backgroundColor: '#111133',
-      padding: { x: 12, y: 6 },
+    this.tabBag = this.add.text(this.W / 2 + 102, tabY, t('▣  BAG', '▣  가방'), {
+      fontSize: '14px', color: '#9fb1c3', backgroundColor: '#16283c',
+      padding: { x: 28, y: 9 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: true })
       .on('pointerdown', () => this.switchTab('bag'));
 
     // ── Save button ──────────────────────────────────────────────────────────
-    const saveBtn = this.add.text(winLeft + 50, winTop + 22, t('💾 SAVE', '💾 저장'), {
-      fontSize: '13px', color: '#ffe44e', backgroundColor: '#1a3a1a',
+    let refreshPlayTime = () => {};
+    const saveBtn = this.add.text(winLeft + 58, winTop + 28, t('💾 SAVE', '💾 저장'), {
+      fontSize: '12px', color: '#e9fff0', backgroundColor: '#1a5237',
       padding: { x: 8, y: 4 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     saveBtn.on('pointerdown', () => {
@@ -134,13 +146,14 @@ export class MenuScene extends Phaser.Scene {
       const px = active?.px ?? (this.registry.get('lastX') as number) ?? (this.registry.get('returnX') as number) ?? 22 * 32 + 16;
       const py = active?.py ?? (this.registry.get('lastY') as number) ?? (this.registry.get('returnY') as number) ?? 24 * 32 + 16;
       const ok = SaveManager.save(this.registry, px, py, scene, 'manual');
+      refreshPlayTime();
       if (ok) saveBtn.setText(tr('💾 SAVED!')).setColor('#aaffaa');
       else    saveBtn.setText(tr('⚠ SAVE FAILED')).setColor('#ff8888');
       this.time.delayedCall(1800, () => saveBtn.setText(t('💾 SAVE', '💾 저장')).setColor('#ffe44e'));
     });
 
-    const rankBtn = this.add.text(winLeft + 137, winTop + 22, t('◆ RANK', '◆ 순위'), {
-      fontSize: '13px', color: '#d9d0ff', backgroundColor: '#30265d', padding: { x: 8, y: 4 },
+    const rankBtn = this.add.text(winLeft + 146, winTop + 28, t('◆ RANK', '◆ 순위'), {
+      fontSize: '12px', color: '#e7e4ff', backgroundColor: '#393363', padding: { x: 8, y: 4 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     rankBtn.on('pointerdown', () => {
       this.scene.pause();
@@ -149,27 +162,58 @@ export class MenuScene extends Phaser.Scene {
 
     // Auto-save is enabled by default to preserve the game's existing safety.
     // It can be disabled without affecting the explicit SAVE button above.
-    const autoSaveBtn = this.add.text(winLeft + 250, winTop + 22, '', {
-      fontSize: '13px', color: '#aaffc2', backgroundColor: '#17452a', padding: { x: 8, y: 4 },
+    const autoSaveBtn = this.add.text(winLeft + 268, winTop + 28, '', {
+      fontSize: '12px', color: '#aaffc2', backgroundColor: '#17452a', padding: { x: 8, y: 4 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    let playTimeText: Phaser.GameObjects.Text | undefined;
     const refreshAutoSaveButton = () => {
       const enabled = SaveManager.isAutoSaveEnabled();
       autoSaveBtn
         .setText(t(`AUTO-SAVE: ${enabled ? 'ON' : 'OFF'}`, `자동저장: ${enabled ? '켜짐' : '꺼짐'}`))
         .setColor(enabled ? '#aaffc2' : '#ffb5b5')
         .setBackgroundColor(enabled ? '#17452a' : '#52212a');
+      if (this.mobileMenu && playTimeText) {
+        playTimeText.setPosition(autoSaveBtn.x + autoSaveBtn.displayWidth + 14, autoSaveBtn.y);
+      }
     };
-    refreshAutoSaveButton();
     autoSaveBtn.on('pointerdown', () => {
       SaveManager.toggleAutoSave();
       refreshAutoSaveButton();
     });
 
+    playTimeText = this.add.text(0, 0, '', {
+      fontSize: '10px', color: '#a9c8dd', fontStyle: 'bold',
+    }).setOrigin(0, 0.5);
+    const formatPlayTime = (milliseconds: number) => {
+      const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000));
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+      return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    };
+    refreshPlayTime = () => playTimeText!.setText(
+      t(`PLAY TIME  ${formatPlayTime(SaveManager.playTimeMs(this.registry))}`,
+        `플레이 시간  ${formatPlayTime(SaveManager.playTimeMs(this.registry))}`),
+    );
+
+    if (this.mobileMenu) {
+      // Two compact rows prevent globally enlarged mobile fonts from colliding:
+      // SAVE/RANK above, AUTO-SAVE/play time below.
+      saveBtn.setOrigin(0, 0.5).setPosition(winLeft + 18, winTop + 25);
+      rankBtn.setOrigin(0, 0.5).setPosition(saveBtn.x + saveBtn.displayWidth + 12, saveBtn.y);
+      autoSaveBtn.setOrigin(0, 0.5).setPosition(winLeft + 18, winTop + 67);
+    } else {
+      playTimeText.setOrigin(1, 0.5).setPosition(winRight - 150, winTop + 28);
+    }
+    refreshAutoSaveButton();
+    refreshPlayTime();
+    this.time.addEvent({ delay: 1000, loop: true, callback: refreshPlayTime });
+
     // ── Close button ─────────────────────────────────────────────────────────
-    this.add.text(winRight - 20, winTop + 22, t('✕ CLOSE', '✕ 닫기'), {
-      fontSize: '13px', color: '#aaaaaa',
-    }).setOrigin(1, 0.5).setInteractive({ useHandCursor: true })
-      .on('pointerdown', () => this.closeMenu())
+    this.add.text(winRight - 20, winTop + 28, t('B  RETURN', 'B  돌아가기'), {
+      fontSize: '12px', color: '#d8e6f3', backgroundColor: '#15283c', padding: { x: 10, y: 6 },
+    }).setOrigin(1, 0.5).setInteractive({ useHandCursor: true }).setData('uiCancel', true)
+      .on('pointerdown', () => this.closeMenu(false))
       .on('pointerover', function(this: Phaser.GameObjects.Text) { this.setColor('#ffffff'); })
       .on('pointerout',  function(this: Phaser.GameObjects.Text) { this.setColor('#aaaaaa'); });
 
@@ -177,6 +221,19 @@ export class MenuScene extends Phaser.Scene {
     this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.M).on('down', () => this.closeMenu());
     this.upKey   = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.UP);
     this.downKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN);
+    // One consistent audio layer covers every interactive menu row, tab and
+    // picker—including dynamically created item buttons.
+    this.input.on('gameobjectover', (_pointer: Phaser.Input.Pointer, object: Phaser.GameObjects.GameObject) => {
+      if (object.getData('uiHovering')) return;
+      object.setData('uiHovering', true);
+      sfxMove(this);
+    });
+    this.input.on('gameobjectout', (_pointer: Phaser.Input.Pointer, object: Phaser.GameObjects.GameObject) =>
+      object.setData('uiHovering', false));
+    this.input.on('gameobjectdown', (_pointer: Phaser.Input.Pointer, object: Phaser.GameObjects.GameObject) => {
+      if (object.getData('uiCancel')) sfxCancel(this);
+      else sfxConfirm(this);
+    });
     // Mouse-wheel paging for the bag list. Moving a whole page makes the
     // behaviour predictable on trackpads and prevents items being stranded
     // between overlapping seven-row windows.
@@ -204,10 +261,10 @@ export class MenuScene extends Phaser.Scene {
     if (tab === 'bag') deckHideLeadPicker();
     if (tab === 'bag' && this.tab !== 'bag') this.bagScroll = 0;   // fresh bag view starts at the top
     this.tab = tab;
-    this.tabPokemon.setColor(tab === 'pokemon' ? '#ffffff' : '#888888')
-      .setBackgroundColor(tab === 'pokemon' ? '#1a3a6a' : '#111133');
-    this.tabBag.setColor(tab === 'bag' ? '#ffffff' : '#888888')
-      .setBackgroundColor(tab === 'bag' ? '#1a3a6a' : '#111133');
+    this.tabPokemon.setColor(tab === 'pokemon' ? '#ffffff' : '#9fb1c3')
+      .setBackgroundColor(tab === 'pokemon' ? '#267f9f' : '#16283c');
+    this.tabBag.setColor(tab === 'bag' ? '#ffffff' : '#9fb1c3')
+      .setBackgroundColor(tab === 'bag' ? '#267f9f' : '#16283c');
     this.contentContainer.destroy(true);
     this.contentContainer = this.add.container(0, 0);
     if (tab === 'pokemon') this.renderPokemonTab();
@@ -238,8 +295,8 @@ export class MenuScene extends Phaser.Scene {
     // ── Mobile: single-column, roomy cards sized to fit the enlarged font ──
     if (this.mobileMenu) {
       const winTop = cy - this.winH / 2, winBottom = cy + this.winH / 2;
-      const gridTop = winTop + 88, gridBottom = winBottom - 40;
-      const gap = 10;
+      const gridTop = winTop + 160, gridBottom = winBottom - 32;
+      const gap = 4;
       const n = Math.max(1, occupiedCount);
       const cardH = Math.min(152, (gridBottom - gridTop - gap * (n - 1)) / n);
       const cardW = this.winW - 40;
@@ -300,8 +357,8 @@ export class MenuScene extends Phaser.Scene {
       const row = Math.floor(i / 2);
       const x   = gridX[col];
       const y   = startY + row * rowH;
-      const bg  = this.add.rectangle(x, y, cardW, cardH, 0x0a0a22, 0.6)
-        .setStrokeStyle(1, 0x223355);
+      const bg  = this.add.rectangle(x, y, cardW, cardH, 0x0b1725, 0.72)
+        .setStrokeStyle(1, 0x2b4258, 0.68);
       const lbl = this.add.text(x, y, tr('— empty —'), { fontSize: '12px', color: '#334466' })
         .setOrigin(0.5);
       this.contentContainer.add([bg, lbl]);
@@ -337,13 +394,17 @@ export class MenuScene extends Phaser.Scene {
   private drawPartyCard(entry: PartyEntry, x: number, y: number, w: number, h: number, isLead: boolean, index = 0) {
     // The card opens a separate full status window. Lead selection remains a
     // small, explicit button so opening details never silently reorders party.
-    const bg = this.add.rectangle(x, y, w, h, 0x111133, 1)
-      .setStrokeStyle(isLead ? 2 : 1, isLead ? 0xffe44e : 0x3355aa)
+    const shadow = this.add.rectangle(x + 4, y + 5, w, h, 0x000000, 0.26);
+    this.contentContainer.add(shadow);
+    const bg = this.add.rectangle(x, y, w, h, isLead ? 0x203f51 : 0x14273a, 0.98)
+      .setStrokeStyle(isLead ? 2 : 1, isLead ? 0xffdc5e : 0x416b8f)
       .setInteractive({ useHandCursor: true })
       .on('pointerover', () => bg.setStrokeStyle(2, isLead ? 0xffe44e : 0x77aaff))
       .on('pointerout',  () => bg.setStrokeStyle(isLead ? 2 : 1, isLead ? 0xffe44e : 0x3355aa))
       .on('pointerdown', () => this.showPokemonDetails(index));
     this.contentContainer.add(bg);
+    const accent = TYPE_COLORS[entry.type1 as keyof typeof TYPE_COLORS] ?? PROD_UI.cyan;
+    this.contentContainer.add(this.add.rectangle(x - w / 2 + 4, y, 7, h - 12, accent, 0.95));
     // Lead badge
     const tag = this.add.text(x + w / 2 - 8, y + h / 2 - 8,
       isLead ? t('★ LEAD', '★ 선두') : t('SET LEAD', '선두 변경'),
@@ -357,7 +418,9 @@ export class MenuScene extends Phaser.Scene {
     // Sprite (if texture cached in this scene, show it; otherwise type square)
     const sprKey = entry.spriteKey;
     if (this.textures.exists(sprKey)) {
-      const img = this.add.image(x - w / 2 + 36, y, sprKey);
+      const halo = this.add.circle(x - w / 2 + 40, y, 35, accent, 0.16).setStrokeStyle(1, accent, 0.45);
+      this.contentContainer.add(halo);
+      const img = this.add.image(x - w / 2 + 40, y, sprKey);
       const tex = this.textures.get(sprKey).getSourceImage();
       const dim = Math.max((tex.width as number) || 1, (tex.height as number) || 1);
       img.setScale(Math.min(70, 70) / dim);
@@ -365,9 +428,9 @@ export class MenuScene extends Phaser.Scene {
     } else {
       // Coloured square based on type
       const typeCol = TYPE_COLORS[entry.type1 as keyof typeof TYPE_COLORS] ?? 0x555577;
-      const sq = this.add.rectangle(x - w / 2 + 36, y, 60, 60, typeCol, 0.5)
+      const sq = this.add.circle(x - w / 2 + 40, y, 31, typeCol, 0.35)
         .setStrokeStyle(1, typeCol);
-      const tl = this.add.text(x - w / 2 + 36, y, entry.type1.toUpperCase()[0],
+      const tl = this.add.text(x - w / 2 + 40, y, typeName(entry.type1).slice(0, 1),
         { fontSize: '20px', color: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
       this.contentContainer.add([sq, tl]);
     }
@@ -427,18 +490,24 @@ export class MenuScene extends Phaser.Scene {
   private drawPartyCardMobile(entry: PartyEntry, x: number, y: number, w: number, h: number, isLead: boolean, index = 0) {
     const left = x - w / 2, right = x + w / 2, top = y - h / 2, bottom = y + h / 2;
     const pad = 16;
-    const bg = this.add.rectangle(x, y, w, h, 0x111133, 1)
-      .setStrokeStyle(isLead ? 3 : 1, isLead ? 0xffe44e : 0x3355aa)
+    const shadow = this.add.rectangle(x + 5, y + 6, w, h, 0x000000, 0.27);
+    this.contentContainer.add(shadow);
+    const bg = this.add.rectangle(x, y, w, h, isLead ? 0x203f51 : 0x14273a, 0.98)
+      .setStrokeStyle(isLead ? 3 : 1, isLead ? 0xffdc5e : 0x416b8f)
       .setInteractive({ useHandCursor: true })
       .on('pointerover', () => bg.setStrokeStyle(3, isLead ? 0xffe44e : 0x77aaff))
       .on('pointerout',  () => bg.setStrokeStyle(isLead ? 3 : 1, isLead ? 0xffe44e : 0x3355aa))
       .on('pointerdown', () => this.showPokemonDetails(index));
     this.contentContainer.add(bg);
+    const accent = TYPE_COLORS[entry.type1 as keyof typeof TYPE_COLORS] ?? PROD_UI.cyan;
+    this.contentContainer.add(this.add.rectangle(left + 5, y, 9, h - 14, accent, 0.95));
 
     // Sprite (left) — or a type-coloured square if its texture isn't cached.
     const sprSize = h * 0.74;
     const sprX = left + h * 0.54;
     if (this.textures.exists(entry.spriteKey)) {
+      this.contentContainer.add(this.add.circle(sprX, y, sprSize * 0.48, accent, 0.14)
+        .setStrokeStyle(1, accent, 0.5));
       const img = this.add.image(sprX, y, entry.spriteKey);
       const tex = this.textures.get(entry.spriteKey).getSourceImage();
       const dim = Math.max((tex.width as number) || 1, (tex.height as number) || 1);
@@ -576,29 +645,25 @@ export class MenuScene extends Phaser.Scene {
     const dex = dexEntry(key);
     if (this.mobileMenu) { this.showPokemonDetailsMobile(entry, mon, key, dex, index); return; }
     const cx = this.W / 2, cy = this.H / 2;
+    const modalW = Math.min(this.W - 42, 1180);
+    const modalH = Math.min(this.H - 34, 660);
+    const left = cx - modalW / 2, top = cy - modalH / 2;
+    const accent = TYPE_COLORS[entry.type1 as keyof typeof TYPE_COLORS] ?? PROD_UI.cyan;
     const overlay = this.add.container(0, 0).setDepth(100);
-
-    const dim = this.add.rectangle(cx, cy, this.W, this.H, 0x000000, 0.78)
-      .setInteractive();
+    const dim = this.add.rectangle(cx, cy, this.W, this.H, 0x02060d, 0.88).setInteractive();
     overlay.add(dim);
-    overlay.add(this.add.rectangle(cx, cy, 760, 560, 0x0d142b, 0.99)
-      .setStrokeStyle(3, 0x6f95d8));
-    overlay.add(this.add.text(cx, cy - 252, t('— POKÉMON STATUS —', '— 포켓몬 상태 —'), {
-      fontSize: '18px', color: '#ffe44e', fontStyle: 'bold',
-    }).setOrigin(0.5));
+    overlay.add(roundedPanel(this, left, top, modalW, modalH, {
+      fill: 0x091626, alpha: 0.995, stroke: accent, radius: 22,
+    }));
+    const blocker = this.add.rectangle(cx, cy, modalW, modalH, 0xffffff, 0.001).setInteractive();
+    overlay.add(blocker);
 
-    // Portrait and identity
-    if (this.textures.exists(entry.spriteKey)) {
-      const img = this.add.image(cx - 270, cy - 115, entry.spriteKey);
-      const src = this.textures.get(entry.spriteKey).getSourceImage();
-      const sourceDim = Math.max((src.width as number) || 1, (src.height as number) || 1);
-      img.setScale(150 / sourceDim);
-      overlay.add(img);
-    } else {
-      const color = TYPE_COLORS[entry.type1 as keyof typeof TYPE_COLORS] ?? 0x556688;
-      overlay.add(this.add.circle(cx - 270, cy - 115, 68, color, 0.55).setStrokeStyle(2, color));
-      overlay.add(this.add.text(cx - 270, cy - 115, '?', { fontSize: '42px', color: '#fff' }).setOrigin(0.5));
-    }
+    // Type-coloured production header, inspired by the attached status screen.
+    overlay.add(this.add.rectangle(cx, top + 31, modalW - 4, 58, accent, 0.88));
+    overlay.add(this.add.rectangle(cx, top + 59, modalW - 4, 4, 0xffffff, 0.13));
+    overlay.add(this.add.text(left + 24, top + 18, t('POKÉMON STATUS', '포켓몬 스테이터스'), {
+      fontSize: '16px', color: '#ffffff', fontStyle: 'bold', letterSpacing: 2,
+    }));
 
     const gender = genderForPokemon({
       name: entry.name, key: entry.spriteKey, gender: entry.gender,
@@ -606,23 +671,9 @@ export class MenuScene extends Phaser.Scene {
     }, entry.breedingId ?? `party-${index}`);
     const symbol = genderSymbol(gender);
     const genderColor = gender === 'male' ? '#6fb5ff' : gender === 'female' ? '#ff91c8' : '#b8bfd0';
-    overlay.add(this.add.text(cx - 170, cy - 194, this.partyName(entry), {
-      fontSize: '24px', color: '#ffffff', fontStyle: 'bold',
-    }));
-    overlay.add(this.add.text(cx + 102, cy - 190, symbol, { fontSize: '22px', color: genderColor, fontStyle: 'bold' }));
-    overlay.add(this.add.text(cx + 165, cy - 190, `Lv.${entry.level}`, { fontSize: '17px', color: '#ffe44e' }));
-
-    [entry.type1, entry.type2].filter(Boolean).forEach((type, i) => {
-      const x = cx - 137 + i * 95;
-      const typeKey = type as string;
-      overlay.add(this.add.rectangle(x, cy - 148, 82, 22,
-        TYPE_COLORS[typeKey as keyof typeof TYPE_COLORS] ?? 0x556688).setStrokeStyle(1, 0xffffff, 0.25));
-      overlay.add(this.add.text(x, cy - 148, typeName(typeKey), {
-        fontSize: '11px', color: '#fff', fontStyle: 'bold',
-      }).setOrigin(0.5));
-    });
-
     const ability = entry.ability ?? findForm(entry.spriteKey)?.ability ?? dex?.ability ?? t('Unknown', '알 수 없음');
+    const heldItemDefinition = entry.heldItem ? itemDef(entry.heldItem) : undefined;
+    const heldItemName = heldItemDefinition ? itemName(heldItemDefinition) : entry.heldItem ?? t('None', '없음');
     const storedOrigin = entry.caughtAt && !/^Evolve\b/i.test(entry.caughtAt) ? entry.caughtAt : undefined;
     const origin = storedOrigin ?? caughtOriginForDexKey(key)
       ?? (STARTERS.some(s => s.spriteKey === entry.spriteKey) ? "Prof. Song's Lab" : 'Unknown location');
@@ -630,52 +681,167 @@ export class MenuScene extends Phaser.Scene {
       none: t('Healthy', '정상'), psn: t('Poisoned', '독'), par: t('Paralyzed', '마비'),
       brn: t('Burned', '화상'), frz: t('Frozen', '얼음'), slp: t('Asleep', '잠듦'),
     };
-    const profileX = cx - 170;
-    overlay.add(this.add.text(profileX, cy - 108,
-      `${t('Ability', '특성')}: ${abilityName(ability, entry.abilityKo)}`, { fontSize: '14px', color: '#bcd3ff' }));
-    overlay.add(this.add.text(profileX, cy - 78,
-      `${t('Caught at', '잡은 위치')}: ${tr(origin)}`, { fontSize: '13px', color: '#aab8d0', wordWrap: { width: 455 } }));
-    overlay.add(this.add.text(profileX, cy - 48,
-      `${t('Condition', '상태')}: ${statusNames[entry.status ?? 'none'] ?? entry.status}`, { fontSize: '13px', color: '#aab8d0' }));
 
-    // Exact six battle stats used by damage and turn order.
-    overlay.add(this.add.text(cx - 340, cy + 8, t('BATTLE STATS', '능력치'), {
-      fontSize: '14px', color: '#ffe44e', fontStyle: 'bold',
-    }));
-    const stats = [
-      [t('HP', '체력'), `${mon.hp}/${mon.maxHp}`], [t('Attack', '공격'), mon.atk],
-      [t('Defense', '방어'), mon.def], [t('Sp. Atk', '특수공격'), mon.spAtk],
-      [t('Sp. Def', '특수방어'), mon.spDef], [t('Speed', '스피드'), mon.spd],
-    ];
-    stats.forEach(([label, value], i) => {
-      const col = i % 3, row = Math.floor(i / 3);
-      const x = cx - 340 + col * 120, y = cy + 39 + row * 36;
-      overlay.add(this.add.rectangle(x + 52, y, 108, 28, 0x172743).setStrokeStyle(1, 0x365782));
-      overlay.add(this.add.text(x + 7, y, `${label}\n${value}`, {
-        fontSize: '10px', color: '#dbe7ff', lineSpacing: 1,
-      }).setOrigin(0, 0.5));
+    // Left rail: all six party members remain one-click accessible.
+    const party = PartySystem.get(this.registry);
+    const railX = left + 50;
+    const railTop = top + 82;
+    const railGap = 7;
+    const railH = (modalH - 116 - railGap * 5) / 6;
+    party.forEach((member, partyIndex) => {
+      const selected = partyIndex === index;
+      const y = railTop + railH / 2 + partyIndex * (railH + railGap);
+      const color = TYPE_COLORS[member.type1 as keyof typeof TYPE_COLORS] ?? 0x557790;
+      const card = this.add.rectangle(railX, y, 72, railH, selected ? accent : 0x15283a, selected ? 0.94 : 0.76)
+        .setStrokeStyle(selected ? 2 : 1, selected ? 0xffffff : color, selected ? 0.9 : 0.55)
+        .setInteractive({ useHandCursor: true });
+      overlay.add(card);
+      if (this.textures.exists(member.spriteKey)) {
+        const image = this.add.image(railX, y - 5, member.spriteKey);
+        const source = this.textures.get(member.spriteKey).getSourceImage();
+        image.setScale(Math.min(48, railH * 0.62) / Math.max(Number(source.width) || 1, Number(source.height) || 1));
+        overlay.add(image);
+      }
+      overlay.add(this.add.text(railX, y + railH / 2 - 12, `Lv.${member.level}`, {
+        fontSize: '8px', color: '#ffffff', fontStyle: 'bold',
+      }).setOrigin(0.5));
+      card.on('pointerdown', () => {
+        if (partyIndex === index) return;
+        overlay.destroy(true);
+        this.showPokemonDetails(partyIndex);
+      });
     });
 
-    // Complete current moveset with battle category, power, accuracy and PP.
-    overlay.add(this.add.text(cx + 40, cy + 8, t('MOVES', '기술'), {
-      fontSize: '14px', color: '#ffe44e', fontStyle: 'bold',
+    const contentLeft = left + 100;
+    const splitX = left + Math.round(modalW * 0.50);
+    const identityY = top + 79;
+    overlay.add(this.add.text(contentLeft, identityY, this.partyName(entry), {
+      fontSize: '23px', color: '#ffffff', fontStyle: 'bold',
     }));
+    overlay.add(this.add.text(splitX - 22, identityY + 3, `Lv.${entry.level}`, {
+      fontSize: '16px', color: '#ffe98c', fontStyle: 'bold',
+    }).setOrigin(1, 0));
+    overlay.add(this.add.text(contentLeft + 235, identityY + 3, symbol, {
+      fontSize: '16px', color: genderColor, fontStyle: 'bold',
+    }));
+    ([entry.type1, entry.type2].filter(Boolean) as string[]).forEach((type, typeIndex) => {
+      const x = contentLeft + typeIndex * 92 + 40;
+      const color = TYPE_COLORS[type as keyof typeof TYPE_COLORS] ?? 0x556688;
+      overlay.add(this.add.rectangle(x, identityY + 44, 80, 23, color, 0.95).setStrokeStyle(1, 0xffffff, 0.22));
+      overlay.add(this.add.text(x, identityY + 44, typeName(type), {
+        fontSize: '10px', color: '#ffffff', fontStyle: 'bold',
+      }).setOrigin(0.5));
+    });
+    overlay.add(this.add.text(splitX - 22, identityY + 34,
+      `${t('Condition', '상태')} · ${statusNames[entry.status ?? 'none'] ?? entry.status}`, {
+        fontSize: '10px', color: '#a9c0d3',
+      }).setOrigin(1, 0));
+
+    // Move list mirrors the reference's clean, high-contrast cards.
+    const moveTop = top + 158;
+    overlay.add(this.add.text(contentLeft, moveTop - 24, t('AVAILABLE MOVES', '사용 가능 기술'), {
+      fontSize: '12px', color: '#8fdcf2', fontStyle: 'bold', letterSpacing: 1,
+    }));
+    const moveW = splitX - contentLeft - 24;
     mon.moves.forEach((move, i) => {
-      const m = move.data, y = cy + 36 + i * 47;
+      const m = move.data, y = moveTop + i * 66;
       const category = m.category === 'physical' ? t('Physical', '물리')
         : m.category === 'special' ? t('Special', '특수') : t('Status', '변화');
-      overlay.add(this.add.rectangle(cx + 183, y + 8, 294, 40, 0x172743).setStrokeStyle(1,
-        TYPE_COLORS[m.type as keyof typeof TYPE_COLORS] ?? 0x365782));
-      overlay.add(this.add.text(cx + 48, y - 3, tr(m.name), { fontSize: '13px', color: '#fff', fontStyle: 'bold' }));
-      overlay.add(this.add.text(cx + 48, y + 14,
-        `${typeName(m.type)} · ${category} · ${t('Power', '위력')} ${m.power || '—'} · ${t('Acc', '명중')} ${m.accuracy} · PP ${move.pp}/${m.pp}`,
-        { fontSize: '9px', color: '#aab8d0' }));
+      const color = TYPE_COLORS[m.type as keyof typeof TYPE_COLORS] ?? 0x365782;
+      overlay.add(this.add.rectangle(contentLeft + moveW / 2, y + 24, moveW, 56, 0x13263a, 0.98).setStrokeStyle(1.5, color, 0.82));
+      overlay.add(this.add.rectangle(contentLeft + 5, y + 24, 8, 46, color, 0.96));
+      overlay.add(this.add.text(contentLeft + 18, y + 7, tr(m.name), { fontSize: '13px', color: '#fff', fontStyle: 'bold' }));
+      overlay.add(this.add.text(contentLeft + moveW - 14, y + 8, `${move.pp}/${m.pp}`, {
+        fontSize: '12px', color: '#ffffff', fontStyle: 'bold',
+      }).setOrigin(1, 0));
+      overlay.add(this.add.text(contentLeft + 18, y + 31,
+        `${typeName(m.type)} · ${category} · ${t('Power', '위력')} ${m.power || '—'} · ${t('Acc', '명중')} ${m.accuracy}`,
+        { fontSize: '9px', color: '#aabed0' }));
     });
 
-    const close = this.add.text(cx, cy + 252, t('✕ CLOSE', '✕ 닫기'), {
-      fontSize: '14px', color: '#d4dded', backgroundColor: '#263b61', padding: { x: 16, y: 7 },
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    close.on('pointerdown', () => overlay.destroy(true));
+    // Right: six-axis radar chart with exact battle values around it.
+    const rightLeft = splitX + 20;
+    const rightW = left + modalW - 24 - rightLeft;
+    overlay.add(this.add.text(rightLeft, top + 79, t('BATTLE STATS', '능력치'), {
+      fontSize: '13px', color: '#8fdcf2', fontStyle: 'bold', letterSpacing: 1,
+    }));
+    const radarX = rightLeft + rightW / 2;
+    const radarY = top + 242;
+    const radarR = 105;
+    const stats: Array<[string, number, string]> = [
+      [t('HP', '체력'), mon.maxHp, `${mon.hp}/${mon.maxHp}`],
+      [t('Attack', '공격'), mon.atk, String(mon.atk)],
+      [t('Defense', '방어'), mon.def, String(mon.def)],
+      [t('Sp. Def', '특수방어'), mon.spDef, String(mon.spDef)],
+      [t('Speed', '스피드'), mon.spd, String(mon.spd)],
+      [t('Sp. Atk', '특수공격'), mon.spAtk, String(mon.spAtk)],
+    ];
+    const radar = this.add.graphics();
+    const point = (radius: number, i: number) => ({
+      x: radarX + Math.cos(-Math.PI / 2 + i * Math.PI / 3) * radius,
+      y: radarY + Math.sin(-Math.PI / 2 + i * Math.PI / 3) * radius,
+    });
+    for (const scale of [0.25, 0.5, 0.75, 1]) {
+      radar.lineStyle(1, 0x82a9c5, scale === 1 ? 0.55 : 0.22);
+      radar.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const p = point(radarR * scale, i);
+        if (i === 0) radar.moveTo(p.x, p.y); else radar.lineTo(p.x, p.y);
+      }
+      const first = point(radarR * scale, 0); radar.lineTo(first.x, first.y); radar.strokePath();
+    }
+    for (let i = 0; i < 6; i++) {
+      const p = point(radarR, i);
+      radar.lineStyle(1, 0x8eb5ce, 0.28); radar.beginPath(); radar.moveTo(radarX, radarY); radar.lineTo(p.x, p.y); radar.strokePath();
+    }
+    const maxStat = Math.max(80, ...stats.map(stat => stat[1]));
+    radar.fillStyle(0x65c7ff, 0.66); radar.lineStyle(2, 0xb8e9ff, 0.95); radar.beginPath();
+    stats.forEach((stat, i) => {
+      const p = point(radarR * Phaser.Math.Clamp(stat[1] / maxStat, 0.12, 1), i);
+      if (i === 0) radar.moveTo(p.x, p.y); else radar.lineTo(p.x, p.y);
+    });
+    const firstData = point(radarR * Phaser.Math.Clamp(stats[0][1] / maxStat, 0.12, 1), 0);
+    radar.lineTo(firstData.x, firstData.y); radar.closePath(); radar.fillPath(); radar.strokePath();
+    overlay.add(radar);
+    stats.forEach(([label, _value, display], i) => {
+      const p = point(radarR + 42, i);
+      overlay.add(this.add.text(p.x, p.y, `${label}\n${display}`, {
+        fontSize: '10px', color: i === 0 ? '#ffe487' : '#d8e7f2', fontStyle: 'bold',
+        align: 'center', lineSpacing: 2,
+      }).setOrigin(0.5));
+    });
+
+    const abilityY = top + 413;
+    overlay.add(this.add.rectangle(rightLeft + rightW / 2, abilityY + 43, rightW, 84, 0x13263a, 0.98)
+      .setStrokeStyle(1, 0x466b87, 0.72));
+    overlay.add(this.add.text(rightLeft + 14, abilityY + 10, t('ABILITY', '특성'), {
+      fontSize: '9px', color: '#86bad8', fontStyle: 'bold',
+    }));
+    overlay.add(this.add.text(rightLeft + 14, abilityY + 27, abilityName(ability, entry.abilityKo), {
+      fontSize: '15px', color: '#ffffff', fontStyle: 'bold',
+    }));
+    overlay.add(this.add.text(rightLeft + 14, abilityY + 50,
+      t('This ability affects how the Pokémon battles.', '이 특성은 배틀 중 포켓몬의 행동과 효과에 영향을 줍니다.'), {
+        fontSize: '10px', color: '#aabed0', wordWrap: { width: rightW - 28 },
+      }));
+
+    const originY = top + modalH - 91;
+    overlay.add(this.add.rectangle(rightLeft + rightW / 2, originY + 27, rightW, 54, 0x101f31, 0.98).setStrokeStyle(1, 0x35536d, 0.65));
+    overlay.add(this.add.text(rightLeft + 14, originY + 8,
+      `${t('Caught at', '잡은 위치')} · ${localizedCaughtLocation(origin)}`, {
+        fontSize: '11px', color: '#d5e5f2', fontStyle: 'bold', fixedWidth: rightW - 28,
+      }));
+    overlay.add(this.add.text(rightLeft + 14, originY + 29,
+      `${t('Held item', '지닌 물건')} · ${heldItemName}`, {
+        fontSize: '9px', color: '#92abc0',
+      }));
+
+    const closeOverlay = () => overlay.destroy(true);
+    dim.on('pointerdown', closeOverlay);
+    const close = this.add.text(left + modalW - 20, top + 31, t('B  RETURN', 'B  돌아가기'), {
+      fontSize: '11px', color: '#ffffff', backgroundColor: '#173047', padding: { x: 12, y: 7 },
+    }).setOrigin(1, 0.5).setInteractive({ useHandCursor: true }).setData('uiCancel', true);
+    close.on('pointerdown', closeOverlay);
     overlay.add(close);
   }
 
@@ -741,6 +907,15 @@ export class MenuScene extends Phaser.Scene {
       `${t('Ability', '특성')}: ${abilityName(ability, entry.abilityKo)}    ·    ${t('Condition', '상태')}: ${statusNames[entry.status ?? 'none'] ?? entry.status}`,
       { fontSize: '13px', color: '#bcd3ff', wordWrap: { width: modalW - padX * 2 } });
     overlay.add(abilT); y += abilT.height + 12;
+    const storedOrigin = entry.caughtAt && !/^Evolve\b/i.test(entry.caughtAt) ? entry.caughtAt : undefined;
+    const origin = storedOrigin ?? caughtOriginForDexKey(key)
+      ?? (STARTERS.some(s => s.spriteKey === entry.spriteKey) ? "Prof. Song's Lab" : 'Unknown location');
+    const heldDef = entry.heldItem ? itemDef(entry.heldItem) : undefined;
+    const heldName = heldDef ? itemName(heldDef) : entry.heldItem ?? t('None', '없음');
+    const originText = this.add.text(left + padX, y,
+      `${t('Caught at', '잡은 위치')}: ${localizedCaughtLocation(origin)}    ·    ${t('Held item', '지닌 물건')}: ${heldName}`,
+      { fontSize: '11px', color: '#98afc4', wordWrap: { width: modalW - padX * 2 } });
+    overlay.add(originText); y += originText.height + 10;
 
     // Six battle stats — 3 columns × 2 rows.
     const sh = this.add.text(left + padX, y, t('BATTLE STATS', '능력치'), { fontSize: '14px', color: '#ffe44e', fontStyle: 'bold' });
@@ -789,11 +964,14 @@ export class MenuScene extends Phaser.Scene {
     const hasDex   = !!this.registry.get('hasPokedex');
 
     // Money
-    this.contentContainer.add(this.add.text(
-      this.mobileMenu ? cx + this.winW / 2 - 24 : cx + 280,
-      this.mobileMenu ? this.H / 2 - this.winH / 2 + 82 : this.H / 2 - 210,
-      `💰 ${formatMoney(Inventory.money(this.registry))}`,
-      { fontSize: '15px', color: '#ffe44e' }).setOrigin(1, 0.5));
+    const moneyX = this.mobileMenu ? cx + this.winW / 2 - 24 : cx + 390;
+    const moneyY = this.mobileMenu ? this.H / 2 - this.winH / 2 + 67 : this.H / 2 - 245;
+    const moneyBg = this.add.rectangle(moneyX - 78, moneyY, 156, 32, 0x25443c, 0.96)
+      .setStrokeStyle(1, 0x62c69a, 0.62);
+    const moneyText = this.add.text(moneyX - 8, moneyY,
+      `₩  ${formatMoney(Inventory.money(this.registry))}`,
+      { fontSize: '14px', color: '#dcffeb', fontStyle: 'bold' }).setOrigin(1, 0.5);
+    this.contentContainer.add([moneyBg, moneyText]);
 
     type Row = { key?: string; name: string; desc: string; icon: string; count?: number; onClick?: () => void };
     const rows: Row[] = [];
@@ -893,7 +1071,7 @@ export class MenuScene extends Phaser.Scene {
     const cy = this.H / 2;
     const rowW = this.mobileMenu ? this.winW - 44 : 600;
     const rowLeft = cx - rowW / 2;
-    const listTop = this.mobileMenu ? (cy - this.winH / 2 + 96) : (cy - 178);
+    const listTop = this.mobileMenu ? (cy - this.winH / 2 + 160) : (cy - 178);
     const step = this.mobileMenu
       ? Math.floor((cy + this.winH / 2 - 74 - listTop) / VISIBLE) : 50;
     const rowH = this.mobileMenu ? Math.round(step * 0.84) : 44;
@@ -902,19 +1080,24 @@ export class MenuScene extends Phaser.Scene {
     const countX = this.mobileMenu ? cx + rowW / 2 - 22 : cx + 285;
     rows.slice(this.bagScroll, this.bagScroll + VISIBLE).forEach((item, i) => {
       const y = this.mobileMenu ? (listTop + step / 2 + i * step) : (listTop + i * 50);
-      const row = this.add.rectangle(cx, y, rowW, rowH, 0x111133).setStrokeStyle(1, 0x334466);
+      const rowShadow = this.add.rectangle(cx + 3, y + 4, rowW, rowH, 0x000000, 0.22);
+      const row = this.add.rectangle(cx, y, rowW, rowH, 0x14283a, 0.98).setStrokeStyle(1, 0x416783, 0.72);
+      const accent = this.add.rectangle(rowLeft + 4, y, 7, rowH - 8,
+        item.onClick ? PROD_UI.cyan : 0x536679, item.onClick ? 0.9 : 0.48);
       const icon = this.add.text(iconX, y, item.icon, { fontSize: '22px' }).setOrigin(0.5);
-      const nm   = this.add.text(textX, y - Math.round(rowH * 0.2), item.name, { fontSize: '14px', color: '#ffe44e', fontStyle: 'bold' });
+      const nm   = this.add.text(textX, y - Math.round(rowH * 0.2), item.name, { fontSize: '14px', color: '#f5fbff', fontStyle: 'bold' });
       const desc = this.add.text(textX, y + Math.round(rowH * 0.1), item.desc,
-        { fontSize: '11px', color: '#aaaaaa', wordWrap: { width: rowW - (textX - rowLeft) - 70 } });
-      this.contentContainer.add([row, icon, nm, desc]);
+        { fontSize: '11px', color: '#9fb5c9', wordWrap: { width: rowW - (textX - rowLeft) - 70 } });
+      this.contentContainer.add([rowShadow, row, accent, icon, nm, desc]);
       if (item.count !== undefined) {
-        this.contentContainer.add(this.add.text(countX, y, `×${item.count}`, { fontSize: '16px', color: '#fff', fontStyle: 'bold' }).setOrigin(1, 0.5));
+        const countBg = this.add.rectangle(countX - 24, y, 54, 26, 0x213e56, 0.95).setStrokeStyle(1, 0x4f7898, 0.55);
+        const countText = this.add.text(countX, y, `×${item.count}`, { fontSize: '13px', color: '#fff', fontStyle: 'bold' }).setOrigin(1, 0.5);
+        this.contentContainer.add([countBg, countText]);
       }
       if (item.onClick) {
         row.setInteractive({ useHandCursor: true })
-          .on('pointerover', () => row.setFillStyle(0x1a2a4a))
-          .on('pointerout',  () => row.setFillStyle(0x111133))
+          .on('pointerover', () => row.setFillStyle(0x214763))
+          .on('pointerout',  () => row.setFillStyle(0x14283a))
           .on('pointerdown', item.onClick!);
       }
     });
@@ -949,6 +1132,7 @@ export class MenuScene extends Phaser.Scene {
     if (this.tab !== 'bag') return;
     const next = Phaser.Math.Clamp(this.bagScroll + delta, 0, this.bagMaxScroll);
     if (next === this.bagScroll) return;
+    sfxMove(this);
     this.bagScroll = next;
     this.contentContainer.destroy(true);
     this.contentContainer = this.add.container(0, 0);
@@ -1212,7 +1396,8 @@ export class MenuScene extends Phaser.Scene {
 
   // ── Close ─────────────────────────────────────────────────────────────────
 
-  private closeMenu() {
+  private closeMenu(playSound = true) {
+    if (playSound) sfxCancel(this);
     deckHideLeadPicker();
     this.cameras.main.fadeOut(150, 0, 0, 0, () => {
       this.scene.stop('MenuScene');

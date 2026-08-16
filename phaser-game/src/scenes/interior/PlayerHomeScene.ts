@@ -121,6 +121,8 @@ export class PlayerHomeScene extends BaseInteriorScene {
     if (!starterChosen && !this.momTalked) {
       // First time — send player to Prof. Song
       this.momTalked = true;
+      // Advance the top-left quest guide from "head home" → "go to the lab".
+      this.registry.set('metMomAboutSong', true);
       this.dialog.show([
         'Mom: Oh, you\'re finally awake!',
         'Mom: Professor Song called earlier. She\'s at the lab on the north side of town.',
