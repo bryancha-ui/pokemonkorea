@@ -70,6 +70,8 @@ export class LeaderboardScene extends Phaser.Scene {
   private rowsPerPage = 7;
   private compactMobile = false;
   private closed = false;
+  /** Invalidates leaderboard requests that outlive this scene or a newer tab. */
+  private refreshGeneration = 0;
 
   private get W() { return this.scale.width; }
   private get H() { return this.scale.height; }
@@ -84,11 +86,19 @@ export class LeaderboardScene extends Phaser.Scene {
     this.page = 0;
     this.entries = [];
     this.closed = false;
+    this.refreshGeneration = 0;
   }
 
   create(): void {
     deckSetImmersiveView(true);
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => deckSetImmersiveView(false));
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      // Firebase requests can resolve after the leaderboard overlay has already
+      // returned to the mobile menu. Never let that stale promise call setText()
+      // on a destroyed Phaser canvas-backed Text object (null drawImage).
+      this.closed = true;
+      this.refreshGeneration += 1;
+      deckSetImmersiveView(false);
+    });
     this.scene.bringToTop();
     this.cameras.main.fadeIn(220);
     this.compactMobile = fontScaleForScene(this) > 1;
@@ -198,6 +208,8 @@ export class LeaderboardScene extends Phaser.Scene {
   }
 
   private async refresh(): Promise<void> {
+    if (this.closed || !this.sys.isActive()) return;
+    const generation = ++this.refreshGeneration;
     const category = this.category();
     this.statusText.setText(t('Loading records…', '기록을 불러오는 중…'));
     try {
@@ -208,7 +220,7 @@ export class LeaderboardScene extends Phaser.Scene {
       const response = this.fixtureEntries
         ? { entries: this.fixtureEntries, category, updatedAt: Date.now() }
         : await LeaderboardApi.fetch(category);
-      if (category !== this.category()) return;
+      if (!this.canApplyRefresh(generation) || category !== this.category()) return;
       this.entries = response.entries;
       this.page = Math.min(this.page, Math.max(0, Math.ceil(this.entries.length / this.rowsPerPage) - 1));
       this.renderRows();
@@ -224,10 +236,19 @@ export class LeaderboardScene extends Phaser.Scene {
       }
     } catch (error) {
       console.warn('[leaderboard] display failed:', error);
+      if (!this.canApplyRefresh(generation)) return;
       this.entries = [];
       this.renderRows();
       this.statusText.setText(leaderboardErrorMessage(error));
     }
+  }
+
+  private canApplyRefresh(generation: number): boolean {
+    return !this.closed
+      && generation === this.refreshGeneration
+      && this.sys.isActive()
+      && !!this.statusText?.active
+      && !!this.content?.active;
   }
 
   private renderRows(): void {

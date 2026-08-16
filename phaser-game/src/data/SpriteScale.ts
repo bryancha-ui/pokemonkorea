@@ -120,6 +120,9 @@ const BATTLE_2D_OVERRIDES: Readonly<Record<string, number>> = {
   banderado: 1.44,
   // Orchard matriarch: preserve her broad crown/robe at final-stage scale.
   secommamma: 1.30,
+  // The broad turtle-ship art was being fitted as a normal stage-two creature,
+  // leaving the emergency 2D presentation much smaller than its armoured body.
+  turtleship: 1.46,
 };
 
 function canonicalSpriteKey(key: string): string {

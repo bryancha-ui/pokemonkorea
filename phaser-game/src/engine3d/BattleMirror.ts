@@ -103,6 +103,9 @@ const BATTLE_SIZE_OVERRIDES: Record<string, number> = {
   thanatoat: 1.13,
   banderado: 1.10,
   pipetiger: 1.12,
+  // Large armoured dragon/ship silhouette; keep its lightweight local GLB
+  // imposing without letting the cannon overlap the opposing combatant.
+  turtleship: 1.28,
 };
 
 function battleSizeOverride(textureKey: string): number {

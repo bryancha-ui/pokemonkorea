@@ -21,6 +21,7 @@ const MOBILE_ALLOWED = new Set<string>([
   'munkain',     // 월식매 — local optimized GLB (4.6 MB)
   'bosongnun', 'camerghoost', 'hambillet', 'kkaakdang', 'luninari',
   'samdumae', 'silicutis', 'supiryeong', 'unsilgami', // local 3–5 MB GLBs
+  'turtleship', // lightweight local armoured turtle-ship; required in 황금's league battle
 ]);
 
 // The starter remasters are shipped with the game and remain discoverable even
