@@ -63,10 +63,11 @@ const KEYS: Key[] = [
   // laid back. This lag is what sells the whip.
   { t: 3.45, ease: 'snap', pose: { armRX: -0.25, armRZ: -0.78, elbowR: -2.15, armLX: -0.45, armLZ: 0.28, elbowL: -1.0, torsoTwist: -0.3, torsoTilt: 0.02, legLX: 0.44, legRX: -0.14, spin: 0.16 } },
   // RELEASE: forearm snaps through, arm long, hand over the top toward the arena
-  { t: 3.50, ease: 'snap', pose: { armRX: -1.5, armRZ: -0.26, elbowR: -0.14, armLX: -0.15, armLZ: 0.32, elbowL: -1.25, torsoTwist: -0.46, torsoTilt: -0.12, legLX: 0.36, legRX: -0.06, headTurn: 0.06, spin: -0.06 } },
+  { t: 3.50, ease: 'snap', pose: { armRX: -1.62, armRZ: -0.2, elbowR: -0.1, armLX: -0.1, armLZ: 0.34, elbowL: -1.3, torsoTwist: -0.5, torsoTilt: -0.14, legLX: 0.38, legRX: -0.06, headTurn: 0.06, spin: -0.08 } },
   // follow-through: the arm keeps going down and across the body, shoulders
   // rotate past, back leg trails up. Nothing stops at release.
-  { t: 3.72, pose: { armRX: -2.4, armRZ: 0.5, armRY: 0.28, elbowR: -0.62, armLX: 0.3, armLZ: 0.52, elbowL: -0.5, torsoTwist: -0.7, torsoTilt: -0.28, legLX: 0.22, legRX: -0.52, headTurn: 0.14, hop: 0.02, spin: -0.32 } },
+  { t: 3.62, ease: 'snap', pose: { armRX: -0.95, armRZ: 0.42, armRY: 0.2, elbowR: -0.55, armLX: 0.15, armLZ: 0.48, elbowL: -0.7, torsoTwist: -0.66, torsoTilt: -0.24, legLX: 0.3, legRX: -0.4, headTurn: 0.12, spin: -0.26 } },
+  { t: 3.82, pose: { armRX: -0.2, armRZ: 0.86, armRY: 0.3, elbowR: -1.05, armLX: 0.32, armLZ: 0.42, elbowL: -0.45, torsoTwist: -0.72, torsoTilt: -0.3, legLX: 0.24, legRX: -0.5, headTurn: 0.14, hop: 0.02, spin: -0.34 } },
   // recover
   { t: 4.00, ease: 'settle', pose: { armRX: -0.5, armRZ: 0.2, elbowR: -0.5, armLX: 0.1, armLZ: 0.2, elbowL: -0.3, torsoTwist: -0.18, torsoTilt: -0.05, legLX: 0.05, spin: -0.12 } },
   // proud stand

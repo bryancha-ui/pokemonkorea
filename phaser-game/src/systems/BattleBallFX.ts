@@ -138,7 +138,10 @@ export function playBallSendOut(
   scene.tweens.add({
     targets: flight,
     t: 1,
-    duration: options.duration ?? 520,
+    // With the 3D layer throwing the real ball, this tween is only a timer in
+    // front of the reveal — running its full 520ms would land the Pokémon a
+    // second after the ball it came from. Collapse it and open immediately.
+    duration: options.skipBall ? 1 : (options.duration ?? 520),
     ease: 'Cubic.easeOut',
     onUpdate: () => {
       const t = flight.t;

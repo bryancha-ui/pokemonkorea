@@ -13,6 +13,7 @@ import { getEffectiveness } from '../battle/TypeChart';
 import { STARTERS, findForm } from '../data/StarterData';
 import { fetchPokemon } from '../data/PokeAPI';
 import { customForm } from '../data/CustomBattle';
+import { SIGNATURE_MOVE_BY_SPECIES } from '../data/SignatureMoves';
 import { PartySystem } from '../systems/PartySystem';
 import { blackoutToCenter, blackoutMessage } from '../systems/Blackout';
 import { tr, pokeNameEn} from '../systems/i18n';
@@ -95,9 +96,12 @@ const COVERAGE_BY_TYPE: Record<string, MoveData> = {
 
 /** Elite Four / Champion kit: STAB + off-type coverage so a single super-effective
  *  matchup can't sweep them (dual-types get 2 STAB + 2 coverage). */
-function eliteMovesForTypes(t1?: string, t2?: string): MoveData[] {
+function eliteMovesForTypes(t1?: string, t2?: string, speciesKey?: string): MoveData[] {
   const moves: MoveData[] = [];
   const add = (m?: MoveData) => { if (m && !moves.some(x => x.name === m.name)) moves.push(m); };
+  // A species with a signature move always leads with it — e.g. Hwangeum's
+  // Thanatoat (두루광) keeps 혼백도강 (Soul-Ferry Deluge) in its elite kit.
+  if (speciesKey) add(SIGNATURE_MOVE_BY_SPECIES[speciesKey]);
   if (t1) add(TYPE_MOVES[t1]?.[0]);
   if (t2) add(TYPE_MOVES[t2]?.[0]);
   if (t1) add(COVERAGE_BY_TYPE[t1]);
@@ -302,9 +306,11 @@ export class TrainerBattleScene extends Phaser.Scene {
     // "wants to battle!" card; everyone else still gets it.
     if (this.trainerPortrait) this.tweens.add({ targets: this.trainerPortrait, alpha: 1, duration: 300 });
     if (!this.trainerKey.startsWith('rival')) this.typeDialog(`${this.trainerName} wants to battle!`);
-    // The stage routine runs ~4.0s and releases the ball on its 8th beat, so the
-    // Champion holds a beat longer than everyone else before his Pokémon lands.
-    this.time.delayedCall(this.isChampionHwangeum && this.using3D ? 4150 : 3000, sendOut);
+    // The Champion's routine releases the ball at 3.50s and it lands ~0.30s
+    // later. Fire the send-out to coincide with that landing so the Pokémon
+    // emerges FROM the ball it was thrown in, instead of appearing a beat after
+    // the ball has already opened and faded.
+    this.time.delayedCall(this.isChampionHwangeum && this.using3D ? 3780 : 3000, sendOut);
   }
 
   // ── Pokémon loading ───────────────────────────────────────────────────────
@@ -345,7 +351,7 @@ export class TrainerBattleScene extends Phaser.Scene {
         // player. Elite teams retain their authored high-level coverage kits.
         this.enemy = new Pokemon(form.data, entry.level,
           this.isElite
-            ? eliteMovesForTypes(form.data.type1, form.data.type2)
+            ? eliteMovesForTypes(form.data.type1, form.data.type2, entry.custom)
             : enemyLearnset(form.moves, texKey, form.data.type1, form.data.type2, entry.level));
         this.registry.set('_teKey', texKey);
         return;
@@ -361,7 +367,7 @@ export class TrainerBattleScene extends Phaser.Scene {
         }
         this.enemy = new Pokemon(sf.data, entry.level,
           this.isElite
-            ? eliteMovesForTypes(sf.data.type1, sf.data.type2)
+            ? eliteMovesForTypes(sf.data.type1, sf.data.type2, entry.custom)
             : enemyLearnset(sf.startingMoves, texKey, sf.data.type1, sf.data.type2, entry.level));
         this.registry.set('_teKey', texKey);
         return;

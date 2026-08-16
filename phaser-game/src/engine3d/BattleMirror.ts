@@ -6,7 +6,7 @@ import { buildGeographicBattleArena, resolveOutdoorBattleTheme } from './BattleG
 import { buildCharacterModel, ChoreoPose, PlayerModel } from './CharacterModel';
 import { CreatureAnimator, MoveCategory } from './CreatureAnimator';
 import { measureCommands } from './GraphicsRaster';
-import { getModel, hasModel, isRenderableModel, modelLoadStatus, primeManifest } from './GlbModels';
+import { getModel, hasModel, isRenderableModel, manifestReady, modelLoadStatus, primeManifest } from './GlbModels';
 import { MoveFX3D } from './MoveFX3D';
 import { makeBlobShadow, makePokeBallProp } from './Props';
 import { BALL_APPEARS, ROUTINE_LENGTH, sampleChampionIntro } from './ChampionChoreo';
@@ -122,6 +122,13 @@ function battleSizeOverride(textureKey: string): number {
 // A Poké Ball is a fist-sized object. The held ball is parented inside the
 // figure (which spawnTrainer scales by 1.6), the thrown one is in world space —
 // these two numbers are the same real size expressed in those two spaces.
+// Where the thrown ball is aimed and how hard gravity pulls it. Stylised, not
+// physical: a short flight needs a stronger g for the drop to read at all.
+// How far a throwing trainer steps back off the anchor his Pokémon will take.
+const THROW_STANDBACK = 1.35;
+const BALL_TARGET_Y = 0.95;
+const THROW_GRAVITY = 15;
+
 const HELD_BALL_SCALE = 0.38;
 const FLIGHT_BALL_SCALE = 0.6;
 
@@ -236,8 +243,9 @@ export class BattleMirror {
   private combatants = new Map<GO, Combatant>();
   private trainers: TrainerWalker[] = [];
   private balls3D: {
-    mesh: THREE.Group; from: THREE.Vector3; to: THREE.Vector3; t: number; dur: number;
-    arc: number; spinAxis: THREE.Vector3; trail: THREE.Mesh[]; trailAt: number;
+    mesh: THREE.Group; from: THREE.Vector3; to: THREE.Vector3;
+    vel: THREE.Vector3; gravity: number; t: number; dur: number;
+    spinAxis: THREE.Vector3; trail: THREE.Mesh[]; trailAt: number;
   }[] = [];
   private pinned2DTrainers = new Map<GO & Phaser.GameObjects.Image, Pinned2DTrainer>();
   private hiddenBackdrops = new Set<GO>();
@@ -902,15 +910,32 @@ export class BattleMirror {
     if (this.trainers.some(w => w.obj === im)) return;
     const model = buildCharacterModel(modelKey, design);
     model.group.scale.multiplyScalar(1.6);
-    // A vendored rigged GLB (the Champion) supersedes the primitive figure. The
-    // manifest is fetched asynchronously, so whether one EXISTS cannot be known
-    // here — updateTrainers re-checks each frame and adopts it when it lands.
-    // A missing or failed model simply leaves the procedural figure running.
-    const wantsGlb = choreo;
+    // A vendored rigged GLB supersedes the primitive figure for ANY trainer that
+    // ships one — including the Champion's later cut-in, which is not
+    // choreographed but must still be the good model.
+    //
+    // The manifest is fetched asynchronously, so whether one exists cannot be
+    // known here. Start the stand-in HIDDEN and let updateTrainers reveal it
+    // only once the model is known to be missing or to have failed; otherwise
+    // the low-poly figure visibly flashes for the second or two a 9 MB GLB
+    // takes to arrive.
+    const wantsGlb = true;
+    model.group.visible = false;
     const holder = new THREE.Group();
     holder.add(model.group, makeBlobShadow(0.5));
     const start = TRAINER_START[side].clone();
-    const end = ANCHORS[side][0].clone();
+    // A trainer who throws must not be standing on the square his Pokémon lands
+    // on — otherwise the ball is aimed at his own feet. But the walk-in start
+    // mark is too far back: the arena's stage riser occludes anything standing
+    // there. Step back just far enough to clear the anchor, along the line to
+    // the opponent, and stay in front of the scenery.
+    const anchor = ANCHORS[side][0];
+    const foeAnchor = ANCHORS[side === 'player' ? 'enemy' : 'player'][0];
+    const end = anchor.clone();
+    if (choreo) {
+      const back = foeAnchor.clone().sub(anchor).setY(0).normalize().multiplyScalar(-THROW_STANDBACK);
+      end.add(back);
+    }
     holder.position.copy(walkIn ? start : end);
     holder.visible = false;
     this.root.add(holder);
@@ -944,6 +969,12 @@ export class BattleMirror {
       // Adopt the rigged GLB the moment the loader has it. Until then (and
       // forever, if it never arrives) the procedural figure keeps performing,
       // so the intro never depends on an asset download succeeding.
+      if (w.wantsGlb && !w.glb && manifestReady() && !hasModel(w.glbKey)) {
+        // No GLB is shipped for this character — the procedural figure is the
+        // real presentation, so reveal it.
+        w.wantsGlb = false;
+        w.model.group.visible = true;
+      }
       if (w.wantsGlb && !w.glb && hasModel(w.glbKey)) {
         const loaded = getModel(w.glbKey);
         if (loaded && isRenderableModel(loaded.group)) {
@@ -967,6 +998,7 @@ export class BattleMirror {
           w.glbHand = w.rig?.get('handR')?.node ?? null;
         } else if (modelLoadStatus(w.glbKey) === 'failed') {
           w.wantsGlb = false;
+          w.model.group.visible = true;      // fall back to the stand-in
         }
       }
 
@@ -1122,18 +1154,28 @@ export class BattleMirror {
     this.root.add(ball);
     w.heldBall = null;
 
-    const to = ANCHORS[w.side][0].clone();
-    const dist = from.distanceTo(to);
-    // A hard, flat throw: arc scales with distance but stays low, and the whole
-    // flight is short. Lofting it would undo the snap of the release.
-    const travel = this.facingVector.copy(to).sub(from).normalize();
+    // The trainer and their Pokémon share one stage anchor (the portrait hands
+    // the spot over to the creature), so aiming at that anchor aimed the throw
+    // at his OWN FEET — a zero-distance, straight-down trajectory. That, not the
+    // easing, is what made it read as dropping the ball. Throw ACROSS the arena
+    // toward the challenger instead, and burst it at chest height out in front.
+    const to = ANCHORS[w.side][0].clone().setY(BALL_TARGET_Y);
+    const flat = this.facingVector.copy(to).sub(from).setY(0);
+    const dist = flat.length();
+
+    // Real projectile motion rather than a lerp with a sine bump. Solving for
+    // the launch velocity that reaches the target in `dur` under gravity gives
+    // a baseball trajectory: it leaves the hand fast and nearly flat, then
+    // drops away at the end. The old sine arc rode a straight high-to-low line,
+    // so the dominant motion was always downward.
+    const dur = THREE.MathUtils.clamp(dist / 11, 0.3, 0.5);
+    const vel = to.clone().sub(from).divideScalar(dur);
+    vel.y += 0.5 * THROW_GRAVITY * dur;      // the upward bias gravity will cancel
+
+    const travel = flat.normalize();
     const spinAxis = new THREE.Vector3().crossVectors(travel, new THREE.Vector3(0, 1, 0)).normalize();
     this.balls3D.push({
-      mesh: ball, from, to, t: 0,
-      dur: THREE.MathUtils.clamp(dist * 0.095, 0.42, 0.62),
-      // A visible arc matters more than a realistic one: the throw runs nearly
-      // along the camera axis, so without loft the ball barely moves on screen.
-      arc: THREE.MathUtils.clamp(dist * 0.26, 0.85, 1.9),
+      mesh: ball, from, to, vel, gravity: THROW_GRAVITY, t: 0, dur,
       spinAxis: spinAxis.lengthSq() > 0.01 ? spinAxis : new THREE.Vector3(1, 0, 0),
       trail: [], trailAt: 0,
     });
@@ -1174,19 +1216,20 @@ export class BattleMirror {
       }
 
       if (b.t >= 1) {
-        this.fx.burst(b.to.clone().setY(0.55), 0xffe9a8, 1, 0.85);
+        this.fx.burst(b.to.clone(), 0xffe9a8, 1, 0.85);
         this.root.remove(b.mesh);
         for (const ghost of b.trail) this.root.remove(ghost);
         this.balls3D.splice(i, 1);
         continue;
       }
 
-      const k = b.t;
-      b.mesh.position.lerpVectors(b.from, b.to, k);
-      b.mesh.position.y += Math.sin(k * Math.PI) * b.arc;
+      // p = p0 + v·t − ½g·t²
+      const tt = b.t * b.dur;
+      b.mesh.position.copy(b.from).addScaledVector(b.vel, tt);
+      b.mesh.position.y -= 0.5 * b.gravity * tt * tt;
       // Spin about the axis perpendicular to travel — a thrown ball tumbles
       // forward, it does not roll about its own heading.
-      b.mesh.rotateOnAxis(b.spinAxis, dt * 26);
+      b.mesh.rotateOnAxis(b.spinAxis, dt * 34);
     }
   }
 

@@ -120,6 +120,13 @@ export function allowsHeavy3DAssets(): boolean {
 }
 
 /** Phaser texture keys sometimes carry a battle prefix (e.g. "wild-foxgeist"). */
+/** True once the model manifest has been fetched (successfully or not), so
+ *  callers can tell "no GLB for this key" apart from "manifest still loading".
+ *  Without that distinction a caller cannot know when to give up waiting. */
+export function manifestReady(): boolean {
+  return manifest !== null;
+}
+
 export function normalizeKey(key: string): string {
   return key.toLowerCase().replace(/^(wild|enemy|foe|ally|player|te)-/, '');
 }
