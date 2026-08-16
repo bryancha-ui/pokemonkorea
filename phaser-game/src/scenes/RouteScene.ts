@@ -290,7 +290,9 @@ export class RouteScene extends Phaser.Scene {
 
         if (tile === RT.TREE)       this.drawTree(g, c * TILE + 16, r * TILE + 16);
         if (tile === RT.TALL_GRASS) this.drawGrass(g, c * TILE, r * TILE);
-        if (tile === RT.ROCK || tile === RT.MOUNTAIN) this.drawRock(g, c * TILE, r * TILE, tile);
+        // (No 2D mountain/rock peaks painted on the ground: MOUNTAIN tiles rise as
+        //  real 3D ranges, and ROCK stays flat — the old drawRock triangles clashed
+        //  with the 3D pass and read as stray peaks lying on the floor.)
         if (tile === RT.CAVE_WALL)  this.drawCaveWall(g, c * TILE, r * TILE);
         if (tile === RT.GATE)       this.drawGate(g, c * TILE, r * TILE);
         if (tile === RT.FLOWERS)    this.drawFlowers(g, c * TILE, r * TILE);
@@ -349,14 +351,6 @@ export class RouteScene extends Phaser.Scene {
       g.fillRect(x + 3 + i * 7, y + 18, 2, 10);
       g.fillRect(x + 5 + i * 7, y + 14, 2, 14);
     }
-  }
-
-  private drawRock(g: Phaser.GameObjects.Graphics, x: number, y: number, tile: RTile) {
-    const col = tile === RT.MOUNTAIN ? 0x6a5a4a : 0x9a8a7a;
-    g.fillStyle(col);
-    g.fillTriangle(x + 16, y + 4, x + 4, y + 28, x + 28, y + 28);
-    g.fillStyle(0xffffff, 0.15);
-    g.fillTriangle(x + 16, y + 4, x + 16, y + 14, x + 22, y + 14);
   }
 
   private drawCaveWall(g: Phaser.GameObjects.Graphics, x: number, y: number) {

@@ -39,11 +39,14 @@
       "rotY": 270
     },
     "frysm",
-    "munkain",
+    {
+      "key": "munkain",
+      "scale": 0.6
+    },
     {
       "key": "onnurian",
       "scale": 0.6,
-      "rotY": 270
+      "rotY": 180
     },
     "thanatoat",
     "banderado",
