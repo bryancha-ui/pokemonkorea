@@ -1,5 +1,6 @@
 import { t, tr, typeName } from './i18n';
-import { calculateMobileShellLayout } from './MobileShellLayout';
+
+const GAME_ASPECT = 16 / 9;
 // ── Mobile "dual-screen" shell + on-screen controls ──────────────────────────
 // On touch devices the page is split like a Nintendo DS: the Phaser game canvas
 // lives on the TOP screen, and a solid control DECK fills the BOTTOM screen so the
@@ -225,43 +226,24 @@ function syncMobileLayout(): void {
   mobileLayoutFrame = requestAnimationFrame(() => {
     mobileLayoutFrame = 0;
     const viewport = window.visualViewport;
-    const layout = calculateMobileShellLayout(
-      viewport?.width ?? window.innerWidth,
-      viewport?.height ?? window.innerHeight,
-      immersiveView,
-    );
-    const {
-      viewportWidth: vw, viewportHeight: vh, portrait, stacked, direction,
-      gameWidth, gameHeight, deckWidth, deckHeight,
-    } = layout;
+    const vw = Math.max(240, Math.round(viewport?.width ?? window.innerWidth));
+    const vh = Math.max(180, Math.round(viewport?.height ?? window.innerHeight));
+    const portrait = vh >= vw;
+    // The play screen is the largest uncropped 16:9 rectangle that fits the whole
+    // viewport; the deck overlay always covers the full screen on top of it.
+    const gameWidth = Math.min(vw, vh * GAME_ASPECT);
+    const gameHeight = gameWidth / GAME_ASPECT;
 
-    // index.html supplies min-height:100% for desktop. Override it in the
-    // mobile shell: on Samsung fold transitions that minimum can remain tied
-    // to the pre-fold layout viewport and centre the whole console off-screen.
     document.body.style.minHeight = '0px';
     document.body.style.maxHeight = `${vh}px`;
     document.body.style.width = `${vw}px`;
     document.body.style.height = `${vh}px`;
-    document.body.style.flexDirection = direction;
-    const unusedPrimarySpace = direction === 'column'
-      ? vh - gameHeight - deckHeight
-      : vw - gameWidth - deckWidth;
-    // On a tall cover display, place the game against the top and the controls
-    // against the bottom instead of centring a small console in a sea of black.
-    document.body.style.justifyContent = !immersiveView && direction === 'column' && unusedPrimarySpace > 40
-      ? 'space-between'
-      : 'center';
+
     gamePane.style.width = `${Math.round(gameWidth)}px`;
     gamePane.style.height = `${Math.round(gameHeight)}px`;
-    gamePane.style.flexBasis = `${Math.round(direction === 'row' ? gameWidth : gameHeight)}px`;
-    deck.style.width = immersiveView ? '0px' : `${Math.round(deckWidth)}px`;
-    deck.style.height = immersiveView ? '0px' : `${Math.round(deckHeight)}px`;
-    deck.style.flexBasis = immersiveView
-      ? '0px'
-      : `${Math.round(direction === 'row' ? deckWidth : deckHeight)}px`;
-    deck.style.borderTop = direction === 'column' ? '3px solid #33406a' : '0';
-    deck.style.borderLeft = direction === 'row' ? '3px solid #33406a' : '0';
-    deck.dataset.layout = stacked ? (portrait ? 'portrait' : 'fold-stacked') : 'landscape';
+    // The deck is a fixed full-viewport overlay; it does not size a pane.
+    deck.style.display = immersiveView ? 'none' : 'block';
+    deck.dataset.layout = portrait ? 'portrait' : 'landscape';
     deck.dataset.viewport = `${vw}x${vh}`;
     gamePane.dataset.layout = deck.dataset.layout;
     gamePane.dataset.viewport = deck.dataset.viewport;
@@ -270,7 +252,8 @@ function syncMobileLayout(): void {
     // Phaser watches resize, but visualViewport can change without a window
     // resize when mobile browser chrome expands/collapses.
     window.dispatchEvent(new CustomEvent('pokemonkorea:mobile-layout', {
-      detail: { width: vw, height: vh, portrait, stacked, direction, gameWidth, gameHeight, deckWidth, deckHeight },
+      detail: { width: vw, height: vh, portrait, stacked: false, direction: 'overlay',
+        gameWidth, gameHeight, deckWidth: 0, deckHeight: 0 },
     }));
   });
 }
@@ -426,7 +409,10 @@ function updateUnit(): void {
   // The complete layout is 17.5u wide and 9.4u tall, so it still cannot overflow.
   // Larger thumb/button targets for small phones: a higher floor (so tiny screens
   // still get chunky buttons) and a higher cap, keeping the 17.5u×9.4u layout.
-  const u = Math.max(9, Math.min(96, Math.min(r.width / 17.5, r.height / 9.4)));
+  // The deck now spans the whole viewport, so size the control unit from it
+  // directly and cap it so buttons stay thumb-sized (not screen-huge) on tablets.
+  // The 17.5u×9.4u control cluster then anchors bottom-left (pad) / right (buttons).
+  const u = Math.max(9, Math.min(30, Math.min(r.width / 17.5, r.height / 9.4)));
   deckEl.style.setProperty('--u', u.toFixed(2) + 'px');
 }
 
@@ -439,10 +425,12 @@ export function setupMobileShell(force = false): { parent: HTMLElement | undefin
   mobile = force || isTouchDevice();
   if (!mobile) return { parent: undefined, mobile: false };
 
-  // Body becomes a vertical split: game pane on top, control deck below.
+  // Emulator layout: the game fills the whole screen and the controls float on
+  // top of it as a transparent overlay (drag pad on the left, buttons on the
+  // right), instead of taking their own pane beside/below the play screen.
   document.body.style.cssText =
-    'margin:0;padding:0;background:#000;display:flex;flex-direction:column;' +
-    'justify-content:center;align-items:center;height:100vh;height:100dvh;min-height:0;width:100vw;overflow:hidden;' +
+    'margin:0;padding:0;background:#000;position:relative;' +
+    'height:100vh;height:100dvh;min-height:0;width:100vw;overflow:hidden;' +
     'font-family:system-ui,-apple-system,sans-serif;touch-action:none;overscroll-behavior:none;';
 
   // Safari-specific safety net: prevent double-tap and pinch gestures from
@@ -455,23 +443,22 @@ export function setupMobileShell(force = false): { parent: HTMLElement | undefin
 
   const gamePane = document.createElement('div');
   gamePane.id = 'game';
-  // The game (play screen) takes the MAJORITY of the height so it always reads
-  // larger than the control deck below it; the 16:9 canvas fits to width within it.
+  // The play screen fills the whole viewport (largest uncropped 16:9 rectangle,
+  // centred with letterboxing). syncMobileLayout() sets its exact size.
   gamePane.style.cssText =
-    'position:relative;flex:0 0 auto;min-width:0;min-height:0;' +
-    'background:#000;overflow:hidden;';
+    'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);' +
+    'min-width:0;min-height:0;background:#000;overflow:hidden;';
   gamePaneEl = gamePane;
 
   deckEl = document.createElement('div');
   deckEl.id = 'deck';
-  // Exact dimensions are calculated by syncMobileLayout(). Keeping this element
-  // aspect-correct makes --u fill both axes, eliminating the huge dead space that
-  // a fixed 47vh deck produced on tall phones.
+  // The control deck is now a transparent full-viewport overlay ABOVE the game.
+  // It never eats pointer events itself — only its buttons/stick do — so taps on
+  // empty areas fall through to the game. --u (control size) is set from the
+  // viewport by updateUnit().
   deckEl.style.cssText =
-    'position:relative;flex:0 0 auto;min-width:0;min-height:0;--u:24px;' +
-    'background:linear-gradient(#141a2e,#0b0f1e);border-top:3px solid #33406a;' +
-    'box-shadow:inset 0 3px 8px rgba(0,0,0,0.5),0 14px 38px rgba(0,0,0,0.36);' +
-    'touch-action:none;box-sizing:border-box;overflow:hidden;';
+    'position:fixed;inset:0;z-index:50;pointer-events:none;background:transparent;' +
+    '--u:20px;touch-action:none;box-sizing:border-box;overflow:hidden;';
 
   buildControlLayer();
   buildBattleActionLayer();
@@ -565,8 +552,9 @@ function buildControlLayer(): void {
 function buildBattleActionLayer(): void {
   const layer = document.createElement('div');
   layer.style.cssText =
-    'position:absolute;inset:0;display:none;flex-direction:column;' +
-    'padding:calc(var(--u)*0.5);box-sizing:border-box;pointer-events:none;';
+    'position:absolute;left:0;right:0;bottom:0;height:min(60vh,calc(var(--u)*10.5));' +
+    'display:none;flex-direction:column;padding:calc(var(--u)*0.5);box-sizing:border-box;pointer-events:none;' +
+    'background:linear-gradient(180deg,rgba(11,15,30,0) 0%,rgba(11,15,30,0.6) 14%,rgba(11,15,30,0.92) 36%);';
   const title = document.createElement('div');
   title.dataset.role = 'action-title';
   title.textContent = t('BATTLE COMMAND', '배틀 명령');
@@ -586,7 +574,7 @@ function buildBattleActionLayer(): void {
 /** The battle move-select bar (2×2), shown only while a move choice is offered. */
 function buildMoveLayer(): void {
   const layer = document.createElement('div');
-  layer.style.cssText = 'position:absolute;inset:0;display:none;flex-direction:column;padding:calc(var(--u)*0.5);box-sizing:border-box;pointer-events:none;';
+  layer.style.cssText = 'position:absolute;left:0;right:0;bottom:0;height:min(60vh,calc(var(--u)*10.5));display:none;flex-direction:column;padding:calc(var(--u)*0.5);box-sizing:border-box;pointer-events:none;background:linear-gradient(180deg,rgba(11,15,30,0) 0%,rgba(11,15,30,0.6) 14%,rgba(11,15,30,0.92) 36%);';
   const title = document.createElement('div');
   title.textContent = 'CHOOSE A MOVE';
   title.style.cssText = 'color:#ffe44e;font-weight:800;font-size:clamp(12px,calc(var(--u)*0.8),20px);text-align:center;letter-spacing:2px;margin:clamp(1px,calc(var(--u)*0.15),5px) 0 clamp(2px,calc(var(--u)*0.25),8px);flex:0 0 auto;';
@@ -605,8 +593,9 @@ function buildMoveLayer(): void {
 function buildPartyLeadLayer(): void {
   const layer = document.createElement('div');
   layer.style.cssText =
-    'position:absolute;inset:0;display:none;flex-direction:column;' +
-    'padding:calc(var(--u)*0.45);box-sizing:border-box;pointer-events:none;';
+    'position:absolute;left:0;right:0;bottom:0;height:min(66vh,calc(var(--u)*12));' +
+    'display:none;flex-direction:column;padding:calc(var(--u)*0.45);box-sizing:border-box;pointer-events:none;' +
+    'background:linear-gradient(180deg,rgba(11,15,30,0) 0%,rgba(11,15,30,0.62) 12%,rgba(11,15,30,0.94) 30%);';
 
   const title = document.createElement('div');
   title.dataset.role = 'lead-title';

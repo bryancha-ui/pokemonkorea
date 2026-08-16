@@ -13,6 +13,9 @@ const MOBILE_ALLOWED = new Set<string>([
   // on the altar, even on phones. It is intentionally the one large boss-model
   // exception to the normal mobile memory gate.
   'hwanwoong',
+  'npc_hwangeum', // 챔피언 황금 — rigged/animated champion figure; the League
+                  //                intro is a signature moment, so it survives
+                  //                the mobile gate like the Hwanung boss model.
   'snoqueen',    // 스노퀸 — Ice/Fairy frost sovereign
   'yeomtaeja',   // 염태자 — the flame prince
   'vipour',      // 염혈목이 — local optimized GLB (4.0 MB); it is a starter, so
@@ -21,7 +24,7 @@ const MOBILE_ALLOWED = new Set<string>([
   'munkain',     // 월식매 — local optimized GLB (4.6 MB)
   'bosongnun', 'camerghoost', 'hambillet', 'kkaakdang', 'luninari',
   'samdumae', 'silicutis', 'supiryeong', 'unsilgami', // local 3–5 MB GLBs
-  'turtleship', // lightweight local armoured turtle-ship; required in 황금's league battle
+  'turtleship', // 거북선 — high-quality Higgsfield GLB (~13 MB); Hwangeum's league ace, kept on mobile
 ]);
 
 // The starter remasters are shipped with the game and remain discoverable even

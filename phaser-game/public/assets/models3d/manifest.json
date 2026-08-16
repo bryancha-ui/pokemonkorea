@@ -72,6 +72,10 @@
     "unsilgami",
     "pipetiger",
     "yeomtaeja",
-    "turtleship"
+    "turtleship",
+    {
+      "key": "npc_hwangeum",
+      "scale": 1.0
+    }
   ]
 }

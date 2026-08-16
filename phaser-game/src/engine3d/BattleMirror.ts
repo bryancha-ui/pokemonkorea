@@ -3,13 +3,13 @@ import * as THREE from 'three';
 import { CameraRig } from './CameraRig';
 import { buildThemedBattleArena, resolveBattleArenaTheme } from './BattleArenaThemes';
 import { buildGeographicBattleArena, resolveOutdoorBattleTheme } from './BattleGeography';
-import { buildCharacterModel, PlayerModel } from './CharacterModel';
+import { buildCharacterModel, ChoreoPose, PlayerModel } from './CharacterModel';
 import { CreatureAnimator, MoveCategory } from './CreatureAnimator';
 import { measureCommands } from './GraphicsRaster';
 import { getModel, hasModel, isRenderableModel, modelLoadStatus, primeManifest } from './GlbModels';
 import { MoveFX3D } from './MoveFX3D';
 import { makeBlobShadow, makePokeBallProp } from './Props';
-import { ROUTINE_LENGTH, sampleChampionIntro } from './ChampionChoreo';
+import { BALL_APPEARS, ROUTINE_LENGTH, sampleChampionIntro } from './ChampionChoreo';
 import { spriteScale } from '../data/SpriteScale';
 import { battleFallbackSprite } from '../data/BattleFallbackSprites';
 import { EnvProfile, ThreeStage } from './ThreeStage';
@@ -147,6 +147,21 @@ interface TrainerWalker {
   threwBall: boolean;
   /** The ball rides his hand through the windup, then detaches at release. */
   heldBall: THREE.Group | null;
+  /** A rigged GLB replaces the primitive figure when one is vendored for this
+   *  character. Its baked clip carries the dance; the throw still comes from
+   *  the authored track. */
+  glb: THREE.Group | null;
+  mixer: THREE.AnimationMixer | null;
+  glbHand: THREE.Object3D | null;
+  wantsGlb: boolean;
+  glbKey: string;
+  /** Rig bones by role, with the bind rotation each authored pose is applied
+   *  relative to. */
+  rig: Map<string, { node: THREE.Object3D; bind: THREE.Quaternion }> | null;
+  /** Snapshot of the clip's final pose, blended out of when the throw takes
+   *  over so the hand-off is not a visible pop. */
+  blendFrom: Map<string, THREE.Quaternion> | null;
+  blendT: number;
 }
 
 interface Pinned2DTrainer {
@@ -176,6 +191,41 @@ interface FlightStrike {
   dur: number;
   startLift: number;
   impact: THREE.Vector3;
+}
+
+
+// ── Rigged-character posing ──────────────────────────────────────────────────
+// Meshy's auto-rig ships mixamo-style bone names. Map the roles the authored
+// choreography needs; anything missing is simply skipped, so a rig with a
+// different naming scheme degrades instead of throwing.
+const AXIS_X = new THREE.Vector3(1, 0, 0);
+const AXIS_Y = new THREE.Vector3(0, 1, 0);
+const AXIS_Z = new THREE.Vector3(0, 0, 1);
+
+const RIG_ROLES: Record<string, string[]> = {
+  armR:   ['RightArm'],
+  foreR:  ['RightForeArm'],
+  handR:  ['RightHand'],
+  armL:   ['LeftArm'],
+  foreL:  ['LeftForeArm'],
+  legR:   ['RightUpLeg'],
+  legL:   ['LeftUpLeg'],
+  spine:  ['Spine01', 'Spine', 'Spine1'],
+  head:   ['Head'],
+};
+
+function collectRigBones(root: THREE.Object3D):
+Map<string, { node: THREE.Object3D; bind: THREE.Quaternion }> {
+  const byName = new Map<string, THREE.Object3D>();
+  root.traverse(n => { if (n.name) byName.set(n.name, n); });
+  const out = new Map<string, { node: THREE.Object3D; bind: THREE.Quaternion }>();
+  for (const [role, candidates] of Object.entries(RIG_ROLES)) {
+    for (const nm of candidates) {
+      const node = byName.get(nm);
+      if (node) { out.set(role, { node, bind: node.quaternion.clone() }); break; }
+    }
+  }
+  return out;
 }
 
 export class BattleMirror {
@@ -212,6 +262,11 @@ export class BattleMirror {
   private onChargeFx: (d: ChargeFxRequest) => void;
   private readonly projectionPoint = new THREE.Vector3();
   private readonly facingVector = new THREE.Vector3();
+  private readonly rigCharQuat = new THREE.Quaternion();
+  private readonly rigParentQuat = new THREE.Quaternion();
+  private readonly rigDelta = new THREE.Quaternion();
+  private readonly rigTarget = new THREE.Quaternion();
+  private readonly rigAxis = new THREE.Vector3();
 
   constructor(scene: Phaser.Scene, stage: ThreeStage, rig: CameraRig) {
     this.scene = scene;
@@ -847,6 +902,11 @@ export class BattleMirror {
     if (this.trainers.some(w => w.obj === im)) return;
     const model = buildCharacterModel(modelKey, design);
     model.group.scale.multiplyScalar(1.6);
+    // A vendored rigged GLB (the Champion) supersedes the primitive figure. The
+    // manifest is fetched asynchronously, so whether one EXISTS cannot be known
+    // here — updateTrainers re-checks each frame and adopts it when it lands.
+    // A missing or failed model simply leaves the procedural figure running.
+    const wantsGlb = choreo;
     const holder = new THREE.Group();
     holder.add(model.group, makeBlobShadow(0.5));
     const start = TRAINER_START[side].clone();
@@ -858,6 +918,8 @@ export class BattleMirror {
       obj: im, model, group: holder, t: walkIn ? 0 : 1,
       phase: 0, seen: false, walkIn, side, start, end,
       choreo: choreo && !!model.setChoreo, choreoT: 0, threwBall: false, heldBall: null,
+      glb: null, mixer: null, glbHand: null, wantsGlb, glbKey: modelKey,
+      rig: null, blendFrom: null, blendT: 0,
     });
     // The flat 2D portrait stays off the render layer while the 3D walker plays;
     // its alpha tween still drives the walk-in / retirement.
@@ -879,6 +941,35 @@ export class BattleMirror {
         this.trainers.splice(i, 1);
         continue;
       }
+      // Adopt the rigged GLB the moment the loader has it. Until then (and
+      // forever, if it never arrives) the procedural figure keeps performing,
+      // so the intro never depends on an asset download succeeding.
+      if (w.wantsGlb && !w.glb && hasModel(w.glbKey)) {
+        const loaded = getModel(w.glbKey);
+        if (loaded && isRenderableModel(loaded.group)) {
+          w.model.group.visible = false;
+          const g = loaded.group;
+          // GlbModels normalises every model to height 1. The procedural figure
+          // this replaces stands ~1.15 units at its own 1.6 scale, so match that
+          // rather than the raw normalised height — otherwise he towers over the
+          // arena and overruns the frame during the camera punch-in.
+          g.scale.setScalar(1.85);
+          w.group.add(g);
+          w.glb = g;
+          w.rig = collectRigBones(g);
+          if (loaded.animations.length) {
+            w.mixer = new THREE.AnimationMixer(g);
+            w.mixer.clipAction(loaded.animations[0]).play();
+          }
+          // The hand bone carries the ball through the windup. Meshy rigs use
+          // mixamo-style names; fall back to any node whose name mentions a
+          // right hand so a differently-named rig still works.
+          w.glbHand = w.rig?.get('handR')?.node ?? null;
+        } else if (modelLoadStatus(w.glbKey) === 'failed') {
+          w.wantsGlb = false;
+        }
+      }
+
       // A choreographed trainer (the Champion's opening routine) drives its
       // limbs from the keyframe track instead of the procedural walk cycle.
       if (w.choreo && visible) {
@@ -888,7 +979,26 @@ export class BattleMirror {
         const toFoe = this.facingVector
           .copy(ANCHORS[w.side === 'player' ? 'enemy' : 'player'][0]).sub(w.end);
         w.model.face(toFoe.x, toFoe.z, dt);
-        w.model.setChoreo?.(pose);
+        if (w.glb) {
+          w.glb.rotation.y = w.model.group.rotation.y;
+          if (w.choreoT < BALL_APPEARS) {
+            // The baked clip owns the body for the dance.
+            w.mixer?.update(dt);
+          } else {
+            // The throw is authored, so it drives the bones directly. Capture
+            // the clip's last pose once and blend out of it — cutting straight
+            // to the authored pose reads as a one-frame pop.
+            if (!w.blendFrom && w.rig) {
+              w.blendFrom = new Map();
+              for (const [role, b] of w.rig) w.blendFrom.set(role, b.node.quaternion.clone());
+            }
+            w.blendT = Math.min(1, w.blendT + dt / 0.22);
+            this.applyPoseToRig(w, pose);
+            w.glb.position.y = pose.hop ?? 0;
+          }
+        } else {
+          w.model.setChoreo?.(pose);
+        }
         // The ball is a real object in his grip for the whole windup, so the
         // throw starts from something the eye has already been tracking.
         if (ballInHand && !w.heldBall && !w.threwBall) this.attachBall(w);
@@ -924,11 +1034,67 @@ export class BattleMirror {
     }
   }
 
+
+  /** Apply an authored ChoreoPose to a rigged GLB.
+   *
+   *  The pose was authored against the primitive figure, whose joints rotate
+   *  about the CHARACTER's axes. A rig's bones each have their own local frame
+   *  (an A-pose arm bone does not point down -Y), so feeding the same numbers
+   *  into `bone.rotation.x` would produce garbage. Instead every angle is
+   *  applied as a rotation about a character-space axis, converted into that
+   *  bone's parent space — which makes the authored numbers mean the same
+   *  thing on any rig. */
+  private applyPoseToRig(w: TrainerWalker, pose: ChoreoPose): void {
+    const rig = w.rig;
+    if (!rig || !w.glb) return;
+    const charQ = w.glb.getWorldQuaternion(this.rigCharQuat);
+
+    const rotate = (role: string, axis: THREE.Vector3, angle: number) => {
+      const b = rig.get(role);
+      if (!b || !angle) return;
+      const parent = b.node.parent;
+      const axisParent = this.rigAxis.copy(axis).applyQuaternion(charQ);
+      if (parent) {
+        axisParent.applyQuaternion(
+          this.rigParentQuat.copy(parent.getWorldQuaternion(this.rigParentQuat)).invert(),
+        );
+      }
+      this.rigDelta.setFromAxisAngle(axisParent.normalize(), angle);
+      this.rigTarget.copy(b.bind).premultiply(this.rigDelta);
+      const from = w.blendFrom?.get(role);
+      if (from && w.blendT < 1) this.rigTarget.slerpQuaternions(from, this.rigTarget, w.blendT);
+      b.node.quaternion.copy(this.rigTarget);
+    };
+    // Roles with no authored angle still need resetting off the clip pose.
+    const reset = (role: string) => {
+      const b = rig.get(role);
+      if (!b) return;
+      this.rigTarget.copy(b.bind);
+      const from = w.blendFrom?.get(role);
+      if (from && w.blendT < 1) this.rigTarget.slerpQuaternions(from, this.rigTarget, w.blendT);
+      b.node.quaternion.copy(this.rigTarget);
+    };
+
+    const X = AXIS_X, Y = AXIS_Y, Z = AXIS_Z;
+    reset('armR'); reset('foreR'); reset('armL'); reset('foreL');
+    reset('legR'); reset('legL'); reset('spine'); reset('head');
+    // Two-axis joints are composed by rotating twice about character axes.
+    rotate('armR', X, pose.armRX ?? 0);
+    rotate('foreR', X, pose.elbowR ?? 0);
+    rotate('armL', X, pose.armLX ?? 0);
+    rotate('foreL', X, pose.elbowL ?? 0);
+    rotate('legR', X, pose.legRX ?? 0);
+    rotate('legL', X, pose.legLX ?? 0);
+    rotate('spine', Y, pose.torsoTwist ?? 0);
+    rotate('head', Y, pose.headTurn ?? 0);
+    void Z;
+  }
+
   /** Put the ball in his hand for the windup. Parenting it to the forearm means
    *  it inherits the whole coil for free — no separate animation to keep in
    *  sync with the arm. */
   private attachBall(w: TrainerWalker): void {
-    const hand = w.model.rightHandAttach?.();
+    const hand = w.glbHand ?? w.model.rightHandAttach?.();
     if (!hand) return;
     const ball = makePokeBallProp();
     ball.scale.setScalar(HELD_BALL_SCALE);
