@@ -7,6 +7,7 @@ import { DialogBox } from '../ui/DialogBox';
 import { SaveManager } from '../utils/SaveManager';
 import { maybeLaunchEvolution } from '../systems/EvolutionSystem';
 import { PartySystem } from '../systems/PartySystem';
+import { DexTracker } from '../systems/DexTracker';
 
 // ── Tiles ─────────────────────────────────────────────────────────────────────
 // The grand courtyard before the Pokémon League — a great ancient-Korean palace.
@@ -376,6 +377,17 @@ export class LeaguePlazaScene extends Phaser.Scene {
   }
 
   private enterLeague() {
+    // Post-game rematches only open once 환웅 (Hwanung) has been caught. Until then
+    // the reigning Champion's title stands and the halls stay closed to a re-climb.
+    const clearedBefore = !!(this.registry.get('hallOfFame') || this.registry.get('championDefeated'));
+    if (clearedBefore && !DexTracker.isCaught(this.registry, 'hwanwoong')) {
+      this.cutsceneActive = true;
+      this.dialog.show([
+        'Receptionist: Champion! Your title still stands — there is no one below to challenge you yet.',
+        'Receptionist: They say a Sovereign sleeps in the far north. Should you ever bring 환웅 itself back down the mountain, the Elite Four have sworn to rise and challenge you anew.',
+      ], () => { this.cutsceneActive = false; });
+      return;
+    }
     this.cutsceneActive = true;
     // Entering the tower starts a fresh gauntlet: reset all four Elite Four floors
     // and the Champion, so they must be cleared in one unbroken ascent — and can be

@@ -1023,6 +1023,17 @@ export class TrainerBattleScene extends Phaser.Scene {
           this.registry.remove('northHallOfFameRematchPending');
         }
       }
+      // Beating Hwangeum must always hand control back to the League's Hall of Fame
+      // ceremony — including on rematches. Without this the second-run champion room
+      // had no NPC, no stairs and no exit, trapping the player on the fifth floor.
+      if (this.trainerKey === 'champion-hwangeum') {
+        this.registry.set('leagueHallOfFamePending', true);
+        if (this.registry.get('hallOfFame')) {
+          this.registry.set('leagueHallOfFameRematchPending', true);
+        } else {
+          this.registry.remove('leagueHallOfFameRematchPending');
+        }
+      }
       this.saveProgress();
       this.returnToRoute();
     });

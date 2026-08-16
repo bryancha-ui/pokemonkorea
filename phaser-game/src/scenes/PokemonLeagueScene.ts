@@ -8,6 +8,11 @@ import { PartySystem } from '../systems/PartySystem';
 import { customForm } from '../data/CustomBattle';
 import { markTrainerPortrait } from '../data/BattlePortraits';
 
+// On a Hall-of-Fame rematch (unlocked after catching 환웅) the Elite Four and the
+// Champion return far stronger: every team level is raised by this amount, putting
+// Hwangeum's aces in the high-70s/low-80s.
+const REMATCH_LEVEL_BONUS = 12;
+
 // ── Five-storey League tower ──────────────────────────────────────────────────
 const T = { FLOOR: 0, WALL: 1, DAIS: 2, CARPET: 3, THRONE: 4, STAIRS: 5, STAGE: 6 } as const;
 type Tile = typeof T[keyof typeof T];
@@ -31,6 +36,9 @@ const ROOMS = [
 interface Member {
   key: string; name: string; type: string; color: number;
   intro: string[]; pokemon: { id: number; level: number; custom?: string }[]; expPool: number;
+  /** Lines used when the player rematches as reigning Champion — now the masters
+   *  are the ones challenging the protagonist. */
+  rematchIntro?: string[];
 }
 
 const MEMBERS: Member[] = [
@@ -39,6 +47,10 @@ const MEMBERS: Member[] = [
     intro: [
       'Gyeoul: I am Gyeoul, first of the Elite Four. My cranes nest on the glacier.',
       'Gyeoul: The cold does not rush. Neither will I. Begin.',
+    ],
+    rematchIntro: [
+      'Gyeoul: Champion. Since you took the throne, I have trained on the glacier for nothing but this rematch.',
+      'Gyeoul: This time it is I who challenge YOU. Show me the winter has not been wasted.',
     ],
     pokemon: [
       { id: 0, level: 58, custom: 'bosongnun' },  // Ice/Fairy
@@ -55,6 +67,10 @@ const MEMBERS: Member[] = [
       'Hwageum: Goryeo smiths folded steel ten thousand times. So have I folded my team.',
       'Hwageum: Let us see what your edge is made of.',
     ],
+    rematchIntro: [
+      'Hwageum: Champion, my steel has been folded ten thousand times over since you last passed.',
+      'Hwageum: I challenge you now — let us see whose edge has truly sharpened.',
+    ],
     pokemon: [
       { id: 0, level: 59, custom: 'camerghoost' },  // Ghost/Steel
       { id: 0, level: 59, custom: 'hallowknight' }, // Bug/Steel — the insect-knight
@@ -70,6 +86,10 @@ const MEMBERS: Member[] = [
       'Baram: I am Baram. The eagles and cranes of the cliffs answer to the wind.',
       'Baram: Rise to meet me — or be swept aside.',
     ],
+    rematchIntro: [
+      'Baram: Champion! The high winds have missed you — and I have raced them harder every day.',
+      'Baram: This time the challenge is mine. Rise to meet me once more!',
+    ],
     pokemon: [
       { id: 279, level: 60 },                      // Pelipper (Water/Flying)
       { id: 0, level: 60, custom: 'samdumae' },    // Flying/Fairy
@@ -84,6 +104,10 @@ const MEMBERS: Member[] = [
     intro: [
       'Saleum: The mudang sees what is, and what is coming. I have seen this battle.',
       'Saleum: Whether the vision holds is up to you. Come.',
+    ],
+    rematchIntro: [
+      'Saleum: I foresaw your return to these halls, Champion — the vision was clear this time.',
+      'Saleum: And this time it is I who challenge you. Let us see if my sight has sharpened.',
     ],
     pokemon: [
       { id: 282, level: 62 },                      // Gardevoir (Psychic/Fairy)
@@ -102,6 +126,11 @@ const CHAMPION: Member = {
     'Hwangeum: You made it. I watched your entire journey. The Jeju Summit — 나비할망 choosing you as her guardian. The tests, the battles, the growth.',
     'Hwangeum: Eight gyms, one legendary moth, and you still climbed back up here. I became Champion three years ago and called it a fluke for a year. I don\'t take many battles seriously anymore.',
     'Hwangeum: This one — I will. Show me everything you\'ve become.',
+  ],
+  rematchIntro: [
+    'Hwangeum: So the Champion who dethroned me climbs back to my stage. I have waited for this rematch.',
+    'Hwangeum: My team has grown far beyond the day you beat me — the region\'s apex, sharpened for you alone.',
+    'Hwangeum: This time I challenge YOU. No fluke, no holding back. Everything I have, against everything you\'ve become!',
   ],
   // The Golden One fields the region's own apex Pokémon — almost all new species.
   pokemon: [
@@ -154,12 +183,15 @@ export class PokemonLeagueScene extends Phaser.Scene {
 
   private defeated(key: string) { return !!this.registry.get(`trainerDefeated_${key}`); }
   private get champBeaten() { return this.defeated('champion-hwangeum'); }
+  /** True on a post-game rematch run: the Hall of Fame was already earned once, so
+   *  the masters return stronger and initiate the challenge themselves. */
+  private get isRematch() { return !!this.registry.get('hallOfFame'); }
   private get currentMember(): Member { return this.floor <= MEMBERS.length ? MEMBERS[this.floor - 1] : CHAMPION; }
 
   create() {
 
     // Ambient hall theme — but not when we're about to run the Hall of Fame ceremony.
-    if (!(this.champBeaten && !this.registry.get('hallOfFame'))) playBgm(this, 'leagueinterior');
+    if (!this.registry.get('leagueHallOfFamePending')) playBgm(this, 'leagueinterior');
     this.cutsceneActive = false; this.walkFrame = 0; this.walkTimer = 0;
     this.input.keyboard?.resetKeys();
 
@@ -200,8 +232,10 @@ export class PokemonLeagueScene extends Phaser.Scene {
     this.cameras.main.fadeIn(400);
     SaveManager.save(this.registry, this.px, this.py, 'PokemonLeagueScene');
 
-    // Returned from beating the Champion → the Hall of Fame.
-    if (this.champBeaten && !this.registry.get('hallOfFame')) {
+    // Returned from beating the Champion → the Hall of Fame. Driven by the pending
+    // flag TrainerBattleScene sets, so it also fires on rematches (when hallOfFame
+    // is already set) instead of leaving the player stuck in the champion's room.
+    if (this.registry.get('leagueHallOfFamePending')) {
       this.time.delayedCall(400, () => this.runHallOfFame());
     } else if (failedRun) {
       this.time.delayedCall(450, () => {
@@ -436,10 +470,15 @@ export class PokemonLeagueScene extends Phaser.Scene {
     const healLine = this.floor === 5
       ? '(Backstage support restores your team to full health before the headline match.)'
       : '(The floor\'s healing machine restores your team to full health.)';
-    this.dialog.show([healLine, ...m.intro], () => {
+    // On a rematch the masters return far stronger and challenge the Champion first.
+    const intro = this.isRematch && m.rematchIntro ? m.rematchIntro : m.intro;
+    const team = this.isRematch
+      ? m.pokemon.map(p => ({ ...p, level: p.level + REMATCH_LEVEL_BONUS }))
+      : m.pokemon;
+    this.dialog.show([healLine, ...intro], () => {
       this.registry.set('trainerName', m.name);
       this.registry.set('trainerKey', m.key);
-      this.registry.set('trainerPokemon', JSON.stringify(m.pokemon));
+      this.registry.set('trainerPokemon', JSON.stringify(team));
       this.registry.set('trainerExpPool', m.expPool);
       this.registry.set('trainerReturnScene', 'PokemonLeagueScene');
       this.registry.set('hanbandoLeagueFloor', this.floor);
@@ -474,6 +513,13 @@ export class PokemonLeagueScene extends Phaser.Scene {
 
   // ── Hall of Fame ──────────────────────────────────────────────────────────
   private runHallOfFame() {
+    // A rematch is any Hall of Fame run after the first (hallOfFame already set).
+    const rematch = !!this.registry.get('leagueHallOfFameRematchPending');
+    this.registry.remove('leagueHallOfFamePending');
+    this.registry.remove('leagueHallOfFameRematchPending');
+    // Count every enshrinement so the ceremony can announce which clear this is.
+    const clears = ((this.registry.get('leagueClears') as number) ?? 0) + 1;
+    this.registry.set('leagueClears', clears);
     this.registry.set('hallOfFame', true);
     this.registry.set('championDefeated', true);
     playBgm(this, 'halloffame');
@@ -543,12 +589,17 @@ export class PokemonLeagueScene extends Phaser.Scene {
     root.setScale(s); root.setPosition((W / 2) * (1 - s), (H / 2) * (1 - s));
 
     PartySystem.healAll(this.registry);
-    this.registry.set('phase1Complete', true);
-    this.dialog.show([
+    const countLine = t(
+      `🏆 Hall of Fame registration — Clear No. ${clears}!`,
+      `🏆 명예의 전당 ${clears}회차 등록 완료!`,
+    );
+
+    const firstVictoryLines = [
       'Hwangeum kneels to his fallen ace first — always his Pokémon first — then stands.',
       'Hwangeum: ...Good. Three years I\'ve wondered when someone would come who could do this. I think I\'ve been waiting for you specifically.',
       'Hwangeum (extending his hand): Welcome to the Hall of Fame. You earned every step of it.',
       '🏆 Your team is recorded in the Hall of Fame!',
+      countLine,
       '— The credits roll over a montage of the Onnuri League arc — Capitol City, the Diamond Gorge, the tidal coasts, the ancient forest, the Jeju vents, the Jeju Summit —',
       "— culminating in 나비할망's metallic wings catching the dawn light as she settles beside you, the guardian of the south you have become.",
       'At the bottom of the League steps, your Rival is waiting — because of course they are.',
@@ -561,8 +612,30 @@ export class PokemonLeagueScene extends Phaser.Scene {
       'Phase 1: Onnuri League — COMPLETE ✓',
       'Phase 2: Northern League — UNLOCKED',
       'Post-game unlocked: rechallenge the Rival in the Shadow Court, rematch Champion Hwangeum, explore the postgame world, and track the freed trio — 풍백, 우사, 운사 — at their mountain shrines.',
-    ], () => {
+    ];
+    const rematchLines = [
+      'Hwangeum: ...Beaten again — and by a wider margin than before. Of course. You truly are the Champion of the south.',
+      'Hwangeum: Every one of us climbed back stronger to challenge you, and still you stand above us all.',
+      '🏆 Your team is enshrined in the Hall of Fame once more!',
+      countLine,
+      'Your Pokémon have been fully restored. You will now return to the Pokémon League entrance.',
+    ];
+
+    if (!rematch) this.registry.set('phase1Complete', true);
+    this.dialog.show(rematch ? rematchLines : firstVictoryLines, () => {
       this.cameras.main.fadeOut(900, 0, 0, 0, () => {
+        if (rematch) {
+          // Fresh gauntlet next time, and drop the player back at the League entrance.
+          this.registry.set('hanbandoLeagueFloor', 1);
+          this.registry.remove('leagueReturnX');
+          this.registry.remove('leagueReturnY');
+          const px = 14 * 32, py = 12 * 32 + 16;
+          this.registry.set('leaguePlazaReturnX', px);
+          this.registry.set('leaguePlazaReturnY', py);
+          SaveManager.save(this.registry, px, py, 'LeaguePlazaScene');
+          this.scene.start('LeaguePlazaScene');
+          return;
+        }
         this.registry.set('capitalReturnX', 24 * 32 + 16);
         this.registry.set('capitalReturnY', 31 * 32 + 16);
         this.scene.start('CapitolCityScene');
