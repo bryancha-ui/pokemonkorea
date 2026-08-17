@@ -6,7 +6,7 @@ import { Inventory } from '../systems/Items';
 import { rivalTrainerName } from '../data/CharacterSprite';
 import { t, tr, pokeNameEn, abilityName } from '../systems/i18n';
 import { sfxBallOpen, sfxCancel, sfxConfirm, sfxMove } from '../systems/UiSfx';
-import { StarterPreview3D } from '../engine3d/StarterPreview3D';
+import { isTouchDevice } from '../systems/TouchControls';
 
 // ── Desk + reveal geometry (the lab's authored 800×500 space) ─────────────────
 // The three balls sit in a row on the desk, and the reveal stage is anchored
@@ -16,16 +16,16 @@ const BALL_XS = [230, 400, 570];
 const BALL_REST_Y = 330;
 const BALL_LIFT_Y = 322;          // the selected ball rises slightly
 const BALL_RADIUS = 21;
-/** Stage box for the 3D model, measured up from just above the lifted ball. */
-const PREVIEW_W = 284;
-const PREVIEW_H = 168;
-const PREVIEW_BOTTOM = BALL_LIFT_Y - BALL_RADIUS - 5;   // 5px of air over the ball
-const PREVIEW_TOP = PREVIEW_BOTTOM - PREVIEW_H;
-/** 2D artwork stands in for a missing model; its box is the same air gap. */
-const ARTWORK_MAX = 170;
-const ARTWORK_Y = PREVIEW_BOTTOM - ARTWORK_MAX / 2;
-const NAME_BASELINE = PREVIEW_TOP - 24;
-const BADGE_Y = PREVIEW_TOP - 14;
+/** The artwork's footprint, stacked up from just above the lifted ball. */
+const ARTWORK_MAX = 176;
+const STAGE_BOTTOM = BALL_LIFT_Y - BALL_RADIUS - 5;   // 5px of air over the ball
+const ARTWORK_Y = STAGE_BOTTOM - ARTWORK_MAX / 2;
+const STAGE_TOP = STAGE_BOTTOM - ARTWORK_MAX;
+const NAME_BASELINE = STAGE_TOP - 22;
+const BADGE_Y = STAGE_TOP - 12;
+/** The caption band: ability, flavour and the control hint, laid out upward from
+ *  the bottom edge of the view by MEASURED height (see layoutInfoBand). */
+const BAND_BOTTOM = 497;
 
 export class StarterSelectScene extends Phaser.Scene {
   private selectedIdx = 0;
@@ -33,13 +33,15 @@ export class StarterSelectScene extends Phaser.Scene {
   /** One Poké Ball per starter, resting on the lab desk. */
   private balls: Phaser.GameObjects.Container[] = [];
   /** The reveal stage above the desk: name plate + 3D model when available. */
-  private preview3D?: StarterPreview3D;
   private revealSprite?: Phaser.GameObjects.Image;
   /** Spotlight pool behind the reveal; slides along the desk with the selection. */
   private revealGlow!: Phaser.GameObjects.Container;
   private nameText!: Phaser.GameObjects.Text;
   private typeBadges: Phaser.GameObjects.GameObject[] = [];
   private abilityText!: Phaser.GameObjects.Text;
+  private hintText!: Phaser.GameObjects.Text;
+  /** Backing plate behind the caption band; redrawn to fit its measured text. */
+  private infoPanel!: Phaser.GameObjects.Graphics;
   private openedIdx = -1;
   private flavText!: Phaser.GameObjects.Text;
   private profText!: Phaser.GameObjects.Text;
@@ -210,41 +212,26 @@ export class StarterSelectScene extends Phaser.Scene {
     // baked graphics so it can slide along the desk with the selection.
     this.revealGlow = this.add.container(0, 0).setDepth(2);
     this.revealGlow.add([
-      this.add.ellipse(0, PREVIEW_BOTTOM - 64, 300, 190, 0xffffff, 0.13),
-      this.add.ellipse(0, PREVIEW_BOTTOM - 46, 210, 130, 0xffe9b8, 0.10),
+      this.add.ellipse(0, STAGE_BOTTOM - 66, 300, 196, 0xffffff, 0.13),
+      this.add.ellipse(0, STAGE_BOTTOM - 44, 210, 132, 0xffe9b8, 0.10),
     ]);
 
-    // 2D artwork stands in until (or unless) a generated 3D model exists.
+    // The starter is shown as its own 2D artwork. A turntabling 3D model was tried
+    // here and read as busy next to the flat, hand-drawn lab: the artwork is the
+    // same drawing used everywhere else in the game, so the picker now matches the
+    // Pokédex and the battle HUD instead of introducing a third look.
     this.revealSprite = this.add.image(BALL_XS[0], ARTWORK_Y, '__none__')
       .setDepth(6).setVisible(false);
 
-    // Keep the name completely above the separate Three.js canvas. Phaser
-    // depth cannot lift canvas text over that DOM layer, which previously let
-    // the creature cover its own label.
     this.nameText = this.add.text(BALL_XS[0], NAME_BASELINE, '', {
       fontSize: '22px', color: '#ffffff', fontStyle: 'bold',
       stroke: '#1a2a4a', strokeThickness: 5,
     }).setOrigin(0.5, 1).setDepth(12);
-
-    // Ability sits BELOW the desk so nothing crowds the balls on it.
-    this.abilityText = this.add.text(400, 402, '', {
-      fontSize: '11px', color: '#ffe9a8',
-      stroke: '#1a2a4a', strokeThickness: 3,
-    }).setOrigin(0.5, 0).setDepth(12);
-
-    // The 3D stage sits over the same rect the artwork would occupy.
-    this.preview3D = new StarterPreview3D(this, this.previewRect(BALL_XS[0]));
-  }
-
-  /** The 3D stage box centred over the ball at `anchorX`. */
-  private previewRect(anchorX: number) {
-    return { x: anchorX - PREVIEW_W / 2, y: PREVIEW_TOP, w: PREVIEW_W, h: PREVIEW_H };
   }
 
   /** Slide the whole reveal stage over the ball at `idx`. */
   private positionRevealStage(idx: number, animated: boolean) {
     const anchorX = BALL_XS[idx] ?? 400;
-    this.preview3D?.setRect(this.previewRect(anchorX));
     const followers: Phaser.GameObjects.GameObject[] = [this.revealGlow, this.nameText];
     if (this.revealSprite) followers.push(this.revealSprite);
     if (animated) {
@@ -347,18 +334,68 @@ export class StarterSelectScene extends Phaser.Scene {
 
   // ── Info area (bottom) ────────────────────────────────────────────────────
 
+  /**
+   * The caption band under the desk: ability, flavour text, control hint.
+   *
+   * These used to sit at fixed y offsets (402 / 428 / 490) with a rule ruled
+   * across 420. That only ever fitted at 1×. Touch devices enlarge on-canvas
+   * fonts by up to 2× (see UiScale), which grew the ability line and turned the
+   * flavour into a taller paragraph — so the three overlapped each other and the
+   * rule was drawn straight through the words. Everything here is therefore
+   * positioned by MEASURED height in layoutInfoBand(), never by a fixed offset.
+   */
   private createInfoArea() {
-    const g = this.add.graphics().setDepth(8);
-    g.fillStyle(0x1a2a4a, 0.9); g.fillRect(0, 480, 800, 20);
-    g.lineStyle(2, 0x5577aa, 1); g.lineBetween(0, 420, 800, 420);
-    // Flavour sits just under the reveal plate; the control hint gets the bar.
-    this.flavText = this.add.text(400, 428, '', {
-      fontSize: '12px', color: '#f2ede2', wordWrap: { width: 720 }, align: 'center',
-      stroke: '#16233c', strokeThickness: 4,
-    }).setOrigin(0.5).setDepth(9);
-    this.add.text(400, 490, t('◀ ▶ to browse     SPACE / ENTER to choose', '◀ ▶ 둘러보기     SPACE / ENTER 선택'), {
-      fontSize: '11px', color: '#ffe44e',
-    }).setOrigin(0.5).setDepth(9);
+    this.infoPanel = this.add.graphics().setDepth(8);
+
+    this.abilityText = this.add.text(400, BAND_BOTTOM, '', {
+      fontSize: '11px', color: '#ffe9a8', fontStyle: 'bold', align: 'center',
+    }).setOrigin(0.5, 0).setDepth(9);
+
+    this.flavText = this.add.text(400, BAND_BOTTOM, '', {
+      fontSize: '12px', color: '#f2ede2', wordWrap: { width: 700 }, align: 'center',
+      lineSpacing: 2,
+    }).setOrigin(0.5, 0).setDepth(9);
+
+    // A phone has no SPACE key and no arrow keys, so it gets the gesture it can
+    // actually perform — and one line instead of two things to read.
+    this.hintText = this.add.text(400, BAND_BOTTOM, isTouchDevice()
+      ? t('Tap a Poké Ball, then tap again to choose', '몬스터볼을 탭하고 다시 탭하면 결정')
+      : t('◀ ▶ to browse     SPACE / ENTER to choose', '◀ ▶ 둘러보기     SPACE / ENTER 선택'), {
+      fontSize: '11px', color: '#ffe44e', align: 'center',
+    }).setOrigin(0.5, 0).setDepth(9);
+  }
+
+  /**
+   * Stack the caption band upward from the bottom of the view, then draw its
+   * backing plate to whatever height the text actually needed. Called after every
+   * text change, because the flavour paragraph's line count varies by starter and
+   * by font scale.
+   */
+  private layoutInfoBand() {
+    if (!this.infoPanel) return;
+    const GAP = 3;
+    let y = BAND_BOTTOM;
+    let shown = 0;
+    const stack = (label: Phaser.GameObjects.Text | undefined) => {
+      if (!label?.visible) return;
+      shown++;
+      y -= label.displayHeight;
+      label.setY(Math.round(y));
+      y -= GAP;
+    };
+    stack(this.hintText);
+    stack(this.flavText);
+    stack(this.abilityText);
+
+    this.infoPanel.clear();
+    if (!shown) return;
+    // The plate is opaque behind the text: the flavour used to be light type on
+    // the pale lab floor, held together only by a stroke.
+    const top = Math.round(y - 3);
+    this.infoPanel.fillStyle(0x16233c, 0.92);
+    this.infoPanel.fillRect(-120, top, 1040, 500 - top);
+    this.infoPanel.lineStyle(2, 0x5577aa, 1);
+    this.infoPanel.lineBetween(-120, top, 920, top);
   }
 
   // ── Confirm panel ─────────────────────────────────────────────────────────
@@ -390,8 +427,7 @@ export class StarterSelectScene extends Phaser.Scene {
     this.downKey  = kb.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN);
   }
 
-  update(_time: number, delta: number) {
-    this.preview3D?.update(Math.min(0.05, delta / 1000));
+  update() {
     const advancePressed = Phaser.Input.Keyboard.JustDown(this.spaceKey)
       || Phaser.Input.Keyboard.JustDown(this.enterKey);
     if (this.professorDialogueActive) {
@@ -427,6 +463,10 @@ export class StarterSelectScene extends Phaser.Scene {
     if (!active) this.profAdvance?.setVisible(false);
     this.flavText?.setVisible(!active);
     this.abilityText?.setVisible(!active);
+    // The hint goes too: the professor's bubble reaches down to y=476, and a
+    // caption plate tall enough to hold the hint would clip its lower edge.
+    this.hintText?.setVisible(!active);
+    this.layoutInfoBand();
   }
 
   private refreshSelection(animated: boolean) {
@@ -457,6 +497,9 @@ export class StarterSelectScene extends Phaser.Scene {
     this.positionRevealStage(this.selectedIdx, animated);
     if (changed) this.openBall(this.selectedIdx, animated);
     this.flavText.setText(tr(s.flavorA));
+    // Both captions have their final text by now, so reflow the band around the
+    // heights they actually occupy.
+    this.layoutInfoBand();
   }
 
   /**
@@ -489,22 +532,7 @@ export class StarterSelectScene extends Phaser.Scene {
     this.abilityText.setText(`${t('Ability', '특성')}: ${abilityName(s.ability)}`);
     this.buildTypeBadges(s);
 
-    // 3D model when available; 2D artwork otherwise. A listed model still has
-    // to download, so the artwork also stands in if the mesh hasn't arrived
-    // shortly — the reveal is never allowed to be empty.
-    const has3D = StarterPreview3D.available(s.spriteKey);
-    if (has3D && this.preview3D) {
-      this.preview3D.show(s.spriteKey);
-      this.revealSprite?.setVisible(false);
-      this.time.delayedCall(1200, () => {
-        if (this.openedIdx !== idx) return;
-        if (this.preview3D?.isShowing()) return;
-        this.showArtwork(s, false);
-      });
-    } else {
-      this.preview3D?.hide();
-      this.showArtwork(s, animated);
-    }
+    this.showArtwork(s, animated);
   }
 
   /** Present the starter's 2D artwork on the reveal stage. */
@@ -538,12 +566,18 @@ export class StarterSelectScene extends Phaser.Scene {
     types.forEach((ty, ti) => {
       // Chips ride just under the name plate. They used to sit at y=302, which is
       // now where the ball itself is — they would have covered it.
-      const bx = anchorX + (types.length === 1 ? 0 : ti === 0 ? -36 : 36);
-      const badge = this.add.rectangle(bx, BADGE_Y, 66, 18, TYPE_COLORS[ty] ?? 0x888888, 1)
-        .setStrokeStyle(1, 0x000000, 0.35).setDepth(12);
+      const bx = anchorX + (types.length === 1 ? 0 : ti === 0 ? -38 : 38);
+      // Build the label first and fit the chip to it. A fixed 66×18 chip could not
+      // hold the label once touch font scaling grew it.
       const label = this.add.text(bx, BADGE_Y, ty.toUpperCase(), {
         fontSize: '9px', color: '#ffffff', fontStyle: 'bold',
       }).setOrigin(0.5).setDepth(13);
+      const badge = this.add.rectangle(
+        bx, BADGE_Y,
+        Math.max(60, Math.round(label.displayWidth + 14)),
+        Math.max(16, Math.round(label.displayHeight + 5)),
+        TYPE_COLORS[ty] ?? 0x888888, 1,
+      ).setStrokeStyle(1, 0x000000, 0.35).setDepth(12);
       this.typeBadges.push(badge, label);
     });
   }

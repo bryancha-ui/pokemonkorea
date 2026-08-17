@@ -629,6 +629,10 @@ export class PokemonLeagueScene extends Phaser.Scene {
       `🏆 명예의 전당 ${clears}회차 등록 완료!`,
     );
 
+    // The Hall of Fame is now a self-contained ceremony: enshrinement, credits and
+    // "THE END" only. The Rival's northern-news story plays SEPARATELY back in
+    // Capitol City (see CapitolCityScene.playCapitolRivalNews), triggered by the
+    // capitolRivalNewsPending flag set below.
     const firstVictoryLines = [
       'Hwangeum kneels to his fallen ace first — always his Pokémon first — then stands.',
       'Hwangeum: ...Good. Three years I\'ve wondered when someone would come who could do this. I think I\'ve been waiting for you specifically.',
@@ -637,16 +641,8 @@ export class PokemonLeagueScene extends Phaser.Scene {
       countLine,
       '— The credits roll over a montage of the Onnuri League arc — Capitol City, the Diamond Gorge, the tidal coasts, the ancient forest, the Jeju vents, the Jeju Summit —',
       "— culminating in 나비할망's metallic wings catching the dawn light as she settles beside you, the guardian of the south you have become.",
-      'At the bottom of the League steps, your Rival is waiting — because of course they are.',
-      "Rival: Champion of the south. And 나비할망's chosen one. Has a ring to it.",
-      'Rival: I found something while you were climbing the league. In the far north, beyond Baekdu Peak — old texts, older than the gym records. References to another spirit. One that predates the Dancheong calendar.',
-      'Prof. Song (comms): That\'s... troubling. The north has always been volatile. If something wakes there before we understand it, the whole peninsula could—',
-      'Rival: Easy, Professor. We\'re barely sitting down. But when you\'re ready, Champion — the Taebaek range has some climbing left to do.',
-      "Rival: ...Starting tomorrow, though. Tonight, you've earned the sleep.",
       '— THE END —',
       'Phase 1: Onnuri League — COMPLETE ✓',
-      'Phase 2: Northern League — UNLOCKED',
-      'Post-game unlocked: rechallenge the Rival in the Shadow Court, rematch Champion Hwangeum, explore the postgame world, and track the freed trio — 풍백, 우사, 운사 — at their mountain shrines.',
     ];
     const rematchLines = [
       'Hwangeum: ...Beaten again — and by a wider margin than before. Of course. You truly are the Champion of the south.',
@@ -671,6 +667,8 @@ export class PokemonLeagueScene extends Phaser.Scene {
           this.scene.start('LeaguePlazaScene');
           return;
         }
+        // The Rival delivers the northern news back in Capitol City, not here.
+        this.registry.set('capitolRivalNewsPending', true);
         this.registry.set('capitalReturnX', 24 * 32 + 16);
         this.registry.set('capitalReturnY', 31 * 32 + 16);
         this.scene.start('CapitolCityScene');

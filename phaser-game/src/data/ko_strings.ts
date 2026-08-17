@@ -2817,6 +2817,7 @@ export const KO_STRINGS: Record<string, string> = {
   "Each master occupies a separate floor. Defeat one, climb the newly opened stairs, and continue upward.": "각 마스터는 서로 다른 층을 차지하고 있다. 하나를 이기고, 새로 열린 계단을 올라, 계속 위로 나아가라.",
   "The Champion awaits on the fifth-floor main stage. Each floor restores your team before its match.": "챔피언은 5층 메인 무대에서 기다린다. 각 층은 대전 전에 네 팀을 회복시켜 준다.",
   "— culminating in 나비할망's metallic wings catching the dawn light as she settles beside you, the guardian of the south you have become.": "— 그리고 그 끝에서, 나비할망의 금속 날개가 새벽빛을 머금으며 네 곁에 내려앉는다. 너는 남부의 수호자가 되었다.",
+  'Back in Capitol City, your Rival is already jogging over — because of course they are.': '소올 시티로 돌아오자, 네 라이벌이 벌써 달려온다 — 당연하다는 듯이.',
   "Rival: Champion of the south. And 나비할망's chosen one. Has a ring to it.": "라이벌: 남부의 챔피언. 게다가 나비할망이 택한 자. 어감이 근사하네.",
   "↓ League Plaza": "↓ 리그 광장",
   "Prof. Song (comms): Listen to me — you can't DEFEAT him! That energy isn't his, it's 풍백, 우사, and 운사's power forced through him! Every hit you land just feeds the matrix more!": "송 박사 (통신): 내 말 들어 — 그를 쓰러뜨릴 순 없어! 저 에너지는 그의 것이 아니야, 풍백과 우사와 운사의 힘을 그를 통해 강제로 뿜어낸 거라고! 네가 한 대 칠 때마다 그 장치에 힘만 더 실릴 뿐이야!",

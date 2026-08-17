@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { installSurfing, isSurfing } from '../systems/SurfSystem';
 import { tr } from '../systems/i18n';
 import { playBgm } from '../systems/Music';
-import { drawTrainerBody, drawRiderBody, drawNpcBody, playerDesign, rivalDesign } from '../data/CharacterSprite';
+import { drawTrainerBody, drawRiderBody, drawNpcBody, playerDesign, rivalDesign, rivalTrainerName } from '../data/CharacterSprite';
 import { markRivalPortrait, markTrainerPortrait } from '../data/BattlePortraits';
 import { hasBike, BIKE_SPEED, isBikeRiding, setBikeRiding } from '../data/Bike';
 import { DialogBox } from '../ui/DialogBox';
@@ -441,8 +441,12 @@ export class CapitolCityScene extends Phaser.Scene {
       this.registry.set('ch12IntroShown', true);
       this.time.delayedCall(700, () => this.playEpilogue());
     } else if (this.registry.get('championDefeated') && !this.registry.get('flyHmGiven')) {
-      // Champion returns home — Professor Song awards HM Fly. Plays once.
+      // Champion returns home — Professor Song awards HM Fly, then the Rival jogs up
+      // with the northern news (playChampionReturn chains into playCapitolRivalNews).
       this.time.delayedCall(700, () => this.playChampionReturn());
+    } else if (this.registry.get('capitolRivalNewsPending')) {
+      // Fallback: the Rival's northern-news beat if the Professor cutscene already ran.
+      this.time.delayedCall(700, () => this.playCapitolRivalNews());
     } else if (this.registry.get('sudoPartyPending')) {
       // POST-GAME finale — the Northern League victory is celebrated back in Sudo City,
       // which then unlocks the Ancient Altar shortcut to the Sacred Peak (환웅). Plays once.
@@ -551,9 +555,81 @@ export class CapitolCityScene extends Phaser.Scene {
       ], () => {
         this.walkProfessor(prof, tag, stopY, startY, () => {
           prof.destroy(); tag.destroy();
+          // Right after the Professor steps away, the Rival jogs up with the
+          // northern news (the story half that used to live inside the Hall of Fame).
+          if (this.registry.get('capitolRivalNewsPending')) this.playCapitolRivalNews();
+          else this.cutsceneActive = false;
+        });
+      });
+    });
+  }
+
+  /** The Rival crosses the plaza to deliver the northern news — the story beat that
+   *  is now split out of the Hall of Fame ceremony. Their 3D sprite walks up, talks,
+   *  and unlocks Phase 2 / the post-game, then walks back out. */
+  private playCapitolRivalNews() {
+    this.registry.remove('capitolRivalNewsPending');
+    this.cutsceneActive = true;
+    this.facing = 1;                        // face up, toward the approaching Rival
+    this.drawChar();
+
+    const startY = this.py - TILE * 5.5;    // enters from the plaza to the north
+    const stopY  = this.py - TILE * 1.6;    // halts just in front of the Champion
+    const rivalName = rivalTrainerName(this.registry);
+
+    const rival = this.add.graphics().setDepth(21);
+    markRivalPortrait(rival, this.registry);   // promotes the sprite to the Rival's 3D model
+    const tag = this.add.text(this.px, startY - 30, rivalName, {
+      fontSize: '10px', color: '#a9dcff', fontStyle: 'bold', stroke: '#000', strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(22);
+    this.drawRival(rival, this.px, startY, 0);
+
+    this.walkRival(rival, tag, startY, stopY, () => {
+      this.dialog.show([
+        'Back in Capitol City, your Rival is already jogging over — because of course they are.',
+        "Rival: Champion of the south. And 나비할망's chosen one. Has a ring to it.",
+        'Rival: I found something while you were climbing the league. In the far north, beyond Baekdu Peak — old texts, older than the gym records. References to another spirit. One that predates the Dancheong calendar.',
+        'Prof. Song (comms): That\'s... troubling. The north has always been volatile. If something wakes there before we understand it, the whole peninsula could—',
+        'Rival: Easy, Professor. We\'re barely sitting down. But when you\'re ready, Champion — the Taebaek range has some climbing left to do.',
+        "Rival: ...Starting tomorrow, though. Tonight, you've earned the sleep.",
+        'Phase 2: Northern League — UNLOCKED',
+        'Post-game unlocked: rechallenge the Rival in the Shadow Court, rematch Champion Hwangeum, explore the postgame world, and track the freed trio — 풍백, 우사, 운사 — at their mountain shrines.',
+      ], () => {
+        this.walkRival(rival, tag, stopY, startY, () => {
+          rival.destroy(); tag.destroy();
           this.cutsceneActive = false;
         });
       });
+    });
+  }
+
+  /** Draw the Rival's overworld sprite facing down (toward the player they approach). */
+  private drawRival(g: Phaser.GameObjects.Graphics, x: number, y: number, frame: number) {
+    drawTrainerBody(g, 0, frame, rivalDesign(this.registry));
+    g.setPosition(x, y);
+  }
+
+  /** Tween the Rival sprite along the player's column with animated steps. */
+  private walkRival(
+    rival: Phaser.GameObjects.Graphics, tag: Phaser.GameObjects.Text,
+    fromY: number, toY: number, onDone: () => void,
+  ) {
+    const proxy = { y: fromY };
+    let frame = 0;
+    const step = this.time.addEvent({ delay: 140, loop: true, callback: () => { frame ^= 1; } });
+    this.tweens.add({
+      targets: proxy, y: toY,
+      duration: Math.max(500, (Math.abs(toY - fromY) / TILE) * 260),
+      ease: 'Sine.easeInOut',
+      onUpdate: () => {
+        this.drawRival(rival, this.px, proxy.y, frame);
+        tag.setPosition(this.px, proxy.y - 30);
+      },
+      onComplete: () => {
+        step.remove();
+        this.drawRival(rival, this.px, toY, 0);   // settle to idle pose
+        onDone();
+      },
     });
   }
 
