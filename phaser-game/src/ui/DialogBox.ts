@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { tr } from '../systems/i18n';
 import { fontScaleForScene } from '../systems/UiScale';
+import { deckSetDialogueMode } from '../systems/TouchControls';
 
 export class DialogBox {
   private bg!: Phaser.GameObjects.Graphics;
@@ -108,6 +109,8 @@ export class DialogBox {
     this.queue = lines.map(tr).flatMap(line => this.paginate(line));
     this.onDone = onDone;
     this.inChoice = false;
+    // On mobile, clear the movement stick and fade A/B so this box reads clearly.
+    deckSetDialogueMode(true);
     this.bg.setVisible(true);
     this.msgText.setVisible(true);
     this.typeNext();
@@ -118,6 +121,9 @@ export class DialogBox {
     this.onNo  = onNo;
     this.inChoice = true;
     this.choiceIdx = 0;
+    // A Yes/No choice is navigated with the stick (up/down) and A (confirm), so
+    // bring the controls back for it — the choice UI sits above the dialog box.
+    deckSetDialogueMode(false);
     // Keep the main dialog bg visible so isOpen() stays true
     this.bg.setVisible(true);
     this.choiceBg.setVisible(true);
@@ -227,5 +233,7 @@ export class DialogBox {
     this.choiceItems.forEach(t => t.setVisible(false));
     this.typing = false;
     this.inChoice = false;
+    // Restore the movement stick + solid A/B now the box is gone.
+    deckSetDialogueMode(false);
   }
 }

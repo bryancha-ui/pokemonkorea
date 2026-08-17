@@ -3,6 +3,7 @@ import { TYPE_COLORS } from '../data/StarterData';
 import { tr, typeName } from './i18n';
 import { fontScaleForScene } from './UiScale';
 import { sfxConfirm, sfxMove } from './UiSfx';
+import { mobileSafeInsets } from './TouchControls';
 
 /** Shared visual language for the high-density menu, storage and battle UI. */
 export const PROD_UI = {
@@ -87,8 +88,15 @@ export function createBattleHud(scene: Phaser.Scene, config: BattleHudConfig): B
   const width = Math.min(scene.scale.width - 28, Math.max(292, desiredWidth));
   const height = 96;
   const margin = 14;
-  const x = config.side === 'enemy' ? margin : scene.scale.width - margin - width;
-  const y = config.side === 'enemy' ? 16 : scene.scale.height - 120 - height - 14;
+  // Anchor to the on-screen safe area so the card never falls in a cropped edge
+  // on a covered mobile viewport (folded/unfolded phones, foldables).
+  const cardXY = (safe: ReturnType<typeof mobileSafeInsets>) => ({
+    x: config.side === 'enemy' ? safe.left + margin : safe.right - margin - width,
+    y: config.side === 'enemy' ? safe.top + 16 : safe.bottom - 120 - height - 14,
+  });
+  const first = cardXY(mobileSafeInsets(scene.scale.width, scene.scale.height));
+  const x = first.x;
+  const y = first.y;
   const accent = config.accent ?? (config.side === 'player' ? PROD_UI.cyan : 0xff7f76);
   const panel = roundedPanel(scene, x, y, width, height, {
     fill: PROD_UI.ink, alpha: 0.9, stroke: accent, radius: 14,
@@ -135,6 +143,28 @@ export function createBattleHud(scene: Phaser.Scene, config: BattleHudConfig): B
   if (config.hidden) {
     for (const object of objects) (object as unknown as { setAlpha(value: number): void }).setAlpha(0);
   }
+
+  // Re-anchor to the safe area when the viewport changes (a foldable opening/closing,
+  // rotation, browser chrome). Every element is offset from the same base (x, y), so
+  // a single delta shift moves the whole card, HP-bar fill included.
+  let baseX = x, baseY = y;
+  const reposition = () => {
+    const next = cardXY(mobileSafeInsets(scene.scale.width, scene.scale.height));
+    const dx = next.x - baseX, dy = next.y - baseY;
+    if (dx === 0 && dy === 0) return;
+    for (const object of objects) {
+      const g = object as unknown as { x: number; y: number };
+      g.x += dx; g.y += dy;
+    }
+    baseX = next.x; baseY = next.y;
+  };
+  scene.scale.on('resize', reposition);
+  window.addEventListener('pokemonkorea:mobile-layout', reposition);
+  scene.events.once('shutdown', () => {
+    scene.scale.off('resize', reposition);
+    window.removeEventListener('pokemonkorea:mobile-layout', reposition);
+  });
+
   return { objects, nameText, levelText, hpBar, hpText, hpWidth, typeChips };
 }
 

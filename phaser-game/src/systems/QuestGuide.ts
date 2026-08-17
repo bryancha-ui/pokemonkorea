@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { t } from './i18n';
+import { mobileSafeInsets } from './TouchControls';
 
 /**
  * Early-game objective guidance, shown as a translucent white notification widget
@@ -54,8 +55,21 @@ export function mountQuestHint(scene: Phaser.Scene): Phaser.GameObjects.Containe
     fontSize: '16px', color: '#5a3a00', fontStyle: 'bold',
   }).setOrigin(0.5);
 
-  const widget = scene.add.container(12, 12, [panel, badge, bang, label]);
+  const widget = scene.add.container(0, 0, [panel, badge, bang, label]);
   widget.setScrollFactor(0).setDepth(400);
+  // Anchor to the on-screen safe area so a covered mobile viewport never clips the
+  // widget off the top-left corner; re-anchor when the viewport changes.
+  const place = () => {
+    const safe = mobileSafeInsets(scene.scale.width, scene.scale.height);
+    widget.setPosition(safe.left + 12, safe.top + 12);
+  };
+  place();
+  scene.scale.on('resize', place);
+  window.addEventListener('pokemonkorea:mobile-layout', place);
+  scene.events.once('shutdown', () => {
+    scene.scale.off('resize', place);
+    window.removeEventListener('pokemonkorea:mobile-layout', place);
+  });
   // A soft entrance so the notification "pops" when it changes.
   widget.setAlpha(0).setScale(0.96);
   scene.tweens.add({ targets: widget, alpha: 1, scale: 1, duration: 260, ease: 'Back.out' });

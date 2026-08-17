@@ -207,6 +207,8 @@ let immersiveView = false;
 // battle command / move deck. Battle scenes toggle this on create/shutdown.
 let battleMode = false;
 let controlLayer: HTMLElement | null = null;
+let controlPad: HTMLElement | null = null;          // the movement drag stick
+let controlActionBtns: HTMLElement[] = [];          // the A / B buttons
 let battleActionLayer: HTMLElement | null = null;
 let moveLayer: HTMLElement | null = null;
 let partyLeadLayer: HTMLElement | null = null;
@@ -215,6 +217,26 @@ let mobile = false;
 let releaseMovement: (() => void) | null = null;
 let mobileLayoutFrame = 0;
 let mobileLayoutSettleTimers: number[] = [];
+// Latest viewport + covered play-screen size, used to derive the visible safe area.
+let lastLayout = { vw: 0, vh: 0, gameWidth: 0, gameHeight: 0 };
+
+/**
+ * The rectangle of the game's DESIGN space (default 1280×720) that is actually
+ * on-screen. On desktop (or before the mobile shell measures) this is the full
+ * design rect; on the mobile COVER layout the overflow is cropped, so edge-anchored
+ * UI should sit inside these insets to stay visible. Call on create and on every
+ * `resize` / `pokemonkorea:mobile-layout` event.
+ */
+export function mobileSafeInsets(designW = 1280, designH = 720): {
+  left: number; top: number; right: number; bottom: number;
+} {
+  const full = { left: 0, top: 0, right: designW, bottom: designH };
+  if (!mobile || !lastLayout.gameWidth) return full;
+  const s = lastLayout.gameWidth / designW;                 // screen px per design px
+  const insetX = Math.max(0, Math.round((designW - lastLayout.vw / s) / 2));
+  const insetY = Math.max(0, Math.round((designH - lastLayout.vh / s) / 2));
+  return { left: insetX, top: insetY, right: designW - insetX, bottom: designH - insetY };
+}
 
 /**
  * Size the two-screen shell from the browser's *visible* viewport, like a
@@ -233,12 +255,14 @@ function syncMobileLayout(): void {
     const vw = Math.max(240, Math.round(viewport?.width ?? window.innerWidth));
     const vh = Math.max(180, Math.round(viewport?.height ?? window.innerHeight));
     const portrait = vh >= vw;
-    // The play screen COVERS the whole viewport (no letterbox margins): it is the
-    // smallest 16:9 rectangle that fully contains the viewport, centred so the
-    // overflow spills past the edges (clipped by the body's overflow:hidden). The
-    // deck overlay always covers the full screen on top of it.
+    // The play screen COVERS the whole viewport (no letterbox margins), overflow
+    // clipped by the body. UI that must never be cropped (battle HUD, quest widget,
+    // dialogue) anchors to mobileSafeInsets() — the design-space rectangle that is
+    // actually on-screen — so it re-flows to the visible edges on any device aspect,
+    // folded or unfolded.
     const gameWidth = Math.max(vw, vh * GAME_ASPECT);
     const gameHeight = gameWidth / GAME_ASPECT;
+    lastLayout = { vw, vh, gameWidth, gameHeight };
 
     document.body.style.minHeight = '0px';
     document.body.style.maxHeight = `${vh}px`;
@@ -557,8 +581,23 @@ function buildControlLayer(): void {
   const back = tapButton('✕',  `position:absolute;right:calc(var(--u)*3.5);${pill}`, KEY.esc);
   const bike = tapButton('🚲', `position:absolute;right:calc(var(--u)*6.5);${pill}`, KEY.c);
 
+  // A/B fade smoothly when dialogue makes them translucent.
+  a.style.transition = (a.style.transition ? a.style.transition + ',' : '') + 'opacity 140ms ease';
+  b.style.transition = (b.style.transition ? b.style.transition + ',' : '') + 'opacity 140ms ease';
+
   layer.append(pad, a, b, menu, back, bike);
   controlLayer = layer;
+  controlPad = pad;
+  controlActionBtns = [a, b];
+}
+
+/** While an overworld dialogue is open, hide the movement stick (it sits over the
+ *  dialogue box) and make the A/B buttons translucent so the text reads through.
+ *  Restores them when the dialogue closes. No-op off mobile. */
+export function deckSetDialogueMode(active: boolean): void {
+  if (!mobile) return;
+  if (controlPad) controlPad.style.display = active ? 'none' : 'block';
+  for (const btn of controlActionBtns) btn.style.opacity = active ? '0.32' : '1';
 }
 
 /** Large direct battle commands. These call scene callbacks instead of
