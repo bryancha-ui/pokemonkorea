@@ -278,6 +278,8 @@ export class MoveFX3D {
       this.dragonBeam(from, to, color, strong, eff, onImpact);
     } else if (/^(blizzard|powder snow|aurora beam)$/.test(name)) {
       this.iceStorm(from, to, color, strong, eff, onImpact);
+    } else if (name === 'thunder') {
+      this.thunderStorm(to, color, strong, eff, onImpact);
     } else if (type === 'electric' || /thunder|shock|volt/.test(name)) {
       this.electricArc(from, to, color, strong, eff, onImpact);
     } else if (name === 'surf' || /deluge|tidal|wave/.test(name)) {
@@ -1805,6 +1807,84 @@ export class MoveFX3D {
       group.position.y = Math.sin(k * Math.PI * 12) * 0.025;
     }, 0.68, () => { this.burst(to, color, eff, scale * 1.15); onImpact?.(); });
     void len;
+  }
+
+  /** Thunderstorm strike: dark storm clouds gather in the sky above the target,
+   *  flicker with inner light, then a jagged bolt cracks straight down onto it.
+   *  Drives every Electric attack. */
+  private thunderStorm(
+    to: THREE.Vector3, color: number, scale: number, eff: number, onImpact?: () => void,
+  ): void {
+    const boltColor = color || 0xfff2a0;
+    // High enough to read as "the sky" but within the battle camera frame (matches
+    // the sky-spawn height that dracoMeteor's meteors use).
+    const cloudY = to.y + 3.2 * scale;
+    const group = new THREE.Group();
+
+    // Dark storm clouds — a clustered ring of dim puffs high above the target.
+    const cloudGeo = new THREE.SphereGeometry(1, 12, 8);
+    const puffs: THREE.Mesh[] = [];
+    for (let i = 0; i < 10; i++) {
+      const puff = new THREE.Mesh(cloudGeo, new THREE.MeshBasicMaterial({
+        color: 0x272c37, transparent: true, opacity: 0, depthWrite: false,
+      }));
+      const a = (i / 10) * Math.PI * 2;
+      const r = (0.4 + (i % 3) * 0.5) * scale;
+      puff.position.set(to.x + Math.cos(a) * r, cloudY + ((i % 2) - 0.5) * 0.3 * scale, to.z + Math.sin(a) * r);
+      puff.scale.set((0.9 + Math.random() * 0.7) * scale, (0.55 + Math.random() * 0.3) * scale, (0.9 + Math.random() * 0.7) * scale);
+      group.add(puff); puffs.push(puff);
+    }
+
+    // Inner flash that flickers within the clouds before and during the strike.
+    const flash = new THREE.Mesh(
+      new THREE.SphereGeometry(1.5 * scale, 10, 8),
+      new THREE.MeshBasicMaterial({ color: 0xcdd6ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }),
+    );
+    flash.position.set(to.x, cloudY, to.z);
+    group.add(flash);
+
+    // The jagged bolt from the cloud base straight down onto the target.
+    const boltTop = new THREE.Vector3(to.x, cloudY - 0.6 * scale, to.z);
+    const segs = 9;
+    const pts: THREE.Vector3[] = [boltTop.clone()];
+    for (let i = 1; i < segs; i++) {
+      const p = boltTop.clone().lerp(to, i / segs);
+      p.x += (Math.random() - 0.5) * 0.55 * scale;
+      p.z += (Math.random() - 0.5) * 0.55 * scale;
+      pts.push(p);
+    }
+    pts.push(to.clone());
+    const bolts: THREE.Mesh[] = [];
+    for (let i = 0; i < pts.length - 1; i++) {
+      bolts.push(segmentMesh(pts[i], pts[i + 1], 0.055 * scale, i % 2 ? 0xffffff : boltColor, 0));
+    }
+    const branches: THREE.Mesh[] = [];
+    for (let i = 2; i < pts.length - 1; i += 2) {
+      const end = pts[i].clone().add(new THREE.Vector3((i % 4 ? 0.42 : -0.42) * scale, -0.12 * scale, (i % 3 ? 0.24 : -0.3) * scale));
+      branches.push(segmentMesh(pts[i], end, 0.026 * scale, 0xffffd8, 0));
+    }
+    for (const b of [...bolts, ...branches]) group.add(b);
+
+    const dur = 0.95, strikeAt = 0.58;
+    this.addTask(group, dur, (k) => {
+      if (k < strikeAt) {
+        // Clouds roll in, darken and swirl; inner light flickers.
+        const g = k / strikeAt;
+        group.rotation.y = g * 0.6;
+        for (const p of puffs) opacity(p, Math.min(0.94, g * 1.15));
+        opacity(flash, (Math.sin(k * Math.PI * 22) > 0.6 ? 0.32 : 0.03) * g);
+        for (const b of [...bolts, ...branches]) opacity(b, 0);
+      } else {
+        // The bolt cracks down, flickers bright, then everything dissipates.
+        const s = (k - strikeAt) / (1 - strikeAt);
+        const flick = s < 0.5 ? (0.7 + Math.sin(s * Math.PI * 26) * 0.3) : Math.max(0, 1 - (s - 0.5) / 0.5);
+        for (const b of bolts) opacity(b, flick);
+        for (const b of branches) opacity(b, flick * 0.8);
+        opacity(flash, s < 0.35 ? 0.9 * (1 - s / 0.35) : 0);
+        flash.scale.setScalar((1 + s * 1.4) * scale);
+        for (const p of puffs) opacity(p, 0.9 * Math.max(0, 1 - s * 1.1));
+      }
+    }, strikeAt, () => { this.burst(to, boltColor, eff, scale * 1.35); onImpact?.(); });
   }
 
   private waterWave(
