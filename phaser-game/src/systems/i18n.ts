@@ -247,9 +247,34 @@ export function resolveJosa(s: string): string {
     .replace(/(.)\(도\)/g, (_, b) => b + '도');
 }
 
+/** The player-chosen (or gender-default) name for the rival, read live from the
+ *  game registry. Dialogue and nameplates address the rival by this name instead
+ *  of the generic "Rival" / "라이벌" label. Returns undefined before the intro has
+ *  set it, so callers keep the neutral label. */
+function rivalDisplayName(): string | undefined {
+  const reg = gameRef?.registry;
+  const custom = reg?.get('rivalName');
+  if (typeof custom !== 'string' || !custom.trim()) return undefined;
+  // Self-heal saves where 'rivalName' was set to the rival's starter species key.
+  const rivalKey = String(reg?.get('rivalKey') ?? '').toLowerCase();
+  const name = custom.trim();
+  return name.toLowerCase() === rivalKey ? undefined : name;
+}
+
+/** Replace a leading "Rival:" / "라이벌:" speaker nameplate with the rival's real
+ *  name. Only the nameplate at the very start of a line is swapped — a mid-sentence
+ *  common-noun "라이벌" (e.g. "네 라이벌이 될 거야") is deliberately left untouched. */
+export function applyRivalName(s: string): string {
+  if (typeof s !== 'string' || (s[0] !== 'R' && s[0] !== '라')) return s;
+  const name = rivalDisplayName();
+  if (!name) return s;
+  return s.replace(/^(?:Rival|라이벌)(?=:\s)/, name);
+}
+
 /** Pick the localized string for the current language (falls back to English). */
 export function t(en: string, ko?: string): string {
-  return currentLang === 'ko' && ko !== undefined ? resolveJosa(ko) : en;
+  const base = currentLang === 'ko' && ko !== undefined ? resolveJosa(ko) : en;
+  return applyRivalName(base);
 }
 
 /** Look up an English string in the Korean dictionary. Unmapped strings (and English
@@ -347,9 +372,13 @@ const SPEAKER_LABEL_TEXTS = new Set<string>();
 
 /** Translate a trainer/NPC name to Korean (from KO_SPEAKERS), else return it. */
 export function speakerName(name: string): string {
-  const result = currentLang !== 'ko' || typeof name !== 'string'
+  let result = currentLang !== 'ko' || typeof name !== 'string'
     ? name
     : SPEAKER_LC[name.toLowerCase()] ?? name;
+  // The generic rival label — in either language — resolves to the player-chosen name.
+  if (typeof name === 'string' && /^(?:rival|라이벌)$/i.test(name.trim())) {
+    result = rivalDisplayName() ?? result;
+  }
   if (typeof result === 'string') SPEAKER_LABEL_TEXTS.add(result);
   return result;
 }
@@ -552,8 +581,9 @@ const BATTLE_PATTERNS: Array<[RegExp, (m: RegExpMatchArray) => string]> = [
 ];
 
 export function tr(en: string): string {
-  if (currentLang !== 'ko' || typeof en !== 'string') return en;
-  return resolveJosa(trKo(en));
+  if (typeof en !== 'string') return en;
+  if (currentLang !== 'ko') return applyRivalName(en);
+  return applyRivalName(resolveJosa(trKo(en)));
 }
 
 function trKo(en: string): string {

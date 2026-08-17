@@ -4,7 +4,7 @@ import { PartySystem } from '../systems/PartySystem';
 import { DexTracker } from '../systems/DexTracker';
 import { Inventory } from '../systems/Items';
 import { rivalTrainerName } from '../data/CharacterSprite';
-import { t, tr, pokeNameEn, abilityName } from '../systems/i18n';
+import { t, tr, pokeNameEn, abilityName, typeName } from '../systems/i18n';
 import { sfxBallOpen, sfxCancel, sfxConfirm, sfxMove } from '../systems/UiSfx';
 import { isTouchDevice } from '../systems/TouchControls';
 
@@ -99,7 +99,7 @@ export class StarterSelectScene extends Phaser.Scene {
     // Prof speech bubble — animated
     this.time.delayedCall(300, () => {
       this.showProfessorDialogue([
-        'Prof. Song: Welcome! Three Pokémon from this region are waiting for a trainer.',
+        'Prof. Song: Welcome! Three Pokémon from this region are waiting for a trainer.\nChoose the one who calls to you.',
       ]);
     });
   }
@@ -317,7 +317,7 @@ export class StarterSelectScene extends Phaser.Scene {
       const tx = (types.length === 1 ? 0 : ti === 0 ? -32 : 32);
       const badge = this.add.rectangle(tx, 56, 56, 18, TYPE_COLORS[t] ?? 0x888888, 1)
         .setStrokeStyle(1, 0x000000, 0.3);
-      const label = this.add.text(tx, 56, t.toUpperCase(), {
+      const label = this.add.text(tx, 56, typeName(t), {
         fontSize: '9px', color: '#ffffff', fontStyle: 'bold',
       }).setOrigin(0.5);
       c.add([badge, label]);
@@ -569,7 +569,7 @@ export class StarterSelectScene extends Phaser.Scene {
       const bx = anchorX + (types.length === 1 ? 0 : ti === 0 ? -38 : 38);
       // Build the label first and fit the chip to it. A fixed 66×18 chip could not
       // hold the label once touch font scaling grew it.
-      const label = this.add.text(bx, BADGE_Y, ty.toUpperCase(), {
+      const label = this.add.text(bx, BADGE_Y, typeName(ty), {
         fontSize: '9px', color: '#ffffff', fontStyle: 'bold',
       }).setOrigin(0.5).setDepth(13);
       const badge = this.add.rectangle(
