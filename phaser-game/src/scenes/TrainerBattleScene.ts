@@ -930,25 +930,30 @@ export class TrainerBattleScene extends Phaser.Scene {
   private championCutIn(onDone: () => void): void {
     const portrait = this.resolvePortrait();
     if (!portrait || !this.textures.exists(portrait.key)) { onDone(); return; }
+    // Clear the Pokémon from the field so Hwangeum himself owns the moment: hide
+    // the enemy battler (in 3D this also drops its mirrored model), and the next
+    // roster send-out fades a Pokémon back in when the cut-in ends.
+    this.enemySprite?.setVisible(false);
+    // Always his authored 2D character walks onto the field — even in 3D mode we
+    // want the flat portrait here, not a 3D walker, so tag it no3d.
     const cut = this.add.image(ENEMY_STAGE_X, ENEMY_STAGE_Y, portrait.key)
       .setDepth(7)
-      .setAlpha(0);
-    if (this.using3D) {
-      // A fresh tagged image spawns a fresh 3D walker — the intro figure was
-      // retired when its portrait faded for the first send-out.
-      cut.setData('battleTrainerEnemyAnchor', true)
-        .setData('characterModel3DKey', 'npc_hwangeum')
-        .setData('characterGender3D', 'boy');
-    } else {
-      cut.setData('no3d', true).setData('battleTrainer2DAnchor', 'enemy');
-    }
+      .setAlpha(0)
+      .setData('no3d', true)
+      .setData('battleTrainer2DAnchor', 'enemy');
     fitPortrait(cut);
     this.tweens.add({ targets: cut, alpha: 1, duration: 320 });
     this.typeDialog(
       "Hwangeum: How long has it been since anyone pushed me this far!",
       () => this.tweens.add({
         targets: cut, alpha: 0, duration: 320,
-        onComplete: () => { cut.destroy(); onDone(); },
+        onComplete: () => {
+          cut.destroy();
+          // Leave the sprite hidden: the ace send-out (playBallSendOut) re-textures
+          // it and calls setVisible(true) itself, so restoring it here would flash
+          // the previous Pokémon for a frame before the ace loads.
+          onDone();
+        },
       }),
     );
   }

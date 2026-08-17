@@ -8,6 +8,7 @@ import { CreatureAnimator, MoveCategory } from './CreatureAnimator';
 import { measureCommands } from './GraphicsRaster';
 import { getModel, hasModel, isRenderableModel, manifestReady, modelLoadStatus, primeManifest } from './GlbModels';
 import { MoveFX3D } from './MoveFX3D';
+import { SnowFX } from './WeatherFX3D';
 import { makeBlobShadow, makePokeBallProp } from './Props';
 import { BALL_APPEARS, ROUTINE_LENGTH, sampleChampionIntro } from './ChampionChoreo';
 import { spriteScale } from '../data/SpriteScale';
@@ -268,6 +269,10 @@ export class BattleMirror {
   }) => void;
   private onScreenTarget: (d: ScreenTargetRequest) => void;
   private onChargeFx: (d: ChargeFxRequest) => void;
+  private onWeather: (w: unknown) => void;
+  /** Active 3D weather effect (snowfall under Snow Warning / hail). */
+  private snow: SnowFX | null = null;
+  private weather = 'clear';
   private readonly projectionPoint = new THREE.Vector3();
   private readonly facingVector = new THREE.Vector3();
   private readonly rigCharQuat = new THREE.Quaternion();
@@ -322,13 +327,32 @@ export class BattleMirror {
       if (moveKey === 'fly') this.fx.flyWindup(cb.holder.position.clone(), cb.targetH);
       this.rig.focusOn(cb.holder.position, 0.72);
     };
+    this.onWeather = (w) => this.setWeather(String(w ?? 'clear'));
     scene.events.on('pk3d-movefx', this.onMoveFx);
     scene.events.on('pk3d-screen-target', this.onScreenTarget);
     scene.events.on('pk3d-chargefx', this.onChargeFx);
+    scene.events.on('pk3d-weather', this.onWeather);
     this.onAdded = (obj) => this.pendingObjects.add(obj as GO);
     scene.events.on('addedtoscene', this.onAdded);
     for (const obj of scene.children.list) this.consider(obj as GO);
     this.built = true;
+  }
+
+  /** Show/hide the 3D snowfall for the current battle weather. Only 'snow' has a
+   *  visual today; every other weather clears it. Idempotent per weather value. */
+  private setWeather(w: string): void {
+    if (w === this.weather) return;
+    this.weather = w;
+    if (w === 'snow') {
+      if (!this.snow) {
+        this.snow = new SnowFX();
+        this.root.add(this.snow.object);
+      }
+    } else if (this.snow) {
+      this.root.remove(this.snow.object);
+      this.snow.dispose();
+      this.snow = null;
+    }
   }
 
   destroy(): void {
@@ -336,6 +360,8 @@ export class BattleMirror {
     this.scene.events.off('pk3d-movefx', this.onMoveFx);
     this.scene.events.off('pk3d-screen-target', this.onScreenTarget);
     this.scene.events.off('pk3d-chargefx', this.onChargeFx);
+    this.scene.events.off('pk3d-weather', this.onWeather);
+    if (this.snow) { this.root.remove(this.snow.object); this.snow.dispose(); this.snow = null; }
     this.fx.clearPersistentStatuses();
     for (const cb of this.combatants.values()) this.destroyFallbackSprite(cb);
     this.combatants.clear();
@@ -1261,6 +1287,7 @@ export class BattleMirror {
   // ── Frame sync ──
   update(dt: number): void {
     if (!this.built) return;
+    this.snow?.update(dt);
     // Objects emitted through addedtoscene are only constructors at that point.
     // Jin's async scene exposed this race: its new Graphics had an empty command
     // buffer here, then the fullscreen 2D backdrop was drawn after we had already

@@ -26,7 +26,7 @@ import { SaveManager } from '../utils/SaveManager';
 import { drawBattleBall, playBallSendOut } from '../systems/BattleBallFX';
 import { genderedName, genderForPokemon } from '../data/PokemonGender';
 import { caughtLocationName } from '../data/PokemonOrigin';
-import { actsBefore, guaranteedEscape, preventsEscape } from '../systems/AbilitySystem';
+import { actsBefore, guaranteedEscape, preventsEscape, battleWeather } from '../systems/AbilitySystem';
 import { enemyLearnset, mergeLearnset } from '../data/Learnsets';
 import { BattleStatusBadge } from '../systems/BattleStatusBadge';
 import { createBattleHud, hpColor, modernButton, modernMoveButton, syncBattleHudTypes, type BattleHud } from '../systems/ProductionUi';
