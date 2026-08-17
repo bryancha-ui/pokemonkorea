@@ -8,6 +8,25 @@ import { t, tr, pokeNameEn, abilityName } from '../systems/i18n';
 import { sfxBallOpen, sfxCancel, sfxConfirm, sfxMove } from '../systems/UiSfx';
 import { StarterPreview3D } from '../engine3d/StarterPreview3D';
 
+// ── Desk + reveal geometry (the lab's authored 800×500 space) ─────────────────
+// The three balls sit in a row on the desk, and the reveal stage is anchored
+// DIRECTLY ABOVE whichever one is selected — the starter has to look like it came
+// out of the ball the player is pointing at, not out of a fixed spot on the wall.
+const BALL_XS = [230, 400, 570];
+const BALL_REST_Y = 330;
+const BALL_LIFT_Y = 322;          // the selected ball rises slightly
+const BALL_RADIUS = 21;
+/** Stage box for the 3D model, measured up from just above the lifted ball. */
+const PREVIEW_W = 284;
+const PREVIEW_H = 168;
+const PREVIEW_BOTTOM = BALL_LIFT_Y - BALL_RADIUS - 5;   // 5px of air over the ball
+const PREVIEW_TOP = PREVIEW_BOTTOM - PREVIEW_H;
+/** 2D artwork stands in for a missing model; its box is the same air gap. */
+const ARTWORK_MAX = 170;
+const ARTWORK_Y = PREVIEW_BOTTOM - ARTWORK_MAX / 2;
+const NAME_BASELINE = PREVIEW_TOP - 24;
+const BADGE_Y = PREVIEW_TOP - 14;
+
 export class StarterSelectScene extends Phaser.Scene {
   private selectedIdx = 0;
   private cards: Phaser.GameObjects.Container[] = [];
@@ -16,6 +35,8 @@ export class StarterSelectScene extends Phaser.Scene {
   /** The reveal stage above the desk: name plate + 3D model when available. */
   private preview3D?: StarterPreview3D;
   private revealSprite?: Phaser.GameObjects.Image;
+  /** Spotlight pool behind the reveal; slides along the desk with the selection. */
+  private revealGlow!: Phaser.GameObjects.Container;
   private nameText!: Phaser.GameObjects.Text;
   private typeBadges: Phaser.GameObjects.GameObject[] = [];
   private abilityText!: Phaser.GameObjects.Text;
@@ -185,21 +206,22 @@ export class StarterSelectScene extends Phaser.Scene {
 
   /** Where the chosen starter appears once its ball opens. */
   private createRevealStage() {
-    // Soft spotlight pool on the wall behind the reveal.
-    const g = this.add.graphics().setDepth(2);
-    g.fillStyle(0xffffff, 0.13);
-    g.fillEllipse(400, 232, 300, 190);
-    g.fillStyle(0xffe9b8, 0.10);
-    g.fillEllipse(400, 250, 210, 130);
+    // Soft spotlight pool behind the reveal. It lives in a container rather than
+    // baked graphics so it can slide along the desk with the selection.
+    this.revealGlow = this.add.container(0, 0).setDepth(2);
+    this.revealGlow.add([
+      this.add.ellipse(0, PREVIEW_BOTTOM - 64, 300, 190, 0xffffff, 0.13),
+      this.add.ellipse(0, PREVIEW_BOTTOM - 46, 210, 130, 0xffe9b8, 0.10),
+    ]);
 
     // 2D artwork stands in until (or unless) a generated 3D model exists.
-    this.revealSprite = this.add.image(400, 212, '__none__')
+    this.revealSprite = this.add.image(BALL_XS[0], ARTWORK_Y, '__none__')
       .setDepth(6).setVisible(false);
 
     // Keep the name completely above the separate Three.js canvas. Phaser
     // depth cannot lift canvas text over that DOM layer, which previously let
     // the creature cover its own label.
-    this.nameText = this.add.text(400, 104, '', {
+    this.nameText = this.add.text(BALL_XS[0], NAME_BASELINE, '', {
       fontSize: '22px', color: '#ffffff', fontStyle: 'bold',
       stroke: '#1a2a4a', strokeThickness: 5,
     }).setOrigin(0.5, 1).setDepth(12);
@@ -211,14 +233,32 @@ export class StarterSelectScene extends Phaser.Scene {
     }).setOrigin(0.5, 0).setDepth(12);
 
     // The 3D stage sits over the same rect the artwork would occupy.
-    this.preview3D = new StarterPreview3D(this, { x: 258, y: 112, w: 284, h: 172 });
+    this.preview3D = new StarterPreview3D(this, this.previewRect(BALL_XS[0]));
+  }
+
+  /** The 3D stage box centred over the ball at `anchorX`. */
+  private previewRect(anchorX: number) {
+    return { x: anchorX - PREVIEW_W / 2, y: PREVIEW_TOP, w: PREVIEW_W, h: PREVIEW_H };
+  }
+
+  /** Slide the whole reveal stage over the ball at `idx`. */
+  private positionRevealStage(idx: number, animated: boolean) {
+    const anchorX = BALL_XS[idx] ?? 400;
+    this.preview3D?.setRect(this.previewRect(anchorX));
+    const followers: Phaser.GameObjects.GameObject[] = [this.revealGlow, this.nameText];
+    if (this.revealSprite) followers.push(this.revealSprite);
+    if (animated) {
+      // Glide rather than cut, so the eye tracks the reveal from ball to ball.
+      this.tweens.add({ targets: followers, x: anchorX, duration: 180, ease: 'Cubic.Out' });
+    } else {
+      for (const f of followers) (f as unknown as { x: number }).x = anchorX;
+    }
   }
 
   /** Three Poké Balls in a row on the desk — the actual selectors. */
   private createBalls() {
-    const positions = [230, 400, 570];
     STARTERS.forEach((s, i) => {
-      const ball = this.buildBall(positions[i], 330);
+      const ball = this.buildBall(BALL_XS[i], BALL_REST_Y);
       ball.setInteractive(
         new Phaser.Geom.Rectangle(-30, -34, 60, 60),
         Phaser.Geom.Rectangle.Contains,
@@ -401,17 +441,20 @@ export class StarterSelectScene extends Phaser.Scene {
           targets: ball,
           scaleX: selected ? 1.18 : 1,
           scaleY: selected ? 1.18 : 1,
-          y: selected ? 322 : 330,
+          y: selected ? BALL_LIFT_Y : BALL_REST_Y,
           duration: 160, ease: 'Back.Out',
         });
       } else {
         ball.setScale(selected ? 1.18 : 1);
-        ball.setY(selected ? 322 : 330);
+        ball.setY(selected ? BALL_LIFT_Y : BALL_REST_Y);
       }
       // The chosen ball keeps a slow idle wobble so the row never looks static.
       ball.setAngle(selected ? 0 : 0);
     });
 
+    // Move the stage before the ball opens, so the starter rises out of the ball
+    // the player just picked instead of appearing over the previous one.
+    this.positionRevealStage(this.selectedIdx, animated);
     if (changed) this.openBall(this.selectedIdx, animated);
     this.flavText.setText(tr(s.flavorA));
   }
@@ -468,14 +511,17 @@ export class StarterSelectScene extends Phaser.Scene {
   private showArtwork(s: StarterDef, animated: boolean) {
     {
       if (this.revealSprite && this.textures.exists(s.spriteKey)) {
-        this.revealSprite.setTexture(s.spriteKey).setVisible(true).setAlpha(1).setY(212);
+        this.revealSprite
+          .setTexture(s.spriteKey).setVisible(true).setAlpha(1)
+          .setPosition(BALL_XS[this.selectedIdx] ?? 400, ARTWORK_Y);
         const tex = this.textures.get(s.spriteKey).getSourceImage();
         const dim = Math.max((tex.width as number) || 1, (tex.height as number) || 1);
-        this.revealSprite.setScale(170 / dim);
+        this.revealSprite.setScale(ARTWORK_MAX / dim);
         if (animated) {
-          this.revealSprite.setAlpha(0).setY(228);
+          // Rise out of the ball rather than fading in over it.
+          this.revealSprite.setAlpha(0).setY(ARTWORK_Y + 16);
           this.tweens.add({
-            targets: this.revealSprite, alpha: 1, y: 212,
+            targets: this.revealSprite, alpha: 1, y: ARTWORK_Y,
             duration: 260, ease: 'Back.Out',
           });
         }
@@ -488,11 +534,14 @@ export class StarterSelectScene extends Phaser.Scene {
     this.typeBadges.forEach(b => b.destroy());
     this.typeBadges = [];
     const types = [s.data.type1, s.data.type2].filter(Boolean) as string[];
+    const anchorX = BALL_XS[this.selectedIdx] ?? 400;
     types.forEach((ty, ti) => {
-      const bx = 400 + (types.length === 1 ? 0 : ti === 0 ? -36 : 36);
-      const badge = this.add.rectangle(bx, 302, 66, 18, TYPE_COLORS[ty] ?? 0x888888, 1)
+      // Chips ride just under the name plate. They used to sit at y=302, which is
+      // now where the ball itself is — they would have covered it.
+      const bx = anchorX + (types.length === 1 ? 0 : ti === 0 ? -36 : 36);
+      const badge = this.add.rectangle(bx, BADGE_Y, 66, 18, TYPE_COLORS[ty] ?? 0x888888, 1)
         .setStrokeStyle(1, 0x000000, 0.35).setDepth(12);
-      const label = this.add.text(bx, 302, ty.toUpperCase(), {
+      const label = this.add.text(bx, BADGE_Y, ty.toUpperCase(), {
         fontSize: '9px', color: '#ffffff', fontStyle: 'bold',
       }).setOrigin(0.5).setDepth(13);
       this.typeBadges.push(badge, label);

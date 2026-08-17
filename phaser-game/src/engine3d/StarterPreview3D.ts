@@ -12,7 +12,9 @@ import { getModel, hasModel, modelBaseYawRad, modelNormalizedHeight, primeManife
 // model yet, `show()` reports false and the scene falls back to its 2D artwork.
 
 export interface PreviewRect {
-  /** position/size in Phaser design pixels (the 800×500 scene space) */
+  /** top-left position and size in SCENE/world pixels (the lab's 800×500 space).
+   *  syncRect() puts these through the scene camera, so they mean the same thing
+   *  as the coordinates given to any Phaser game object in the same scene. */
   x: number; y: number; w: number; h: number;
 }
 
@@ -40,7 +42,13 @@ export class StarterPreview3D {
     primeManifest();
     try {
       this.canvas = document.createElement('canvas');
-      this.canvas.style.cssText = 'position:absolute;pointer-events:none;z-index:2;';
+      // index.html styles `canvas` globally with a rounded border and a drop
+      // shadow — meant for the one game canvas. Inherited here it drew a hard
+      // rounded plate around the model, which read as a floating info card
+      // rather than a creature standing over its ball. Opt out explicitly.
+      this.canvas.style.cssText =
+        'position:absolute;pointer-events:none;z-index:2;'
+        + 'border-radius:0;box-shadow:none;background:transparent;';
       this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: true });
       this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       this.renderer.setClearColor(0x000000, 0);
@@ -64,6 +72,11 @@ export class StarterPreview3D {
     scene.events.once(Phaser.Scenes.Events.DESTROY, () => this.destroy());
   }
 
+  /** Move the stage. Coordinates are scene/world pixels, as for any game object. */
+  setRect(rect: PreviewRect): void {
+    this.rect = rect;
+  }
+
   /** Attach over the Phaser canvas and match the requested design-space rect. */
   private syncRect(): void {
     const pc = this.scene.game.canvas;
@@ -72,15 +85,26 @@ export class StarterPreview3D {
       pc.parentElement.appendChild(this.canvas);
       pc.style.position = pc.style.position || 'relative';
     }
-    // Phaser FIT-scales its canvas; map design pixels onto the displayed size.
+    // Two transforms stack here, and skipping the first is what used to park the
+    // preview next to the professor instead of over the desk:
+    //   1. WORLD → SCREEN. The lab is authored in an 800×500 space that its camera
+    //      zooms and recentres onto the 1280×720 view, so a rect given in scene
+    //      coordinates is nowhere near the same number of screen pixels. Go through
+    //      the camera exactly as Phaser does for its own game objects.
+    //   2. SCREEN → CSS. Phaser then FIT-scales that view onto the displayed canvas.
+    const cam = this.scene.cameras.main;
+    const view = cam.worldView;
+    const zoom = cam.zoom || 1;
     const cr = pc.getBoundingClientRect();
     const host = pc.parentElement.getBoundingClientRect();
     const sx = cr.width / this.scene.scale.width;
     const sy = cr.height / this.scene.scale.height;
-    const left = cr.left - host.left + this.rect.x * sx;
-    const top = cr.top - host.top + this.rect.y * sy;
-    const w = Math.max(2, this.rect.w * sx);
-    const h = Math.max(2, this.rect.h * sy);
+    const screenX = cam.x + (this.rect.x - view.x) * zoom;
+    const screenY = cam.y + (this.rect.y - view.y) * zoom;
+    const left = cr.left - host.left + screenX * sx;
+    const top = cr.top - host.top + screenY * sy;
+    const w = Math.max(2, this.rect.w * zoom * sx);
+    const h = Math.max(2, this.rect.h * zoom * sy);
     this.canvas.style.left = `${left}px`;
     this.canvas.style.top = `${top}px`;
     this.canvas.style.width = `${w}px`;

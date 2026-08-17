@@ -1,6 +1,9 @@
-import { t, tr, typeName } from './i18n';
+import { LANG_EVENT, t, tr, typeName } from './i18n';
 
 const GAME_ASPECT = 16 / 9;
+/** Portrait viewports at or below this CSS width are phones, and are asked to
+ *  rotate. Above it (tablets, unfolded foldables) portrait stays playable. */
+const PHONE_PORTRAIT_MAX_WIDTH = 560;
 // ── Mobile "dual-screen" shell + on-screen controls ──────────────────────────
 // On touch devices the page is split like a Nintendo DS: the Phaser game canvas
 // lives on the TOP screen, and a solid control DECK fills the BOTTOM screen so the
@@ -55,12 +58,26 @@ export interface DeckBattleAction {
   accent?: string;
 }
 
+// ── Glass control palette ────────────────────────────────────────────────────
+// The deck floats directly ON TOP of the play screen, so a control painted with
+// a solid fill hides whatever it covers — in practice the dialogue box, which
+// lives in exactly the bottom band the stick and A/B buttons occupy. Every deck
+// surface is therefore see-through: the shape is carried by a bright rim and a
+// hard text shadow instead of by an opaque panel, which stays readable over both
+// a sunlit route and a dark interior while the text underneath still reads
+// through. Only the pressed state briefly brightens, as touch feedback.
+const GLASS_BG = 'rgba(24,32,58,0.20)';
+const GLASS_BG_ACTIVE = 'rgba(126,162,240,0.42)';
+const GLASS_BORDER = 'rgba(214,230,255,0.34)';
+const GLASS_TEXT_SHADOW = '0 1px 3px rgba(0,0,0,0.95),0 0 10px rgba(0,0,0,0.6)';
+
 const btnBase =
   'display:flex;align-items:center;justify-content:center;pointer-events:auto;' +
   'touch-action:none;user-select:none;-webkit-user-select:none;color:#fff;font-weight:700;' +
   '-webkit-touch-callout:none;' +
-  'border:2px solid rgba(255,255,255,0.5);background:rgba(30,38,66,0.9);' +
-  'box-shadow:0 2px 6px rgba(0,0,0,0.45);-webkit-tap-highlight-color:transparent;box-sizing:border-box;';
+  `border:2px solid ${GLASS_BORDER};background:${GLASS_BG};` +
+  `text-shadow:${GLASS_TEXT_SHADOW};` +
+  'box-shadow:0 1px 5px rgba(0,0,0,0.22);-webkit-tap-highlight-color:transparent;box-sizing:border-box;';
 
 /** One activation path shared by iOS Safari and Android browsers. Pointer
  * events are primary; click/touch are guarded fallbacks and never double-fire. */
@@ -170,8 +187,11 @@ function holdButton(label: string, css: string, code: number): HTMLElement {
   b.style.cssText = btnBase + css;
   b.textContent = label;
   let held = false;
-  const press = (e: Event) => { e.preventDefault(); if (held) return; held = true; b.style.background = 'rgba(90,120,200,0.95)'; dispatchKey('keydown', code); };
-  const release = (e: Event) => { e.preventDefault(); if (!held) return; held = false; b.style.background = 'rgba(30,38,66,0.9)'; dispatchKey('keyup', code); };
+  // Buttons declare their own resting tint after btnBase, so restore whatever the
+  // element was actually built with instead of assuming the shared default.
+  const idle = b.style.background || GLASS_BG;
+  const press = (e: Event) => { e.preventDefault(); if (held) return; held = true; b.style.background = GLASS_BG_ACTIVE; dispatchKey('keydown', code); };
+  const release = (e: Event) => { e.preventDefault(); if (!held) return; held = false; b.style.background = idle; dispatchKey('keyup', code); };
   b.addEventListener('pointerdown', press);
   b.addEventListener('pointerup', release);
   b.addEventListener('pointerleave', release);
@@ -184,11 +204,12 @@ function tapButton(label: string, css: string, code: number): HTMLElement {
   const b = document.createElement('div');
   b.style.cssText = btnBase + css;
   b.textContent = label;
+  const idle = b.style.background || GLASS_BG;
   bindTap(b, () => {
-    b.style.background = 'rgba(90,120,200,0.95)';
+    b.style.background = GLASS_BG_ACTIVE;
     if (code === KEY.space) window.dispatchEvent(new Event(MOBILE_ACTION_EVENT));
     dispatchKey('keydown', code);
-    setTimeout(() => { dispatchKey('keyup', code); b.style.background = 'rgba(30,38,66,0.9)'; }, 140);
+    setTimeout(() => { dispatchKey('keyup', code); b.style.background = idle; }, 140);
   });
   // iOS Safari may still interpret two rapid taps as page zoom even when the
   // pointerdown was consumed. The game already acts on pointerdown, so suppress
@@ -214,7 +235,25 @@ let moveLayer: HTMLElement | null = null;
 let partyLeadLayer: HTMLElement | null = null;
 let layerBeforeLeadPicker: 'control' | 'actions' | 'move' = 'control';
 let mobile = false;
+/** True while a portrait phone is being asked to turn sideways. */
+let rotationGateOpen = false;
 let releaseMovement: (() => void) | null = null;
+
+/** The deck hides for a full-screen takeover — the leaderboard, or the rotate gate. */
+function applyDeckVisibility(): void {
+  if (deckEl) deckEl.style.display = (immersiveView || rotationGateOpen) ? 'none' : 'block';
+}
+
+// Deck labels are DOM, built before initI18n has read the saved KO/EN preference,
+// so each one registers how to re-render itself and they all refresh on LANG_EVENT.
+const localizedLabels: (() => void)[] = [];
+function localize(apply: () => void): void {
+  apply();
+  localizedLabels.push(apply);
+}
+if (typeof window !== 'undefined') {
+  window.addEventListener(LANG_EVENT, () => { for (const apply of localizedLabels) apply(); });
+}
 let mobileLayoutFrame = 0;
 let mobileLayoutSettleTimers: number[] = [];
 // Latest viewport + covered play-screen size, used to derive the visible safe area.
@@ -222,10 +261,10 @@ let lastLayout = { vw: 0, vh: 0, gameWidth: 0, gameHeight: 0 };
 
 /**
  * The rectangle of the game's DESIGN space (default 1280×720) that is actually
- * on-screen. On desktop (or before the mobile shell measures) this is the full
- * design rect; on the mobile COVER layout the overflow is cropped, so edge-anchored
- * UI should sit inside these insets to stay visible. Call on create and on every
- * `resize` / `pokemonkorea:mobile-layout` event.
+ * on-screen. The mobile shell now letterboxes rather than crops, so this reports
+ * the full design rect on every layout; it is kept as the single place that would
+ * describe a cropped play screen if one is ever reintroduced. Call on create and
+ * on every `resize` / `pokemonkorea:mobile-layout` event.
  */
 export function mobileSafeInsets(designW = 1280, designH = 720): {
   left: number; top: number; right: number; bottom: number;
@@ -255,12 +294,17 @@ function syncMobileLayout(): void {
     const vw = Math.max(240, Math.round(viewport?.width ?? window.innerWidth));
     const vh = Math.max(180, Math.round(viewport?.height ?? window.innerHeight));
     const portrait = vh >= vw;
-    // The play screen COVERS the whole viewport (no letterbox margins), overflow
-    // clipped by the body. UI that must never be cropped (battle HUD, quest widget,
-    // dialogue) anchors to mobileSafeInsets() — the design-space rectangle that is
-    // actually on-screen — so it re-flows to the visible edges on any device aspect,
-    // folded or unfolded.
-    const gameWidth = Math.max(vw, vh * GAME_ASPECT);
+    // The play screen is the largest 16:9 rectangle that FITS INSIDE the viewport,
+    // centred with letterbox margins. It used to COVER the viewport instead, which
+    // scaled the canvas up until the overflowing edges were clipped away — on a
+    // portrait phone that threw away roughly 470 design px off each side, and even
+    // in landscape it shaved the top and bottom off the dialogue box and HUD.
+    // Containing costs some margin but guarantees that every pixel the game draws
+    // is actually on screen, which is what a fixed-resolution 2D game needs.
+    // mobileSafeInsets() consequently reports no inset here; edge-anchored UI stays
+    // where the scenes author it, and the calculation still protects anything that
+    // asks about a genuinely cropped layout.
+    const gameWidth = Math.min(vw, vh * GAME_ASPECT);
     const gameHeight = gameWidth / GAME_ASPECT;
     lastLayout = { vw, vh, gameWidth, gameHeight };
 
@@ -272,7 +316,7 @@ function syncMobileLayout(): void {
     gamePane.style.width = `${Math.round(gameWidth)}px`;
     gamePane.style.height = `${Math.round(gameHeight)}px`;
     // The deck is a fixed full-viewport overlay; it does not size a pane.
-    deck.style.display = immersiveView ? 'none' : 'block';
+    applyDeckVisibility();
     deck.dataset.layout = portrait ? 'portrait' : 'landscape';
     deck.dataset.viewport = `${vw}x${vh}`;
     gamePane.dataset.layout = deck.dataset.layout;
@@ -309,42 +353,47 @@ function syncMobileLayoutSettled(): void {
 function analogStick(): HTMLElement {
   const base = document.createElement('div');
   base.setAttribute('role', 'application');
-  base.setAttribute('aria-label', t('Movement joystick', '이동 조이스틱'));
+  localize(() => base.setAttribute('aria-label', t('Movement joystick', '이동 조이스틱')));
   base.style.cssText =
     'position:absolute;left:calc(var(--u)*0.5);bottom:calc(var(--u)*0.5);' +
     'width:calc(var(--u)*8.4);height:calc(var(--u)*8.4);border-radius:50%;' +
     'pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none;' +
-    'box-sizing:border-box;border:2px solid rgba(170,200,255,0.42);' +
-    'background:radial-gradient(circle at 50% 50%,rgba(55,72,116,0.62) 0 20%,' +
-    'rgba(28,38,68,0.92) 21% 64%,rgba(12,18,36,0.96) 65% 100%);' +
-    'box-shadow:inset 0 0 0 calc(var(--u)*0.16) rgba(255,255,255,0.05),' +
-    'inset 0 calc(var(--u)*0.22) calc(var(--u)*0.6) rgba(160,190,255,0.12),' +
-    '0 calc(var(--u)*0.18) calc(var(--u)*0.55) rgba(0,0,0,0.5);' +
+    'box-sizing:border-box;border:2px solid rgba(180,208,255,0.30);' +
+    // The disc is the single largest thing on the deck, so it is the most
+    // transparent: a faint tint that reads as glass rather than a painted pad.
+    'background:radial-gradient(circle at 50% 50%,rgba(90,116,175,0.16) 0 20%,' +
+    'rgba(28,38,68,0.20) 21% 64%,rgba(12,18,36,0.24) 65% 100%);' +
+    'box-shadow:inset 0 0 0 calc(var(--u)*0.16) rgba(255,255,255,0.04),' +
+    'inset 0 calc(var(--u)*0.22) calc(var(--u)*0.6) rgba(160,190,255,0.07),' +
+    '0 calc(var(--u)*0.12) calc(var(--u)*0.4) rgba(0,0,0,0.2);' +
     '-webkit-tap-highlight-color:transparent;overflow:hidden;';
 
   // Subtle direction guides make the control readable without turning it back
   // into four separate buttons.
   const guides = document.createElement('div');
   guides.style.cssText =
-    'position:absolute;inset:10%;border-radius:50%;pointer-events:none;opacity:0.55;' +
+    'position:absolute;inset:10%;border-radius:50%;pointer-events:none;opacity:0.4;' +
     'background:linear-gradient(90deg,transparent 49.4%,rgba(180,205,255,0.22) 49.5% 50.5%,transparent 50.6%),' +
     'linear-gradient(0deg,transparent 49.4%,rgba(180,205,255,0.22) 49.5% 50.5%,transparent 50.6%);';
 
   const label = document.createElement('div');
-  label.textContent = t('DRAG TO MOVE', '밀어서 이동');
+  localize(() => { label.textContent = t('DRAG TO MOVE', '밀어서 이동'); });
   label.style.cssText =
     'position:absolute;left:50%;bottom:7%;transform:translateX(-50%);white-space:nowrap;' +
-    'pointer-events:none;color:rgba(202,218,255,0.62);font-size:calc(var(--u)*0.58);' +
-    'font-weight:800;letter-spacing:0.08em;';
+    'pointer-events:none;color:rgba(212,226,255,0.5);font-size:calc(var(--u)*0.58);' +
+    `font-weight:800;letter-spacing:0.08em;text-shadow:${GLASS_TEXT_SHADOW};`;
 
   const thumb = document.createElement('div');
   thumb.style.cssText =
     'position:absolute;left:50%;top:50%;width:calc(var(--u)*3.35);height:calc(var(--u)*3.35);' +
     'transform:translate(-50%,-50%);border-radius:50%;pointer-events:none;box-sizing:border-box;' +
-    'border:2px solid rgba(225,237,255,0.72);' +
-    'background:radial-gradient(circle at 36% 30%,#829ddd,#4562a2 46%,#263967 100%);' +
-    'box-shadow:inset 0 calc(var(--u)*0.14) calc(var(--u)*0.34) rgba(255,255,255,0.28),' +
-    '0 calc(var(--u)*0.28) calc(var(--u)*0.58) rgba(0,0,0,0.55);' +
+    'border:2px solid rgba(228,240,255,0.55);' +
+    // The thumb keeps the most tint of anything on the deck — it is the part the
+    // player tracks while dragging — but is still see-through.
+    'background:radial-gradient(circle at 36% 30%,rgba(130,157,221,0.40),' +
+    'rgba(69,98,162,0.34) 46%,rgba(38,57,103,0.32) 100%);' +
+    'box-shadow:inset 0 calc(var(--u)*0.14) calc(var(--u)*0.34) rgba(255,255,255,0.18),' +
+    '0 calc(var(--u)*0.18) calc(var(--u)*0.4) rgba(0,0,0,0.28);' +
     'will-change:transform;';
   base.append(guides, label, thumb);
 
@@ -369,7 +418,7 @@ function analogStick(): HTMLElement {
     setHeld(new Set());
     thumb.style.transition = 'transform 100ms ease-out';
     thumb.style.transform = 'translate(-50%,-50%)';
-    base.style.borderColor = 'rgba(170,200,255,0.42)';
+    base.style.borderColor = 'rgba(180,208,255,0.30)';
   };
   releaseMovement = release;
 
@@ -405,7 +454,7 @@ function analogStick(): HTMLElement {
     if (pointerId !== null) return;
     pointerId = e.pointerId;
     base.setPointerCapture?.(e.pointerId);
-    base.style.borderColor = 'rgba(205,225,255,0.9)';
+    base.style.borderColor = 'rgba(205,225,255,0.62)';
     update(e);
   });
   base.addEventListener('pointermove', (event) => {
@@ -497,36 +546,65 @@ export function setupMobileShell(force = false): { parent: HTMLElement | undefin
   deckEl.append(controlLayer!, battleActionLayer!, moveLayer!, partyLeadLayer!);
   document.body.append(gamePane, deckEl);
 
-  // ── Rotate-to-landscape hint ──────────────────────────────────────────────
-  // A 16:9 game is far bigger in landscape on a phone. Show a dismissible overlay
-  // while the device is held in portrait; once dismissed it stays out of the way.
-  let hintDismissed = false;
-  const rotateHint = document.createElement('div');
-  rotateHintEl = rotateHint;
-  rotateHint.id = 'rotate-hint';
-  rotateHint.style.cssText =
+  // ── Rotate-to-landscape gate ──────────────────────────────────────────────
+  // The game renders a fixed 16:9 frame. On a portrait PHONE the only way to fit
+  // that frame without cropping it is a band about a quarter of the screen tall —
+  // technically visible, practically unreadable. So a portrait phone is asked to
+  // turn sideways and the gate clears itself the moment it does; there is no
+  // "play in portrait anyway", because that layout is not worth shipping.
+  //
+  // The cutoff is deliberately a phone-width test, not merely `portrait`: a tablet
+  // or an unfolded foldable held upright still has enough width for a comfortable
+  // play screen, and must not be nagged.
+  const rotateGate = document.createElement('div');
+  rotateHintEl = rotateGate;
+  rotateGate.id = 'rotate-hint';
+  rotateGate.style.cssText =
     'position:fixed;inset:0;z-index:100000;display:none;flex-direction:column;' +
-    'align-items:center;justify-content:center;gap:18px;background:rgba(6,9,20,0.97);' +
-    'color:#ffe88a;font-family:system-ui,-apple-system,sans-serif;text-align:center;padding:28px;';
-  rotateHint.innerHTML =
-    '<style>@keyframes rotHint{0%,100%{transform:rotate(-8deg)}50%{transform:rotate(82deg)}}</style>' +
-    '<div style="font-size:52px;animation:rotHint 1.8s ease-in-out infinite">📱</div>' +
-    '<div style="font-size:22px;font-weight:800">Rotate to landscape</div>' +
-    '<div style="font-size:15px;color:#bcd4ff;max-width:320px">The game is much bigger and easier to read sideways.</div>' +
-    '<button id="rotate-hint-dismiss" style="margin-top:8px;padding:10px 20px;font-size:15px;font-weight:700;' +
-    'color:#0b0f1e;background:#ffe88a;border:none;border-radius:10px;">Play in portrait anyway</button>';
-  document.body.append(rotateHint);
-  const syncHint = () => {
+    'align-items:center;justify-content:center;gap:20px;background:#060914;' +
+    'color:#ffe88a;font-family:system-ui,-apple-system,sans-serif;text-align:center;padding:28px;' +
+    'touch-action:none;';
+  rotateGate.innerHTML =
+    '<style>@keyframes rotGate{0%,12%{transform:rotate(0deg)}55%,100%{transform:rotate(90deg)}}</style>' +
+    '<div style="width:74px;height:118px;border:4px solid #ffe88a;border-radius:12px;' +
+    'animation:rotGate 2.4s ease-in-out infinite;display:flex;align-items:center;justify-content:center">' +
+    '<div style="width:46px;height:88px;background:rgba(255,232,138,0.18);border-radius:4px"></div></div>' +
+    '<div data-role="gate-title" style="font-size:23px;font-weight:800;line-height:1.35"></div>' +
+    '<div data-role="gate-body" style="font-size:15px;color:#bcd4ff;max-width:300px;line-height:1.55"></div>';
+  document.body.append(rotateGate);
+
+  /** True when the viewport is an upright phone — the one case worth gating. */
+  const needsRotation = (): boolean => {
     const viewport = window.visualViewport;
-    const portrait = (viewport?.height ?? window.innerHeight) > (viewport?.width ?? window.innerWidth);
-    rotateHint.style.display = (portrait && !hintDismissed && !immersiveView) ? 'flex' : 'none';
+    const vw = viewport?.width ?? window.innerWidth;
+    const vh = viewport?.height ?? window.innerHeight;
+    return vh > vw && vw <= PHONE_PORTRAIT_MAX_WIDTH;
   };
-  rotateHint.querySelector('#rotate-hint-dismiss')!.addEventListener('click', (e) => {
-    e.stopPropagation(); hintDismissed = true; syncHint();
-  });
-  syncHint();
-  window.addEventListener('resize', syncHint);
-  window.addEventListener('orientationchange', () => setTimeout(syncHint, 150));
+  const syncGate = () => {
+    const show = needsRotation() && !immersiveView;
+    rotateGate.style.display = show ? 'flex' : 'none';
+    rotationGateOpen = show;
+    // Put the controls away rather than leaving them faintly visible under the
+    // gate, where they would also still be catching taps.
+    applyDeckVisibility();
+    if (!show) return;
+    // Written on every show, not once at construction: the shell is built before
+    // the saved KO/EN preference is loaded, so text set here would be stuck in
+    // whatever language happened to be active at boot.
+    (rotateGate.querySelector('[data-role="gate-title"]') as HTMLElement).textContent =
+      t('Turn your phone sideways', '휴대폰을 가로로 돌려주세요');
+    (rotateGate.querySelector('[data-role="gate-body"]') as HTMLElement).textContent =
+      t('This adventure is played in landscape. It starts as soon as you rotate.',
+        '이 게임은 가로 화면으로 플레이합니다. 가로로 돌리면 바로 이어집니다.');
+  };
+  syncGate();
+  // The shell is built before the saved language is read, so re-render once that
+  // lands — otherwise a Korean save shows an English gate until the next resize.
+  window.addEventListener(LANG_EVENT, syncGate);
+  window.addEventListener('resize', syncGate);
+  window.visualViewport?.addEventListener('resize', syncGate);
+  window.addEventListener('orientationchange', () => setTimeout(syncGate, 150));
+  window.screen.orientation?.addEventListener?.('change', () => setTimeout(syncGate, 150));
 
   // Keep the emulator shell and its sizing unit in step with rotate, folds,
   // split-screen, and Safari's expanding/collapsing browser chrome.
@@ -547,8 +625,12 @@ export function setupMobileShell(force = false): { parent: HTMLElement | undefin
 export function deckSetImmersiveView(enabled: boolean): void {
   if (!mobile || !deckEl || !gamePaneEl) return;
   immersiveView = enabled;
-  deckEl.style.display = enabled ? 'none' : 'block';
-  if (rotateHintEl && enabled) rotateHintEl.style.display = 'none';
+  applyDeckVisibility();
+  if (rotateHintEl && enabled) {
+    rotateHintEl.style.display = 'none';
+    rotationGateOpen = false;
+    applyDeckVisibility();
+  }
   syncMobileLayout();
   // Phaser's Scale Manager listens for viewport changes, not sibling display
   // changes. Refit after the calculated pane dimensions have landed.
@@ -572,8 +654,10 @@ function buildControlLayer(): void {
   const pad = analogStick();
 
   // A / B — bottom-right cluster.
-  const a = tapButton('A',  'position:absolute;right:calc(var(--u)*0.5);bottom:calc(var(--u)*1.1);width:calc(var(--u)*4.2);height:calc(var(--u)*4.2);border-radius:50%;font-size:calc(var(--u)*1.85);background:rgba(46,120,74,0.92);', KEY.space);
-  const b = holdButton('B', 'position:absolute;right:calc(var(--u)*4.9);bottom:calc(var(--u)*1.2);width:calc(var(--u)*3.4);height:calc(var(--u)*3.4);border-radius:50%;font-size:calc(var(--u)*1.5);background:rgba(150,64,64,0.92);', KEY.shift);
+  // A/B keep their green/red identity, but only as a wash — they sit on the same
+  // bottom band as the dialogue box, so a filled disc would cover the text.
+  const a = tapButton('A',  'position:absolute;right:calc(var(--u)*0.5);bottom:calc(var(--u)*1.1);width:calc(var(--u)*4.2);height:calc(var(--u)*4.2);border-radius:50%;font-size:calc(var(--u)*1.85);background:rgba(52,148,92,0.26);border-color:rgba(150,240,190,0.42);', KEY.space);
+  const b = holdButton('B', 'position:absolute;right:calc(var(--u)*4.9);bottom:calc(var(--u)*1.2);width:calc(var(--u)*3.4);height:calc(var(--u)*3.4);border-radius:50%;font-size:calc(var(--u)*1.5);background:rgba(172,74,74,0.26);border-color:rgba(255,178,178,0.42);', KEY.shift);
 
   // Utility pills — top-right of the deck.
   const pill = 'top:calc(var(--u)*0.35);width:calc(var(--u)*2.7);height:calc(var(--u)*2.7);border-radius:calc(var(--u)*0.55);font-size:calc(var(--u)*1.25);';
@@ -597,7 +681,10 @@ function buildControlLayer(): void {
 export function deckSetDialogueMode(active: boolean): void {
   if (!mobile) return;
   if (controlPad) controlPad.style.display = active ? 'none' : 'block';
-  for (const btn of controlActionBtns) btn.style.opacity = active ? '0.32' : '1';
+  // The buttons are already translucent, so the old 0.32 dialogue fade left them
+  // almost invisible — and A is how the player advances the very dialogue that
+  // triggered the fade. Fade to a lighter but still findable 0.6.
+  for (const btn of controlActionBtns) btn.style.opacity = active ? '0.6' : '1';
 }
 
 /** Large direct battle commands. These call scene callbacks instead of
@@ -607,12 +694,17 @@ function buildBattleActionLayer(): void {
   layer.style.cssText =
     'position:absolute;left:0;right:0;bottom:0;height:min(60vh,calc(var(--u)*10.5));' +
     'display:none;flex-direction:column;padding:calc(var(--u)*0.5);box-sizing:border-box;pointer-events:none;' +
-    'background:linear-gradient(180deg,rgba(11,15,30,0) 0%,rgba(11,15,30,0.6) 14%,rgba(11,15,30,0.92) 36%);';
+    // A light scrim only, so the battle dialogue line behind the commands stays
+    // readable instead of disappearing under a near-solid panel.
+    'background:linear-gradient(180deg,rgba(11,15,30,0) 0%,rgba(11,15,30,0.14) 14%,rgba(11,15,30,0.3) 36%);';
   const title = document.createElement('div');
   title.dataset.role = 'action-title';
-  title.textContent = t('BATTLE COMMAND', '배틀 명령');
+  // deckShowBattleActions overwrites this with the scene's own prompt; the
+  // registered version only matters until the first battle opens.
+  localize(() => { title.textContent = t('BATTLE COMMAND', '배틀 명령'); });
   title.style.cssText =
     'color:#ffe44e;font-weight:900;font-size:clamp(12px,calc(var(--u)*0.8),20px);' +
+    `text-shadow:${GLASS_TEXT_SHADOW};` +
     'text-align:center;letter-spacing:1px;margin:clamp(1px,calc(var(--u)*0.12),4px) 0 ' +
     'clamp(3px,calc(var(--u)*0.3),9px);flex:0 0 auto;';
   const grid = document.createElement('div');
@@ -627,19 +719,31 @@ function buildBattleActionLayer(): void {
 /** The battle move-select bar (2×2), shown only while a move choice is offered. */
 function buildMoveLayer(): void {
   const layer = document.createElement('div');
-  layer.style.cssText = 'position:absolute;left:0;right:0;bottom:0;height:min(60vh,calc(var(--u)*10.5));display:none;flex-direction:column;padding:calc(var(--u)*0.5);box-sizing:border-box;pointer-events:none;background:linear-gradient(180deg,rgba(11,15,30,0) 0%,rgba(11,15,30,0.6) 14%,rgba(11,15,30,0.92) 36%);';
+  // 66vh rather than 60vh: a move cell has to fit a name AND a type/PP line, and
+  // the tighter cap left it 41px on a short landscape phone — enough for the name
+  // only, so the type badge and remaining PP were silently clipped off. The layer
+  // is translucent now, so claiming the extra band costs nothing visually.
+  layer.style.cssText = 'position:absolute;left:0;right:0;bottom:0;height:min(66vh,calc(var(--u)*10.5));display:none;flex-direction:column;padding:calc(var(--u)*0.5);box-sizing:border-box;pointer-events:none;background:linear-gradient(180deg,rgba(11,15,30,0) 0%,rgba(11,15,30,0.14) 14%,rgba(11,15,30,0.3) 36%);';
   const title = document.createElement('div');
-  title.textContent = 'CHOOSE A MOVE';
-  title.style.cssText = 'color:#ffe44e;font-weight:800;font-size:clamp(12px,calc(var(--u)*0.8),20px);text-align:center;letter-spacing:2px;margin:clamp(1px,calc(var(--u)*0.15),5px) 0 clamp(2px,calc(var(--u)*0.25),8px);flex:0 0 auto;';
+  localize(() => { title.textContent = t('CHOOSE A MOVE', '기술을 선택하세요'); });
+  // Title + BACK are deliberately compact: on a 390px-tall landscape phone the
+  // layer is capped by 60vh, and the old sizes ate so much of it that each move
+  // cell collapsed to ~41px and clipped its own type/PP line away entirely.
+  title.style.cssText = `color:#ffe44e;font-weight:800;font-size:clamp(11px,calc(var(--u)*0.7),18px);text-shadow:${GLASS_TEXT_SHADOW};text-align:center;letter-spacing:2px;margin:0 0 clamp(2px,calc(var(--u)*0.16),6px);flex:0 0 auto;`;
   const grid = document.createElement('div');
   grid.className = '__movegrid';
   grid.style.cssText = 'flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:calc(var(--u)*0.5);pointer-events:auto;';
   const back = document.createElement('div');
-  back.textContent = '← BACK';
-  back.style.cssText = btnBase + 'flex:0 0 auto;margin-top:clamp(3px,calc(var(--u)*0.5),12px);height:clamp(30px,calc(var(--u)*2.2),60px);border-radius:calc(var(--u)*0.4);font-size:clamp(13px,calc(var(--u)*0.9),22px);pointer-events:auto;background:rgba(60,70,100,0.9);';
+  back.style.cssText = btnBase + 'flex:0 0 auto;margin-top:clamp(2px,calc(var(--u)*0.3),9px);height:clamp(26px,calc(var(--u)*1.5),44px);border-radius:calc(var(--u)*0.4);font-size:clamp(12px,calc(var(--u)*0.8),20px);pointer-events:auto;background:rgba(60,70,100,0.24);';
   back.dataset.role = 'back';
   layer.append(title, grid, back);
   moveLayer = layer;
+  // deckShowMoves swaps BACK for a fresh clone each time (to shed stale tap
+  // handlers), so resolve the LIVE node by role rather than capturing this one.
+  localize(() => {
+    const live = layer.querySelector('[data-role="back"]');
+    if (live) live.textContent = t('← BACK', '← 뒤로');
+  });
 }
 
 /** Large, canvas-independent party picker used by the mobile Pokémon menu. */
@@ -648,7 +752,7 @@ function buildPartyLeadLayer(): void {
   layer.style.cssText =
     'position:absolute;left:0;right:0;bottom:0;height:min(66vh,calc(var(--u)*12));' +
     'display:none;flex-direction:column;padding:calc(var(--u)*0.45);box-sizing:border-box;pointer-events:none;' +
-    'background:linear-gradient(180deg,rgba(11,15,30,0) 0%,rgba(11,15,30,0.62) 12%,rgba(11,15,30,0.94) 30%);';
+    'background:linear-gradient(180deg,rgba(11,15,30,0) 0%,rgba(11,15,30,0.16) 12%,rgba(11,15,30,0.32) 30%);';
 
   const title = document.createElement('div');
   title.dataset.role = 'lead-title';
@@ -656,13 +760,15 @@ function buildPartyLeadLayer(): void {
   title.style.cssText =
     'height:clamp(30px,calc(var(--u)*1.65),52px);display:flex;align-items:center;justify-content:center;' +
     'color:#ffe44e;font-weight:900;font-size:clamp(13px,calc(var(--u)*0.82),21px);' +
-    'letter-spacing:1px;flex:0 0 auto;';
+    `text-shadow:${GLASS_TEXT_SHADOW};letter-spacing:1px;flex:0 0 auto;`;
 
-  const close = tapButton(t('✕ CLOSE', '✕ 닫기'),
+  const close = tapButton('',
     'position:absolute;right:calc(var(--u)*0.5);top:calc(var(--u)*0.48);' +
     'width:clamp(64px,calc(var(--u)*3.2),112px);height:clamp(30px,calc(var(--u)*1.65),52px);' +
     'border-radius:calc(var(--u)*0.38);font-size:clamp(11px,calc(var(--u)*0.65),17px);', KEY.esc);
   close.dataset.role = 'lead-close';
+  // Unlike the title, this label is never rewritten when the picker opens.
+  localize(() => { close.textContent = t('✕ CLOSE', '✕ 닫기'); });
 
   const grid = document.createElement('div');
   grid.className = '__leadgrid';
@@ -717,8 +823,8 @@ export function deckShowLeadPicker(
     const cell = document.createElement('div');
     cell.style.cssText = btnBase +
       'min-width:0;min-height:0;flex-direction:column;border-radius:calc(var(--u)*0.45);' +
-      `padding:calc(var(--u)*0.24);background:${choice.isLead ? 'rgba(112,91,25,0.96)' : disabled ? 'rgba(45,45,58,0.94)' : 'rgba(25,43,78,0.96)'};` +
-      `border-color:${choice.isLead ? '#ffe44e' : disabled ? '#55576b' : '#668bc7'};` +
+      `padding:calc(var(--u)*0.24);background:${choice.isLead ? 'rgba(140,113,32,0.30)' : disabled ? 'rgba(45,45,58,0.26)' : 'rgba(25,43,78,0.28)'};` +
+      `border-color:${choice.isLead ? 'rgba(255,228,78,0.85)' : disabled ? 'rgba(150,152,175,0.5)' : 'rgba(140,175,235,0.62)'};` +
       `opacity:${disabled && !choice.isLead ? 0.58 : 1};line-height:1.08;text-align:center;`;
     const name = document.createElement('div');
     name.textContent = `${choice.isLead ? '★ ' : ''}${choice.name}`;
@@ -731,13 +837,14 @@ export function deckShowLeadPicker(
       : `Lv.${choice.level} · HP ${choice.hp}/${choice.maxHp}`);
     sub.style.cssText =
       `margin-top:calc(var(--u)*0.18);font-size:clamp(9px,calc(var(--u)*0.52),15px);` +
-      `color:${choice.isLead ? '#fff0a8' : disabled ? '#a9a9b5' : '#cbdcff'};`;
+      `text-shadow:${GLASS_TEXT_SHADOW};` +
+      `color:${choice.isLead ? '#fff0a8' : disabled ? '#c4c4cf' : '#dbe7ff'};`;
     cell.append(name, sub);
     if (!disabled) bindTap(cell, () => {
       if (cell.dataset.picked === 'true') return;
       cell.dataset.picked = 'true';
       cell.style.pointerEvents = 'none';
-      cell.style.background = 'rgba(70,112,180,0.98)';
+      cell.style.background = GLASS_BG_ACTIVE;
       onPick(index);
     });
     grid.append(cell);
@@ -787,7 +894,7 @@ export function deckShowBattleActions(
     const accent = action.accent ?? '#668bc7';
     cell.style.cssText = btnBase +
       `min-width:0;min-height:0;border-radius:calc(var(--u)*0.5);border-color:${accent};` +
-      `background:${disabled ? 'rgba(42,44,55,0.9)' : 'rgba(25,43,78,0.96)'};` +
+      `background:${disabled ? 'rgba(42,44,55,0.24)' : 'rgba(25,43,78,0.28)'};` +
       `opacity:${disabled ? 0.5 : 1};font-size:clamp(14px,calc(var(--u)*1.05),26px);` +
       'line-height:1.05;text-align:center;padding:calc(var(--u)*0.3);overflow-wrap:anywhere;';
     cell.textContent = tr(action.label);
@@ -795,7 +902,7 @@ export function deckShowBattleActions(
       if (cell.dataset.picked === 'true') return;
       cell.dataset.picked = 'true';
       cell.style.pointerEvents = 'none';
-      cell.style.background = 'rgba(70,112,180,0.98)';
+      cell.style.background = GLASS_BG_ACTIVE;
       deckHideBattleActions();
       action.onPick();
     });
@@ -833,7 +940,7 @@ export function deckShowMoves(moves: DeckMove[], onPick: (i: number) => void, on
     const dim = m.pp <= 0;
     cell.style.cssText = btnBase +
       `flex-direction:column;border-radius:calc(var(--u)*0.5);border-color:${col};min-width:0;` +
-      `background:${dim ? 'rgba(40,40,50,0.85)' : 'rgba(24,30,54,0.95)'};opacity:${dim ? 0.5 : 1};` +
+      `background:${dim ? 'rgba(40,40,50,0.24)' : 'rgba(24,30,54,0.28)'};opacity:${dim ? 0.5 : 1};` +
       // Fonts are clamped so they never blow up on big/unfolded screens; the name wraps
       // instead of overflowing, and nothing gets clipped.
       'line-height:1.1;padding:clamp(3px,calc(var(--u)*0.3),12px);text-align:center;overflow:hidden;box-sizing:border-box;';
@@ -842,7 +949,7 @@ export function deckShowMoves(moves: DeckMove[], onPick: (i: number) => void, on
     cell.innerHTML =
       `<div style="font-weight:800;font-size:clamp(13px,calc(var(--u)*0.85),22px);line-height:1.05;word-break:break-word;overflow-wrap:anywhere">${tr(m.data.name).toUpperCase()}</div>` +
       `<div style="max-width:100%;display:flex;align-items:center;justify-content:center;gap:clamp(3px,calc(var(--u)*0.2),8px);font-size:clamp(9px,calc(var(--u)*0.55),14px);margin-top:clamp(2px,calc(var(--u)*0.2),8px);white-space:nowrap;overflow:hidden">` +
-      `<span style="display:block;min-width:0;max-width:58%;overflow:hidden;text-overflow:ellipsis;color:#fff;background:${col};border-radius:999px;padding:1px 6px">${typeName(m.data.type)}</span>` +
+      `<span style="display:block;min-width:0;max-width:58%;overflow:hidden;text-overflow:ellipsis;color:#fff;background:${col};opacity:0.82;border-radius:999px;padding:1px 6px">${typeName(m.data.type)}</span>` +
       `<span style="display:block;min-width:0;color:#cbd3e6;overflow:hidden;text-overflow:ellipsis">PP ${m.pp}/${m.data.pp}</span></div>`;
     if (!dim) bindTap(cell, () => {
       if (!moveInputReady) return;

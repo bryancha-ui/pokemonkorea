@@ -181,12 +181,29 @@ const LS_KEY = 'pk_lang';
 let currentLang: Lang = 'en';
 let gameRef: Phaser.Game | undefined;
 
+/**
+ * Fired whenever the active language is established or changed.
+ *
+ * Scenes re-read strings when they are created, so they need nothing. DOM UI that
+ * lives OUTSIDE Phaser is the problem: the mobile shell is built before
+ * `initI18n` has even read the saved preference, so any label it renders with
+ * `t()` at construction time is frozen in whichever language happened to be
+ * active at boot. Those listeners re-render on this event instead.
+ */
+export const LANG_EVENT = 'pokemonkorea:lang';
+
+function announceLang(): void {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent(LANG_EVENT, { detail: { lang: currentLang } }));
+}
+
 export function initI18n(game: Phaser.Game): void {
   gameRef = game;
   let saved: string | null = null;
   try { saved = localStorage.getItem(LS_KEY); } catch { /* private mode */ }
   currentLang = saved === 'ko' ? 'ko' : 'en';
   game.registry.set('lang', currentLang);
+  announceLang();
 }
 
 export function getLang(): Lang { return currentLang; }
@@ -197,6 +214,7 @@ export function setLang(l: Lang, persist = true): void {
     try { localStorage.setItem(LS_KEY, l); } catch { /* ignore */ }
   }
   gameRef?.registry.set('lang', l);
+  announceLang();
 }
 
 export function toggleLang(): Lang {
