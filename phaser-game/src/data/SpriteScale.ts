@@ -123,6 +123,12 @@ const BATTLE_2D_OVERRIDES: Readonly<Record<string, number>> = {
   // The broad turtle-ship art was being fitted as a normal stage-two creature,
   // leaving the emergency 2D presentation much smaller than its armoured body.
   turtleship: 1.46,
+  // On mobile these two frequently fall back to 2D — nabihalmang is gated off the
+  // mobile GLB allowlist entirely, and yeomtaeja's GLB often fails to decode — so
+  // their flat art must read at roughly the same on-screen size as the 3D model
+  // it stands in for, not the small stage-fit the raw sprite scale produced.
+  yeomtaeja:  1.55,   // 염태자 — 3D scale is 0.78, but the 2D fit reads far smaller
+  nabihalmang: 2.0,   // 나비할망 — legendary moth; the 1.45 fit looked tiny on phones
 };
 
 function canonicalSpriteKey(key: string): string {

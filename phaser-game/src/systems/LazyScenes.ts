@@ -123,6 +123,11 @@ export function loadSceneClass(key: string): Promise<SceneConstructor> {
     if (typeof SceneType !== 'function') throw new Error(`Scene export ${key} is missing from ${path}`);
     return SceneType as SceneConstructor;
   });
+  // Never RETAIN a rejected import. A dropped request on a flaky mobile connection —
+  // or a stale hashed chunk still referenced after a redeploy — would otherwise be
+  // cached forever, so every retry re-used the same failed promise and the "Tap to
+  // retry" screen could never recover. Drop it on failure so a retry re-fetches.
+  pending.catch(() => { scenePromises.delete(key); });
   scenePromises.set(key, pending);
   return pending;
 }
@@ -159,17 +164,32 @@ export function createLazySceneTypes(keys: readonly string[]): SceneConstructor[
 
       create(): void {
         const message = this.add.text(this.scale.width / 2, this.scale.height / 2,
-          'Loading…', { fontSize: '18px', color: '#dce8ff' }).setOrigin(0.5);
+          'Loading…', { fontSize: '18px', color: '#dce8ff' }).setOrigin(0.5).setAlign('center');
         const data = this.launchData;
-        void Promise.all([ensureGameplayPlugins(this.game), loadSceneClass(sceneKey)]).then(([, SceneType]) => {
-          const manager = this.scene.manager;
-          manager.remove(sceneKey);
-          manager.add(sceneKey, SceneType, true, data);
-        }).catch(error => {
-          console.error(`[scene] Failed to load ${sceneKey}:`, error);
-          message.setText('Unable to load this area.\nTap to retry.').setAlign('center').setColor('#ffb9b9');
-          this.input.once('pointerdown', () => this.scene.restart(data));
-        });
+
+        const attempt = (triesLeft: number): void => {
+          void Promise.all([ensureGameplayPlugins(this.game), loadSceneClass(sceneKey)]).then(([, SceneType]) => {
+            const manager = this.scene.manager;
+            manager.remove(sceneKey);
+            manager.add(sceneKey, SceneType, true, data);
+          }).catch(error => {
+            console.error(`[scene] Failed to load ${sceneKey} (${triesLeft} retries left):`, error);
+            if (triesLeft > 0) {
+              // Most failures here are a transient mobile fetch hiccup. The rejected
+              // import promise was just dropped from the cache, so wait a beat and
+              // re-fetch the chunk automatically before bothering the player.
+              message.setText('Loading…\n(reconnecting)').setColor('#dce8ff');
+              this.time.delayedCall(600, () => attempt(triesLeft - 1));
+              return;
+            }
+            // Out of automatic retries — likely a stale chunk hash from a redeploy,
+            // which only a fresh page fetch can fix. A tap reloads; the game resumes
+            // from the last autosave (the battle hadn't started yet).
+            message.setText('Unable to load this area.\nTap to reload.').setColor('#ffb9b9');
+            this.input.once('pointerdown', () => window.location.reload());
+          });
+        };
+        attempt(2);   // up to 3 total attempts before surfacing the error
       }
     };
   });

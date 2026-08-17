@@ -6,6 +6,7 @@ import {
 } from '../systems/TouchControls';
 import { executeBattleMove, pendingMoveFor } from '../systems/MoveEffects';
 import { battle2DSpriteScale } from '../data/SpriteScale';
+import { performanceProfile } from '../engine3d/PerformanceProfile';
 import { runLevelUpLearning, runBenchLevelUpLearning } from '../systems/MoveLearning';
 import type { BenchLevelUp } from '../systems/BattleExp';
 import { Pokemon, Move, MoveData } from '../battle/Pokemon';
@@ -480,10 +481,14 @@ export class TrainerBattleScene extends Phaser.Scene {
       this.trainerPortrait = this.add.image(ENEMY_STAGE_X, ENEMY_STAGE_Y, portrait.key)
         .setDepth(6)
         .setAlpha(0);
-      if (this.isChampionHwangeum) {
+      if (this.isChampionHwangeum && !performanceProfile().mobile) {
         // Promote the Champion to a 3D character standing on the arena floor so
         // he can dance and throw. With 3D off, this same image simply plays as
         // the flat portrait it has always been.
+        //
+        // Phones skip this: the rigged dance clip does not play reliably on a
+        // mobile GPU (the choreography just never appeared), so on mobile we keep
+        // Hwangeum as his flat 2D portrait rather than a stuck 3D figure.
         this.trainerPortrait
           .setData('battleTrainerEnemyAnchor', true)
           .setData('characterModel3DKey', 'npc_hwangeum')
