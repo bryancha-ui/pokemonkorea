@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { pushBgm, popBgm, stopBgm, playJingle, TRACKS } from '../systems/Music';
 import {
-  deckShowBattleActions, deckHideBattleActions, deckShowMoves, deckHideMoves,
+  deckShowBattleActions, deckHideBattleActions, deckShowMoves, deckHideMoves, deckSetBattleMode,
 } from '../systems/TouchControls';
 import { executeBattleMove, pendingMoveFor } from '../systems/MoveEffects';
 import { battle2DSpriteScale } from '../data/SpriteScale';
@@ -18,7 +18,7 @@ import { fitPortrait } from '../data/BattlePortraits';
 import { rivalTrainerName } from '../data/CharacterSprite';
 import { t, tr, pokeNameEn, speakerName } from '../systems/i18n';
 import { genderedName } from '../data/PokemonGender';
-import { actsBefore } from '../systems/AbilitySystem';
+import { actsBefore, battleWeather } from '../systems/AbilitySystem';
 import { enemyLearnset, mergeLearnset } from '../data/Learnsets';
 import { BattleStatusBadge } from '../systems/BattleStatusBadge';
 import { createBattleHud, modernButton, modernMoveButton, syncBattleHudTypes, type BattleHud } from '../systems/ProductionUi';
@@ -89,7 +89,8 @@ export class RivalBattleScene extends Phaser.Scene {
     // Keep the ambient track playing through the rival's run-in + dialogue, and preload
     // the rival battle theme now so it can start the INSTANT the battle begins (revealBattle).
     if (!this.cache.audio.exists('rival') && TRACKS.rival) { this.load.audio('rival', TRACKS.rival); this.load.start(); }
-    this.events.once('shutdown', () => { popBgm(this); deckHideBattleActions(); deckHideMoves(); });
+    deckSetBattleMode(true);   // battle is touch-only: hide the walking stick + A/B
+    this.events.once('shutdown', () => { deckSetBattleMode(false); popBgm(this); deckHideBattleActions(); deckHideMoves(); });
     this.buildPokemon();
     this.drawBackground();
     this.createHUDs();
@@ -416,6 +417,8 @@ export class RivalBattleScene extends Phaser.Scene {
   }
 
   private playerAction() {
+    // Mirror the field weather into the 3D battle (Snow Warning → 3D snowfall).
+    this.events.emit('pk3d-weather', battleWeather(this.player, this.rival));
     const pending = pendingMoveFor(this.player);
     if (pending) {
       this.hideAllPanels();

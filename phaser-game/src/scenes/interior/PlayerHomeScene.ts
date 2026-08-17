@@ -125,7 +125,7 @@ export class PlayerHomeScene extends BaseInteriorScene {
       this.registry.set('metMomAboutSong', true);
       this.dialog.show([
         'Mom: Oh, you\'re finally awake!',
-        'Mom: Professor Song called earlier. She\'s at the lab on the north side of town.',
+        'Mom: Professor Song called earlier. Her lab is up in the north-east of town, right next to the Pokémon Center.',
         'Mom: She said she has something special for new trainers.',
         'Mom: You should go see her! But first...\nWould you like to rest before heading out?',
       ], () => {
@@ -135,7 +135,7 @@ export class PlayerHomeScene extends BaseInteriorScene {
             this.registry.set('playerHealed', true);
             this.dialog.show([
               '...Your body feels refreshed!\nAll your Pokémon have been healed! ✨',
-              'Mom: Now go see Professor Song. North part of town — you can\'t miss it! 💕',
+              'Mom: Now go see Professor Song — north-east of town, right beside the Pokémon Center! 💕',
             ]);
           },
           () => {
@@ -146,7 +146,7 @@ export class PlayerHomeScene extends BaseInteriorScene {
     } else if (!starterChosen) {
       this.dialog.show([
         'Mom: Professor Song is waiting at the lab, honey!',
-        'Mom: North side of town — go choose your Pokémon! 💕',
+        'Mom: It\'s in the north-east, right next to the Pokémon Center — go choose your Pokémon! 💕',
       ]);
     } else {
       const hasShoes = this.registry.get('hasRunningShoes') as boolean | undefined;

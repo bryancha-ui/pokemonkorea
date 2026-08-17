@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { pushBgm, popBgm, stopBgm, playJingle } from '../systems/Music';
 import { expMultiplierFor } from '../data/NorthernRegion';
 import {
-  deckShowBattleActions, deckHideBattleActions, deckShowMoves, deckHideMoves,
+  deckShowBattleActions, deckHideBattleActions, deckShowMoves, deckHideMoves, deckSetBattleMode,
 } from '../systems/TouchControls';
 import { executeBattleMove, pendingMoveFor } from '../systems/MoveEffects';
 import { battle2DSpriteScale } from '../data/SpriteScale';
@@ -31,7 +31,7 @@ import { tmForMove } from '../data/TMs';
 import { SaveManager } from '../utils/SaveManager';
 import { playBallSendOut } from '../systems/BattleBallFX';
 import { genderedName } from '../data/PokemonGender';
-import { actsBefore } from '../systems/AbilitySystem';
+import { actsBefore, battleWeather } from '../systems/AbilitySystem';
 import { enemyLearnset, mergeLearnset } from '../data/Learnsets';
 import { BattleStatusBadge } from '../systems/BattleStatusBadge';
 import { showRewardCeremony } from '../systems/RewardCeremony';
@@ -242,7 +242,8 @@ export class TrainerBattleScene extends Phaser.Scene {
     else if (k.startsWith('champion'))  track = 'champion';    // Champion Hwangeum
     else if (k.startsWith('e4-'))       track = 'elitefour';   // Onnuri League Elite Four
     pushBgm(this, track);
-    this.events.once('shutdown', () => { popBgm(this); deckHideBattleActions(); deckHideMoves(); });
+    deckSetBattleMode(true);   // battle is touch-only: hide the walking stick + A/B
+    this.events.once('shutdown', () => { deckSetBattleMode(false); popBgm(this); deckHideBattleActions(); deckHideMoves(); });
 
     this.drawBackground();
     this.createDialogBox();
@@ -726,6 +727,8 @@ export class TrainerBattleScene extends Phaser.Scene {
   // ── Battle flow ───────────────────────────────────────────────────────────
 
   private playerAction() {
+    // Mirror the field weather into the 3D battle (Snow Warning → 3D snowfall).
+    this.events.emit('pk3d-weather', battleWeather(this.player, this.enemy));
     const pending = pendingMoveFor(this.player);
     if (pending) {
       this.hideAllPanels();

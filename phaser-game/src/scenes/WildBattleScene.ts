@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { pushBgm, popBgm } from '../systems/Music';
 import { expMultiplierFor } from '../data/NorthernRegion';
 import {
-  deckShowBattleActions, deckHideBattleActions, deckShowMoves, deckHideMoves,
+  deckShowBattleActions, deckHideBattleActions, deckShowMoves, deckHideMoves, deckSetBattleMode,
 } from '../systems/TouchControls';
 import { executeBattleMove, pendingMoveFor } from '../systems/MoveEffects';
 import { battle2DSpriteScale } from '../data/SpriteScale';
@@ -101,7 +101,8 @@ export class WildBattleScene extends Phaser.Scene {
       poongbaek: 'poongbaek', woosa: 'woosa', woonsa: 'woonsa',
     };
     pushBgm(this, LEGEND[wid] ?? 'wild');
-    this.events.once('shutdown', () => { popBgm(this); deckHideBattleActions(); deckHideMoves(); });
+    deckSetBattleMode(true);   // battle is touch-only: hide the walking stick + A/B
+    this.events.once('shutdown', () => { deckSetBattleMode(false); popBgm(this); deckHideBattleActions(); deckHideMoves(); });
 
     this.drawBackground();
     this.createDialogBox();
@@ -437,6 +438,8 @@ export class WildBattleScene extends Phaser.Scene {
   // ── Battle flow ───────────────────────────────────────────────────────────
 
   private playerAction() {
+    // Mirror the field weather into the 3D battle (Snow Warning → 3D snowfall).
+    this.events.emit('pk3d-weather', battleWeather(this.player, this.wild));
     const pending = pendingMoveFor(this.player);
     if (pending) {
       this.hideAllPanels();

@@ -921,10 +921,23 @@ export class WorldMapScene extends Phaser.Scene {
 
   // ── Town exit / rival cutscene ────────────────────────────────────────────
   private checkTownExit() {
-    if (this.spawnGuard) return;   // don't trigger on the spawn frame
+    if (this.spawnGuard || this.cutsceneActive) return;   // don't trigger on spawn / during a cutscene
     const row = Math.floor(this.py / TILE);
     const rivalDone     = !!this.registry.get('rivalBattleDone');
     const starterChosen = !!this.registry.get('starterChosen');
+
+    // Got the starter but haven't stopped home for the Running Shoes yet — the
+    // protagonist realises they forgot something and turns back before leaving.
+    if (starterChosen && !rivalDone && !this.registry.get('hasRunningShoes') && row >= 46) {
+      this.cutsceneActive = true;
+      this.py = 45 * TILE + 16;   // stop just short of the town edge
+      this.drawCharacter();
+      this.cutsceneDialog.show(
+        [t('...Wait — I feel like I left something back home!', '집에 뭘 두고 온 것 같다!')],
+        () => { this.cutsceneActive = false; },
+      );
+      return;
+    }
 
     // First exit attempt → rival battle
     if (!rivalDone && starterChosen && row >= 46) {

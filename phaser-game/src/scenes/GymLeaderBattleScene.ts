@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { Pokemon, Move } from '../battle/Pokemon';
 import {
-  deckShowBattleActions, deckHideBattleActions, deckShowMoves, deckHideMoves,
+  deckShowBattleActions, deckHideBattleActions, deckShowMoves, deckHideMoves, deckSetBattleMode,
 } from '../systems/TouchControls';
 import { STARTERS, findForm } from '../data/StarterData';
 import { fetchPokemon, fetchMove } from '../data/PokeAPI';
@@ -21,7 +21,7 @@ import { runLevelUpLearning, runBenchLevelUpLearning } from '../systems/MoveLear
 import type { BenchLevelUp } from '../systems/BattleExp';
 import { tr, pokeNameEn} from '../systems/i18n';
 import { genderedName } from '../data/PokemonGender';
-import { actsBefore } from '../systems/AbilitySystem';
+import { actsBefore, battleWeather } from '../systems/AbilitySystem';
 import { mergeLearnset } from '../data/Learnsets';
 import { BattleStatusBadge } from '../systems/BattleStatusBadge';
 import { blackoutMessage, blackoutToCenter } from '../systems/Blackout';
@@ -96,7 +96,8 @@ export class GymLeaderBattleScene extends Phaser.Scene {
     this.bossPotionAI = new BossPotionAI('gym');
     // Dark gym-leader battle theme; restore the ambient track when the fight ends.
     pushBgm(this, 'gymleader');
-    this.events.once('shutdown', () => { popBgm(this); deckHideBattleActions(); deckHideMoves(); });
+    deckSetBattleMode(true);   // battle is touch-only: hide the walking stick + A/B
+    this.events.once('shutdown', () => { deckSetBattleMode(false); popBgm(this); deckHideBattleActions(); deckHideMoves(); });
     Inventory.ensureInit(this.registry);
     await this.buildTeams();
     this.drawBackground();
@@ -478,6 +479,8 @@ export class GymLeaderBattleScene extends Phaser.Scene {
   // ── Battle flow ───────────────────────────────────────────────────────────
 
   private playerAction() {
+    // Mirror the field weather into the 3D battle (Snow Warning → 3D snowfall).
+    this.events.emit('pk3d-weather', battleWeather(this.player, this.enemy));
     const pending = pendingMoveFor(this.player);
     if (pending) {
       this.hideAllPanels();

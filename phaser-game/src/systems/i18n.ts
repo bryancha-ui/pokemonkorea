@@ -466,7 +466,7 @@ const BATTLE_PATTERNS: Array<[RegExp, (m: RegExpMatchArray) => string]> = [
   [/^Prof\. Song: This spirited young trainer will be your rival, (.+)\. What is their name\?$/,
     m => `송 박사: 이 활기찬 젊은 트레이너가 네 라이벌이 될 거야, ${m[1]}. 그 아이의 이름은?`],
   [/^Prof\. Song: Now you're all set, (.+)! (.+) is waiting to see how far you'll go\. I hope you enjoy your adventure!$/,
-    m => `송 박사: 이제 다 됐구나, ${m[1]}! ${m[2]}가 네가 얼마나 멀리 갈지 지켜보고 있어. 즐거운 모험이 되길 바란다!`],
+    m => `송 박사: 이제 다 됐구나, ${m[1]}! ${m[2]}이와 네가 얼마나 멀리 갈지 지켜보고 있어. 즐거운 모험이 되길 바란다!`],
   // Waterfall City — rival departure cutscene (speaker is the rival's chosen name)
   [/^(.+): Hey, (.+)! Stop right there\.$/,        m => `${S(m[1])}: 야, ${m[2]}! 거기 서.`],
   [/^(.+): You think you can just leave town with (.+)\?$/, m => `${S(m[1])}: 그 ${P(m[2])} 데리고 그냥 마을을 뜰 수 있을 것 같아?`],

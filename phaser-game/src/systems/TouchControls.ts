@@ -202,6 +202,10 @@ let deckEl: HTMLElement | null = null;
 let gamePaneEl: HTMLElement | null = null;
 let rotateHintEl: HTMLElement | null = null;
 let immersiveView = false;
+// In battle the overworld movement stick + A/B buttons are irrelevant (there is no
+// walking), so they stay hidden and the fight is driven entirely by touch on the
+// battle command / move deck. Battle scenes toggle this on create/shutdown.
+let battleMode = false;
 let controlLayer: HTMLElement | null = null;
 let battleActionLayer: HTMLElement | null = null;
 let moveLayer: HTMLElement | null = null;
@@ -229,9 +233,11 @@ function syncMobileLayout(): void {
     const vw = Math.max(240, Math.round(viewport?.width ?? window.innerWidth));
     const vh = Math.max(180, Math.round(viewport?.height ?? window.innerHeight));
     const portrait = vh >= vw;
-    // The play screen is the largest uncropped 16:9 rectangle that fits the whole
-    // viewport; the deck overlay always covers the full screen on top of it.
-    const gameWidth = Math.min(vw, vh * GAME_ASPECT);
+    // The play screen COVERS the whole viewport (no letterbox margins): it is the
+    // smallest 16:9 rectangle that fully contains the viewport, centred so the
+    // overflow spills past the edges (clipped by the body's overflow:hidden). The
+    // deck overlay always covers the full screen on top of it.
+    const gameWidth = Math.max(vw, vh * GAME_ASPECT);
     const gameHeight = gameWidth / GAME_ASPECT;
 
     document.body.style.minHeight = '0px';
@@ -525,6 +531,14 @@ export function deckSetImmersiveView(enabled: boolean): void {
   requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
 }
 
+/** Enter/leave battle: hide the walking stick + A/B so the battle is touch-only
+ *  (command/move deck only). Call true in a battle scene's create(), false on
+ *  shutdown so the overworld controls return. */
+export function deckSetBattleMode(enabled: boolean): void {
+  battleMode = enabled;
+  if (controlLayer) controlLayer.style.display = enabled ? 'none' : 'block';
+}
+
 /** The persistent movement/action controls, shown whenever the move bar is hidden. */
 function buildControlLayer(): void {
   const layer = document.createElement('div');
@@ -712,7 +726,7 @@ export function deckHideLeadPicker(): void {
   } else {
     moveLayer.style.display = 'none';
     battleActionLayer.style.display = 'none';
-    controlLayer.style.display = 'block';
+    controlLayer.style.display = battleMode ? 'none' : 'block';
   }
 }
 
@@ -760,7 +774,7 @@ export function deckHideBattleActions(): void {
   if (!mobile || !battleActionLayer || !controlLayer || !moveLayer || !partyLeadLayer) return;
   battleActionLayer.style.display = 'none';
   if (moveLayer.style.display !== 'flex' && partyLeadLayer.style.display !== 'flex') {
-    controlLayer.style.display = 'block';
+    controlLayer.style.display = battleMode ? 'none' : 'block';
   }
 }
 
@@ -823,7 +837,7 @@ export function deckHideMoves(): void {
   moveLayer.style.pointerEvents = 'none';
   moveLayer.style.display = 'none';
   if (battleActionLayer.style.display !== 'flex' && partyLeadLayer.style.display !== 'flex') {
-    controlLayer.style.display = 'block';
+    controlLayer.style.display = battleMode ? 'none' : 'block';
   }
 }
 

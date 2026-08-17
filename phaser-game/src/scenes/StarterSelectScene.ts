@@ -56,6 +56,12 @@ export class StarterSelectScene extends Phaser.Scene {
 
   create() {
     this.cameras.main.fadeIn(500);
+    // The lab is authored in an 800×500 space; scale it up to fill the game view's
+    // height and centre it, so the selection screen fills the screen instead of
+    // sitting in the top-left with black borders. The background is extended to
+    // cover the wider sides that the zoom then reveals.
+    this.cameras.main.setZoom(this.scale.height / 500);
+    this.cameras.main.centerOn(400, 250);
     this.drawBackground();
     this.drawProfessor();
     this.createDesk();
@@ -70,7 +76,7 @@ export class StarterSelectScene extends Phaser.Scene {
     // Prof speech bubble — animated
     this.time.delayedCall(300, () => {
       this.showProfessorDialogue([
-        'Prof. Song: Welcome! Three Pokémon from this region are waiting for a trainer.\nChoose the one who calls to you.',
+        'Prof. Song: Welcome! Three Pokémon from this region are waiting for a trainer.',
       ]);
     });
   }
@@ -79,12 +85,14 @@ export class StarterSelectScene extends Phaser.Scene {
 
   private drawBackground() {
     const g = this.add.graphics();
+    // Floor / wall / wainscot — extended well past the authored 800px width so the
+    // zoomed-to-fill camera (see create) shows lab surfaces, not black, on the sides.
     // Floor
-    g.fillStyle(0xd4c9a8, 1); g.fillRect(0, 0, 800, 500);
+    g.fillStyle(0xd4c9a8, 1); g.fillRect(-120, 0, 1040, 500);
     // Wall
-    g.fillStyle(0xe8e0cc, 1); g.fillRect(0, 0, 800, 160);
+    g.fillStyle(0xe8e0cc, 1); g.fillRect(-120, 0, 1040, 160);
     // Wainscot
-    g.fillStyle(0xc4b898, 1); g.fillRect(0, 155, 800, 8);
+    g.fillStyle(0xc4b898, 1); g.fillRect(-120, 155, 1040, 8);
     // Bookshelves left
     this.drawShelf(g, 10, 20);
     // Lab bench right
@@ -405,7 +413,7 @@ export class StarterSelectScene extends Phaser.Scene {
     });
 
     if (changed) this.openBall(this.selectedIdx, animated);
-    this.flavText.setText(s.flavorA);
+    this.flavText.setText(tr(s.flavorA));
   }
 
   /**
