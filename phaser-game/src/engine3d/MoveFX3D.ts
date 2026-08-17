@@ -1816,9 +1816,10 @@ export class MoveFX3D {
     to: THREE.Vector3, color: number, scale: number, eff: number, onImpact?: () => void,
   ): void {
     const boltColor = color || 0xfff2a0;
-    // High enough to read as "the sky" but within the battle camera frame (matches
-    // the sky-spawn height that dracoMeteor's meteors use).
-    const cloudY = to.y + 3.2 * scale;
+    // Kept fairly low over the target: high enough to read as overhead clouds, but
+    // not so high that they leave the battle camera frame — and a lower strike
+    // column means less perspective lean, so the bolt lands on the target's centre.
+    const cloudY = to.y + 2.0 * scale;
     const group = new THREE.Group();
 
     // Dark storm clouds — a clustered ring of dim puffs high above the target.
@@ -1843,17 +1844,23 @@ export class MoveFX3D {
     flash.position.set(to.x, cloudY, to.z);
     group.add(flash);
 
-    // The jagged bolt from the cloud base straight down onto the target.
+    // The bolt lands on the Pokémon itself. `to` projects a touch left of the
+    // model's visible centre under the diagonal battle camera, so nudge the strike
+    // point to world-right (screen-right) so the bolt hits the target squarely.
+    const strike = to.clone(); strike.x += 0.55 * scale;
     const boltTop = new THREE.Vector3(to.x, cloudY - 0.6 * scale, to.z);
     const segs = 9;
     const pts: THREE.Vector3[] = [boltTop.clone()];
     for (let i = 1; i < segs; i++) {
-      const p = boltTop.clone().lerp(to, i / segs);
-      p.x += (Math.random() - 0.5) * 0.55 * scale;
-      p.z += (Math.random() - 0.5) * 0.55 * scale;
+      const p = boltTop.clone().lerp(strike, i / segs);
+      // Jitter tapers to zero toward the bottom so the bolt converges onto the
+      // strike point instead of drifting off to one side.
+      const j = (1 - i / segs) * 0.4 * scale;
+      p.x += (Math.random() - 0.5) * j;
+      p.z += (Math.random() - 0.5) * j;
       pts.push(p);
     }
-    pts.push(to.clone());
+    pts.push(strike.clone());
     const bolts: THREE.Mesh[] = [];
     for (let i = 0; i < pts.length - 1; i++) {
       bolts.push(segmentMesh(pts[i], pts[i + 1], 0.055 * scale, i % 2 ? 0xffffff : boltColor, 0));
@@ -1884,7 +1891,7 @@ export class MoveFX3D {
         flash.scale.setScalar((1 + s * 1.4) * scale);
         for (const p of puffs) opacity(p, 0.9 * Math.max(0, 1 - s * 1.1));
       }
-    }, strikeAt, () => { this.burst(to, boltColor, eff, scale * 1.35); onImpact?.(); });
+    }, strikeAt, () => { this.burst(strike, boltColor, eff, scale * 1.35); onImpact?.(); });
   }
 
   private waterWave(
