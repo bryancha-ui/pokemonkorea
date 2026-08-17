@@ -378,8 +378,10 @@ function analogStick(): HTMLElement {
 
   const label = document.createElement('div');
   localize(() => { label.textContent = t('DRAG TO MOVE', '밀어서 이동'); });
+  // Kept well inside the disc. At bottom:7% it sat on the very bottom edge of the
+  // screen, where scenes put their caption text, and the two read as one jumble.
   label.style.cssText =
-    'position:absolute;left:50%;bottom:7%;transform:translateX(-50%);white-space:nowrap;' +
+    'position:absolute;left:50%;bottom:19%;transform:translateX(-50%);white-space:nowrap;' +
     'pointer-events:none;color:rgba(212,226,255,0.5);font-size:calc(var(--u)*0.58);' +
     `font-weight:800;letter-spacing:0.08em;text-shadow:${GLASS_TEXT_SHADOW};`;
 
