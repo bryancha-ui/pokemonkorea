@@ -87,8 +87,8 @@ export class BaekduGymScene extends Phaser.Scene {
       this.cutsceneActive = true;
       this.dialog.show([
         'Byeoksan: The mountain tested you and you stood.',
-        '(He turns his weathered gaze toward the highland lake.)',
-        "Byeoksan: Those black-coated people circling my city — the wild Pokémon near Cheonji Lake have been agitated for weeks.",
+        '(He turns his weathered gaze to the far south.)',
+        "Byeoksan: Those black-coated people circling my city — the wild Pokémon near the Jeju vent have been agitated for weeks.",
         'Byeoksan: Something is disturbing the deep. Be watchful.',
         'You may leave the dojo through the south door whenever you are ready.',
       ], () => { this.cutsceneActive = false; });

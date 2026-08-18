@@ -1188,10 +1188,10 @@ export const KO_STRINGS: Record<string, string> = {
   'Commander Ryeo: Still in my way? So be it.': '려 사령관: 아직도 내 앞을 막나? 그렇다면 어쩔 수 없지.',
   'Been castin\' this stretch forty years. Reel one in with me — winner keeps their pride!': '이 물길에서 사십 년째 낚싯대를 던졌어. 나랑 한 마리 낚아봐 — 이긴 쪽이 자존심을 지키는 거야!',
   'Commander Ryeo: You again. Then you should hear it plainly.': '려 사령관: 또 너로군. 그럼 분명하게 들어둬.',
-  'Commander Ryeo: When the Spirit of Cheonji wakes, its first-moment energy output will be immeasurable. We intend to collect that energy.': '려 사령관: 화산의 정령이 깨어날 때, 그 첫 순간의 에너지 방출은 헤아릴 수 없을 정도지. 우린 그 에너지를 거둘 작정이다.',
+  'Commander Ryeo: When the Jeju vent erupts, its first-moment energy output will be immeasurable. We intend to collect that energy.': '려 사령관: 제주 분화구가 분출할 때, 그 첫 순간의 에너지 방출은 헤아릴 수 없을 정도지. 우린 그 에너지를 거둘 작정이다.',
   'Rival: Collect it for WHAT? What do you mean, useful?': '라이벌: 그걸 뭐에 쓰려고? 유용하다니, 무슨 소리야?',
   'Commander Ryeo: The south has prospered for decades while the north has suffered. The imbalance ends.': '려 사령관: 남쪽은 수십 년간 번영했지만 북쪽은 고통받았다. 그 불균형을 끝낸다.',
-  'Commander Ryeo: The Spirit\'s awakening energy — properly weaponized — will correct it.': '려 사령관: 정령의 각성 에너지를 — 제대로 무기화하면 — 그걸 바로잡을 것이다.',
+  'Commander Ryeo: The vent\'s eruption energy — properly weaponized — will correct it.': '려 사령관: 분화구의 분출 에너지를 — 제대로 무기화하면 — 그걸 바로잡을 것이다.',
   'Rival: ...That\'s insane. Move.': '라이벌: ...미친 소리야. 비켜.',
   'Commander Ryeo: Still set on stopping us? Come, then.': '려 사령관: 아직도 우릴 막을 셈인가? 그럼, 와라.',
   'Breathe in. The forest\'s scent calms the heart — and sharpens my Pokémon. Shall we?': '숨을 들이마셔. 숲의 향기는 마음을 가라앉히고 — 내 포켓몬을 날카롭게 하지. 시작할까?',
@@ -1200,7 +1200,7 @@ export const KO_STRINGS: Record<string, string> = {
   'Admin Chaeyeon: Still in our way. Fine — again, then.': '간부 채연: 아직도 우리 앞을 막네. 좋아 — 그럼 또 한 번.',
   'Commander Ryeo stands at the shrine gate, silhouetted against the rising sun.': '려 사령관이 떠오르는 해를 등지고, 사당 문 앞에 실루엣으로 서 있다.',
   'Commander Ryeo: It will be us who will be selected by the Grandmother .': '려 사령관: 결국 할망에게 선택받는 것은 우리다',
-  'Commander Ryeo: But the Jeju vent remains. I\'ll see you at the top — and I cannot guarantee your safety.': '려 사령관: 하지만 천지는 그대로다. 정상에서 보지 — 그리고 네 안전은 보장 못 한다.',
+  'Commander Ryeo: But the Jeju vent remains. I\'ll see you at the top — and I cannot guarantee your safety.': '려 사령관: 하지만 제주 분화구는 그대로다. 정상에서 보지 — 그리고 네 안전은 보장 못 한다.',
   '(She walks on toward the Sunrise Cliffs without another word.)': '(그녀는 더 말없이 해돋이 절벽 쪽으로 걸어간다.)',
   '← walk in the grass to find them': '← 풀숲을 걸으며 찾아봐',
   '🗺 Route 1 — Mountain Pass': '🗺 1번 도로 — 산길 고개',
@@ -1279,7 +1279,7 @@ export const KO_STRINGS: Record<string, string> = {
   'Prof. Song\'s Pokémon Lab': '송 박사의 포켓몬 연구소',
   'You take the express boat back to Sudo City and hurry to Professor Song\'s lab.': '너는 쾌속선을 타고 수도시로 돌아와 송 박사의 연구소로 서둘러 간다.',
   '(She unrolls a faded scroll painting of a vast, moth-like Pokémon.)': '(그녀가 거대한 나방 같은 포켓몬이 그려진 빛바랜 두루마리 그림을 펼친다.)',
-  'Prof. Song: If they can\'t harvest Cheonji directly, they\'ll use HER as a living battery instead.': '송 박사: 천지의 각성 에너지를 직접 거둘 수 없다면, 그들은 대신 나비할망을 살아 있는 동력원으로 쓰려 할 거야.',
+  'Prof. Song: If they can\'t harvest the Jeju vent directly, they\'ll use HER as a living battery instead.': '송 박사: 제주 분화구의 분출 에너지를 직접 거둘 수 없다면, 그들은 대신 나비할망을 살아 있는 동력원으로 쓰려 할 거야.',
   'Rival: Then we protect her too. ...But first —': '라이벌: 그럼 그녀도 우리가 지키자. ...하지만 먼저 —',
   'Rival: Before we split up to cover ground, one more battle. I told you my starter would evolve.': '라이벌: 흩어져서 넓게 살피기 전에, 한 판 더. 내 스타팅 포켓몬이 진화할 거라고 했잖아.',
   '🌟  POKÉMON  KOREA  🌟': '🌟  포켓몬  코리아  🌟',
@@ -1510,7 +1510,7 @@ export const KO_STRINGS: Record<string, string> = {
     '준비가 되면 언제든 남쪽 문으로 도장을 나갈 수 있다.',
   'The mountain does not move for anyone. Neither do I!': '산은 누구에게도 움직이지 않아. 나도 마찬가지다!',
   'Speed is more important than strength. Let me prove it!': '속도가 힘보다 중요해. 증명해 보이겠어!',
-  '(He turns his weathered gaze toward the highland lake.)': '(그는 풍상에 닳은 시선을 고산 호수로 돌린다.)',
+  '(He turns his weathered gaze to the far south.)': '(그는 풍상에 닳은 시선을 먼 남쪽으로 돌린다.)',
   'Something is disturbing the deep. Be watchful.': '깊은 곳에서 무언가가 요동치고 있어. 경계를 늦추지 마라.',
 
   // ── Geumgang Gym (Lantern Stage) ──
@@ -2021,12 +2021,12 @@ export const KO_STRINGS: Record<string, string> = {
     '▶ 8장 — 5번 도로 & 고목 숲 — 남쪽으로의 여정이 이어진다.',
   "Thank you for coming so fast. I finally understand what we're facing.":
     '이렇게 빨리 와줘서 고마워. 드디어 우리가 뭘 마주하고 있는지 알아냈어.',
-  'Team Suri wants to wake the Spirit of Cheonji and control it — to heal the region. Misguided, dangerous.':
-    '수리단은 화산의 정령을 깨워 통제하려 해 — 지방을 치유하려고. 그릇되고 위험한 생각이지.',
-  "But 노스단 doesn't care about the Spirit. They want to be PRESENT when it wakes —":
-    '하지만 노스단은 정령엔 관심 없어. 그들은 정령이 깨어날 때 그 자리에 있으려 해 —',
-  '— to harvest the catastrophic awakening energy and weaponize it against the south.':
-    '— 그 파국적인 각성 에너지를 수확해 남부를 향한 무기로 삼으려는 거야.',
+  'Team Suri wants to set off the Jeju vent and control it — to heal the region. Misguided, dangerous.':
+    '수리단은 제주 분화구를 터뜨려 통제하려 해 — 지방을 치유하려고. 그릇되고 위험한 생각이지.',
+  "But 노스단 doesn't care about the vent itself. They want to be PRESENT when it erupts —":
+    '하지만 노스단은 분화구 자체엔 관심 없어. 그들은 분화구가 분출할 때 그 자리에 있으려 해 —',
+  '— to harvest the catastrophic eruption energy and weaponize it against the south.':
+    '— 그 파국적인 분출 에너지를 수확해 남부를 향한 무기로 삼으려는 거야.',
   // Jeju Vent (나비할망 + Commander Ryeo)
   "Turn back! The Director's orders — no one reaches the summit before our transport secures the moth!":
     '돌아가! 국장님 명령이야 — 우리 수송선이 나방을 확보하기 전엔 누구도 정상에 못 가!',
@@ -2151,8 +2151,8 @@ export const KO_STRINGS: Record<string, string> = {
     '(넓은 어깨의 남자가 평평한 바위에 가부좌를 틀고 눈을 감고 있다. 네가 다가가자 일어선다.)',
   'Come. Show me what that potential looks like.': '와라. 그 잠재력이 어떤 것인지 보여봐.',
   'The mountain tested you and you stood.': '산이 널 시험했고 넌 버텼다.',
-  'Those black-coated people circling my city — the wild Pokémon near Cheonji Lake have been agitated for weeks.':
-    '내 도시 주위를 맴도는 저 검은 코트의 자들 — 천지 호수 근처의 야생 포켓몬들이 몇 주째 동요하고 있어.',
+  'Those black-coated people circling my city — the wild Pokémon near the Jeju vent have been agitated for weeks.':
+    '내 도시 주위를 맴도는 저 검은 코트의 자들 — 제주 분화구 근처의 야생 포켓몬들이 몇 주째 동요하고 있어.',
   // Geumgang — Namsun
   'A namsadang performance stage lit by a thousand swaying lanterns.':
     '천 개의 흔들리는 등불로 밝혀진 남사당 공연 무대.',
@@ -2317,10 +2317,10 @@ export const KO_STRINGS: Record<string, string> = {
   "You've got real mountain spirit, kid.": '너 진짜 산사나이 기질이 있구나, 꼬마.',
   'No way! I just polished my sneakers…': '말도 안 돼! 방금 운동화도 닦았는데…',
   "...You're stronger than the locals. The Director will hear of this.": '...현지인들보다 세군. 국장님께 보고하겠어.',
-  "...The Spirit of Cheonji will be awakened. The only question is who controls what happens next — and it will NOT be Team Suri.":
-    '...화산의 정령은 깨어날 거야. 문제는 그다음을 누가 통제하느냐지 — 그건 수리단이 아니야.',
-  "...This changes nothing. The array will be ready when the Spirit wakes. (She withdraws south.)":
-    '...이걸로 달라지는 건 없어. 정령이 깨어날 때 장치는 준비돼 있을 거야. (그녀는 남쪽으로 물러난다.)',
+  "...The Jeju vent will erupt. The only question is who controls what happens next — and it will NOT be Team Suri.":
+    '...제주 분화구는 분출할 거야. 문제는 그다음을 누가 통제하느냐지 — 그건 수리단이 아니야.',
+  "...This changes nothing. The array will be ready when the vent erupts. (She withdraws south.)":
+    '...이걸로 달라지는 건 없어. 분화구가 분출할 때 장치는 준비돼 있을 거야. (그녀는 남쪽으로 물러난다.)',
   "...Okay. Not luck. You're the real thing. My starter's almost ready for its final form. Next time, you won't recognize it.":
     '...좋아. 운이 아니었어. 넌 진짜야. 내 스타터도 최종 진화가 거의 준비됐어. 다음엔 못 알아볼걸.',
   "Final form and all — and you STILL beat me. You're the real deal. Let's go save that moth grandmother.":
@@ -2481,8 +2481,8 @@ export const KO_STRINGS: Record<string, string> = {
   'Prof. Song (over the Pokédex): The northern reaches are waiting, Champion — and 노스단 is already climbing toward the shrines. Ready to head north?':
     '송 박사 (도감 너머로): 북방 관문이 기다리고 있어, 챔피언 — 그리고 노스단은 이미 사당을 향해 오르고 있어. 북쪽으로 갈 준비됐어?',
   '❄  Beyond the border tunnels — into the Northern Reaches…': '❄  국경 터널 너머 — 북방 관문으로…',
-  'NEWS: Researchers from the Onnuri Pokémon Institute are investigating a pattern linked to rare Pokémon migrations near Cheonji Lake...':
-    '뉴스: 온누리 포켓몬 연구소의 연구원들이 천지 호수 근처의 희귀 포켓몬 이동과 연관된 패턴을 조사하고 있습니다...',
+  'NEWS: Researchers from the Onnuri Pokémon Institute are investigating a pattern linked to rare Pokémon migrations near the Jeju vent...':
+    '뉴스: 온누리 포켓몬 연구소의 연구원들이 제주 분화구 근처의 희귀 포켓몬 이동과 연관된 패턴을 조사하고 있습니다...',
   'Route 2 is now open to the NORTH of the city.': '이제 도시 북쪽으로 2번 도로가 열렸다.',
 
   // ══ Baekdu Summit finale (Ch.11 — 나비할망 shield, Hwanwoong calmed) ══

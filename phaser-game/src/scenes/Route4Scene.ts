@@ -355,10 +355,10 @@ export class Route4Scene extends Phaser.Scene {
       this.registry.set('ryeo2Seen', true);
       this.dialog.show([
         "Commander Ryeo: You again. Then you should hear it plainly.",
-        "Commander Ryeo: When the Spirit of Cheonji wakes, its first-moment energy output will be immeasurable. We intend to collect that energy.",
+        "Commander Ryeo: When the Jeju vent erupts, its first-moment energy output will be immeasurable. We intend to collect that energy.",
         "Rival: Collect it for WHAT? What do you mean, useful?",
         "Commander Ryeo: The south has prospered for decades while the north has suffered. The imbalance ends.",
-        "Commander Ryeo: The Spirit's awakening energy — properly weaponized — will correct it.",
+        "Commander Ryeo: The vent's eruption energy — properly weaponized — will correct it.",
         "Rival: ...That's insane. Move.",
       ], launch);
     } else {

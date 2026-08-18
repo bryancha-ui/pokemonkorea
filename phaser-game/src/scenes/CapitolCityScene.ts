@@ -850,7 +850,7 @@ export class CapitolCityScene extends Phaser.Scene {
 
     this.dialog.show([
       'NEWS: Unusual seismic activity reported near the Seolbong Highland area...',
-      'NEWS: Researchers from the Onnuri Pokémon Institute are investigating a pattern linked to rare Pokémon migrations near Cheonji Lake...',
+      'NEWS: Researchers from the Onnuri Pokémon Institute are investigating a pattern linked to rare Pokémon migrations near the Jeju vent...',
     ], () => {
       // Rival appears
       this.dialog.show([
