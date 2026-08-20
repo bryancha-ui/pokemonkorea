@@ -129,6 +129,10 @@ const BATTLE_2D_OVERRIDES: Readonly<Record<string, number>> = {
   // it stands in for, not the small stage-fit the raw sprite scale produced.
   yeomtaeja:  1.55,   // 염태자 — 3D scale is 0.78, but the 2D fit reads far smaller
   nabihalmang: 2.0,   // 나비할망 — legendary moth; the 1.45 fit looked tiny on phones
+  // Final-stage designs whose 2D art was reading undersized in battle.
+  pipetiger:  1.6,    // 염흥왕 — flame king; its GLB often falls back to 2D, which was small
+  palossandx: 1.4,    // 사다이스 — stage-two fit (~1.19) was too small for its bulk
+  dracoelido: 1.6,    // 방패공룡 — Rock/Dragon shield saurian; stage-three fit was too small
 };
 
 function canonicalSpriteKey(key: string): string {
