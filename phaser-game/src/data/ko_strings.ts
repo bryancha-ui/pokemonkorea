@@ -555,16 +555,16 @@ export const KO_STRINGS: Record<string, string> = {
   '👑 Hwangeum': '👑 황금',
   '👑 Taewang': '👑 태왕',
   '👑 Taewang\'s Throne': '👑 태왕의 왕좌',
-  '↓ Gangcheoldo': '↓ 강철도',
-  '↑ Muyeonhang': '↑ 무연항',
-  '↓ Haesol': '↓ 해솔',
-  '↑ Gangcheoldo': '↑ 강철도',
+  '↓ Gangcheoldo': '↓ 강철 시티',
+  '↑ Muyeonhang': '↑ 무연 시티',
+  '↓ Haesol': '↓ 해솔 시티',
+  '↑ Gangcheoldo': '↑ 강철 시티',
   '↓ back down': '↓ 아래로',
   '↑ higher': '↑ 위로',
   '↓ Haean City': '↓ 해안 시티',
   '↑ Forest City': '↑ 숲 시티',
-  '↓ Parangpo': '↓ 파랑포',
-  '↑ Haesol': '↑ 해솔',
+  '↓ Parangpo': '↓ 파랑 시티',
+  '↑ Haesol': '↑ 해솔 시티',
   '→ Dolmoe City': '→ 돌뫼 시티',
   '↑ Seolbong City': '↑ 설봉시티',
   '↓ Geumgang City': '↓ 금강 시티',
@@ -575,13 +575,13 @@ export const KO_STRINGS: Record<string, string> = {
   '↓ Route 2': '↓ 2번 도로',
   '↓ Capitol City': '↓ 소올 시티',
   '↓ Scholars\' Road': '↓ 학자의 길',
-  '↓ Songhyeon': '↓ 송현',
-  '↑ Parangpo': '↑ 파랑포',
+  '↓ Songhyeon': '↓ 송현 시티',
+  '↑ Parangpo': '↑ 파랑 시티',
   '⬇ Jeju City': '⬇ 제주시티',
   '⬆ Summit Trail': '⬆ 정상 등반로',
-  '↓ Binghagwan': '↓ 빙하관',
-  '↑ Samho': '↑ 삼호',
-  '↓ Samho': '↓ 삼호',
+  '↓ Binghagwan': '↓ 빙하 시티',
+  '↑ Samho': '↑ 삼호 마을',
+  '↓ Samho': '↓ 삼호 마을',
   '↓ Forest City': '↓ 숲 시티',
   '↑ Dolmoe City': '↑ 돌뫼 시티',
   '↑ Pokémon League': '↑ 포켓몬 리그',
@@ -594,8 +594,8 @@ export const KO_STRINGS: Record<string, string> = {
   '↑ Geumgang City': '↑ 금강 시티',
   '↓ Dolmoe Mine': '↓ 돌뫼 광산',
   '↑ Seorae Town': '↑ 서래 마을',
-  '↓ Muyeonhang': '↓ 무연항',
-  '↑ Binghagwan': '↑ 빙하관',
+  '↓ Muyeonhang': '↓ 무연 시티',
+  '↑ Binghagwan': '↑ 빙하 시티',
   '↑ Jeju City': '↑ 제주시',
   'Route 6 →': '6번 도로 →',
   '← Coastal Road': '← 해안 도로',
@@ -876,7 +876,7 @@ export const KO_STRINGS: Record<string, string> = {
   'Take the frozen path to the cave mouth and go DEEP. But mind your footing — the cavern floor is sheer ice; step onto it and you will slide until a boulder stops you. Reach the heart, drive the beast out, then we speak of your exam.': '얼어붙은 길을 따라 동굴 입구로 가서 깊숙이 들어가. 하지만 발밑을 조심해 — 동굴 바닥은 완전한 얼음이라, 발을 디디면 바위가 막아설 때까지 미끄러질 거야. 중심에 다다라 짐승을 몰아낸 다음, 네 시험 얘기를 하자.',
   'But the far span stands unfinished, and no soul has charted what waits out there. One day the trains will run again. Perhaps you will ride the first, Champion.': '하지만 저 먼 구간은 아직 미완성이고, 그 너머에 무엇이 기다리는지 아무도 밝혀낸 적이 없어. 언젠가 열차는 다시 달릴 거야. 어쩌면 네가 그 첫 열차를 타게 될지도, 챔피언.',
   'Skater: When the Amrok freezes solid, we skate clear across it! ...Mind the cracks by the old bridge, though.': '스케이터: 압록강이 꽝꽝 얼면, 우린 그 위를 쭉 가로질러 스케이트를 타! ...그래도 낡은 다리 근처 갈라진 틈은 조심해.',
-  'Bundled Elder: Coldest gate in the north, they call Binghagwan. Amrok guards it well. You did him proud out on that ice.': '두꺼운 옷의 노인: 사람들은 빙하관를 북쪽에서 가장 추운 관문이라 부르지. 압록이 잘 지켜. 넌 저 얼음판에서 그를 자랑스럽게 했어.',
+  'Bundled Elder: Coldest gate in the north, they call Binghagwan. Amrok guards it well. You did him proud out on that ice.': '두꺼운 옷의 노인: 사람들은 빙하 시티를 북쪽에서 가장 추운 관문이라 부르지. 압록이 잘 지켜. 넌 저 얼음판에서 그를 자랑스럽게 했어.',
   'Lodge Guest: Warm up at the Highland Lodge before you climb. It\'s a long, cold road to the peak.': '산장 손님: 오르기 전에 고원 산장에서 몸을 녹여. 정상까지는 멀고 추운 길이거든.',
   'The current yanks you sideways — a whirlpool!': '물살이 너를 옆으로 홱 잡아챈다 — 소용돌이다!',
   'SPACE: take the exam': 'SPACE: 시험 치르기',
@@ -1142,14 +1142,14 @@ export const KO_STRINGS: Record<string, string> = {
   '— THE END —': '— 끝 —',
   'Supreme Gwang: Your journey ends here — either in triumph, or in defeat. Show me your true power!': '총수 광: 네 여정은 여기서 끝난다 — 승리로든, 패배로든. 네 진정한 힘을 보여라!',
   'Supreme Gwang: ...Incredible. I have not met a trainer of your caliber in decades.': '총수 광: ...놀랍군. 수십 년 만에 처음 만나는 너 같은 격의 트레이너다.',
-  'You enter Gwanmunseong, the northern capital — a vast, disciplined city of grey-granite towers and broad ceremonial avenues under a cold, clear sky. A great bronze figure presides over the central plaza.': '너는 북쪽 수도 관문성으로 들어선다 — 잿빛 화강암 탑과 넓은 의식용 대로가 차갑고 맑은 하늘 아래 펼쳐진, 드넓고 규율 잡힌 도시다. 거대한 청동상이 중앙 광장을 굽어보고 있다.',
+  'You enter Gwanmunseong, the northern capital — a vast, disciplined city of grey-granite towers and broad ceremonial avenues under a cold, clear sky. A great bronze figure presides over the central plaza.': '너는 북쪽 수도 관문 시티로 들어선다 — 잿빛 화강암 탑과 넓은 의식용 대로가 차갑고 맑은 하늘 아래 펼쳐진, 드넓고 규율 잡힌 도시다. 거대한 청동상이 중앙 광장을 굽어보고 있다.',
   'Uniformed City Wardens stand at their posts, still and formal, and incline their heads as you pass.': '제복을 입은 경비대원들이 자기 자리에 미동도 없이 격식 있게 서 있다가, 네가 지나갈 때 고개를 숙인다.',
   'City Warden Cheol: Southern Champion. You are expected. This is an old and proud capital — here, everything keeps its order, and guests keep their decorum.': '경비대 철: 남쪽 챔피언. 기다리고 있었소. 이곳은 유서 깊고 자긍심 높은 수도요 — 여기선 모든 것이 질서를 지키고, 손님은 예의를 지키지.',
   '(The Wardens return to their posts at the edges of the plaza — watchful, but courteous.)': '(경비대원들이 광장 가장자리 자기 자리로 돌아간다 — 경계하되, 정중하게.)',
   '↑ Grand Avenue → Northern League': '↑ 대로 → 북부 리그',
-  '🏙 Gwanmunseong — the Northern Capital': '🏙 관문성 — 북쪽 수도',
+  '🏙 Gwanmunseong — the Northern Capital': '🏙 관문 시티 — 북쪽 수도',
   'SPACE — Talk to Supreme Gwang': 'SPACE — 총수 광과 대화',
-  'Supreme Gwang: Only then will you be worthy of challenging the Supreme Commander of Gwanmunseong.': '총수 광: 그래야만 비로소 관문성의 총사령관에게 도전할 자격이 있을 것이다.',
+  'Supreme Gwang: Only then will you be worthy of challenging the Supreme Commander of Gwanmunseong.': '총수 광: 그래야만 비로소 관문 시티의 총사령관에게 도전할 자격이 있을 것이다.',
   'SPACE — Challenge Supreme Gwang': 'SPACE — 총수 광에게 도전',
   'SPACE — Grand Avenue → Northern League': 'SPACE — 대로 → 북부 리그',
   'Gate Warden: ...Southern Champion. You are cleared to the League grounds. The Grand Avenue is yours.': '관문 경비대: ...남쪽 챔피언. 리그 경내로 통과 허가됐소. 대로는 당신 것이오.',
@@ -1211,7 +1211,7 @@ export const KO_STRINGS: Record<string, string> = {
   'Kisun: Press A in battle to throw a ball. Good luck, trainer! 🔴': '기선: 배틀에서 A를 누르면 볼을 던져. 행운을 빌어, 트레이너! 🔴',
   'This valley\'s fed the old capital for a thousand years. My Pokémon work these dikes — and they don\'t tire easy.': '이 골짜기는 천 년째 옛 수도를 먹여 살렸지. 내 포켓몬들은 이 둑에서 일해 — 쉽게 지치지 않아.',
   'Best fishing on the whole Yeoul, right off this bridge. Care to wager a battle on who\'s got the bigger catch?': '여울강 전체에서 제일 낚시가 잘돼, 바로 이 다리 밑이지. 누가 더 큰 걸 낚나 배틀 걸어볼래?',
-  'Walked all the way from Songhyeon! My team\'s tougher than it looks, mister!': '송현에서 여기까지 걸어왔어! 우리 팀은 보기보다 강하다고, 아저씨!',
+  'Walked all the way from Songhyeon! My team\'s tougher than it looks, mister!': '송현 시티에서 여기까지 걸어왔어! 우리 팀은 보기보다 강하다고, 아저씨!',
   'I follow the dikes up to the sea and back. Rock-hard legs, rock-hard team. Let\'s go!': '난 둑을 따라 바다까지 올라갔다 돌아와. 바위처럼 단단한 다리, 바위처럼 단단한 팀. 가자!',
   'You\'re the one nosing around the Chiefs\' business. The valley road is ours tonight — cargo moves north. Turn back, Champion.': '네가 바로 관장님들 일에 코를 들이미는 녀석이군. 오늘 밤 이 골짜기 길은 우리 거야 — 화물이 북쪽으로 간다. 돌아가, 챔피언.',
   'Poongbaek — The Wind': '풍백 — 바람',
@@ -1313,7 +1313,7 @@ export const KO_STRINGS: Record<string, string> = {
   'Send which Pokémon to the PC?': '어떤 포켓몬을 PC로 보낼까?',
   'Two down, and you\'ve reached the water\'s edge — the last of us. No rest now. Bring everything!': '둘을 쓰러뜨리고, 물가에 다다랐군 — 우리 중 마지막이야. 이제 쉴 틈 없어. 전부 걸어!',
   'The East Sea\'s cold but it keeps you sharp! Care for a match on the sand?': '동해는 차갑지만 널 날카롭게 해줘! 모래밭에서 한 판 어때?',
-  '🚌  The express coach rolls north across the old border to Songhyeon…': '🚌  쾌속 버스가 옛 국경을 넘어 북쪽 송현으로 달린다…',
+  '🚌  The express coach rolls north across the old border to Songhyeon…': '🚌  쾌속 버스가 옛 국경을 넘어 북쪽 송현 시티로 달린다…',
   'Barkeep: Ahoy! In from the salt air, are ye? Sit by the fire — first bowl of clam broth\'s on the house.': '선술집 주인: 어이! 짠 바닷바람 맞고 왔나? 난롯가에 앉게 — 첫 조갯국 한 그릇은 내가 사지.',
   'Barista: Welcome to Kalma Beach Café! Sea breeze, warm drinks, comfy cushions.': '바리스타: 칼마 해변 카페에 오신 걸 환영해요! 바닷바람, 따뜻한 음료, 폭신한 방석.',
   'Innkeeper: A room away from the fog, friend? You look like you\'ve seen a ghost.': '여관 주인: 안개를 피할 방이 필요한가, 친구? 유령이라도 본 얼굴인데.',
@@ -1630,7 +1630,7 @@ export const KO_STRINGS: Record<string, string> = {
   '🚌 The northern express coach idles at the stop, engine rumbling.':
     '🚌 북부행 급행 버스가 엔진을 울리며 정류장에 서 있다.',
   'Driver: Non-stop to Songhyeon — first of the eight 어사대 provinces, up across the old border. Riding with me?':
-    '기사: 송현까지 논스톱 — 옛 국경 너머, 여덟 어사대 지방의 첫 번째지. 같이 갈래?',
+    '기사: 송현 시티까지 논스톱 — 옛 국경 너머, 여덟 어사대 지방의 첫 번째지. 같이 갈래?',
 
   // ── Pine Needle Town ──
   '🏡 Pine Needle Town (솔잎 마을)': '🏡 솔잎 마을',
@@ -1642,7 +1642,7 @@ export const KO_STRINGS: Record<string, string> = {
 
   // ── 어사대 circuit — Parangpo (representative; chief lines reused across cities) ──
   'Parangpo (파랑포) — the great West-Sea barrage holds back the tide beyond the quay, its sluice-gates gleaming with salt.':
-    '파랑포 — 거대한 서해 방조제가 부두 너머의 조수를 막아서고, 수문이 소금으로 반짝인다.',
+    '파랑 시티 — 거대한 서해 방조제가 부두 너머의 조수를 막아서고, 수문이 소금으로 반짝인다.',
   '어사대장 Haemin waits by the water, patient as the turning tide.':
     '어사대장 해민이 물가에서, 밀물처럼 인내심 있게 기다린다.',
   'Power without patience drowns itself. Read the tide, and read me. Begin.':
@@ -1653,7 +1653,7 @@ export const KO_STRINGS: Record<string, string> = {
     '방조제가 아직도 그 괴수 아래서 신음한다. 파랑포 해변으로 가 소용돌이 너머로 파도타기해 갸라도스를 잠재우고 돌아오라.',
   'The Gyarados rears from the swell, sluice-water sheeting off its coils, and fixes its glare on you.':
     '갸라도스가 물결에서 몸을 일으키고, 똬리에서 수문물이 쏟아지며, 네게 시선을 고정한다.',
-  '🐎 You received the Parangpo 마패!': '🐎 파랑포 마패를 받았다!',
+  '🐎 You received the Parangpo 마패!': '🐎 파랑 시티 마패를 받았다!',
 
   // ── Capitol post-game (epilogue) ──
   'In the weeks after Baekdu Peak, the region steadies. Director Suri turns herself in with full documentation; her late repentance is noted in her case.':
@@ -1681,7 +1681,7 @@ export const KO_STRINGS: Record<string, string> = {
   'We rake the flats at low tide. Parangpo salt seasons half the northern coast!':
     '썰물 때 갯벌을 긁는단다. 파랑포 소금이 북부 해안 절반을 간 맞추지!',
   // Haesol
-  '🐎 You received the Haesol 마패!': '🐎 해솔 마패를 받았다!',
+  '🐎 You received the Haesol 마패!': '🐎 해솔 시티 마패를 받았다!',
   'Hah — eager for a bout? Not yet. Anyone can win one fight. A fighter is forged by fighting through exhaustion.':
     '하 — 한판 붙고 싶은가? 아직이야. 한 번 이기는 건 누구나 해. 투사는 지쳐 쓰러질 때까지 싸우며 단련되는 법.',
   'Best all three, back to back, then come to me. Show me you can keep your feet when your legs are burning!':
@@ -1727,8 +1727,8 @@ export const KO_STRINGS: Record<string, string> = {
     '그것이야말로 가장 차가운 용기다. 관문을 얻을 자격이 있다. 시작.',
 
   // ── 어사대 city + landmark labels ──
-  'Parangpo (파랑포)': '파랑포', 'Haesol (해솔)': '해솔', 'Gangcheoldo (강철도)': '강철도',
-  'Muyeonhang (무연항)': '무연항', 'Binghagwan (빙하관)': '빙하관', 'Samho (삼호)': '삼호',
+  'Parangpo (파랑포)': '파랑 시티', 'Haesol (해솔)': '해솔 시티', 'Gangcheoldo (강철도)': '강철 시티',
+  'Muyeonhang (무연항)': '무연 시티', 'Binghagwan (빙하관)': '빙하 시티', 'Samho (삼호)': '삼호 마을',
   '🗼 Parangpo Lighthouse (등대)': '🗼 파랑포 등대', '⚓ Harbour Warehouse (부두)': '⚓ 부두 창고',
   '🗼 Kalma Lighthouse (등대)': '🗼 칼마 등대', '🐟 Haesol Seafood Market (수산시장)': '🐟 해솔 수산시장',
   'Parangpo Beach': '파랑포 해변', 'Kalma Beach': '칼마 해변', 'Fogbound Manor': '안개저택',
@@ -1744,7 +1744,7 @@ export const KO_STRINGS: Record<string, string> = {
   'I sound the horn every hour, on the hour.': '매시 정각마다 무적을 울리지.',
   'Some nights... I swear something out in the fog answers back.': '어떤 밤엔... 안개 속에서 뭔가가 대답하는 것 같아.',
   'Everyone says a GHOST lives there! ...I dare you to go in. Heehee!': '다들 거기 유령이 산대! ...들어가 볼 테면 봐. 히히!',
-  "Whose cargo? ...Best not to ask that too loudly. Not in Muyeonhang.": '누구의 화물이냐고? ...그건 너무 크게 묻지 않는 게 좋아. 여기 무연항에선.',
+  "Whose cargo? ...Best not to ask that too loudly. Not in Muyeonhang.": '누구의 화물이냐고? ...그건 너무 크게 묻지 않는 게 좋아. 여기 무연 시티에선.',
 
   // ── Binghagwan NPCs (frozen border) ──
   'Still... from this overlook I can feel it out there, past the frozen Amrok. A whole continent, waiting to be walked.':
@@ -1781,7 +1781,7 @@ export const KO_STRINGS: Record<string, string> = {
 
   // Songhyeon
   'You arrive in Songhyeon (송현) — old Koryo capital, terraced under Songak Mountain, its ginseng fields green to the ridgelines.':
-    '송현에 도착했다 — 송악산 아래 계단식으로 자리한 옛 고려의 도읍. 산등성이까지 인삼밭이 푸르게 이어진다.',
+    '송현 시티에 도착했다 — 송악산 아래 계단식으로 자리한 옛 고려의 도읍. 산등성이까지 인삼밭이 푸르게 이어진다.',
   '🏛️ 어사대 Hall — Chief Hyeon': '🏛️ 어사대 전당 — 어사대장 현',
   'True or false: the 마패 you seek is the token of the royal Inspectorate — the 어사대.':
     '참 또는 거짓: 네가 찾는 마패는 왕실 감찰 조직인 어사대의 증표다.',
@@ -1794,13 +1794,13 @@ export const KO_STRINGS: Record<string, string> = {
   '어사대장 Hyeon: Before any duel — the 어사대 of Songhyeon tests the mind. This hall was a Confucian academy long before it examined trainers.':
     '어사대장 현: 결투에 앞서 송현 어사대는 지혜를 시험한다. 이 전당은 트레이너를 시험하기 훨씬 전부터 성균관이었지.',
   '어사대장 Hyeon: Songhyeon has taken your measure. The next province waits — carry the 마패 with honour.':
-    '어사대장 현: 송현은 네 역량을 확인했다. 다음 지방이 기다린다 — 마패를 명예롭게 지녀라.',
+    '어사대장 현: 송현 시티는 네 역량을 확인했다. 다음 지방이 기다린다 — 마패를 명예롭게 지녀라.',
   '어사대장 Hyeon: Your reasoning is sound. Now let us see whether your team matches your mind.':
     '어사대장 현: 판단이 옳다. 이제 네 팀도 네 지혜에 걸맞은지 보자.',
 
   // Gwanmunseong
   'Supreme Gwang: But Gwanmunseong demands more. The north demands perfection. Only those who can defeat the Supreme Commander may claim the final 마패.':
-    '총수 광: 하지만 관문성은 더 많은 것을 요구한다. 북부는 완벽을 요구하지. 어사대 총수를 이긴 자만이 마지막 마패를 차지할 수 있다.',
+    '총수 광: 하지만 관문 시티는 더 많은 것을 요구한다. 북부는 완벽을 요구하지. 어사대 총수를 이긴 자만이 마지막 마패를 차지할 수 있다.',
   'Supreme Gwang: With all eight 마패 in your possession, the Northern League awaits. Go forth and claim your destiny.':
     '총수 광: 여덟 마패를 모두 손에 넣었으니 북방 리그가 기다린다. 나아가 네 운명을 쟁취하라.',
   'Supreme Gwang: You have come far, southern Champion. Seven 마패 adorn your belt — each a testament to your worth.':
@@ -1810,7 +1810,7 @@ export const KO_STRINGS: Record<string, string> = {
   'Warden Cheol: Supreme Commander Gwang awaits in the palace grounds. He holds the final 마패 — defeat him, and the Northern League lies beyond.':
     '경비대 철: 궁궐 뜰에서 어사대 총수 광이 기다리고 있소. 그가 마지막 마패를 지녔지 — 그를 이기면 북방 리그로 가는 길이 열릴 것이오.',
   '🐎 You received the Gwanmunseong 마패 — the eighth and final tablet!':
-    '🐎 관문성 마패를 받았다 — 여덟 번째이자 마지막 마패다!',
+    '🐎 관문 시티 마패를 받았다 — 여덟 번째이자 마지막 마패다!',
 
   // Enterable city interiors
   "파랑포 뱃사람 주막 · Parangpo Sailors' Tavern": '파랑포 뱃사람 주막',
@@ -1827,7 +1827,7 @@ export const KO_STRINGS: Record<string, string> = {
 
   // Haesol
   'Haesol (해솔) — sunlight off Kalma Beach, the blue shoulder of Mt. Kumgang on the horizon, sand still warm from dawn training.':
-    '해솔 — 갈마 해변에 햇빛이 부서지고, 수평선 너머로 금강산의 푸른 능선이 보인다. 새벽 훈련의 열기가 모래에 아직 남아 있다.',
+    '해솔 시티 — 갈마 해변에 햇빛이 부서지고, 수평선 너머로 금강산의 푸른 능선이 보인다. 새벽 훈련의 열기가 모래에 아직 남아 있다.',
   '어사대장 Haegang cracks his knuckles and grins.':
     '어사대장 해강이 손가락 마디를 꺾으며 씩 웃는다.',
   '어사대장 Haegang: HA! Now THAT was a bout. You\'ve got it.':
@@ -1841,7 +1841,7 @@ export const KO_STRINGS: Record<string, string> = {
 
   // Gangcheoldo
   'Gangcheoldo (강철도) — furnace-light and clanging steel, the great works pouring iron day and night.':
-    '강철도 — 용광로 불빛과 강철 부딪는 소리로 가득한 도시. 거대한 제철소가 밤낮없이 쇳물을 쏟아낸다.',
+    '강철 시티 — 용광로 불빛과 강철 부딪는 소리로 가득한 도시. 거대한 제철소가 밤낮없이 쇳물을 쏟아낸다.',
   '어사대장 Cheolju stands like a girder, arms folded.':
     '어사대장 철주가 대들보처럼 굳건히 팔짱을 끼고 서 있다.',
   "어사대장 Cheolju: ...Unbent. Hm. You'll do.":
@@ -1856,11 +1856,11 @@ export const KO_STRINGS: Record<string, string> = {
     '어사대장 철주: ...광산은 조용해졌고 용광로엔 다시 불이 붙었다. 오늘 밤 천 가구가 네 덕분에 밥을 먹는다.',
   'Noodle Lover: You HAVE to try the 강철도냉면 — chewy sweet-potato noodles, fiery cold broth. Best in the north!':
     '국수 애호가: 강철도냉면은 꼭 먹어 봐야 해 — 쫄깃한 고구마 전분 면에 맵고 시원한 육수. 북부 최고야!',
-  '🐎 You received the Gangcheoldo 마패!': '🐎 강철도 마패를 받았다!',
+  '🐎 You received the Gangcheoldo 마패!': '🐎 강철 시티 마패를 받았다!',
 
   // Muyeonhang
   'Muyeonhang (무연항) — the last northern harbor, cranes looming out of a cold sea-fog, gulls unseen but heard.':
-    '무연항 — 차가운 바다 안개 너머로 기중기가 우뚝 솟은 북쪽 끝 항구. 갈매기는 보이지 않고 울음소리만 들린다.',
+    '무연 시티 — 차가운 바다 안개 너머로 기중기가 우뚝 솟은 북쪽 끝 항구. 갈매기는 보이지 않고 울음소리만 들린다.',
   'From the mist, 어사대장 Mukyeong watches without a word.':
     '안개 속에서 어사대장 무경이 말없이 지켜본다.',
   'Fog-Wraith Gengar (안개 팬텀)': '안개 팬텀',
@@ -1875,12 +1875,12 @@ export const KO_STRINGS: Record<string, string> = {
   '어사대장 Mukyeong: You saw the hand behind the fog, and you struck it. That is worth more than any drill against me.':
     '어사대장 무경: 안개 뒤의 손을 보고 정확히 쳤군. 나와 하는 어떤 훈련보다 값지다.',
   '노스단. They run cargo through Muyeonhang under the fog, bound for the sacred peak. Now that the mist has lifted, my crews will hunt them down — that is my burden, not yours.':
-    '노스단이다. 놈들은 안개를 틈타 무연항으로 화물을 들여와 성스러운 봉우리로 보내고 있다. 이제 안개가 걷혔으니 내 부하들이 추적할 것이다 — 그건 내 짐이지, 네 짐이 아니다.',
-  '🐎 You received the Muyeonhang 마패!': '🐎 무연항 마패를 받았다!',
+    '노스단이다. 놈들은 안개를 틈타 무연 시티로 화물을 들여와 성스러운 봉우리로 보내고 있다. 이제 안개가 걷혔으니 내 부하들이 추적할 것이다 — 그건 내 짐이지, 네 짐이 아니다.',
+  '🐎 You received the Muyeonhang 마패!': '🐎 무연 시티 마패를 받았다!',
 
   // Binghagwan
   'Binghagwan (빙하관) — the Amrok river locked in blue ice, a broken bridge-span reaching toward the far bank.':
-    '빙하관 — 압록강은 푸른 얼음에 갇혀 있고, 끊어진 교각이 건너편 강기슭을 향해 뻗어 있다.',
+    '빙하 시티 — 압록강은 푸른 얼음에 갇혀 있고, 끊어진 교각이 건너편 강기슭을 향해 뻗어 있다.',
   '어사대장 Amrok bars the crossing, breath fogging in the still cold.':
     '어사대장 압록이 고요한 추위 속에서 입김을 피우며 건널목을 막아선다.',
   '어사대장 Amrok: The coldest gate. Cross it before the ice cracks beneath you. Begin.':
@@ -1897,11 +1897,11 @@ export const KO_STRINGS: Record<string, string> = {
     '이 철도는 얼어붙은 강 너머 미지의 대륙을 가로지르도록 놓였습니다. 지도의 끝까지, 그리고 그 너머까지 이어지는 철길이죠.',
   'Traveler: I came all this way to catch the train to the 미지의 대륙. They tell me the line has been shut for years.':
     '여행자: 미지의 대륙행 기차를 타려고 여기까지 왔어요. 몇 년째 운행이 중단됐다고 하네요.',
-  '🐎 You received the Binghagwan 마패!': '🐎 빙하관 마패를 받았다!',
+  '🐎 You received the Binghagwan 마패!': '🐎 빙하 시티 마패를 받았다!',
 
   // Samho
   'Samho (삼호) — the three-lake plateau under Baekdu, larch forests deep in snow, an aurora ghosting the sky.':
-    '삼호 — 백두산 아래 세 호수의 고원. 낙엽송 숲은 깊은 눈에 잠기고, 오로라가 하늘을 유령처럼 스친다.',
+    '삼호 마을 — 백두산 아래 세 호수의 고원. 낙엽송 숲은 깊은 눈에 잠기고, 오로라가 하늘을 유령처럼 스친다.',
   '어사대장 Seolwon, last of the eight, stands serene where the world turns white.':
     '여덟 번째이자 마지막 어사대장 설원이 온 세상이 하얗게 변하는 곳에서 고요히 서 있다.',
   '어사대장 Seolwon: Pass me, and the road to the sacred peak — and the Northern League — is yours. Begin.':
@@ -1909,17 +1909,17 @@ export const KO_STRINGS: Record<string, string> = {
   '어사대장 Seolwon: Eight 마패. You are worthy to climb. The Northern League will know you now.':
     '어사대장 설원: 마패 여덟 개. 오를 자격이 있다. 이제 북방 리그가 널 알아볼 것이다.',
   '🐎 You received the Samho 마패!  (Present all eight at the Northern League.)':
-    '🐎 삼호 마패를 받았다!  (북방 리그에서 여덟 마패를 모두 제시하자.)',
+    '🐎 삼호 마을 마패를 받았다!  (북방 리그에서 여덟 마패를 모두 제시하자.)',
   '어사대장 Seolwon: The last of the eight. Steady your breath, Champion — begin—':
     '어사대장 설원: 마지막 여덟 번째다. 호흡을 가다듬어라, 챔피언 — 시작—',
   '💥 The Hall doors burst open in a gust of snow! The 노스단 Sovereign strides in, grunts fanning out behind him.':
     '💥 눈보라와 함께 전당의 문이 터지듯 열린다! 노스단 군주가 성큼 들어오고, 조무래기들이 뒤로 퍼져 선다.',
   'Sovereign Clemont: The exam is cancelled, Inspector. 노스단 has raised its 아지트 at the head of your mountain road — Samho is OURS now, the gateway to the sacred peak.':
-    '군주 클레몽: 시험은 취소다, 감찰관. 노스단이 네 산길 꼭대기에 아지트를 세웠다 — 이제 삼호은 우리의 땅이며, 성스러운 봉우리로 가는 관문이다.',
+    '군주 클레몽: 시험은 취소다, 감찰관. 노스단이 네 산길 꼭대기에 아지트를 세웠다 — 이제 삼호 마을은 우리의 땅이며, 성스러운 봉우리로 가는 관문이다.',
   '어사대장 Seolwon: ...So they come at last, into the open. Champion — I cannot grant the exam while that tower stands over my people.':
     '어사대장 설원: ...마침내 놈들이 모습을 드러냈군. 챔피언 — 저 탑이 백성들 위에 서 있는 동안엔 시험을 허락할 수 없다.',
   'Seolwon: Take the mountain road to their 아지트. Climb it, floor by floor, and cast down the 간부 at its top. Break their hold on Samho — then, and only then, face me.':
-    '설원: 산길을 따라 놈들의 아지트로 가라. 층층이 올라 꼭대기의 간부를 끌어내려라. 삼호에 대한 놈들의 지배를 깨뜨려야 — 그때야 비로소 나와 맞설 수 있다.',
+    '설원: 산길을 따라 놈들의 아지트로 가라. 층층이 올라 꼭대기의 간부를 끌어내려라. 삼호 마을에 대한 놈들의 지배를 깨뜨려야 — 그때야 비로소 나와 맞설 수 있다.',
   '어사대장 Seolwon: The 노스단 아지트 still looms at the head of the mountain road. Climb it, throw down their 간부, and return — then the last exam is yours.':
     '어사대장 설원: 노스단 아지트가 아직 산길 꼭대기를 짓누르고 있다. 올라가 간부를 쓰러뜨린 뒤 돌아와라 — 그러면 마지막 시험을 치르게 해주겠다.',
   '어사대장 Seolwon: ...The tower has fallen. Word came down the mountain — the 노스단 flag is torn down and their grunts scatter into the snow.':
@@ -2239,9 +2239,9 @@ export const KO_STRINGS: Record<string, string> = {
   '↑ 하부 동굴 (Lower Cavern)': '↑ 하부 동굴',
   '⛰ 온성 하부 동굴 (Lower Cavern)': '⛰ 온성 하부 동굴',
   'Far as you climb, runt. 노스단 owns this tower now — and soon all of Samho!':
-    '올라올 테면 올라와, 애송이. 노스단이 이제 이 탑을 차지했어 — 곧 삼호 전체도!',
+    '올라올 테면 올라와, 애송이. 노스단이 이제 이 탑을 차지했어 — 곧 삼호 마을 전체도!',
   'The 노스단 flag is torn down. Their grip on Samho is broken, and the grunts flee down the mountain road.':
-    '노스단 깃발이 찢겨 내려온다. 삼호에 대한 그들의 지배가 무너지고, 조무래기들은 산길 아래로 달아난다.',
+    '노스단 깃발이 찢겨 내려온다. 삼호 마을에 대한 그들의 지배가 무너지고, 조무래기들은 산길 아래로 달아난다.',
   'A profound peace settles over you as you gaze across the ancient waters. This is a place of deep contemplation, where the sacred waters gather in eternal stillness.':
     '태고의 물결을 바라보노라니 깊은 평화가 내려앉는다. 이곳은 깊은 사색의 장소, 성스러운 물이 영원한 고요 속에 모이는 곳이다.',
 
@@ -2262,9 +2262,9 @@ export const KO_STRINGS: Record<string, string> = {
   // ── Gwanmunseong Checkpoint ──
   '🛡 관문성 관문 (Gwanmunseong Checkpoint)': '🛡 관문성 관문',
   'Royal Warden: Halt. The road into Gwanmunseong is sealed until the seven regional trials are complete.':
-    '왕실 관리인: 멈춰라. 일곱 지방 시험을 모두 마칠 때까지 관문성으로 가는 길은 봉쇄되어 있다.',
+    '왕실 관리인: 멈춰라. 일곱 지방 시험을 모두 마칠 때까지 관문 시티로 가는 길은 봉쇄되어 있다.',
   'Royal Warden: The gate to Gwanmunseong is open to you. Seek Supreme Gwang in the capital — he holds the final test.':
-    '왕실 관리인: 관문성으로 가는 문이 네게 열렸다. 수도에서 최고위 광을 찾아라 — 그가 마지막 시험을 쥐고 있다.',
+    '왕실 관리인: 관문 시티로 가는 문이 네게 열렸다. 수도에서 최고위 광을 찾아라 — 그가 마지막 시험을 쥐고 있다.',
 
   // ── Songhyeon capital-road closure ──
   '🚧 Capital road closed': '🚧 평성 방면 도로 폐쇄',
@@ -2292,6 +2292,21 @@ export const KO_STRINGS: Record<string, string> = {
     '...훌륭해. 삼 년간 이걸 해낼 수 있는 자가 언제 올까 궁금했지. 아무래도 난 바로 널 기다려 왔던 것 같아.',
   'Hwangeum (extending his hand): Welcome to the Hall of Fame. You earned every step of it.':
     '황금 (손을 내밀며): 명예의 전당에 온 걸 환영해. 그 한 걸음 한 걸음을 네가 이뤄냈어.',
+  // ── Throne room → registration room hand-off ──
+  'Hwangeum: The registration room is through here. Walk in with me — your team should hear their own names read out.':
+    '황금: 등록실은 이쪽이야. 같이 들어가자 — 네 팀도 자기 이름이 불리는 걸 직접 들어야지.',
+  'Hwangeum: Come. The register is waiting, same as always.':
+    '황금: 가자. 등록부는 늘 그렇듯 기다리고 있어.',
+  'Hwangeum: This is the recorder. Set your team on it — all six.':
+    '황금: 이게 기록기야. 네 팀을 여기 올려놔 — 여섯 마리 전부.',
+  'Hwangeum: It reads them itself. Names, levels, everything they became with you.':
+    '황금: 나머지는 기계가 알아서 읽어. 이름도, 레벨도, 너와 함께 되어온 전부를.',
+  'Hwangeum: You know the drill. Six balls, six sockets.':
+    '황금: 익숙하겠지. 볼 여섯, 자리 여섯.',
+  'The recorder hums, and one by one your Pokémon are entered into the register of the Onnuri League.':
+    '기록기가 낮게 울리고, 너의 포켓몬들이 하나씩 온누리 리그의 등록부에 새겨진다.',
+  'The recorder hums once more, and your team is entered into the register beside its earlier records.':
+    '기록기가 다시 한번 울리고, 너의 팀이 이전 기록들 옆에 나란히 새겨진다.',
   '🏆 Your team is recorded in the Hall of Fame!': '🏆 너의 팀이 명예의 전당에 기록되었다!',
   '— The credits roll over a montage of the Onnuri League arc — Capitol City, the Diamond Gorge, the tidal coasts, the ancient forest, the Jeju vents, the Jeju Summit —':
     '— 온누리 리그 여정의 몽타주 위로 크레딧이 흐른다 — 소올 시티, 다이아몬드 협곡, 조수의 해안, 고목 숲, 제주 분화구, 제주 정상 —',
@@ -2305,8 +2320,8 @@ export const KO_STRINGS: Record<string, string> = {
     '라이벌: 진정해요, 박사님. 이제 겨우 한숨 돌리는 중이잖아요. 하지만 준비되면, 챔피언 — 태백 산맥엔 아직 오를 곳이 남아 있어.',
   'Phase 1: Onnuri League — COMPLETE ✓': '1막: 온누리 리그 — 완료 ✓',
   'Phase 2: Northern League — UNLOCKED': '2막: 북방 리그 — 해금',
-  'Post-game unlocked: rechallenge the Rival in the Shadow Court, rematch Champion Hwangeum, explore the postgame world, and track the freed trio — 풍백, 우사, 운사 — at their mountain shrines.':
-    '포스트게임 해금: 섀도우 코트에서 라이벌 재도전, 챔피언 황금 재대결, 포스트게임 세계 탐험, 그리고 풀려난 세 정령 — 풍백, 우사, 운사 — 을 산속 사당에서 추적하기.',
+  'Post-game unlocked: rematch Champion Hwangeum, explore the postgame world, and track the freed trio — 풍백, 우사, 운사 — at their mountain shrines.':
+    '포스트게임 해금: 챔피언 황금 재대결, 포스트게임 세계 탐험, 그리고 풀려난 세 정령 — 풍백, 우사, 운사 — 을 산속 사당에서 추적하기.',
 
   // ══ Trainer battle: flow + defeat lines ══
   'Loading…': '불러오는 중…',
@@ -2437,7 +2452,7 @@ export const KO_STRINGS: Record<string, string> = {
   "Professor Song: And there's something else. Word from beyond the northern border — the Northern League, and the eight 어사대 provinces that guard the road to it. They've heard of you.":
     '송 박사: 그리고 한 가지 더. 북쪽 국경 너머에서 소식이 왔어 — 북방 리그, 그리고 그곳으로 가는 길을 지키는 여덟 어사대 지방. 그들이 네 소문을 들었대.',
   "Professor Song: They say a coach runs from Waterfall City now, all the way up to Songhyeon — first of the eight. If you mean to go north, that bus is how you'll get there. Go — see the region you saved, and the one beyond it.":
-    '송 박사: 폭포 시티에서 송현까지 — 여덟 곳 중 첫 번째까지 버스가 다닌다더군. 북쪽으로 갈 생각이면 그 버스로 가면 돼. 가 — 네가 구한 지방을, 그리고 그 너머의 지방을 보렴.',
+    '송 박사: 폭포 시티에서 송현 시티까지 — 여덟 곳 중 첫 번째까지 버스가 다닌다더군. 북쪽으로 갈 생각이면 그 버스로 가면 돼. 가 — 네가 구한 지방을, 그리고 그 너머의 지방을 보렴.',
   'Champion Hwangeum: ...You actually did it. You beat Taewang. Three years I carried that loss — you lifted it clean off me. Thank you.':
     '챔피언 황금: ...정말 해냈군. 태왕을 이기다니. 삼 년간 그 패배를 짊어졌는데 — 네가 깨끗이 걷어내 줬어. 고마워.',
   "Professor Song: Two leagues, north and south. There has never been a trainer like you in all of Onnuri's history.":
@@ -2523,7 +2538,7 @@ export const KO_STRINGS: Record<string, string> = {
   'Commander Ryeo: We have no quarrel with you. Step aside.': '사령관 려: 너와는 다툴 일 없어. 비켜.',
   '어사대장 Hyeon presents a small bronze horse-tablet — a 마패.': '어사대장 현이 작은 청동 말 패 하나를 내민다 — 마패다.',
   '🐎 You received the Songhyeon 마패! (1 of 8 the Northern League requires.)':
-    '🐎 송현 마패를 받았다! (북방 리그에 필요한 8개 중 1개.)',
+    '🐎 송현 시티 마패를 받았다! (북방 리그에 필요한 8개 중 1개.)',
   '어사대장 Hyeon: Seven Chiefs remain, across the northern provinces. Earn all eight and the League gate at the far north will know you by them.':
     '어사대장 현: 북방 지방 곳곳에 일곱 어사대장이 남아 있다. 여덟을 모두 얻으면 저 먼 북쪽의 리그 관문이 그것으로 널 알아볼 것이다.',
   'The Seonjukgyo bridge arches over the stream toward the 어사대 Hall, once a Confucian academy.':
@@ -2582,7 +2597,7 @@ export const KO_STRINGS: Record<string, string> = {
   '⛰ 노스단 아지트 진입로 (HQ Approach)': '⛰ 노스단 아지트 진입로',
   "Beat us first if you think you're getting in!": '들어갈 생각이면 우리부터 이겨봐!',
   '어사대장 Amrok will want to know the crossing is safe. Head back to Binghagwan.':
-    '어사대장 압록이 강을 건너도 안전한지 알고 싶어할 거다. 빙하관로 돌아가라.',
+    '어사대장 압록이 강을 건너도 안전한지 알고 싶어할 거다. 빙하 시티로 돌아가라.',
   'At the heart of the cave, a great bear-shape sleeps frozen into the ice wall.': '동굴 중심, 거대한 곰의 형상이 얼음벽에 얼어붙어 잠들어 있다.',
   'As you draw near, a deep CRACK splinters the ice — and two cold eyes snap open.': '다가가자, 깊은 균열 소리와 함께 얼음이 갈라지고 — 차가운 두 눈이 번쩍 뜨인다.',
   'The Ice-Bound Beartic shatters free of the wall with a roar that shakes frost from the ceiling!':
@@ -2707,8 +2722,8 @@ export const KO_STRINGS: Record<string, string> = {
   'SPACE — Talk to': 'SPACE — 대화:',
   'royal wardens': '왕실 관리인들',
   '— empty —': '— 비어 있음 —',
-  '↑ 관문성 (Gwanmunseong)': '↑ 관문성',
-  '↓ 해솔 (Haesol)': '↓ 해솔',
+  '↑ 관문성 (Gwanmunseong)': '↑ 관문 시티',
+  '↓ 해솔 (Haesol)': '↓ 해솔 시티',
   '↓ 제단의 방 (Altar Hall)': '↓ 제단의 방',
   '☀ The Sacred Peak — 환웅의 강림': '☀ 성스러운 봉우리 — 환웅의 강림',
   '⛏ Dolmoe City — 돌뫼 시티': '⛏ 돌뫼 시티',
@@ -2729,7 +2744,7 @@ export const KO_STRINGS: Record<string, string> = {
   '장진호\nJangjin Lake': '장진호',
   '천지 (Cheonji) — the crater lake': '천지 — 백두산 정상의 화구호',
   '여명산\n(Mt. Yeomyeong)': '여명산',
-  '관문성 · PYEONGSEONG': '관문성',
+  '관문성 · PYEONGSEONG': '관문 시티',
   '강철도 평야\nHamhung Plain': '강철도 평야',
   '환웅 — Hwanwoong': '환웅',
   '～ East Sea (동해) ～': '～ 동해 ～',
@@ -2741,7 +2756,7 @@ export const KO_STRINGS: Record<string, string> = {
   '🏙️ Seolbong City (설봉시티)': '🏙️ 설봉시티',
   '🏙️ Geumgang City (금강 시티)': '🏙️ 금강 시티',
   '🏙️ Haean City (해안 시티)': '🏙️ 해안 시티',
-  '🏯 Songhyeon (송현)': '🏯 송현',
+  '🏯 Songhyeon (송현)': '🏯 송현 시티',
   '🏯 Northern League — 북방 리그': '🏯 북방 리그',
   '📜 Scholars\' Road (선비로)': '📜 선비로',
   '🔒 보석함 (locked)': '🔒 보석함 (잠김)',
@@ -2749,13 +2764,13 @@ export const KO_STRINGS: Record<string, string> = {
   '🔬 Professor Song\'s Lab — Sudo City (수도 시티)': '🔬 송 박사 연구소 — 수도 시티',
   '🗺️  ONNURI REGION MAP  ·  온누리 지역 지도': '🗺️  온누리 지역 지도',
   '🗿 고인돌 유적 — DOLMEN RUINS': '🗿 고인돌 유적',
-  '🚌 Bus → Songhyeon 송현': '🚌 버스 → 송현',
+  '🚌 Bus → Songhyeon 송현': '🚌 버스 → 송현 시티',
   '🏬 Capitol Dept. Store —': '🏬 소올 백화점 —',
   // ── Post-2026-07-29 content (auto-added) ──
   "Nobody reaches the stairs. Those are the 간부's orders. Back down with you!": "아무도 계단엔 못 간다. 그게 간부의 명령이야. 썩 내려가!",
   "One floor from the 간부. You'll go no further — 노스단 rises here!": "간부까지 한 층 남았군. 더는 못 간다 — 노스단은 여기서 일어선다!",
   "The 간부 is just above. Over my body — that's the only way up!": "간부는 바로 위에 계신다. 올라가려면 내 시체를 넘어야 할 거다!",
-  "So the 어사대's little champion crawls to the top. I am Clemont — Sovereign of 노스단. We will take Samho, the peak, and everything beyond it. You end HERE.": "어사대의 꼬마 챔피언이 꼭대기까지 기어 올라왔군. 나는 클레몽 — 노스단의 수장이다. 우리는 삼호를, 저 봉우리를, 그리고 그 너머 모든 것을 손에 넣는다. 넌 여기서 끝이다.",
+  "So the 어사대's little champion crawls to the top. I am Clemont — Sovereign of 노스단. We will take Samho, the peak, and everything beyond it. You end HERE.": "어사대의 꼬마 챔피언이 꼭대기까지 기어 올라왔군. 나는 클레몽 — 노스단의 수장이다. 우리는 삼호 마을을, 저 봉우리를, 그리고 그 너머 모든 것을 손에 넣는다. 넌 여기서 끝이다.",
   "어사대장 Seolwon now awaits your challenge at the 어사대 Hall.": "이제 어사대장 설원이 어사대 전당에서 너의 도전을 기다린다.",
   "The last 노스단 grunt flees, dropping a heavy iron key in the snow!": "마지막 노스단 부하가 무거운 쇠 열쇠를 눈밭에 떨어뜨리고 달아난다!",
   "노스단 grunts bar the gate. \"Beat us first if you think you're getting in!\"": "노스단 부하들이 문을 막아선다. \"들어가고 싶으면 먼저 우릴 이겨 봐!\"",
@@ -2856,12 +2871,12 @@ export const KO_STRINGS: Record<string, string> = {
   "Rival: 노스단, the vents, all of it — we saw it through. Nothing left to chase but a rematch someday.": "라이벌: 노스단도, 분화구도, 전부 — 우리가 끝까지 해냈지. 이제 남은 건 언젠가의 재대결뿐이야.",
   "You arrived at Pine Needle Town (솔잎 마을).": "너는 솔잎 마을에 도착했다.",
   "You lay your hand on the 고대 제단 (Ancient Altar). The stone is ice-cold, but it does not respond.": "너는 고대 제단에 손을 얹는다. 돌은 얼음처럼 차갑지만, 아무런 반응이 없다.",
-  "So the Inspectorate's dog reaches the very peak. Beyond lies Samho — and 노스단's road to the sacred mountain. You go no further!": "어사대의 개가 기어이 정상까지 왔군. 그 너머엔 삼호가 — 그리고 신성한 산으로 향하는 노스단의 길이 있다. 더는 못 간다!",
+  "So the Inspectorate's dog reaches the very peak. Beyond lies Samho — and 노스단's road to the sacred mountain. You go no further!": "어사대의 개가 기어이 정상까지 왔군. 그 너머엔 삼호 마을이 — 그리고 신성한 산으로 향하는 노스단의 길이 있다. 더는 못 간다!",
   "League Warden: Halt. The eight 어사대장 must vouch for you — in 마패.": "리그 관리관: 멈춰라. 여덟 어사대장이 너를 보증해야 한다 — 마패로써.",
   "League Warden: Excellent. All eight 마패 are in your possession, including the final tablet from Supreme Gwang himself.": "리그 관리관: 훌륭하다. 총수 광께서 친히 내리신 마지막 패를 포함해, 여덟 마패가 모두 네 손에 있군.",
   "At the Forest Shrine, Team Suri is mid-excavation. On the ridge, 노스단 watches — then moves on the shrine.": "숲 신전에서 수리단이 한창 발굴 중이다. 능선 위에선 노스단이 지켜보다가 — 이내 신전으로 움직인다.",
   "In the chaos, Admin Chaeyeon's grunts accidentally fight alongside you to drive 노스단 back.": "혼란 속에서, 채연 간부의 부하들이 얼떨결에 너와 나란히 싸우며 노스단을 몰아낸다.",
-  "So the Inspectorate's errand-runner reaches Yeomyeong. Beyond this fog is Muyeonhang — and 노스단 runs that port. Turn back!": "어사대의 심부름꾼이 여명까지 왔군. 이 안개 너머는 무연항이다 — 그 항구는 노스단이 장악하고 있지. 돌아가라!",
+  "So the Inspectorate's errand-runner reaches Yeomyeong. Beyond this fog is Muyeonhang — and 노스단 runs that port. Turn back!": "어사대의 심부름꾼이 여명까지 왔군. 이 안개 너머는 무연 시티다 — 그 항구는 노스단이 장악하고 있지. 돌아가라!",
   "You climb into Dolmoe City (돌뫼 시티) — a city hewn entirely from granite, dolmen fields and rock-cut Buddha carvings watching from the cliffs.": "너는 돌뫼 시티로 올라선다 — 온통 화강암으로 깎아 만든 도시로, 고인돌 벌판과 절벽에서 내려다보는 마애불이 있는 곳이다.",
   "Rival: 노스단 — that's what the locals call them. \"Group North.\" Ryeo's people.": "라이벌: 노스단 — 주민들이 저들을 그렇게 불러. \"북부 조직\"이라는 뜻이지. 려의 부하들이야.",
   "Prof. Song (comms): You made it across! 노스단's barge hit the same storm, so their head start is gone.": "송 박사 (통신): 무사히 건넜구나! 노스단의 바지선도 같은 폭풍에 걸려서, 그들의 앞선 출발은 무의미해졌어.",
@@ -3025,7 +3040,7 @@ export const KO_STRINGS: Record<string, string> = {
   "Hall of the High Wind": "높은바람의 전당",
   "(Backstage support restores your team to full health before the headline match.)": "(결승전에 앞서 무대 뒤 지원팀이 파티를 완전히 회복해 준다.)",
   "Royal Warden: ...Seven 마패. The regional inspectorate is satisfied, Champion.": "왕실 관리인: ...마패 일곱 개. 각 지방 어사대가 그대를 인정했군, 챔피언.",
-  "Royal Warden: Halt. None pass into Gwanmunseong without the inspectorate's 마패.": "왕실 관리인: 멈춰라. 어사대의 마패 없이는 누구도 관문성에 들어갈 수 없다.",
+  "Royal Warden: Halt. None pass into Gwanmunseong without the inspectorate's 마패.": "왕실 관리인: 멈춰라. 어사대의 마패 없이는 누구도 관문 시티에 들어갈 수 없다.",
   "▲ 동굴 입구 (cave mouth)": "▲ 동굴 입구",
   "❄ 능선 (windswept ridge)": "❄ 바람 부는 능선",
   "돌탑 (summit cairn)": "정상 돌탑",

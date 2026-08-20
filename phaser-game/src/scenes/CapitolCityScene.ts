@@ -593,7 +593,7 @@ export class CapitolCityScene extends Phaser.Scene {
         'Rival: Easy, Professor. We\'re barely sitting down. But when you\'re ready, Champion — the Taebaek range has some climbing left to do.',
         "Rival: ...Starting tomorrow, though. Tonight, you've earned the sleep.",
         'Phase 2: Northern League — UNLOCKED',
-        'Post-game unlocked: rechallenge the Rival in the Shadow Court, rematch Champion Hwangeum, explore the postgame world, and track the freed trio — 풍백, 우사, 운사 — at their mountain shrines.',
+        'Post-game unlocked: rematch Champion Hwangeum, explore the postgame world, and track the freed trio — 풍백, 우사, 운사 — at their mountain shrines.',
       ], () => {
         this.walkRival(rival, tag, stopY, startY, () => {
           rival.destroy(); tag.destroy();
