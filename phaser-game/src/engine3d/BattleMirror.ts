@@ -8,7 +8,7 @@ import { CreatureAnimator, MoveCategory } from './CreatureAnimator';
 import { measureCommands } from './GraphicsRaster';
 import { getModel, hasModel, isRenderableModel, manifestReady, modelLoadStatus, primeManifest } from './GlbModels';
 import { MoveFX3D } from './MoveFX3D';
-import { SnowFX } from './WeatherFX3D';
+import { RainFX, SandstormFX, SnowFX, SunFX, type WeatherFX3D } from './WeatherFX3D';
 import { makeBlobShadow, makePokeBallProp } from './Props';
 import { BALL_APPEARS, ROUTINE_LENGTH, sampleChampionIntro } from './ChampionChoreo';
 import { spriteScale } from '../data/SpriteScale';
@@ -103,7 +103,7 @@ const BATTLE_SIZE_OVERRIDES: Record<string, number> = {
   yeomtaeja: 0.78,
   thanatoat: 1.13,
   banderado: 1.10,
-  pipetiger: 1.12,
+  pipetiger: 0.9,   // 염흥왕 — 3D silhouette read too big; ~0.8× the old 1.12
   // Large armoured dragon/ship silhouette; keep its lightweight local GLB
   // imposing without letting the cannon overlap the opposing combatant.
   turtleship: 1.28,
@@ -270,8 +270,10 @@ export class BattleMirror {
   private onScreenTarget: (d: ScreenTargetRequest) => void;
   private onChargeFx: (d: ChargeFxRequest) => void;
   private onWeather: (w: unknown) => void;
-  /** Active 3D weather effect (snowfall under Snow Warning / hail). */
-  private snow: SnowFX | null = null;
+  /** Exactly one world-space weather system follows the authoritative battle
+   * state. Replacing it atomically prevents rain/snow/sand particles leaking
+   * into the next weather or the next battle. */
+  private weatherFx: WeatherFX3D | null = null;
   private weather = 'clear';
   private readonly projectionPoint = new THREE.Vector3();
   private readonly facingVector = new THREE.Vector3();
@@ -338,21 +340,29 @@ export class BattleMirror {
     this.built = true;
   }
 
-  /** Show/hide the 3D snowfall for the current battle weather. Only 'snow' has a
-   *  visual today; every other weather clears it. Idempotent per weather value. */
+  /** Apply volumetric field weather and matching 3D sky/light grading. */
   private setWeather(w: string): void {
-    if (w === this.weather) return;
-    this.weather = w;
-    if (w === 'snow') {
-      if (!this.snow) {
-        this.snow = new SnowFX();
-        this.root.add(this.snow.object);
-      }
-    } else if (this.snow) {
-      this.root.remove(this.snow.object);
-      this.snow.dispose();
-      this.snow = null;
-    }
+    const weather = /^(clear|rain|sun|sand|snow)$/.test(w) ? w as 'clear' | 'rain' | 'sun' | 'sand' | 'snow' : 'clear';
+    if (weather === this.weather) return;
+    this.weather = weather;
+    this.stage.setBattleWeather(weather);
+    this.clearWeatherFx();
+
+    // Keep every weather present on mobile while reducing only particle count.
+    // The sky, lighting, fog and animation remain identical across tiers.
+    const constrained = this.stage.performance.constrained;
+    if (weather === 'rain') this.weatherFx = new RainFX(constrained ? 300 : 520);
+    else if (weather === 'sun') this.weatherFx = new SunFX(constrained ? 55 : 90);
+    else if (weather === 'sand') this.weatherFx = new SandstormFX(constrained ? 250 : 420);
+    else if (weather === 'snow') this.weatherFx = new SnowFX(constrained ? 280 : 420);
+    if (this.weatherFx) this.root.add(this.weatherFx.object);
+  }
+
+  private clearWeatherFx(): void {
+    if (!this.weatherFx) return;
+    this.root.remove(this.weatherFx.object);
+    this.weatherFx.dispose();
+    this.weatherFx = null;
   }
 
   destroy(): void {
@@ -361,7 +371,7 @@ export class BattleMirror {
     this.scene.events.off('pk3d-screen-target', this.onScreenTarget);
     this.scene.events.off('pk3d-chargefx', this.onChargeFx);
     this.scene.events.off('pk3d-weather', this.onWeather);
-    if (this.snow) { this.root.remove(this.snow.object); this.snow.dispose(); this.snow = null; }
+    this.clearWeatherFx();
     this.fx.clearPersistentStatuses();
     for (const cb of this.combatants.values()) this.destroyFallbackSprite(cb);
     this.combatants.clear();
@@ -1287,7 +1297,7 @@ export class BattleMirror {
   // ── Frame sync ──
   update(dt: number): void {
     if (!this.built) return;
-    this.snow?.update(dt);
+    this.weatherFx?.update(dt);
     // Objects emitted through addedtoscene are only constructors at that point.
     // Jin's async scene exposed this race: its new Graphics had an empty command
     // buffer here, then the fullscreen 2D backdrop was drawn after we had already
