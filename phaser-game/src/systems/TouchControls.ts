@@ -28,6 +28,9 @@ const KEY = {
 /** Direct action bridge for scenes where an iOS synthetic key tap can fall
  * entirely between two Phaser frames. Keyboard Space remains the main path. */
 export const MOBILE_ACTION_EVENT = 'pokemonkorea:mobile-action';
+/** Direct menu bridge. Some standalone interiors do not register an M-key
+ * listener, and synthetic key taps can be lost while a lazy scene is swapping. */
+export const MOBILE_MENU_EVENT = 'pokemonkorea:mobile-menu';
 
 export function isTouchDevice(): boolean {
   return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -208,6 +211,16 @@ function tapButton(label: string, css: string, code: number): HTMLElement {
   bindTap(b, () => {
     b.style.background = GLASS_BG_ACTIVE;
     if (code === KEY.space) window.dispatchEvent(new Event(MOBILE_ACTION_EVENT));
+    if (code === KEY.m) {
+      // A cancelable request lets the central bridge claim gameplay taps. If no
+      // eligible map is active, retain the old M-key fallback (including using
+      // the same button to close an already-open menu).
+      const request = new Event(MOBILE_MENU_EVENT, { cancelable: true });
+      if (!window.dispatchEvent(request)) {
+        setTimeout(() => { b.style.background = idle; }, 140);
+        return;
+      }
+    }
     dispatchKey('keydown', code);
     setTimeout(() => { dispatchKey('keyup', code); b.style.background = idle; }, 140);
   });

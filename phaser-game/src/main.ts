@@ -24,6 +24,7 @@ import { TitleScene } from './scenes/TitleScene';
 import { configureRyeoBattleTest } from './scenes/RyeoBattleTestScene';
 import { createLazySceneTypes, materializeScene, STORY_SCENE_KEYS } from './systems/LazyScenes';
 import { setupMobileShell } from './systems/TouchControls';
+import { installMobileMenuBridge } from './systems/MobileMenuBridge';
 import { installFontScaling } from './systems/UiScale';
 import { initI18n, setLang } from './systems/i18n';
 import { PokemonFxPlugin } from './systems/PokemonFx';
@@ -542,6 +543,8 @@ const game = new Phaser.Game({
     autoCenter: shell.mobile ? Phaser.Scale.CENTER_HORIZONTALLY : Phaser.Scale.CENTER_BOTH,
   },
 });
+
+if (shell.mobile) installMobileMenuBridge(game);
 
 // visualViewport may resize after Safari's browser chrome moves without firing
 // a second ordinary resize after the emulator shell applies its new dimensions.
