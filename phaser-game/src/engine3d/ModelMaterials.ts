@@ -134,6 +134,15 @@ function productionMaterial(source: THREE.MeshStandardMaterial, meshName: string
   // such as Halubang rendered almost completely white. Keep every authored GLB
   // map and use our procedural texture only when the source truly has no map.
   const authoredBump = !!source.bumpMap;
+  // Vertex-coloured sculpture meshes (the generated Pokémon models) carry their
+  // colour in COLOR_0 and ship NO UVs. Injecting a procedural detail texture then
+  // samples it at UV (0,0) for every vertex — washing the whole model to one flat
+  // colour (it rendered solid white) and breaking its shading with a UV-less bump
+  // map. Such models keep their vertex colours untouched; only textured (UV'd)
+  // models receive the micro-detail colour/bump pass.
+  const vertexColoured = source.vertexColors === true && !source.map;
+  const detailColor = vertexColoured ? null : detail.color;
+  const detailBump = vertexColoured ? null : detail.height;
   const parameters: THREE.MeshPhysicalMaterialParameters = {
     name: source.name,
     color: source.color.clone(),
@@ -145,7 +154,7 @@ function productionMaterial(source: THREE.MeshStandardMaterial, meshName: string
     depthWrite: source.depthWrite,
     side: source.side,
     vertexColors: source.vertexColors,
-    map: source.map ?? detail.color,
+    map: source.map ?? detailColor,
     alphaMap: source.alphaMap,
     aoMap: source.aoMap,
     aoMapIntensity: source.aoMapIntensity,
@@ -156,7 +165,7 @@ function productionMaterial(source: THREE.MeshStandardMaterial, meshName: string
     normalMap: source.normalMap,
     normalScale: source.normalScale.clone(),
     roughnessMap: source.roughnessMap,
-    bumpMap: source.bumpMap ?? detail.height,
+    bumpMap: source.bumpMap ?? detailBump,
     bumpScale: source.bumpScale,
     roughness: source.roughness,
     metalness: source.metalness,

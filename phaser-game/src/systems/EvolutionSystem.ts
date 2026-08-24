@@ -9,6 +9,8 @@ import { customForm, isCustomKey } from '../data/CustomBattle';
 import { PartySystem, PartyEntry, baseStatsFromData, recomputeMaxHp } from './PartySystem';
 import { syncEntryMoves } from './PartyBattle';
 import { hpAfterMaxHpIncrease } from '../battle/LevelUpHp';
+import { STONE_EVOLUTIONS } from '../data/EvolutionStones';
+export { STONE_EVOLUTIONS } from '../data/EvolutionStones';
 
 // Combine starter evolutions with custom Pokédex evolution lines.
 const ALL_EVOLUTIONS: Record<string, { to: string; toName: string; level: number; addMoves?: string[] }> = { ...EVOLUTIONS };
@@ -26,10 +28,64 @@ export interface PendingEvolution {
   toKey:    string;
   toName:   string;
   addMoves?: string[];
+  stoneKey?: string;
+}
+
+const PENDING_STONE = 'pendingStoneEvolution';
+
+export function stoneEvolutionFor(entry: PartyEntry, stoneKey: string): PendingEvolution | null {
+  const rule = STONE_EVOLUTIONS.find(candidate =>
+    candidate.stoneKey === stoneKey && candidate.fromKey === entry.spriteKey,
+  );
+  if (!rule) return null;
+  const target = dexEntry(rule.toKey);
+  return {
+    slot: -1,
+    fromKey: entry.spriteKey,
+    fromName: entry.name,
+    toKey: rule.toKey,
+    toName: target?.name ?? rule.toKey,
+    stoneKey,
+  };
+}
+
+/** Queue a stone evolution for EvolutionScene. The caller consumes the stone
+ * only when this succeeds. */
+export function queueStoneEvolution(
+  registry: Phaser.Data.DataManager,
+  slot: number,
+  stoneKey: string,
+): PendingEvolution | null {
+  const entry = PartySystem.get(registry)[slot];
+  if (!entry) return null;
+  const pending = stoneEvolutionFor(entry, stoneKey);
+  if (!pending) return null;
+  pending.slot = slot;
+  registry.set(PENDING_STONE, JSON.stringify(pending));
+  return pending;
+}
+
+function pendingStoneEvolution(registry: Phaser.Data.DataManager): PendingEvolution | null {
+  const raw = registry.get(PENDING_STONE) as string | undefined;
+  if (!raw) return null;
+  try {
+    const pending = JSON.parse(raw) as PendingEvolution;
+    const current = PartySystem.get(registry)[pending.slot];
+    if (!current || current.spriteKey !== pending.fromKey || !pending.stoneKey) {
+      registry.remove(PENDING_STONE);
+      return null;
+    }
+    return pending;
+  } catch {
+    registry.remove(PENDING_STONE);
+    return null;
+  }
 }
 
 /** Find the first party slot whose Pokémon has reached its evolution level. */
 export function findPendingEvolution(registry: Phaser.Data.DataManager): PendingEvolution | null {
+  const stone = pendingStoneEvolution(registry);
+  if (stone) return stone;
   const party = PartySystem.get(registry);
   for (let i = 0; i < party.length; i++) {
     const e   = party[i];
@@ -60,7 +116,9 @@ export function applyEvolution(registry: Phaser.Data.DataManager, pending: Pendi
   // Localized name and ability are species-specific. Do not retain the
   // pre-evolution profile; MenuScene will hydrate missing official metadata.
   delete e.nameKo;
+  delete e.nameJa;
   delete e.abilityKo;
+  delete e.abilityJa;
   if (form) {
     e.spriteUrl = form.data.spriteUrl;
     e.type1 = form.data.type1;
@@ -96,6 +154,7 @@ export function applyEvolution(registry: Phaser.Data.DataManager, pending: Pendi
   e.hp = hpAfterMaxHpIncrease(e.hp, oldMax, e.maxHp);
   delete e.evoReady;   // consumed — the next evolution needs another level-up
   PartySystem.set(registry, party);
+  if (pending.stoneKey) registry.remove(PENDING_STONE);
 
   // Slot 0 is the active starter — keep legacy registry keys in sync
   if (pending.slot === 0) {

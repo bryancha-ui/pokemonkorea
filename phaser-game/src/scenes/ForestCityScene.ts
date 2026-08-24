@@ -117,7 +117,9 @@ export class ForestCityScene extends Phaser.Scene {
     this.setupCamera();
     this.setupInput();
     this.createUI();
-    installCeladonCityViewer(this);
+    // The third-party reference viewer is a development art-comparison aid,
+    // not part of the shipped world (and it requires an external iframe).
+    if (import.meta.env.DEV) installCeladonCityViewer(this);
     this.cameras.main.fadeIn(400);
     SaveManager.save(this.registry, this.px, this.py, 'ForestCityScene');
 

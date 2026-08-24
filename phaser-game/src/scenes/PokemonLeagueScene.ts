@@ -546,7 +546,16 @@ export class PokemonLeagueScene extends Phaser.Scene {
     }
   }
 
-  // ── Hall of Fame ──────────────────────────────────────────────────────────
+  // ── Champion's farewell ───────────────────────────────────────────────────
+  /**
+   * The half of the ending that belongs to the THRONE ROOM: Hwangeum, standing
+   * where he just lost, saying what he came to say — with his own 3D character
+   * present, because this is a conversation and not a results screen. He then
+   * walks the player to the registration room, and HallOfFameScene takes over.
+   *
+   * These used to be one sequence, so his farewell scrolled underneath a wall of
+   * plaques that had already appeared. Splitting them lets each beat land.
+   */
   private runHallOfFame() {
     // A rematch is any Hall of Fame run after the first (hallOfFame already set).
     const rematch = !!this.registry.get('leagueHallOfFameRematchPending');
@@ -557,121 +566,46 @@ export class PokemonLeagueScene extends Phaser.Scene {
     this.registry.set('leagueClears', clears);
     this.registry.set('hallOfFame', true);
     this.registry.set('championDefeated', true);
-    playBgm(this, 'halloffame');
-    this.cutsceneActive = true;
-    const W = this.scale.width, H = this.scale.height;
-
-    // Starry overlay (zoom-compensated like DialogBox).
-    const bg = this.add.rectangle(W / 2, H / 2, W, H, 0x05060f, 1);
-    const stars = this.add.graphics();
-    for (let i = 0; i < 90; i++) {
-      stars.fillStyle(0xffffff, Math.random() * 0.7 + 0.2);
-      stars.fillCircle(Math.random() * W, Math.random() * H, Math.random() < 0.2 ? 2 : 1);
-    }
-    const kids: Phaser.GameObjects.GameObject[] = [bg, stars];
-
-    // The dawn moth she now protects, small at the top. Kept high and compact so
-    // it never overlaps the centre Pokémon of the first party row (which shares the
-    // same x = W/2) — the player may also carry their own 나비할망.
-    if (this.textures.exists('nabihalmang')) {
-      const moth = this.add.image(W / 2, H * 0.115, 'nabihalmang').setAlpha(0);
-      this.fitImg(moth, 84);
-      this.tweens.add({ targets: moth, alpha: 1, duration: 1500 });
-      kids.push(moth);
-    }
-    const title = this.add.text(W / 2, H * 0.04, tr('🏆 HALL OF FAME'), {
-      fontSize: '26px', color: '#ffe88a', fontStyle: 'bold', stroke: '#000', strokeThickness: 5,
-    }).setOrigin(0.5);
-    kids.push(title);
-
-    // The champion's party, displayed graphically.
-    const party = PartySystem.get(this.registry);
-    const cols = 3, cellW = 230, cellH = 170;
-    const rowsN = Math.ceil(Math.max(party.length, 1) / cols);
-    // Clamp the grid's top so the first row always clears the moth above it.
-    const startY = Math.max(H * 0.36, H * 0.32 - (rowsN - 1) * cellH / 2);
-    party.forEach((e, i) => {
-      const col = i % cols, row = Math.floor(i / cols);
-      const inRow = Math.min(party.length - row * cols, cols);
-      const x = W / 2 + (col - (inRow - 1) / 2) * cellW;
-      const y = startY + row * cellH;
-      const items: Phaser.GameObjects.GameObject[] = [];
-      if (this.textures.exists(e.spriteKey)) {
-        const img = this.add.image(x, y, e.spriteKey).setAlpha(0);
-        this.fitImg(img, 116);
-        items.push(img);
-      } else {
-        items.push(this.add.circle(x, y, 40, 0x33405a).setAlpha(0));
-      }
-      const cap = this.add.text(x, y + 74, `${e.name}  Lv.${e.level}`, {
-        fontSize: '13px', color: '#fff', fontStyle: 'bold', stroke: '#000', strokeThickness: 4,
-      }).setOrigin(0.5).setAlpha(0);
-      items.push(cap);
-      kids.push(...items);
-      this.tweens.add({ targets: items, alpha: 1, duration: 600, delay: 400 + i * 220 });
-    });
-
-    // This overlay is created after the 3D interior mirror is active. Keep each
-    // child screen-fixed so the mirror never adopts and hides the ceremony art.
-    kids.forEach(kid => {
-      const screenObject = kid as Phaser.GameObjects.GameObject & {
-        setScrollFactor?: (x: number, y?: number) => unknown;
-      };
-      screenObject.setScrollFactor?.(0);
-    });
-    const root = this.add.container(0, 0, kids).setScrollFactor(0).setDepth(140);
-    const zoom = this.cameras.main?.zoom ?? 1, s = 1 / zoom;
-    root.setScale(s); root.setPosition((W / 2) * (1 - s), (H / 2) * (1 - s));
-
+    if (!rematch) this.registry.set('phase1Complete', true);
     PartySystem.healAll(this.registry);
-    const countLine = t(
-      `🏆 Hall of Fame registration — Clear No. ${clears}!`,
-      `🏆 명예의 전당 ${clears}회차 등록 완료!`,
-    );
+    this.cutsceneActive = true;
 
-    // The Hall of Fame is now a self-contained ceremony: enshrinement, credits and
-    // "THE END" only. The Rival's northern-news story plays SEPARATELY back in
-    // Capitol City (see CapitolCityScene.playCapitolRivalNews), triggered by the
-    // capitolRivalNewsPending flag set below.
-    const firstVictoryLines = [
-      'Hwangeum kneels to his fallen ace first — always his Pokémon first — then stands.',
-      'Hwangeum: ...Good. Three years I\'ve wondered when someone would come who could do this. I think I\'ve been waiting for you specifically.',
-      'Hwangeum (extending his hand): Welcome to the Hall of Fame. You earned every step of it.',
-      '🏆 Your team is recorded in the Hall of Fame!',
-      countLine,
-      '— The credits roll over a montage of the Onnuri League arc — Capitol City, the Diamond Gorge, the tidal coasts, the ancient forest, the Jeju vents, the Jeju Summit —',
-      "— culminating in 나비할망's metallic wings catching the dawn light as she settles beside you, the guardian of the south you have become.",
-      '— THE END —',
-      'Phase 1: Onnuri League — COMPLETE ✓',
-    ];
-    const rematchLines = [
+    // The quiet enshrinement theme starts the moment he begins to speak, not when
+    // the registration room opens. Without this the battle's popBgm restored
+    // Hwangeum's stage prelude — his pre-fight piano piece — and it played on
+    // under a scene that is no longer about the fight. HallOfFameScene asks for
+    // the same key, so the track simply carries across the transition unbroken.
+    playBgm(this, 'halloffame');
+
+    // He is flagged defeated by now, so drawMembers() has already skipped him.
+    // Put him back on the dais for the farewell: markTrainerPortrait tags the
+    // figure with his model key, which is what makes the 3D layer show the real
+    // rigged Hwangeum rather than a stand-in.
+    const hx = MEMBER_COL * TILE + 16, hy = MEMBER_ROW * TILE + 16;
+    const spot = this.add.graphics().setDepth(6);
+    spot.fillStyle(0xffd54a, 0.14); spot.fillCircle(hx, hy + 6, 2.2 * TILE);
+    spot.fillStyle(0xffe6a2, 0.10); spot.fillCircle(hx, hy + 6, 1.4 * TILE);
+    const champ = this.add.graphics().setDepth(8);
+    drawNpcBody(champ, CHAMPION.color);
+    champ.setPosition(hx, hy);
+    markTrainerPortrait(champ, CHAMPION.key);
+    champ.setAlpha(0);
+    this.tweens.add({ targets: [champ, spot], alpha: 1, duration: 700 });
+
+    const farewell = rematch ? [
       'Hwangeum: ...Beaten again — and by a wider margin than before. Of course. You truly are the Champion of the south.',
       'Hwangeum: Every one of us climbed back stronger to challenge you, and still you stand above us all.',
-      '🏆 Your team is enshrined in the Hall of Fame once more!',
-      countLine,
-      'Your Pokémon have been fully restored. You will now return to the Pokémon League entrance.',
+      'Hwangeum: Come. The register is waiting, same as always.',
+    ] : [
+      'Hwangeum kneels to his fallen ace first — always his Pokémon first — then stands.',
+      "Hwangeum: ...Good. Three years I've wondered when someone would come who could do this. I think I've been waiting for you specifically.",
+      'Hwangeum (extending his hand): Welcome to the Hall of Fame. You earned every step of it.',
+      'Hwangeum: The registration room is through here. Walk in with me — your team should hear their own names read out.',
     ];
 
-    if (!rematch) this.registry.set('phase1Complete', true);
-    this.dialog.show(rematch ? rematchLines : firstVictoryLines, () => {
+    this.dialog.show(farewell, () => {
       this.cameras.main.fadeOut(900, 0, 0, 0, () => {
-        if (rematch) {
-          // Fresh gauntlet next time, and drop the player back at the League entrance.
-          this.registry.set('hanbandoLeagueFloor', 1);
-          this.registry.remove('leagueReturnX');
-          this.registry.remove('leagueReturnY');
-          const px = 14 * 32, py = 12 * 32 + 16;
-          this.registry.set('leaguePlazaReturnX', px);
-          this.registry.set('leaguePlazaReturnY', py);
-          SaveManager.save(this.registry, px, py, 'LeaguePlazaScene');
-          this.scene.start('LeaguePlazaScene');
-          return;
-        }
-        // The Rival delivers the northern news back in Capitol City, not here.
-        this.registry.set('capitolRivalNewsPending', true);
-        this.registry.set('capitalReturnX', 24 * 32 + 16);
-        this.registry.set('capitalReturnY', 31 * 32 + 16);
-        this.scene.start('CapitolCityScene');
+        this.scene.start('HallOfFameScene', { rematch, clears });
       });
     });
   }

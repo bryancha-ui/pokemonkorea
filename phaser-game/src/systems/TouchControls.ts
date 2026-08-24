@@ -1,9 +1,5 @@
 import { LANG_EVENT, t, tr, typeName } from './i18n';
-
-const GAME_ASPECT = 16 / 9;
-/** Portrait viewports at or below this CSS width are phones, and are asked to
- *  rotate. Above it (tablets, unfolded foldables) portrait stays playable. */
-const PHONE_PORTRAIT_MAX_WIDTH = 560;
+import { calculateMobileShellLayout } from './MobileShellLayout';
 // ── Mobile "dual-screen" shell + on-screen controls ──────────────────────────
 // On touch devices the page is split like a Nintendo DS: the Phaser game canvas
 // lives on the TOP screen, and a solid control DECK fills the BOTTOM screen so the
@@ -304,9 +300,13 @@ function syncMobileLayout(): void {
   mobileLayoutFrame = requestAnimationFrame(() => {
     mobileLayoutFrame = 0;
     const viewport = window.visualViewport;
-    const vw = Math.max(240, Math.round(viewport?.width ?? window.innerWidth));
-    const vh = Math.max(180, Math.round(viewport?.height ?? window.innerHeight));
-    const portrait = vh >= vw;
+    const layout = calculateMobileShellLayout(
+      viewport?.width ?? window.innerWidth,
+      viewport?.height ?? window.innerHeight,
+      immersiveView,
+    );
+    const vw = layout.viewportWidth;
+    const vh = layout.viewportHeight;
     // The play screen is the largest 16:9 rectangle that FITS INSIDE the viewport,
     // centred with letterbox margins. It used to COVER the viewport instead, which
     // scaled the canvas up until the overflowing edges were clipped away — on a
@@ -317,8 +317,7 @@ function syncMobileLayout(): void {
     // mobileSafeInsets() consequently reports no inset here; edge-anchored UI stays
     // where the scenes author it, and the calculation still protects anything that
     // asks about a genuinely cropped layout.
-    const gameWidth = Math.min(vw, vh * GAME_ASPECT);
-    const gameHeight = gameWidth / GAME_ASPECT;
+    const { gameWidth, gameHeight } = layout;
     lastLayout = { vw, vh, gameWidth, gameHeight };
 
     document.body.style.minHeight = '0px';
@@ -330,7 +329,7 @@ function syncMobileLayout(): void {
     gamePane.style.height = `${Math.round(gameHeight)}px`;
     // The deck is a fixed full-viewport overlay; it does not size a pane.
     applyDeckVisibility();
-    deck.dataset.layout = portrait ? 'portrait' : 'landscape';
+    deck.dataset.layout = layout.portrait ? 'portrait' : 'landscape';
     deck.dataset.viewport = `${vw}x${vh}`;
     gamePane.dataset.layout = deck.dataset.layout;
     gamePane.dataset.viewport = deck.dataset.viewport;
@@ -339,8 +338,7 @@ function syncMobileLayout(): void {
     // Phaser watches resize, but visualViewport can change without a window
     // resize when mobile browser chrome expands/collapses.
     window.dispatchEvent(new CustomEvent('pokemonkorea:mobile-layout', {
-      detail: { width: vw, height: vh, portrait, stacked: false, direction: 'overlay',
-        gameWidth, gameHeight, deckWidth: 0, deckHeight: 0 },
+      detail: { ...layout, width: vw, height: vh },
     }));
   });
 }
@@ -365,11 +363,13 @@ function syncMobileLayoutSettled(): void {
  */
 function analogStick(): HTMLElement {
   const base = document.createElement('div');
+  base.dataset.role = 'movement-pad';
   base.setAttribute('role', 'application');
   localize(() => base.setAttribute('aria-label', t('Movement joystick', '이동 조이스틱')));
   base.style.cssText =
-    'position:absolute;left:calc(var(--u)*0.5);bottom:calc(var(--u)*0.5);' +
-    'width:calc(var(--u)*8.4);height:calc(var(--u)*8.4);border-radius:50%;' +
+    'position:absolute;left:max(env(safe-area-inset-left),calc(var(--u)*0.5));' +
+    'bottom:max(env(safe-area-inset-bottom),calc(var(--u)*0.5));' +
+    'width:min(calc(var(--u)*8.4),38vw,46vh);height:min(calc(var(--u)*8.4),38vw,46vh);border-radius:50%;' +
     'pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none;' +
     'box-sizing:border-box;border:2px solid rgba(180,208,255,0.30);' +
     // The disc is the single largest thing on the deck, so it is the most
@@ -591,9 +591,11 @@ export function setupMobileShell(force = false): { parent: HTMLElement | undefin
   /** True when the viewport is an upright phone — the one case worth gating. */
   const needsRotation = (): boolean => {
     const viewport = window.visualViewport;
-    const vw = viewport?.width ?? window.innerWidth;
-    const vh = viewport?.height ?? window.innerHeight;
-    return vh > vw && vw <= PHONE_PORTRAIT_MAX_WIDTH;
+    return calculateMobileShellLayout(
+      viewport?.width ?? window.innerWidth,
+      viewport?.height ?? window.innerHeight,
+      immersiveView,
+    ).rotationRequired;
   };
   const syncGate = () => {
     const show = needsRotation() && !immersiveView;
@@ -671,14 +673,21 @@ function buildControlLayer(): void {
   // A / B — bottom-right cluster.
   // A/B keep their green/red identity, but only as a wash — they sit on the same
   // bottom band as the dialogue box, so a filled disc would cover the text.
-  const a = tapButton('A',  'position:absolute;right:calc(var(--u)*0.5);bottom:calc(var(--u)*1.1);width:calc(var(--u)*4.2);height:calc(var(--u)*4.2);border-radius:50%;font-size:calc(var(--u)*1.85);background:rgba(52,148,92,0.26);border-color:rgba(150,240,190,0.42);', KEY.space);
-  const b = holdButton('B', 'position:absolute;right:calc(var(--u)*4.9);bottom:calc(var(--u)*1.2);width:calc(var(--u)*3.4);height:calc(var(--u)*3.4);border-radius:50%;font-size:calc(var(--u)*1.5);background:rgba(172,74,74,0.26);border-color:rgba(255,178,178,0.42);', KEY.shift);
+  const safeRight = 'max(env(safe-area-inset-right),calc(var(--u)*0.5))';
+  const safeBottom = 'max(env(safe-area-inset-bottom),calc(var(--u)*1.1))';
+  const a = tapButton('A',  `position:absolute;right:${safeRight};bottom:${safeBottom};width:calc(var(--u)*4.2);height:calc(var(--u)*4.2);border-radius:50%;font-size:calc(var(--u)*1.85);background:rgba(52,148,92,0.26);border-color:rgba(150,240,190,0.42);`, KEY.space);
+  const b = holdButton('B', 'position:absolute;right:max(env(safe-area-inset-right),calc(var(--u)*4.9));bottom:max(env(safe-area-inset-bottom),calc(var(--u)*1.2));width:calc(var(--u)*3.4);height:calc(var(--u)*3.4);border-radius:50%;font-size:calc(var(--u)*1.5);background:rgba(172,74,74,0.26);border-color:rgba(255,178,178,0.42);', KEY.shift);
 
   // Utility pills — top-right of the deck.
   const pill = 'top:calc(var(--u)*0.35);width:calc(var(--u)*2.7);height:calc(var(--u)*2.7);border-radius:calc(var(--u)*0.55);font-size:calc(var(--u)*1.25);';
-  const menu = tapButton('☰',  `position:absolute;right:calc(var(--u)*0.5);${pill}`, KEY.m);
-  const back = tapButton('✕',  `position:absolute;right:calc(var(--u)*3.5);${pill}`, KEY.esc);
-  const bike = tapButton('🚲', `position:absolute;right:calc(var(--u)*6.5);${pill}`, KEY.c);
+  const menu = tapButton('☰',  `position:absolute;right:max(env(safe-area-inset-right),calc(var(--u)*0.5));${pill}`, KEY.m);
+  const back = tapButton('✕',  `position:absolute;right:max(env(safe-area-inset-right),calc(var(--u)*3.5));${pill}`, KEY.esc);
+  const bike = tapButton('🚲', `position:absolute;right:max(env(safe-area-inset-right),calc(var(--u)*6.5));${pill}`, KEY.c);
+  menu.dataset.role = 'menu-button';
+  back.dataset.role = 'back-button';
+  bike.dataset.role = 'bike-button';
+  a.dataset.role = 'action-a';
+  b.dataset.role = 'action-b';
 
   // A/B fade smoothly when dialogue makes them translucent.
   a.style.transition = (a.style.transition ? a.style.transition + ',' : '') + 'opacity 140ms ease';
@@ -707,7 +716,7 @@ export function deckSetDialogueMode(active: boolean): void {
 function buildBattleActionLayer(): void {
   const layer = document.createElement('div');
   layer.style.cssText =
-    'position:absolute;left:0;right:0;bottom:0;height:min(60vh,calc(var(--u)*10.5));' +
+    'position:absolute;left:0;right:0;top:50%;bottom:0;height:auto;' +
     'display:none;flex-direction:column;padding:calc(var(--u)*0.5);box-sizing:border-box;pointer-events:none;' +
     // A light scrim only, so the battle dialogue line behind the commands stays
     // readable instead of disappearing under a near-solid panel.
@@ -738,7 +747,7 @@ function buildMoveLayer(): void {
   // the tighter cap left it 41px on a short landscape phone — enough for the name
   // only, so the type badge and remaining PP were silently clipped off. The layer
   // is translucent now, so claiming the extra band costs nothing visually.
-  layer.style.cssText = 'position:absolute;left:0;right:0;bottom:0;height:min(66vh,calc(var(--u)*10.5));display:none;flex-direction:column;padding:calc(var(--u)*0.5);box-sizing:border-box;pointer-events:none;background:linear-gradient(180deg,rgba(11,15,30,0) 0%,rgba(11,15,30,0.14) 14%,rgba(11,15,30,0.3) 36%);';
+  layer.style.cssText = 'position:absolute;left:0;right:0;top:50%;bottom:0;height:auto;display:none;flex-direction:column;padding:calc(var(--u)*0.5) max(env(safe-area-inset-right),calc(var(--u)*0.5)) max(env(safe-area-inset-bottom),calc(var(--u)*0.5)) max(env(safe-area-inset-left),calc(var(--u)*0.5));box-sizing:border-box;pointer-events:none;background:linear-gradient(180deg,rgba(11,15,30,0.08) 0%,rgba(11,15,30,0.32) 24%,rgba(11,15,30,0.5) 100%);';
   const title = document.createElement('div');
   localize(() => { title.textContent = t('CHOOSE A MOVE', '기술을 선택하세요'); });
   // Title + BACK are deliberately compact: on a 390px-tall landscape phone the
@@ -765,7 +774,7 @@ function buildMoveLayer(): void {
 function buildPartyLeadLayer(): void {
   const layer = document.createElement('div');
   layer.style.cssText =
-    'position:absolute;left:0;right:0;bottom:0;height:min(66vh,calc(var(--u)*12));' +
+    'position:absolute;left:0;right:0;top:50%;bottom:0;height:auto;' +
     'display:none;flex-direction:column;padding:calc(var(--u)*0.45);box-sizing:border-box;pointer-events:none;' +
     'background:linear-gradient(180deg,rgba(11,15,30,0) 0%,rgba(11,15,30,0.16) 12%,rgba(11,15,30,0.32) 30%);';
 

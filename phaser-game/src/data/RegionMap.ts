@@ -83,7 +83,8 @@ export const REGION_NODES: RegionNode[] = [
 
   { id: 'capitol', scene: 'CapitolCityScene', name: 'Capitol City', kr: '수도시티',
     nx: 0.54, ny: 0.45, kind: 'city', fly: true, region: 'south', returnKey: 'capital',
-    scenes: ['CapitolCityScene', 'CapitolTowerScene', 'CapitolGymScene', 'CapitolPCScene',
+    scenes: ['CapitolCityScene', 'CapitolTowerScene', 'CapitolGymScene',
+             'CapitolGymMirrorRoomScene', 'CapitolGymVeilRoomScene', 'CapitolGymSanctumScene', 'CapitolPCScene',
              'CapitolPalaceScene', 'CapitolMarketScene', 'SudoLabScene', 'SeoulScene'] },
 
   { id: 'route2', scene: 'Route2Scene', name: 'Route 2', kr: '2번 도로',

@@ -193,11 +193,11 @@ export class EggHatchScene extends Phaser.Scene {
   }
 
   private onPokemonRevealed(): void {
-    const name = t(this.child.name, this.child.nameKo || this.child.name);
+    const name = t(this.child.name, this.child.nameKo || this.child.name, this.child.nameJa || this.child.name);
     const where = this.destination === 'party'
-      ? t('It joined your party!', '파티에 합류했다!')
-      : t('It was sent to the PC Box.', 'PC 보관함으로 전송되었다.');
-    this.status.setText(`${t(`${name} hatched from the Egg!`, `알에서 ${name}(이)가 부화했다!`)}\n${where}`);
+      ? t('It joined your party!', '파티에 합류했다!', 'てもちに 加わった！')
+      : t('It was sent to the PC Box.', 'PC 보관함으로 전송되었다.', 'ボックスへ 送られた。');
+    this.status.setText(`${t(`${name} hatched from the Egg!`, `알에서 ${name}(이)가 부화했다!`, `タマゴから ${name}が 生まれた！`)}\n${where}`);
   }
 
   private finish(): void {

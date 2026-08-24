@@ -4,6 +4,7 @@ import { playChargeFX, playDrainFX, playMoveFX, playStatusFX } from './BattleFX'
 import {
   abilityEvasionMultiplier, activateEntryAbilities, blocksPowderMove,
   blocksSecondaryEffects, extraPpCost, statusBeforeMove,
+  battleWeather, setBattleWeather, type BattleWeather,
 } from './AbilitySystem';
 
 type EffectTarget = 'user' | 'target';
@@ -20,6 +21,9 @@ interface EffectSpec {
   clearNegative?: boolean;
   statusCondition?: string;
   statusChance?: number;
+  weather?: BattleWeather;
+  confuse?: boolean;
+  leechSeed?: boolean;
 }
 
 const sc = (stat: BattleStat, change: number): MoveStatChange => ({ stat, change });
@@ -43,6 +47,20 @@ const EFFECTS: Record<string, EffectSpec> = {
   // Recoil attacks. Brave Bird is authored locally as well as obtainable from
   // PokeAPI, so this fallback also repairs existing cached/local move records.
   'brave bird': { recoil: 33 },
+
+  // Field weather. These moves now affect battle calculations and emit the
+  // matching volumetric 3D field presentation.
+  'sunny day': { weather: 'sun', target: 'user' },
+  snowscape: { weather: 'snow', target: 'user' },
+  hail: { weather: 'snow', target: 'user' },
+  'rain dance': { weather: 'rain', target: 'user' },
+  sandstorm: { weather: 'sand', target: 'user' },
+
+  // Persistent/volatile field conditions.
+  'leech seed': { leechSeed: true, target: 'target' },
+  supersonic: { confuse: true, target: 'target' },
+  'confuse ray': { confuse: true, target: 'target' },
+  swagger: { confuse: true, statChanges: [sc('atk', 2)], target: 'target' },
 
   // Self rank-up moves
   'swords dance': { statChanges: [sc('atk', 2)], target: 'user' },
@@ -99,7 +117,7 @@ const EFFECTS: Record<string, EffectSpec> = {
   'thunder wave': { statusCondition: 'par', statusChance: 100 },
   'stun spore': { statusCondition: 'par', statusChance: 100 },
   'will o wisp': { statusCondition: 'brn', statusChance: 100 },
-  toxic: { statusCondition: 'psn', statusChance: 90 },
+  toxic: { statusCondition: 'tox', statusChance: 90 },
   'poison powder': { statusCondition: 'psn', statusChance: 75 },
   'poison gas': { statusCondition: 'psn', statusChance: 90 },
   spore: { statusCondition: 'slp', statusChance: 100 },
@@ -138,6 +156,9 @@ function specFor(move: MoveData): EffectSpec {
     clearNegative: fallback.clearNegative,
     statusCondition: move.statusCondition ?? fallback.statusCondition,
     statusChance: move.statusChance ?? fallback.statusChance,
+    weather: fallback.weather,
+    confuse: fallback.confuse,
+    leechSeed: fallback.leechSeed,
   };
 }
 
@@ -220,6 +241,7 @@ interface AppliedEffects {
   changeTarget: EffectTarget;
   changeDirection: -1 | 0 | 1;
   visual: boolean;
+  weather?: BattleWeather;
 }
 
 function applyEffects(user: Pokemon, target: Pokemon, move: MoveData, damage: number): AppliedEffects {
@@ -231,6 +253,16 @@ function applyEffects(user: Pokemon, target: Pokemon, move: MoveData, damage: nu
   const changeTarget = spec.target ?? (move.category === 'status' ? 'target' : 'user');
   const affected = changeTarget === 'user' ? user : target;
   let hpTarget: EffectTarget = 'user';
+
+  if (spec.weather) {
+    setBattleWeather(user, target, spec.weather);
+    const message: Record<BattleWeather, string> = {
+      clear: 'The weather cleared!', rain: 'It started to rain!',
+      sun: 'The sunlight turned harsh!', sand: 'A sandstorm kicked up!',
+      snow: 'Snow began to fall!',
+    };
+    messages.push(message[spec.weather]);
+  }
 
   if (spec.healing) {
     hpTarget = changeTarget;
@@ -285,11 +317,23 @@ function applyEffects(user: Pokemon, target: Pokemon, move: MoveData, damage: nu
     if (target.trySetStatus(spec.statusCondition, user)) {
       const label: Record<string, string> = {
         par: 'was paralyzed', brn: 'was burned', psn: 'was poisoned',
-        slp: 'fell asleep', frz: 'was frozen',
+        tox: 'was badly poisoned', slp: 'fell asleep', frz: 'was frozen',
       };
       messages.push(`${target.name} ${label[spec.statusCondition] ?? 'was afflicted'}!`);
       changeDirection = -1;
     }
+  }
+  if (spec.confuse && !secondaryBlocked) {
+    if (target.confuse()) {
+      messages.push(`${target.name} became confused!`);
+      changeDirection = -1;
+    } else messages.push(`${target.name} is already confused!`);
+  }
+  if (spec.leechSeed && !secondaryBlocked) {
+    if (target.seed(user)) {
+      messages.push(`${target.name} was seeded!`);
+      changeDirection = -1;
+    } else messages.push(`Leech Seed could not affect ${target.name}!`);
   }
   return {
     healed,
@@ -299,7 +343,9 @@ function applyEffects(user: Pokemon, target: Pokemon, move: MoveData, damage: nu
     messages,
     changeTarget,
     changeDirection,
-    visual: !!(spec.healing || spec.drain || spec.statChanges?.length || spec.clearNegative || spec.statusCondition),
+    visual: !!(spec.healing || spec.drain || spec.statChanges?.length || spec.clearNegative
+      || spec.statusCondition || spec.weather || spec.confuse || spec.leechSeed),
+    weather: spec.weather,
   };
 }
 
@@ -390,7 +436,7 @@ export function executeBattleMove(ctx: BattleMoveContext): void {
 
       if (ctx.move.data.power > 0) {
         const hpBeforeHit = ctx.target.hp;
-        const hit = ctx.target.takeDamage(ctx.move, ctx.user);
+        const hit = ctx.target.takeDamage(ctx.move, ctx.user, battleWeather(ctx.user, ctx.target));
         // Recoil and draining moves are based on damage actually removed, not
         // uncapped overkill damage from the raw damage formula.
         const damageDealt = Math.min(hpBeforeHit, hit.dmg);
@@ -400,6 +446,7 @@ export function executeBattleMove(ctx: BattleMoveContext): void {
         if (ctx.target.isKO) cancelCharge(ctx.scene, ctx.target, ctx.targetSprite);
         playMoveFX(ctx.scene, ctx.userSprite, ctx.targetSprite, ctx.move.data, hit.effectiveness, () => ctx.animateTargetHp(() => {
           const fx = applyEffects(ctx.user, ctx.target, ctx.move.data, damageDealt);
+          if (fx.weather) ctx.scene.events.emit('pk3d-weather', battleWeather(ctx.user, ctx.target));
           effectAnimation(ctx, fx, () => {
             const messages: string[] = [];
             if (hit.critical) messages.push('A critical hit!');
@@ -418,6 +465,7 @@ export function executeBattleMove(ctx: BattleMoveContext): void {
       }
 
       const fx = applyEffects(ctx.user, ctx.target, ctx.move.data, 0);
+      if (fx.weather) ctx.scene.events.emit('pk3d-weather', battleWeather(ctx.user, ctx.target));
       effectAnimation(ctx, fx, () => {
         const messages = fx.messages.length ? fx.messages : ['But it failed!'];
         showMessages(ctx, messages, () => ctx.onComplete({
@@ -435,10 +483,12 @@ export function executeBattleMove(ctx: BattleMoveContext): void {
   };
 
   const afterEntry = () => {
-    const status = statusBeforeMove(ctx.user, ctx.target);
+    const status = statusBeforeMove(ctx.user, ctx.target, ctx.move);
     const next = () => {
       if (status.blocked) {
-        ctx.onComplete({ damage: 0, critical: false, effectiveness: 1, charged: false, missed: false });
+        const complete = () => ctx.onComplete({ damage: 0, critical: false, effectiveness: 1, charged: false, missed: false });
+        if (status.hpChanged) ctx.animateUserHp(complete);
+        else complete();
       } else {
         performMove();
       }

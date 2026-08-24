@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 
 import Phaser from 'phaser';
+import { t } from './i18n';
 
 type SceneConstructor = new () => Phaser.Scene;
 type SceneModule = Record<string, unknown>;
@@ -26,6 +27,12 @@ const MODULE_OVERRIDES: Record<string, string> = {
   HamhungNaengmyeonScene: '../scenes/interior/HamhungNaengmyeonScene.ts',
   NorthernBuildingScene: '../scenes/interior/NorthernBuildingScene.ts',
 
+  // The four Shadow Gym rooms share one implementation/data chunk while still
+  // remaining independent Phaser scenes with their own save/return positions.
+  CapitolGymMirrorRoomScene: '../scenes/CapitolGymScene.ts',
+  CapitolGymVeilRoomScene: '../scenes/CapitolGymScene.ts',
+  CapitolGymSanctumScene: '../scenes/CapitolGymScene.ts',
+
   FerryCorridorScene: '../scenes/ShipInterior.ts',
   FerryRoomAScene: '../scenes/ShipInterior.ts',
   FerryRoomBScene: '../scenes/ShipInterior.ts',
@@ -50,7 +57,8 @@ export const STORY_SCENE_KEYS = [
   'WorldMapScene', 'PlayerHomeScene', 'PokemonCenterScene', 'RivalHomeScene',
   'StarterSelectScene', 'RivalBattleScene', 'MenuScene', 'RouteScene',
   'WildBattleScene', 'SeoulScene', 'TrainerBattleScene', 'CapitolCityScene',
-  'CapitolTowerScene', 'CapitolGymScene', 'GymLeaderBattleScene', 'CapitolPCScene',
+  'CapitolTowerScene', 'CapitolGymScene', 'CapitolGymMirrorRoomScene',
+  'CapitolGymVeilRoomScene', 'CapitolGymSanctumScene', 'GymLeaderBattleScene', 'CapitolPCScene',
   'CapitolPalaceScene', 'CapitolAssemblyScene', 'CapitolLibraryScene',
   'CapitolMarketScene', 'EvolutionScene', 'EggHatchScene', 'Route2Scene',
   'PineNeedleTownScene', 'PineNeedlePCScene', 'PineNeedleStudioScene',
@@ -65,8 +73,8 @@ export const STORY_SCENE_KEYS = [
   'Route6Scene', 'SunriseCityScene', 'SunrisePCScene', 'SunriseGymScene',
   'SunriseCliff1Scene', 'SunriseCliff2Scene', 'SunriseCliff3Scene',
   'BaekduCheckpointScene', 'BaekduSummitScene', 'ScholarsRoadScene',
-  'LeaguePlazaScene', 'PokemonLeagueScene', 'RegionMapScene',
-  'NorthernColiseumScene', 'NorthernPlazaScene', 'PyeongyangCityScene',
+  'LeaguePlazaScene', 'LeaguePCScene', 'PokemonLeagueScene', 'HallOfFameScene', 'RegionMapScene',
+  'NorthernColiseumScene', 'NorthernPlazaScene', 'NorthernPCScene', 'PyeongyangCityScene',
   'NorthernReachesScene', 'SacredPeakScene', 'DolmoeCityScene', 'DolmoeGymScene',
   'DolmoeRuinsScene', 'DolmoePCScene', 'DolmoeMineScene', 'SeoraePassScene',
   'OceanScene', 'MartScene', 'DeptStoreScene', 'SeoraeTownScene', 'SeoraePCScene',
@@ -89,6 +97,56 @@ export const STORY_SCENE_KEYS = [
 
 const scenePromises = new Map<string, Promise<SceneConstructor>>();
 let gameplayPluginsPromise: Promise<void> | null = null;
+
+// ── Stale-deployment recovery ────────────────────────────────────────────────
+// Every build hashes its chunk filenames. A player who keeps the game open across
+// a redeploy is running an index bundle that asks for chunk names the server no
+// longer has, so the FIRST unvisited area they walk into 404s — which is exactly
+// the "Unable to load this area" screen, and why it clustered late in long
+// sessions rather than at boot. No amount of retrying can fix that: the running
+// page itself is stale, and only a fresh document can name the new chunks.
+//
+// So a fetch failure that looks like a missing module reloads the page once. The
+// game autosaves on entering every area, so the player resumes where they were.
+// The guard is per-tab and cleared by the next successful chunk load, which makes
+// a reload loop impossible while still protecting a later redeploy in the same
+// session.
+const STALE_RELOAD_KEY = 'pk_stale_chunk_reload';
+
+function sessionFlag(key: string): boolean {
+  try { return sessionStorage.getItem(key) === '1'; } catch { return false; }
+}
+function setSessionFlag(key: string, on: boolean): void {
+  try { if (on) sessionStorage.setItem(key, '1'); else sessionStorage.removeItem(key); } catch { /* private mode */ }
+}
+
+/** Does this failure mean the running page is asking for chunks that are gone? */
+function isStaleChunkError(error: unknown): boolean {
+  const err = error as { message?: string; name?: string } | undefined;
+  const text = `${err?.name ?? ''} ${err?.message ?? String(error)}`;
+  return /dynamically imported module|module script failed|Unable to preload|Loading chunk|ChunkLoadError|Failed to fetch|NetworkError|error loading/i.test(text);
+}
+
+/**
+ * Reload to pick up the current deployment. Returns false when a reload has
+ * already been spent this session, so the caller can fall back to its own error
+ * surface rather than reloading forever.
+ */
+function recoverFromStaleDeployment(): boolean {
+  if (sessionFlag(STALE_RELOAD_KEY)) return false;
+  setSessionFlag(STALE_RELOAD_KEY, true);
+  try { window.location.reload(); } catch { return false; }
+  return true;
+}
+
+// Vite raises this on the window when a preloaded chunk cannot be fetched. Left
+// unhandled it becomes an uncaught error banner over the game; handled here it is
+// the earliest possible signal that the deployment moved under us.
+if (typeof window !== 'undefined') {
+  window.addEventListener('vite:preloadError', event => {
+    event.preventDefault();          // the scene loader below owns the recovery
+  });
+}
 
 /** TitleScene does not walk, breed, hatch eggs, or show the pedometer. Installing
  * this scene plugin only when the first production destination is requested
@@ -164,32 +222,50 @@ export function createLazySceneTypes(keys: readonly string[]): SceneConstructor[
 
       create(): void {
         const message = this.add.text(this.scale.width / 2, this.scale.height / 2,
-          'Loading…', { fontSize: '18px', color: '#dce8ff' }).setOrigin(0.5).setAlign('center');
+          t('Loading…', '불러오는 중…'), { fontSize: '18px', color: '#dce8ff' })
+          .setOrigin(0.5).setAlign('center');
         const data = this.launchData;
 
         const attempt = (triesLeft: number): void => {
           void Promise.all([ensureGameplayPlugins(this.game), loadSceneClass(sceneKey)]).then(([, SceneType]) => {
+            // This build's chunks are reachable, so re-arm the one-shot reload for
+            // any redeploy that lands later in the same session.
+            setSessionFlag(STALE_RELOAD_KEY, false);
             const manager = this.scene.manager;
             manager.remove(sceneKey);
             manager.add(sceneKey, SceneType, true, data);
           }).catch(error => {
             console.error(`[scene] Failed to load ${sceneKey} (${triesLeft} retries left):`, error);
             if (triesLeft > 0) {
-              // Most failures here are a transient mobile fetch hiccup. The rejected
-              // import promise was just dropped from the cache, so wait a beat and
-              // re-fetch the chunk automatically before bothering the player.
-              message.setText('Loading…\n(reconnecting)').setColor('#dce8ff');
-              this.time.delayedCall(600, () => attempt(triesLeft - 1));
+              // Might still be a transient mobile fetch hiccup. The rejected import
+              // promise was just dropped from the cache, so back off and re-fetch
+              // before doing anything the player can notice.
+              message.setText(t('Loading…\n(reconnecting)', '불러오는 중…\n(재연결)')).setColor('#dce8ff');
+              this.time.delayedCall(500 * (3 - triesLeft), () => attempt(triesLeft - 1));
               return;
             }
-            // Out of automatic retries — likely a stale chunk hash from a redeploy,
-            // which only a fresh page fetch can fix. A tap reloads; the game resumes
-            // from the last autosave (the battle hadn't started yet).
-            message.setText('Unable to load this area.\nTap to reload.').setColor('#ffb9b9');
-            this.input.once('pointerdown', () => window.location.reload());
+            // Retries are exhausted. If this looks like a chunk that no longer
+            // exists, the page is stale and reloading is the actual fix — do it
+            // automatically instead of stranding the player behind a tap.
+            if (isStaleChunkError(error) && recoverFromStaleDeployment()) {
+              message.setText(t('Updating to the latest version…', '최신 버전을 적용하는 중…'))
+                .setColor('#dce8ff');
+              return;
+            }
+            message.setText(t('Unable to load this area.\nTap to reload.',
+              '이 지역을 불러오지 못했습니다.\n탭하면 다시 시도합니다.')).setColor('#ffb9b9');
+            this.input.once('pointerdown', () => {
+              // A plain reload can be answered from the HTTP cache, which on a
+              // stale document changes nothing. Force a fresh URL for this one.
+              try {
+                const url = new URL(window.location.href);
+                url.searchParams.set('r', String(Date.now()));
+                window.location.replace(url.toString());
+              } catch { window.location.reload(); }
+            });
           });
         };
-        attempt(2);   // up to 3 total attempts before surfacing the error
+        attempt(3);   // up to 4 total attempts before reloading or surfacing an error
       }
     };
   });

@@ -1,348 +1,485 @@
 import Phaser from 'phaser';
-import { tr } from '../systems/i18n';
-import { playBgm } from '../systems/Music';
 import { drawTrainerBody, markProceduralCharacter3D, playerDesign } from '../data/CharacterSprite';
-import { vanishesAfterDefeat } from '../data/Villains';
-import { DialogBox } from '../ui/DialogBox';
-import { fetchPokemon, fetchMove } from '../data/PokeAPI';
+import { playBgm } from '../systems/Music';
+import { t, tr } from '../systems/i18n';
+import {
+  SHADOW_GYM_ROOMS,
+  shadowCandidateKind,
+  shadowCloneFlag,
+  shadowRoomClearFlag,
+  type ShadowGymRoom,
+  type ShadowGymPokemon,
+} from '../systems/ShadowGymPuzzle';
 import { SaveManager } from '../utils/SaveManager';
-import { markTrainerPortrait } from '../data/BattlePortraits';
-
-interface GymTrainer {
-  key: string; name: string; line: string;
-  col: number; row: number;
-  pokemon: { id: number; level: number }[];
-  expPool: number;
-  defeated: boolean;
-}
+import { DialogBox } from '../ui/DialogBox';
 
 const IT = 36;
+const W = 16;
+const H = 14;
+const CANDIDATE_POSITIONS = [
+  { col: 4, row: 6.5 },
+  { col: 8, row: 5.5 },
+  { col: 12, row: 6.5 },
+] as const;
 
-export class CapitolGymScene extends Phaser.Scene {
+type EntrySide = 'north' | 'south';
+
+function localized(en: string, ko: string, ja: string): string {
+  return t(en, ko, ja);
+}
+
+function roomTitle(stage: number): string {
+  const titles = [
+    localized('Hall of Fading Shadows', '흐린 그림자의 방', '薄影の間'),
+    localized('Hall of Mirrors', '거울 그림자의 방', '鏡影の間'),
+    localized('Hall of the Black Veil', '검은 장막의 방', '黒い帳の間'),
+    localized('Sanctum of the True Shadow', '진짜 그림자의 성소', '真影の聖域'),
+  ];
+  return titles[stage - 1] ?? titles[0];
+}
+
+/**
+ * One reusable room implementation powers four independently registered Phaser
+ * scenes. Each room owns one real trainer and two visually identical clones;
+ * touching a clone tears the illusion open into a genuine wild encounter.
+ */
+abstract class ShadowGymRoomScene extends Phaser.Scene {
+  public interior3D = true;
+
   private playerG!: Phaser.GameObjects.Graphics;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private spaceKey!: Phaser.Input.Keyboard.Key;
   private wasd!: Record<string, Phaser.Input.Keyboard.Key>;
   private dialog!: DialogBox;
   private cutsceneActive = false;
-  private px = 0; private py = 0;
-  private facing = 0; private walkFrame = 0; private walkTimer = 0;
-  private readonly SPEED = 100;
-  private readonly W = 16; private readonly H = 14;  // room grid
+  private exiting = false;
+  private px = 0;
+  private py = 0;
+  private facing = 1;
+  private walkFrame = 0;
+  private walkTimer = 0;
+  private entrySide: EntrySide = 'south';
+  private encounterReadyAt = 0;
+  private gateHintShown = false;
+  private readonly speed = 100;
 
-  private trainers: GymTrainer[] = [
-    {
-      key: 'shadow-miso', name: 'Shadow Trainer Miso',
-      line: 'Miso: In darkness, only the strong survive!',
-      col: 8, row: 11,
-      pokemon: [{ id: 198, level: 7 }],   // Murkrow (reduced from 9)
-      expPool: 130, defeated: false,
-    },
-    {
-      key: 'shadow-jaemin', name: 'Shadow Trainer Jaemin',
-      line: "Jaemin: Leader Jin's shadows protect this hall!",
-      col: 8, row: 7,
-      pokemon: [{ id: 261, level: 8 }, { id: 228, level: 9 }],  // reduced from 10/11
-      expPool: 240, defeated: false,
-    },
-    {
-      key: 'shade-yuna', name: 'Shade Trainer Yuna',
-      line: "Yuna: You'll face the true dark here!",
-      col: 8, row: 3,
-      pokemon: [{ id: 215, level: 9 }, { id: 198, level: 10 }],  // reduced from 11/12
-      expPool: 300, defeated: false,
-    },
-  ];
-
-  constructor() { super('CapitolGymScene'); }
-
-  create() {
-
-    playBgm(this, 'gyminterior');
-    this.cutsceneActive = false;
-    this.input.keyboard?.resetKeys();
-
-    // Load defeated state — use the same key that TrainerBattleScene writes
-    this.trainers.forEach(t => {
-      t.defeated = !!this.registry.get(`trainerDefeated_${t.key}`);
-    });
-
-    this.px = 8 * IT + IT / 2;
-    this.py = 10 * IT + IT / 2;   // start well above the exit threshold
-
-    // Return to where you were standing before the battle (not the entry).
-    const gpx = this.registry.get('gymPosX') as number | undefined;
-    const gpy = this.registry.get('gymPosY') as number | undefined;
-    if (gpx !== undefined) { this.px = gpx; this.py = gpy as number; }
-    this.registry.remove('gymPosX'); this.registry.remove('gymPosY');
-
-    this.drawGym();
-    this.drawLeader();
-    this.drawTrainers();
-    this.createPlayer();
-    this.setupInput();
-    // No zoom — keeps DialogBox (scrollFactor:0) on screen correctly.
-    // The 36px tiles at 1:1 scale fill the 1280×720 canvas well.
-    this.cameras.main.setBounds(0, 0, this.W * IT, this.H * IT);
-    this.cameras.main.startFollow(this.playerG, true, 0.1, 0.1);
-    this.cameras.main.fadeIn(300);
-
-    this.dialog = new DialogBox(this, 1280, 720);
-    // The gym scene is recreated after every trainer battle. Play the entrance
-    // card only on the first visit so returning from battle never looks like a
-    // warp back to the beginning of the gym.
-    const firstEntry = !this.registry.get('capitolGymEntered');
-    this.registry.set('capitolGymEntered', true);
-    if (firstEntry) {
-      this.dialog.show([
-        'You entered the Capitol Gym!',
-        'The air feels cold and heavy with shadow...',
-        'Defeat the three Shadow Trainers to reach Leader Jin.',
-      ], () => { this.cutsceneActive = false; });
-      this.cutsceneActive = true;
-    } else {
-      this.cutsceneActive = false;
-    }
+  protected constructor(private readonly room: ShadowGymRoom) {
+    super(room.sceneKey);
   }
 
-  private drawGym() {
+  init(data?: { entry?: EntrySide }): void {
+    this.entrySide = data?.entry ?? 'south';
+  }
+
+  create(): void {
+    playBgm(this, 'gyminterior');
+    this.cutsceneActive = false;
+    this.exiting = false;
+    this.gateHintShown = false;
+    this.input.keyboard?.resetKeys();
+
+    this.restorePosition();
+    this.drawRoom();
+    this.drawCandidates();
+    this.createPlayer();
+    this.setupInput();
+
+    this.cameras.main.setBounds(0, 0, W * IT, H * IT);
+    this.cameras.main.startFollow(this.playerG, true, 0.1, 0.1);
+    this.cameras.main.fadeIn(260);
+    this.dialog = new DialogBox(this, 1280, 720);
+    this.encounterReadyAt = this.time.now + 650;
+
+    this.registry.set('shadowGymCurrentRoom', this.room.stage);
+    this.rememberPosition();
+    this.showRoomIntroduction();
+  }
+
+  private restorePosition(): void {
+    this.px = 8 * IT + IT / 2;
+    this.py = this.entrySide === 'north' ? 2.7 * IT : (H - 2.7) * IT;
+    this.facing = this.entrySide === 'north' ? 0 : 1;
+
+    const battleX = this.registry.get('gymPosX');
+    const battleY = this.registry.get('gymPosY');
+    const resumeXKey = `${this.room.sceneKey}ReturnX`;
+    const resumeYKey = `${this.room.sceneKey}ReturnY`;
+    const resumeX = this.registry.get(resumeXKey);
+    const resumeY = this.registry.get(resumeYKey);
+    if (Number.isFinite(battleX) && Number.isFinite(battleY)) {
+      this.px = Number(battleX);
+      this.py = Number(battleY);
+    } else if (Number.isFinite(resumeX) && Number.isFinite(resumeY)) {
+      this.px = Number(resumeX);
+      this.py = Number(resumeY);
+    }
+    this.registry.remove('gymPosX');
+    this.registry.remove('gymPosY');
+    this.registry.remove(resumeXKey);
+    this.registry.remove(resumeYKey);
+  }
+
+  private rememberPosition(): void {
+    // Keep menu/manual saves and battle victory saves anchored to this exact room,
+    // even when the player's automatic-save preference is disabled.
+    this.registry.set('lastScene', this.room.sceneKey);
+    this.registry.set('lastX', this.px);
+    this.registry.set('lastY', this.py);
+    SaveManager.autoSave(this.registry, this.px, this.py, this.room.sceneKey);
+  }
+
+  private showRoomIntroduction(): void {
+    const seenKey = `shadowGymRoomSeen_${this.room.sceneKey}`;
+    if (this.registry.get(seenKey) || this.registry.get('gymLeaderDefeated')) return;
+    this.registry.set(seenKey, true);
+    this.cutsceneActive = true;
+
+    const intros: string[][] = [
+      [
+        localized('You enter the Shadow Clone Trial.', '그림자분신술의 시련에 들어섰다.', '影分身の試練へ足を踏み入れた。'),
+        localized('Three identical silhouettes wait in separate chambers. Only one in each room is real.', '각 방마다 똑같은 그림자 셋이 기다린다. 그중 진짜는 단 하나뿐이다.', '各部屋には同じ姿の影が三つ。だが本物は一人だけだ。'),
+        localized('Touch a false shadow and the Pokémon hidden inside it will attack.', '가짜 분신에 닿으면 그 안에 숨은 야생 포켓몬이 덤벼든다.', '偽の影に触れると、その中に潜む野生のポケモンが襲いかかる。'),
+      ],
+      [localized('The second room reflects every movement. Find Jaemin among the copies.', '두 번째 방은 모든 움직임을 비춘다. 분신 속에서 재민을 찾아라.', '第二の部屋はあらゆる動きを映す。分身の中からジェミンを探せ。')],
+      [localized('A black veil swallows every clue. Yuna is somewhere in the darkness.', '검은 장막이 모든 단서를 삼킨다. 유나는 이 어둠 속 어딘가에 있다.', '黒い帳がすべての手掛かりを奪う。ユナはこの闇のどこかにいる。')],
+      [localized('Only one of these shadows is Leader Jin. The others are his final decoys.', '이 그림자 중 하나만이 관장 진이다. 나머지는 마지막 분신이다.', 'この影の一つだけがジン館長。残りは最後の分身だ。')],
+    ];
+    this.dialog.show(intros[this.room.stage - 1] ?? intros[0], () => {
+      this.cutsceneActive = false;
+      this.encounterReadyAt = this.time.now + 450;
+    });
+  }
+
+  private drawRoom(): void {
+    const width = W * IT;
+    const height = H * IT;
     const g = this.add.graphics().setDepth(0);
-    const W = this.W * IT, H = this.H * IT;
+    const floorA = [0x17142c, 0x18132f, 0x111225, 0x0d0b1d][this.room.stage - 1];
+    const floorB = [0x21183b, 0x241742, 0x19132f, 0x17102b][this.room.stage - 1];
+    const accent = [0x8d52d9, 0xab65f0, 0x7040bb, 0xc07aff][this.room.stage - 1];
 
-    // Dark gym floor
-    g.fillStyle(0x1a1a2e); g.fillRect(0, 0, W, H);
-
-    // Purple energy floor tiles
-    for (let r = 1; r < this.H - 1; r++) {
-      for (let c = 1; c < this.W - 1; c++) {
-        const col = (r + c) % 2 === 0 ? 0x1e1e3a : 0x16162e;
-        g.fillStyle(col); g.fillRect(c * IT, r * IT, IT, IT);
+    g.fillStyle(floorA); g.fillRect(0, 0, width, height);
+    for (let row = 1; row < H - 1; row++) {
+      for (let col = 1; col < W - 1; col++) {
+        g.fillStyle((row + col + this.room.stage) % 2 === 0 ? floorA : floorB);
+        g.fillRect(col * IT, row * IT, IT, IT);
       }
     }
 
-    // Dark energy lines
-    g.lineStyle(1, 0x440088, 0.4);
-    for (let r = 0; r <= this.H; r++) g.lineBetween(0, r * IT, W, r * IT);
-    for (let c = 0; c <= this.W; c++) g.lineBetween(c * IT, 0, c * IT, H);
-
-    // Walls
-    g.fillStyle(0x0a0a1e);
-    g.fillRect(0, 0, W, IT); g.fillRect(0, 0, IT, H);
-    g.fillRect(W - IT, 0, IT, H); g.fillRect(0, H - IT, W, IT);
-
-    // Shadow pillars (decorative)
-    const pillars = [[3,2],[12,2],[3,6],[12,6],[3,10],[12,10]];
-    for (const [c, r] of pillars) {
-      g.fillStyle(0x330055); g.fillRect(c * IT, r * IT, IT, IT * 2);
-      g.lineStyle(2, 0x9933cc, 0.8); g.strokeRect(c * IT, r * IT, IT, IT * 2);
-      // Purple glow
-      g.fillStyle(0x6600aa, 0.2); g.fillCircle(c * IT + IT / 2, r * IT, IT);
+    // The three converging paths make every silhouette equally plausible.
+    g.lineStyle(3, accent, 0.34);
+    for (const pos of CANDIDATE_POSITIONS) {
+      g.beginPath();
+      g.moveTo(width / 2, (H - 1) * IT);
+      g.lineTo(pos.col * IT + IT / 2, pos.row * IT + IT / 2);
+      g.lineTo(width / 2, IT);
+      g.strokePath();
     }
 
-    // Leader's platform (top)
-    g.fillStyle(0x330066); g.fillRect(4 * IT, 0, 8 * IT, 2 * IT);
-    g.lineStyle(2, 0x9933cc); g.strokeRect(4 * IT, 0, 8 * IT, 2 * IT);
-    g.fillStyle(0xaa44ff, 0.15); g.fillRect(4 * IT, 0, 8 * IT, 2 * IT);
+    g.fillStyle(0x070713);
+    g.fillRect(0, 0, width, IT);
+    g.fillRect(0, 0, IT, height);
+    g.fillRect(width - IT, 0, IT, height);
+    g.fillRect(0, height - IT, width, IT);
 
-    // Shadow emblem
-    g.fillStyle(0x6600aa, 0.4); g.fillCircle(W / 2, IT, IT * 1.5);
-    g.lineStyle(3, 0xaa44ff, 0.6); g.strokeCircle(W / 2, IT, IT * 1.5);
+    // North seal and south threshold.
+    g.fillStyle(this.roomCleared() ? 0x9a62e8 : 0x30134f);
+    g.fillRect(7 * IT, 0, 2 * IT, IT);
+    g.lineStyle(2, this.roomCleared() ? 0xe5c8ff : 0x6c388e, 0.9);
+    g.strokeRect(7 * IT, 0, 2 * IT, IT);
+    g.fillStyle(0x5b3492); g.fillRect(7 * IT, height - IT, 2 * IT, IT);
 
-    // Entry door
-    g.fillStyle(0x6633aa); g.fillRect(7 * IT, H - IT, 2 * IT, IT);
+    // Shadow columns and mirrored pools give every room its own enclosed stage.
+    for (const col of [2, 13]) {
+      for (const row of [2, 8]) {
+        g.fillStyle(0x26103f); g.fillRect(col * IT, row * IT, IT, IT * 2);
+        g.lineStyle(2, accent, 0.7); g.strokeRect(col * IT, row * IT, IT, IT * 2);
+        g.fillStyle(accent, 0.12); g.fillCircle(col * IT + IT / 2, row * IT, IT * 0.9);
+      }
+    }
 
-    // "GYM" title — pinned to the very top edge so it clears LEADER JIN's
-    // nameplate (both are centred on the leader's column; at y=IT they overlapped).
-    this.add.text(W / 2, 12, tr('CAPITOL GYM'), {
-      fontSize: '11px', color: '#cc88ff', fontStyle: 'bold',
-      stroke: '#000', strokeThickness: 3,
-    }).setOrigin(0.5).setDepth(11);
-
-    const texKey = '__gymMap__';
-    if (this.textures.exists(texKey)) this.textures.remove(texKey);
-    g.generateTexture(texKey, W, H);
+    const textureKey = `__shadowGymRoom_${this.room.stage}__`;
+    if (this.textures.exists(textureKey)) this.textures.remove(textureKey);
+    g.generateTexture(textureKey, width, height);
     g.destroy();
-    this.add.image(0, 0, texKey).setOrigin(0, 0).setDepth(0);
+    this.add.image(0, 0, textureKey).setOrigin(0, 0).setDepth(0);
+
+    this.add.text(width / 2, 12, roomTitle(this.room.stage), {
+      fontSize: '12px', color: '#ead8ff', fontStyle: 'bold',
+      stroke: '#080410', strokeThickness: 4,
+    }).setOrigin(0.5).setDepth(8);
+    this.add.text(width / 2, 31,
+      localized(`SHADOW TRIAL ${this.room.stage} / 4`, `그림자 시련 ${this.room.stage} / 4`, `影の試練 ${this.room.stage} / 4`), {
+        fontSize: '8px', color: '#a987d2', backgroundColor: '#08041099', padding: { x: 4, y: 2 },
+      }).setOrigin(0.5).setDepth(8);
+
+    if (this.roomCleared()) {
+      this.add.text(width / 2, IT * 1.55,
+        this.room.nextScene
+          ? localized('▲ PASSAGE OPEN ▲', '▲ 다음 방 개방 ▲', '▲ 次の間へ ▲')
+          : localized('THE TRUE SHADOW HAS YIELDED', '진짜 그림자가 패배했다', '真影は敗れた'), {
+          fontSize: '9px', color: '#e8cfff', fontStyle: 'bold',
+          backgroundColor: '#180b2acc', padding: { x: 5, y: 3 },
+        }).setOrigin(0.5).setDepth(9);
+    }
+
+    this.drawShadowMist(accent);
   }
 
-  // Leader Jin stands at his dais at the top of the hall, guarding the way.
-  private drawLeader() {
-    const x = (this.W * IT) / 2, y = IT * 1.9;
-    const g = this.add.graphics().setDepth(9);
-    g.setPosition(x, y);
-    // Shadow pool
-    g.fillStyle(0x000000, 0.25); g.fillEllipse(0, 15, 22, 7);
-    // Long dark robe
-    g.fillStyle(0x2a1440); g.fillRect(-10, -6, 20, 22);
-    g.fillStyle(0x3a1c5a); g.fillRect(-10, -6, 20, 6);       // shoulders
-    g.fillStyle(0xaa44ff, 0.9); g.fillRect(-2, -4, 4, 16);   // glowing sash
-    // Arms
-    g.fillStyle(0x2a1440); g.fillRect(-13, -4, 4, 12); g.fillRect(9, -4, 4, 12);
-    // Head + hair
-    g.fillStyle(0xffcc99); g.fillRect(-6, -20, 12, 12);
-    g.fillStyle(0x140820); g.fillRect(-7, -21, 14, 6);
-    g.fillStyle(0x000000); g.fillRect(-4, -14, 2, 2); g.fillRect(2, -14, 2, 2);
-    // Purple aura
-    g.lineStyle(2, 0xaa44ff, 0.5); g.strokeCircle(0, 0, 20);
-    markTrainerPortrait(g, 'capitol-jin');
-
-    this.add.text(x, y - 30, tr('LEADER JIN'), {
-      fontSize: '9px', color: '#cc88ff', fontStyle: 'bold',
-      backgroundColor: '#00000088', padding: { x: 4, y: 2 },
-    }).setOrigin(0.5).setDepth(10);
-  }
-
-  private drawTrainers() {
-    for (const t of this.trainers) {
-      if (t.defeated && vanishesAfterDefeat(t.key)) continue;
-      const x = t.col * IT + IT / 2, y = t.row * IT + IT / 2;
-      const g = this.add.graphics().setDepth(10);
-      g.setPosition(x, y);
-      // Shadow-styled trainer
-      g.fillStyle(0x000000, 0.2); g.fillEllipse(0, 13, 16, 5);
-      g.fillStyle(0x330066); g.fillRect(-8, -8, 16, 11);
-      g.fillStyle(0x330066); g.fillRect(-12, -7, 5, 9); g.fillRect(7, -7, 5, 9);
-      g.fillStyle(0x1a1a1a); g.fillRect(-6, 3, 5, 9); g.fillRect(1, 3, 5, 9);
-      g.fillStyle(0xddbbff); g.fillRect(-7, -22, 14, 12);
-      g.fillStyle(0x220044); g.fillRect(-7, -22, 14, 5);
-      g.fillStyle(0xff6600); g.fillRect(-3, -16, 2, 2); g.fillRect(1, -16, 2, 2);
-      markProceduralCharacter3D(g, {
-        outfit: 0x330066, hair: 0x220044, skin: 0xddbbff,
-        footY: 13, outfitStyle: 'uniform',
+  private drawShadowMist(accent: number): void {
+    for (let i = 0; i < 12; i++) {
+      const mist = this.add.ellipse(
+        IT * (1.5 + (i * 1.17) % 13),
+        IT * (2.2 + (i * 2.31) % 9),
+        20 + (i % 3) * 12,
+        7 + (i % 2) * 4,
+        accent,
+        0.08,
+      ).setDepth(2);
+      this.tweens.add({
+        targets: mist,
+        x: mist.x + (i % 2 === 0 ? 28 : -28),
+        alpha: { from: 0.035, to: 0.13 },
+        duration: 2100 + i * 90,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.InOut',
       });
-
-      // Translate the short name (e.g. Jaemin → 재민) via the i18n table.
-      this.add.text(x, y - 28, tr(t.name.split(' ').pop() ?? t.name), {
-        fontSize: '8px', color: '#cc88ff', backgroundColor: '#00000088', padding: { x: 2, y: 1 },
-      }).setOrigin(0.5).setDepth(11);
     }
   }
 
-  private createPlayer() {
+  private drawCandidates(): void {
+    if (this.roomCleared()) return;
+    this.room.candidates.forEach((_, index) => {
+      if (shadowCandidateKind(this.room, index) === 'clone'
+        && this.registry.get(shadowCloneFlag(this.room, index))) return;
+      const pos = CANDIDATE_POSITIONS[index];
+      const x = pos.col * IT + IT / 2;
+      const y = pos.row * IT + IT / 2;
+      const figure = this.add.graphics().setPosition(x, y).setDepth(10);
+
+      // Every candidate intentionally shares the exact same silhouette and 3D
+      // metadata. The true answer cannot be read from costume, tint or body shape.
+      figure.fillStyle(0x000000, 0.48); figure.fillEllipse(0, 15, 27, 9);
+      figure.fillStyle(0x1a0d2d); figure.fillTriangle(-12, 15, 12, 15, 8, -7);
+      figure.fillStyle(0x32154e); figure.fillRect(-10, -8, 20, 13);
+      figure.fillStyle(0x20102f); figure.fillRect(-14, -6, 5, 13); figure.fillRect(9, -6, 5, 13);
+      figure.fillStyle(0xbda4d4); figure.fillCircle(0, -17, 7);
+      figure.fillStyle(0x10081b); figure.fillRect(-8, -23, 16, 8);
+      figure.fillStyle(0xc67cff); figure.fillCircle(-3, -17, 1.5); figure.fillCircle(3, -17, 1.5);
+      figure.lineStyle(2, 0xa05ee8, 0.72); figure.strokeCircle(0, -2, 22);
+      markProceduralCharacter3D(figure, {
+        outfit: 0x32154e, hair: 0x10081b, skin: 0xbda4d4,
+        footY: 15, outfitStyle: 'robe',
+      });
+      this.tweens.add({
+        targets: figure,
+        alpha: { from: 0.68, to: 1 },
+        y: y - 3,
+        duration: 980,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.InOut',
+      });
+      this.add.text(x, y - 38, '???', {
+        fontSize: '9px', color: '#d7b5ff', backgroundColor: '#080410bb', padding: { x: 4, y: 2 },
+      }).setOrigin(0.5).setDepth(11);
+    });
+  }
+
+  private createPlayer(): void {
     this.playerG = this.add.graphics().setDepth(20);
     this.redrawPlayer();
   }
 
-  private redrawPlayer() {
-    const g = this.playerG;
-    // Gender-aware body (was a hardcoded red-shirt boy).
-    drawTrainerBody(g, this.facing, this.walkFrame, playerDesign(this.registry));
-    g.setPosition(this.px, this.py);
+  private redrawPlayer(): void {
+    this.playerG.clear();
+    drawTrainerBody(this.playerG, this.facing, this.walkFrame, playerDesign(this.registry));
+    this.playerG.setPosition(this.px, this.py);
   }
 
-  private setupInput() {
-    this.cursors  = this.input.keyboard!.createCursorKeys();
+  private setupInput(): void {
+    this.cursors = this.input.keyboard!.createCursorKeys();
     this.spaceKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     this.wasd = {
-      up:    this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.W),
-      down:  this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.S),
-      left:  this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.A),
+      up: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.W),
+      down: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.S),
+      left: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.A),
       right: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.D),
     };
-    // Open the party/bag menu anytime in the gym
-    this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.M).on('down', () => { if (!this.cutsceneActive) this.scene.launch('MenuScene'); });
-    this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.B).on('down', () => { if (!this.cutsceneActive) this.scene.launch('MenuScene'); });
+    this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.M).on('down', () => {
+      if (!this.cutsceneActive && !this.exiting) this.scene.launch('MenuScene');
+    });
+    this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.B).on('down', () => {
+      if (!this.cutsceneActive && !this.exiting) this.scene.launch('MenuScene');
+    });
   }
 
-  update(_: number, delta: number) {
+  update(_: number, delta: number): void {
+    if (this.exiting) return;
     if (this.cutsceneActive) {
-      // Allow SPACE to advance dialogs even while frozen
       if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) this.dialog.advance();
       return;
     }
 
     const dt = delta / 1000;
-    let dx = 0, dy = 0;
-    if (this.cursors.left.isDown  || this.wasd.left.isDown)  { dx = -1; this.facing = 2; }
-    if (this.cursors.right.isDown || this.wasd.right.isDown) { dx =  1; this.facing = 3; }
-    if (this.cursors.up.isDown    || this.wasd.up.isDown)    { dy = -1; this.facing = 1; }
-    if (this.cursors.down.isDown  || this.wasd.down.isDown)  { dy =  1; this.facing = 0; }
+    let dx = 0;
+    let dy = 0;
+    if (this.cursors.left.isDown || this.wasd.left.isDown) { dx = -1; this.facing = 2; }
+    if (this.cursors.right.isDown || this.wasd.right.isDown) { dx = 1; this.facing = 3; }
+    if (this.cursors.up.isDown || this.wasd.up.isDown) { dy = -1; this.facing = 1; }
+    if (this.cursors.down.isDown || this.wasd.down.isDown) { dy = 1; this.facing = 0; }
 
-    if (dx !== 0 || dy !== 0) {
-      const len = Math.sqrt(dx * dx + dy * dy);
-      const nx = this.px + (dx / len) * this.SPEED * dt;
-      const ny = this.py + (dy / len) * this.SPEED * dt;
-      const hw = 6;
-      const checkX = (x: number, y: number) =>
-        x < IT || x > (this.W - 1) * IT || y < IT || y > (this.H - 1) * IT;
-      if (!checkX(nx, this.py)) this.px = nx;
-      if (!checkX(this.px, ny)) this.py = ny;
-
+    if (dx || dy) {
+      const length = Math.hypot(dx, dy);
+      const nx = this.px + dx / length * this.speed * dt;
+      const ny = this.py + dy / length * this.speed * dt;
+      const outside = (x: number, y: number) =>
+        x < IT || x > (W - 1) * IT || y < IT || y > (H - 1) * IT;
+      if (!outside(nx, this.py)) this.px = nx;
+      if (!outside(this.px, ny)) this.py = ny;
       this.walkTimer += delta;
       if (this.walkTimer > 180) { this.walkFrame ^= 1; this.walkTimer = 0; }
-      void hw;
-    } else { this.walkFrame = 0; }
+    } else {
+      this.walkFrame = 0;
+    }
 
     this.redrawPlayer();
-    this.checkTrainers();
-    this.checkLeaderApproach();
-    this.checkExit();
+    this.checkCandidates();
+    this.checkDoors();
   }
 
-  private checkTrainers() {
-    // ── Sync defeated flags FIRST so the distance check sees up-to-date state ──
-    for (const t of this.trainers) {
-      if (!t.defeated && !!this.registry.get(`trainerDefeated_${t.key}`)) {
-        t.defeated = true;
-      }
-    }
+  private checkCandidates(): void {
+    if (this.time.now < this.encounterReadyAt || this.roomCleared()) return;
+    for (let index = 0; index < this.room.candidates.length; index++) {
+      const kind = shadowCandidateKind(this.room, index);
+      if (kind === 'clone' && this.registry.get(shadowCloneFlag(this.room, index))) continue;
+      const pos = CANDIDATE_POSITIONS[index];
+      const x = pos.col * IT + IT / 2;
+      const y = pos.row * IT + IT / 2;
+      if (Math.hypot(this.px - x, this.py - y) >= IT * 1.25) continue;
 
-    // ── Then check proximity ──
-    for (const t of this.trainers) {
-      if (t.defeated) continue;
-      const tx = t.col * IT + IT / 2, ty = t.row * IT + IT / 2;
-      if (Math.hypot(this.px - tx, this.py - ty) < IT * 1.4) {
-        this.cutsceneActive = true;
-        this.dialog.show([t.line, `${tr(t.name)}: Prepare yourself!`], () => {
-          this.registry.set('trainerName',        tr(t.name));
-          this.registry.set('trainerKey',         t.key);
-          this.registry.set('trainerPokemon',     JSON.stringify(t.pokemon));
-          this.registry.set('trainerExpPool',     t.expPool);
-          this.registry.set('trainerReturnScene', 'CapitolGymScene');
-          this.registry.set('gymPosX', this.px); this.registry.set('gymPosY', this.py);
-          this.registry.set('capitalReturnX',     this.px);
-          this.registry.set('capitalReturnY',     this.py);
-          this.cameras.main.fadeOut(400, 0, 0, 0, () => {
-            this.scene.start('TrainerBattleScene');
-          });
-        });
-        return;
-      }
-    }
-  }
-
-  private checkLeaderApproach() {
-    const allDefeated = this.trainers.every(t => t.defeated);
-    if (!allDefeated) return;
-    if (this.py < IT * 2.5 && !this.cutsceneActive && !this.registry.get('gymLeaderDefeated')) {
       this.cutsceneActive = true;
-      this.dialog.show([
-        'A figure steps out from the shadows...',
-        'Leader Jin: You defeated all my Shadow Trainers. Impressive.',
-        'Leader Jin: I am Jin, Guardian of Capitol City\'s shadows.',
-        'Leader Jin: My Corrpanda and I will test your resolve.',
-        'Leader Jin: Darkness is not evil — it is the truth behind light.',
-        'Leader Jin: Come. Show me what you are made of.',
-      ], () => {
-        // Keep the retry point at Jin's platform. This is also a safety net for
-        // any future transition that legitimately recreates the gym scene.
-        this.registry.set('gymPosX', this.px);
-        this.registry.set('gymPosY', this.py);
-        this.registry.set('capitalReturnX', this.px);
-        this.registry.set('capitalReturnY', this.py);
-        this.cameras.main.fadeOut(500, 0, 0, 0, () => {
-          this.scene.start('GymLeaderBattleScene');
-        });
-      });
+      this.encounterReadyAt = Number.POSITIVE_INFINITY;
+      if (kind === 'clone') {
+        const encounter = this.room.candidates[index] as ShadowGymPokemon;
+        // Reveal once, before the battle. Returning from a win, capture, escape or
+        // blackout can never chain-trigger the same illusion beneath the player.
+        this.registry.set(shadowCloneFlag(this.room, index), true);
+        this.dialog.show([
+          localized('The silhouette ripples — it was a shadow clone!', '형체가 일렁인다 — 그림자분신이었다!', '人影が揺らぐ――影分身だった！'),
+          localized('A wild Pokémon bursts from the broken illusion!', '깨진 환영 속에서 야생 포켓몬이 튀어나왔다!', '砕けた幻から野生のポケモンが飛び出した！'),
+        ], () => this.startCloneBattle(encounter));
+      } else if (this.room.trainer.leader) {
+        this.dialog.show([
+          localized('The other shadows collapse. The true Gym Leader steps forward.', '다른 그림자들이 무너지고, 진짜 체육관 관장이 앞으로 나선다.', 'ほかの影が崩れ、本物のジムリーダーが前へ出る。'),
+          'Leader Jin: You defeated all my Shadow Trainers. Impressive.',
+          "Leader Jin: I am Jin, Guardian of Capitol City's shadows.",
+          'Leader Jin: My Corrpanda and I will test your resolve.',
+          this.room.trainer.line,
+          localized('Leader Jin: Come. Show me what you are made of.', '관장 진: 와라. 네 각오를 보여다오.', 'ジン館長：来い。お前の覚悟を見せてみろ。'),
+        ], () => this.startLeaderBattle());
+      } else {
+        this.dialog.show([
+          localized('The false shadows vanish. You found the real trainer!', '가짜 그림자들이 사라진다. 진짜 트레이너를 찾아냈다!', '偽の影が消える。本物のトレーナーを見つけた！'),
+          this.room.trainer.line,
+          localized(`${this.room.trainer.name}: Break through my shadow!`, `${tr(this.room.trainer.name)}: 내 그림자를 뚫고 지나가 봐!`, `${tr(this.room.trainer.name)}：私の影を打ち破れ！`),
+        ], () => this.startTrainerBattle());
+      }
+      return;
     }
   }
 
-  private checkExit() {
-    // Exit when player walks fully past the bottom wall (below row H-1)
-    if (this.py > (this.H - 2) * IT && this.px > 6.5 * IT && this.px < 9.5 * IT && !this.cutsceneActive) {
-      this.cameras.main.fadeOut(300, 0, 0, 0, () => {
-        this.scene.start('CapitolCityScene');
-      });
+  private startCloneBattle(encounter: ShadowGymPokemon): void {
+    this.registry.set('gymPosX', this.px);
+    this.registry.set('gymPosY', this.py);
+    this.registry.set('routeReturnX', this.px);
+    this.registry.set('routeReturnY', this.py);
+    this.rememberPosition();
+    this.registry.set('wildId', encounter.id);
+    this.registry.set('wildLevel', encounter.level);
+    this.registry.set('wildCustom', false);
+    this.registry.set('wildCatchRate', 75);
+    this.registry.set('wildReturnScene', this.room.sceneKey);
+    this.transitionTo('WildBattleScene');
+  }
+
+  private startTrainerBattle(): void {
+    const trainer = this.room.trainer;
+    this.registry.set('trainerName', tr(trainer.name));
+    this.registry.set('trainerKey', trainer.key);
+    this.registry.set('trainerPokemon', JSON.stringify(trainer.pokemon));
+    this.registry.set('trainerExpPool', trainer.expPool);
+    this.registry.set('trainerReturnScene', this.room.sceneKey);
+    this.registry.set('gymPosX', this.px);
+    this.registry.set('gymPosY', this.py);
+    this.rememberPosition();
+    this.transitionTo('TrainerBattleScene');
+  }
+
+  private startLeaderBattle(): void {
+    this.registry.set('gymPosX', this.px);
+    this.registry.set('gymPosY', this.py);
+    this.rememberPosition();
+    this.transitionTo('GymLeaderBattleScene', 500);
+  }
+
+  private checkDoors(): void {
+    const inDoorColumn = this.px > 6.4 * IT && this.px < 9.6 * IT;
+    if (!inDoorColumn) return;
+
+    if (this.py < 2 * IT) {
+      if (this.roomCleared() && this.room.nextScene) {
+        this.rememberPosition();
+        this.transitionTo(this.room.nextScene, 320, { entry: 'south' });
+      } else if (!this.roomCleared() && !this.gateHintShown) {
+        this.gateHintShown = true;
+        this.py = 2.35 * IT;
+        this.cutsceneActive = true;
+        this.dialog.show([
+          localized('The northern seal rejects you. Find the real shadow in this room.', '북쪽 봉인이 길을 막는다. 이 방에 숨은 진짜 그림자를 찾아라.', '北の封印に拒まれた。この部屋にいる本物の影を探せ。'),
+        ], () => {
+          this.cutsceneActive = false;
+          this.encounterReadyAt = this.time.now + 350;
+        });
+      }
+      return;
+    }
+
+    if (this.py > (H - 2) * IT) {
+      this.rememberPosition();
+      const data = this.room.previousScene === 'CapitolCityScene' ? undefined : { entry: 'north' as const };
+      this.transitionTo(this.room.previousScene, 320, data);
     }
   }
+
+  private transitionTo(sceneKey: string, duration = 360, data?: { entry: EntrySide }): void {
+    if (this.exiting) return;
+    this.exiting = true;
+    this.cutsceneActive = true;
+    this.cameras.main.fadeOut(duration, 0, 0, 0, () => this.scene.start(sceneKey, data));
+  }
+
+  private roomCleared(): boolean {
+    // A completed badge save is authoritative, including legacy/imported saves
+    // that may not retain every individual trainer flag.
+    return !!this.registry.get('gymLeaderDefeated')
+      || !!this.registry.get(shadowRoomClearFlag(this.room));
+  }
+}
+
+export class CapitolGymScene extends ShadowGymRoomScene {
+  constructor() { super(SHADOW_GYM_ROOMS[0]); }
+}
+
+export class CapitolGymMirrorRoomScene extends ShadowGymRoomScene {
+  constructor() { super(SHADOW_GYM_ROOMS[1]); }
+}
+
+export class CapitolGymVeilRoomScene extends ShadowGymRoomScene {
+  constructor() { super(SHADOW_GYM_ROOMS[2]); }
+}
+
+export class CapitolGymSanctumScene extends ShadowGymRoomScene {
+  constructor() { super(SHADOW_GYM_ROOMS[3]); }
 }

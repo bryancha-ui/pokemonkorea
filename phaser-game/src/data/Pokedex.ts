@@ -38,7 +38,7 @@ export function remasteredSpriteUrl(key: string): string | undefined {
 
 // PokéAPI official front sprite by national id
 const api = (id: number) =>
-  `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`;
+  `assets/pokemon-official/${id}.png`;
 
 export const POKEDEX: DexEntry[] = [
   // ── Starters & their evolutions ──────────────────────────────────────────

@@ -265,8 +265,9 @@ export class BaekduSummitScene extends Phaser.Scene {
     this.spaceKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.M).on('down', () => { if (!this.cutsceneActive) this.scene.launch('MenuScene'); });
     this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.B).on('down', () => { if (!this.cutsceneActive) this.scene.launch('MenuScene'); });
-    // Debug: press 0 to replay the Spirit of Cheonji capture finale from the top.
-    this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ZERO).on('down', () => this.debugReplayFinale());
+    if (import.meta.env.DEV) {
+      this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ZERO).on('down', () => this.debugReplayFinale());
+    }
   }
   private createUI() {
     this.dialog = new DialogBox(this, this.scale.width, this.scale.height);
@@ -274,7 +275,9 @@ export class BaekduSummitScene extends Phaser.Scene {
     this.add.text(this.scale.width / 2, 22, tr('🏔 Baekdu Peak — The Final Confrontation'), {
       fontSize: '13px', color: '#fff', fontStyle: 'bold',
     }).setOrigin(0.5).setScrollFactor(0).setDepth(51);
-    this.add.text(this.scale.width / 2, this.scale.height - 8, tr('WASD: move  SHIFT: run  SPACE: talk  M: menu  [0: replay finale]'), {
+    this.add.text(this.scale.width / 2, this.scale.height - 8, tr(import.meta.env.DEV
+      ? 'WASD: move  SHIFT: run  SPACE: talk  M: menu  [0: replay finale]'
+      : 'WASD: move  SHIFT: run  SPACE: talk  M: menu'), {
       fontSize: '10px', color: '#ccc', backgroundColor: '#00000088', padding: { x: 5, y: 2 },
     }).setOrigin(0.5, 1).setScrollFactor(0).setDepth(51);
   }

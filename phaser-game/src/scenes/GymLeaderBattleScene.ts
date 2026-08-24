@@ -8,7 +8,7 @@ import { fetchPokemon, fetchMove } from '../data/PokeAPI';
 import { CORRPANDA_DATA, CORRPANDA_MOVES } from '../data/CustomPokemon';
 import { PartySystem } from '../systems/PartySystem';
 import { awardBenchExp } from '../systems/BattleExp';
-import { buildFromEntry, persistMovePP, persistSwitchOut } from '../systems/PartyBattle';
+import { buildFromEntry, buildReplacement, persistMovePP, persistSwitchOut, transferReplacementState } from '../systems/PartyBattle';
 import { openSwitchPanel } from '../systems/SwitchPanel';
 import { DexTracker } from '../systems/DexTracker';
 import { ITEMS, Inventory, itemName, useItemOnSlot } from '../systems/Items';
@@ -29,6 +29,8 @@ import { showRewardCeremony } from '../systems/RewardCeremony';
 import { createBattleHud, hpColor, modernButton, modernMoveButton, syncBattleHudTypes, type BattleHud } from '../systems/ProductionUi';
 import { animateBattleHp, BATTLE_PACING } from '../systems/BattlePacing';
 import { BossPotionAI, type BossPotionUse } from '../systems/BossTrainerItems';
+import { playBattleEndTurn } from '../systems/BattleEndTurn';
+import { chooseBattleMove } from '../systems/BattleAI';
 
 type State = 'intro' | 'playerAction' | 'playerMove' | 'busy' | 'over';
 const HP_W = 200;
@@ -40,6 +42,8 @@ export class GymLeaderBattleScene extends Phaser.Scene {
   private enemy!: Pokemon;
   private activeSlot = 0;
   private participants = new Set<number>([0]);
+  private battleTurn = 1;
+  private lastEnemyMove = '';
   // Guards playerFainted against a duplicate trigger for the same KO (e.g. a
   // double-fired dialog advance). Without it, the second call runs after the
   // switch-in, zeroes the freshly sent-in Pokémon and falsely reports a wipe.
@@ -93,6 +97,8 @@ export class GymLeaderBattleScene extends Phaser.Scene {
 
   async create() {
     this.cameras.main.fadeIn(500);
+    this.battleTurn = 1;
+    this.lastEnemyMove = '';
     this.bossPotionAI = new BossPotionAI('gym');
     // Dark gym-leader battle theme; restore the ambient track when the fight ends.
     pushBgm(this, 'gymleader');
@@ -513,17 +519,17 @@ export class GymLeaderBattleScene extends Phaser.Scene {
   private runTurn(move: Move) {
     this.state = 'busy';
     if (this.maybeUseBossPotion(() =>
-      this.doPlayerMove(move, () => this.playerAction()))) return;
+      this.doPlayerMove(move, () => this.finishTurn(() => this.playerAction())))) return;
     const avail = this.enemy.moves.filter(m => m.pp > 0);
     const enemyMove = pendingMoveFor(this.enemy)
-      ?? (avail.length ? avail[Math.floor(Math.random() * avail.length)] : this.enemy.moves[0]);
+      ?? this.pickEnemyMove(avail.length ? avail : this.enemy.moves);
     // Two-turn moves span two FULL turns — the opponent acts on both the charge and
     // release turns (its charge-turn move misses a dug-in/airborne target).
     const playerFirst = actsBefore(this.player, move, this.enemy, enemyMove);
     if (playerFirst) {
-      this.doPlayerMove(move, () => this.doEnemyMove(() => this.playerAction(), enemyMove));
+      this.doPlayerMove(move, () => this.doEnemyMove(() => this.finishTurn(() => this.playerAction()), enemyMove));
     } else {
-      this.doEnemyMove(() => this.doPlayerMove(move, () => this.playerAction()), enemyMove);
+      this.doEnemyMove(() => this.doPlayerMove(move, () => this.finishTurn(() => this.playerAction())), enemyMove);
     }
   }
 
@@ -541,7 +547,7 @@ export class GymLeaderBattleScene extends Phaser.Scene {
       animateTargetHp: done => this.animateHp('enemy', done),
       onPpUsed: () => persistMovePP(this.registry, this.activeSlot, this.player),
       onComplete: () => {
-        PartySystem.updateSlotHP(this.registry, this.activeSlot, this.player.hp, this.player.status);
+        PartySystem.updateSlotHP(this.registry, this.activeSlot, this.player.hp, this.player.status, this.player.heldItem ?? null);
         if (this.enemy.isKO) {
           this.typeDialog(`${pokeNameEn(this.enemy.name).toUpperCase()} fainted!`,
             () => this.awardExp(this.enemy.level * 28, () => this.leaderSendNext()));
@@ -572,14 +578,14 @@ export class GymLeaderBattleScene extends Phaser.Scene {
   }
 
   private enemyTurn() {
-    if (this.maybeUseBossPotion(() => this.playerAction())) return;
-    this.doEnemyMove(() => this.playerAction());
+    if (this.maybeUseBossPotion(() => this.finishTurn(() => this.playerAction()))) return;
+    this.doEnemyMove(() => this.finishTurn(() => this.playerAction()));
   }
 
   private doEnemyMove(onDone: () => void, selectedMove?: Move) {
     const avail = this.enemy.moves.filter(m => m.pp > 0);
     const move = selectedMove ?? pendingMoveFor(this.enemy)
-      ?? (avail.length ? avail[Math.floor(Math.random() * avail.length)] : this.enemy.moves[0]);
+      ?? this.pickEnemyMove(avail.length ? avail : this.enemy.moves);
     executeBattleMove({
       scene: this,
       user: this.enemy,
@@ -592,7 +598,7 @@ export class GymLeaderBattleScene extends Phaser.Scene {
       animateUserHp: done => this.animateHp('enemy', done),
       animateTargetHp: done => this.animateHp('player', done),
       onComplete: () => {
-        PartySystem.updateSlotHP(this.registry, this.activeSlot, this.player.hp, this.player.status);
+        PartySystem.updateSlotHP(this.registry, this.activeSlot, this.player.hp, this.player.status, this.player.heldItem ?? null);
         if (this.enemy.isKO) {
           this.typeDialog(`${pokeNameEn(this.enemy.name).toUpperCase()} fainted!`,
             () => this.awardExp(this.enemy.level * 28, () => this.leaderSendNext()));
@@ -607,10 +613,37 @@ export class GymLeaderBattleScene extends Phaser.Scene {
     });
   }
 
+  private pickEnemyMove(pool: Move[]): Move {
+    const move = chooseBattleMove(this.enemy, this.player, pool, 'boss', this.battleTurn, this.lastEnemyMove);
+    this.lastEnemyMove = move.data.name;
+    return move;
+  }
+
+  private finishTurn(onDone: () => void): void {
+    playBattleEndTurn({
+      scene: this,
+      first: this.player,
+      second: this.enemy,
+      animateFirst: done => this.animateHp('player', done),
+      animateSecond: done => this.animateHp('enemy', done),
+      showDialog: (text, done) => this.typeDialog(text, done),
+      onComplete: () => {
+        this.battleTurn++;
+        PartySystem.updateSlotHP(this.registry, this.activeSlot, this.player.hp, this.player.status, this.player.heldItem ?? null);
+        if (this.enemy.isKO) {
+          this.typeDialog(`${pokeNameEn(this.enemy.name).toUpperCase()} fainted!`,
+            () => this.awardExp(this.enemy.level * 28, () => this.leaderSendNext()));
+        } else if (this.player.isKO) {
+          this.typeDialog(`${pokeNameEn(this.player.name).toUpperCase()} fainted!`, () => this.playerFainted());
+        } else onDone();
+      },
+    });
+  }
+
   private leaderSendNext() {
     this.leaderSlot++;
     if (this.leaderSlot >= this.leaderTeam.length) { this.handleWin(); return; }
-    this.enemy = this.leaderTeam[this.leaderSlot];
+    this.enemy = transferReplacementState(this.enemy, this.leaderTeam[this.leaderSlot]);
     syncBattleHudTypes(this.enemyBattleHud, [this.enemy.data.type1, this.enemy.data.type2]);
     this.updateEnemySprite();
     this.enemyNameText.setText(this.enemyHudName());
@@ -658,7 +691,7 @@ export class GymLeaderBattleScene extends Phaser.Scene {
     this.activeSlot = nextIdx;
     this.participants.add(nextIdx);
     const entry = PartySystem.get(this.registry)[nextIdx];
-    this.player = buildFromEntry(entry);
+    this.player = buildReplacement(this.player, entry);
     syncBattleHudTypes(this.playerBattleHud, [this.player.data.type1, this.player.data.type2]);
     this.refreshMovePanel();
     this.refreshPlayerHud();
@@ -691,7 +724,7 @@ export class GymLeaderBattleScene extends Phaser.Scene {
         this.activeSlot = idx;
         this.participants.add(idx);
         const entry = PartySystem.get(this.registry)[idx];
-        this.player = buildFromEntry(entry);
+        this.player = buildReplacement(this.player, entry);
         syncBattleHudTypes(this.playerBattleHud, [this.player.data.type1, this.player.data.type2]);
         this.refreshMovePanel();
         this.refreshPlayerHud();

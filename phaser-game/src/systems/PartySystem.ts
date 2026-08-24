@@ -40,7 +40,7 @@ export interface PartyEntry {
   movePP?:  Record<string, number>;   // remaining PP per move name (persists across battles; cleared on heal)
   evoReady?: boolean;   // set on an actual level-up; evolution only triggers when this is true
   exp?:     number;   // per-slot EXP tracking
-  status?:  string;   // 'none' | 'psn' | 'par' | 'brn' | 'frz' | 'slp'
+  status?:  string;   // 'none' | 'psn' | 'tox' | 'par' | 'brn' | 'frz' | 'slp'
   /** Species base stats, persisted so captures retain their battle identity. */
   baseStats?: PartyBaseStats;
   /** Stable daycare identity and sex. Added lazily for old saves. */
@@ -49,7 +49,9 @@ export interface PartyEntry {
   /** Localized/profile metadata shown on the separate status screen. */
   ability?: string;
   abilityKo?: string;
+  abilityJa?: string;
   nameKo?: string;
+  nameJa?: string;
   caughtAt?: string;
   /** Optional held-item key. Older saves naturally display this as empty. */
   heldItem?: string;
@@ -125,6 +127,38 @@ function ensureBaseStats(entry: PartyEntry): boolean {
 function ensureAllBaseStats(entries: PartyEntry[]): boolean {
   let changed = false;
   for (const entry of entries) {
+    // Defensive migration for early saves and interrupted box drag operations.
+    // Battle constructors assume these scalar/array fields exist; repairing them
+    // here prevents one malformed Pokémon from crashing only when it is selected.
+    const level = Number(entry.level);
+    const nextLevel = Number.isFinite(level) ? Math.max(1, Math.min(100, Math.floor(level))) : 1;
+    if (entry.level !== nextLevel) { entry.level = nextLevel; changed = true; }
+    if (!Array.isArray(entry.moves)) { entry.moves = []; changed = true; }
+    else {
+      const cleanMoves = entry.moves.filter(move => typeof move === 'string' && move.trim()).map(move => move.trim());
+      if (cleanMoves.length !== entry.moves.length) { entry.moves = cleanMoves; changed = true; }
+    }
+    if (entry.battleMoves && !Array.isArray(entry.battleMoves)) { delete entry.battleMoves; changed = true; }
+    if (Array.isArray(entry.battleMoves)) {
+      const cleanBattleMoves = entry.battleMoves.filter(move => move && typeof move.name === 'string'
+        && typeof move.type === 'string' && ['physical', 'special', 'status'].includes(move.category)
+        && Number.isFinite(move.power) && Number.isFinite(move.accuracy) && move.accuracy > 0
+        && Number.isFinite(move.pp) && move.pp > 0).slice(0, 4);
+      if (cleanBattleMoves.length !== entry.battleMoves.length) {
+        if (cleanBattleMoves.length) entry.battleMoves = cleanBattleMoves;
+        else delete entry.battleMoves;
+        changed = true;
+      }
+    }
+    if (typeof entry.spriteKey !== 'string' || !entry.spriteKey.trim()) {
+      entry.spriteKey = 'unknown-pokemon'; changed = true;
+    }
+    if (typeof entry.name !== 'string' || !entry.name.trim()) { entry.name = entry.spriteKey; changed = true; }
+    if (typeof entry.spriteUrl !== 'string') { entry.spriteUrl = ''; changed = true; }
+    if (typeof entry.type1 !== 'string' || !entry.type1) { entry.type1 = 'normal'; changed = true; }
+    if (!Number.isFinite(entry.maxHp) || entry.maxHp <= 0) { entry.maxHp = recomputeMaxHp(entry); changed = true; }
+    const safeHp = Number.isFinite(entry.hp) ? Math.max(0, Math.min(entry.maxHp, Math.floor(entry.hp))) : entry.maxHp;
+    if (entry.hp !== safeHp) { entry.hp = safeHp; changed = true; }
     changed = ensureBaseStats(entry) || changed;
     const remastered = remasteredSpriteUrl(entry.spriteKey);
     if (remastered && entry.spriteUrl !== remastered) {
@@ -252,11 +286,14 @@ function occupiedBoxEntries(storage: PokemonBoxStorage): PartyEntry[] {
 export const PartySystem = {
 
   get(registry: Phaser.Data.DataManager): PartyEntry[] {
-    const raw = registry.get(KEY) as string | undefined;
+    const raw = registry.get(KEY) as string | PartyEntry[] | undefined;
     if (!raw) return [];
     try {
-      const party = JSON.parse(raw) as PartyEntry[];
-      if (ensureAllBaseStats(party)) registry.set(KEY, JSON.stringify(party));
+      const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      if (!Array.isArray(parsed)) return [];
+      const party = parsed.filter((entry): entry is PartyEntry => !!entry && typeof entry === 'object');
+      const changed = party.length !== parsed.length || ensureAllBaseStats(party);
+      if (changed) registry.set(KEY, JSON.stringify(party));
       return party;
     } catch { return []; }
   },
@@ -425,11 +462,19 @@ export const PartySystem = {
   },
 
   /** Sync HP of any slot after battle */
-  updateSlotHP(registry: Phaser.Data.DataManager, slot: number, hp: number, status?: string): void {
+  updateSlotHP(
+    registry: Phaser.Data.DataManager,
+    slot: number,
+    hp: number,
+    status?: string,
+    heldItem?: string | null,
+  ): void {
     const party = this.get(registry);
     if (party[slot] !== undefined) {
       party[slot].hp = hp;
       if (status !== undefined) party[slot].status = status;
+      if (heldItem === null) delete party[slot].heldItem;
+      else if (heldItem !== undefined) party[slot].heldItem = heldItem;
       this.set(registry, party);
     }
   },

@@ -274,6 +274,147 @@ export function buildFlatCard(
   return relief;
 }
 
+/** Build a companion-specific 3D sprite shell. Unlike the general relief
+ * builder, the artwork is one continuous front/back surface and only the
+ * alpha silhouette boundary is extruded. This removes the visible horizontal
+ * shelves that can make narrow or multi-lobed Pokémon look like an accordion
+ * when they turn sideways in the overworld. */
+export function buildSpriteShell3D(
+  key: string,
+  source: HTMLImageElement | HTMLCanvasElement,
+): ReliefMesh | null {
+  const cacheKey = `sprite-shell:${key}`;
+  const hit = cache.get(cacheKey);
+  if (hit) return hit;
+
+  const canvas = toCanvas(source);
+  const W = canvas.width, H = canvas.height;
+  if (W < 1 || H < 1) return null;
+  let data: Uint8ClampedArray;
+  try {
+    data = canvas.getContext('2d', { willReadFrequently: true })!.getImageData(0, 0, W, H).data;
+  } catch { return null; }
+
+  let tx0 = W, ty0 = H, tx1 = -1, ty1 = -1;
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      if (data[(y * W + x) * 4 + 3] <= 24) continue;
+      if (x < tx0) tx0 = x; if (x > tx1) tx1 = x;
+      if (y < ty0) ty0 = y; if (y > ty1) ty1 = y;
+    }
+  }
+  if (tx1 < 0) return null;
+  const tw = tx1 - tx0 + 1, th = ty1 - ty0 + 1;
+
+  // A ~96-cell long edge is smooth at overworld scale while keeping the
+  // boundary under a few thousand quads even for high-resolution artwork.
+  const CELL = Math.max(1, Math.ceil(Math.max(tw, th) / 96));
+  const gw = Math.ceil(tw / CELL), gh = Math.ceil(th / CELL);
+  const occupied = new Uint8Array(gw * gh);
+  const colors = new Float32Array(gw * gh * 3);
+  for (let gy = 0; gy < gh; gy++) {
+    for (let gx = 0; gx < gw; gx++) {
+      const px0 = tx0 + gx * CELL, py0 = ty0 + gy * CELL;
+      const px1 = Math.min(tx0 + tw, px0 + CELL), py1 = Math.min(ty0 + th, py0 + CELL);
+      let opaque = 0, r = 0, g = 0, b = 0;
+      const total = Math.max(1, (px1 - px0) * (py1 - py0));
+      for (let y = py0; y < py1; y++) {
+        for (let x = px0; x < px1; x++) {
+          const i = (y * W + x) * 4;
+          if (data[i + 3] <= 32) continue;
+          opaque++; r += data[i]; g += data[i + 1]; b += data[i + 2];
+        }
+      }
+      const index = gy * gw + gx;
+      occupied[index] = opaque / total >= 0.06 ? 1 : 0;
+      if (opaque) {
+        colors[index * 3] = r / opaque / 255;
+        colors[index * 3 + 1] = g / opaque / 255;
+        colors[index * 3 + 2] = b / opaque / 255;
+      }
+    }
+  }
+
+  const positions: number[] = [], uvs: number[] = [], normals: number[] = [], vertexColors: number[] = [];
+  const artIndices: number[] = [], sideIndices: number[] = [];
+  const depth = Math.max(2, Math.min(tw, th) * 0.045);
+  const halfDepth = depth / 2;
+  const U = (x: number) => (tx0 + x) / W;
+  const V = (y: number) => 1 - (ty0 + y) / H;
+  const yUp = (y: number) => th - y;
+  const quad = (
+    indices: number[],
+    a: [number, number, number], b: [number, number, number],
+    c: [number, number, number], d: [number, number, number],
+    normal: [number, number, number],
+    uv: [number, number, number, number, number, number, number, number],
+    color: [number, number, number] = [1, 1, 1],
+  ) => {
+    const start = positions.length / 3;
+    positions.push(...a, ...b, ...c, ...d);
+    for (let i = 0; i < 4; i++) {
+      normals.push(...normal);
+      vertexColors.push(...color);
+    }
+    uvs.push(...uv);
+    indices.push(start, start + 1, start + 2, start, start + 2, start + 3);
+  };
+
+  // One uninterrupted textured sheet on each face. Alpha testing preserves the
+  // exact antennae, wings and tails without constructing a stack per image row.
+  quad(artIndices,
+    [0, 0, halfDepth], [tw, 0, halfDepth], [tw, th, halfDepth], [0, th, halfDepth],
+    [0, 0, 1], [U(0), V(th), U(tw), V(th), U(tw), V(0), U(0), V(0)]);
+  quad(artIndices,
+    [tw, 0, -halfDepth], [0, 0, -halfDepth], [0, th, -halfDepth], [tw, th, -halfDepth],
+    [0, 0, -1], [U(tw), V(th), U(0), V(th), U(0), V(0), U(tw), V(0)]);
+
+  const isOccupied = (x: number, y: number) => x >= 0 && y >= 0 && x < gw && y < gh && !!occupied[y * gw + x];
+  const side = (x1: number, y1: number, x2: number, y2: number, index: number) => {
+    const color: [number, number, number] = [
+      colors[index * 3] * 0.82, colors[index * 3 + 1] * 0.82, colors[index * 3 + 2] * 0.82,
+    ];
+    quad(sideIndices,
+      [x1, yUp(y1), halfDepth], [x2, yUp(y2), halfDepth],
+      [x2, yUp(y2), -halfDepth], [x1, yUp(y1), -halfDepth],
+      [0, 1, 0], [0, 0, 0, 0, 0, 0, 0, 0], color);
+  };
+
+  // Emit only exposed cell edges. Adjacent cells share no internal faces, so
+  // the result is a single thin shell rather than an accordion of row slabs.
+  for (let gy = 0; gy < gh; gy++) {
+    for (let gx = 0; gx < gw; gx++) {
+      const index = gy * gw + gx;
+      if (!occupied[index]) continue;
+      const x0 = gx * CELL, x1 = Math.min(tw, (gx + 1) * CELL);
+      const y0 = gy * CELL, y1 = Math.min(th, (gy + 1) * CELL);
+      if (!isOccupied(gx, gy - 1)) side(x0, y0, x1, y0, index);
+      if (!isOccupied(gx + 1, gy)) side(x1, y0, x1, y1, index);
+      if (!isOccupied(gx, gy + 1)) side(x1, y1, x0, y1, index);
+      if (!isOccupied(gx - 1, gy)) side(x0, y1, x0, y0, index);
+    }
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setAttribute('color', new THREE.Float32BufferAttribute(vertexColors, 3));
+  geometry.setIndex([...artIndices, ...sideIndices]);
+  geometry.addGroup(0, artIndices.length, 0);
+  geometry.addGroup(artIndices.length, sideIndices.length, 1);
+  geometry.translate(-tw / 2, 0, 0);
+
+  const shell: ReliefMesh = {
+    geometry,
+    texture: makeTexture(canvas),
+    pxWidth: tw, pxHeight: th,
+    trimX: tx0, trimY: ty0, origWidth: W, origHeight: H,
+  };
+  cache.set(cacheKey, shell);
+  return shell;
+}
+
 /** Material pair for relief meshes: [0] textured artwork faces (alpha cutout),
  *  [1] vertex-colored carved side faces. Apply opacity/tint to both.
  *  UNLIT on purpose: scene lighting washed the original art with a grey/blue

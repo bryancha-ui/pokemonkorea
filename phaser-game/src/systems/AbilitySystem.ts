@@ -3,14 +3,54 @@ import type { Move, MoveData, Pokemon } from '../battle/Pokemon';
 export type BattleWeather = 'clear' | 'rain' | 'sun' | 'sand' | 'snow';
 
 const entered = new WeakSet<Pokemon>();
+interface WeatherState { weather: BattleWeather; turns: number }
+const fieldWeather = new WeakMap<Pokemon, WeatherState>();
+const weatherExhausted = new WeakSet<Pokemon>();
+
+/** Set weather created by a field move for both active combatants. Weak keys
+ * make it battle-local: new Pokémon objects start with a clean field. */
+export function setBattleWeather(a: Pokemon, b: Pokemon, weather: BattleWeather, turns = 5): void {
+  const state = { weather, turns: Math.max(1, turns) };
+  fieldWeather.set(a, state);
+  fieldWeather.set(b, state);
+  weatherExhausted.delete(a);
+  weatherExhausted.delete(b);
+}
 
 export function battleWeather(a: Pokemon, b: Pokemon): BattleWeather {
   if (a.hasAbility('Cloud Nine') || b.hasAbility('Cloud Nine')) return 'clear';
-  if (a.hasAbility('Drizzle') || b.hasAbility('Drizzle')) return 'rain';
-  if (a.hasAbility('Drought') || b.hasAbility('Drought')) return 'sun';
-  if (a.hasAbility('Sand Stream') || b.hasAbility('Sand Stream')) return 'sand';
-  if (a.hasAbility('Snow Warning') || b.hasAbility('Snow Warning')) return 'snow';
+  const explicit = fieldWeather.get(a) ?? fieldWeather.get(b);
+  if (explicit && explicit.turns > 0) return explicit.weather;
+  if (!weatherExhausted.has(a) && !weatherExhausted.has(b)) {
+    if (a.hasAbility('Drizzle') || b.hasAbility('Drizzle')) return 'rain';
+    if (a.hasAbility('Drought') || b.hasAbility('Drought')) return 'sun';
+    if (a.hasAbility('Sand Stream') || b.hasAbility('Sand Stream')) return 'sand';
+    if (a.hasAbility('Snow Warning') || b.hasAbility('Snow Warning')) return 'snow';
+  }
   return 'clear';
+}
+
+/** Advance move/ability-created weather exactly once after a completed turn. */
+export function advanceBattleWeather(a: Pokemon, b: Pokemon): string | undefined {
+  const state = fieldWeather.get(a) ?? fieldWeather.get(b);
+  if (!state) return undefined;
+  state.turns--;
+  if (state.turns > 0) return undefined;
+  state.turns = 0;
+  fieldWeather.delete(a);
+  fieldWeather.delete(b);
+  weatherExhausted.add(a);
+  weatherExhausted.add(b);
+  return 'The weather returned to normal.';
+}
+
+/** Carry field weather to a replacement. The state is shared by reference so
+ * its remaining turn count still advances exactly once for the whole field. */
+export function transferBattleWeather(from: Pokemon, to: Pokemon): void {
+  const state = fieldWeather.get(from);
+  if (state && state.turns > 0) fieldWeather.set(to, state);
+  if (weatherExhausted.has(from)) weatherExhausted.add(to);
+  entered.delete(from);
 }
 
 /** Apply switch-in abilities lazily the first time a combatant participates.
@@ -41,10 +81,10 @@ export function activateEntryAbilities(a: Pokemon, b: Pokemon): string[] {
       mon.modifyStage(best, 1);
       messages.push(`${mon.name}'s Ancient Activation boosted its strongest stat!`);
     }
-    if (mon.hasAbility('Drizzle')) messages.push(`${mon.name}'s Drizzle made it rain!`);
-    if (mon.hasAbility('Snow Warning')) messages.push(`${mon.name}'s Snow Warning summoned snow!`);
-    if (mon.hasAbility('Drought')) messages.push(`${mon.name}'s Drought intensified the sunlight!`);
-    if (mon.hasAbility('Sand Stream')) messages.push(`${mon.name}'s Sand Stream whipped up a sandstorm!`);
+    if (mon.hasAbility('Drizzle')) { setBattleWeather(mon, foe, 'rain'); messages.push(`${mon.name}'s Drizzle made it rain!`); }
+    if (mon.hasAbility('Snow Warning')) { setBattleWeather(mon, foe, 'snow'); messages.push(`${mon.name}'s Snow Warning summoned snow!`); }
+    if (mon.hasAbility('Drought')) { setBattleWeather(mon, foe, 'sun'); messages.push(`${mon.name}'s Drought intensified the sunlight!`); }
+    if (mon.hasAbility('Sand Stream')) { setBattleWeather(mon, foe, 'sand'); messages.push(`${mon.name}'s Sand Stream whipped up a sandstorm!`); }
   };
   activate(a, b);
   activate(b, a);
@@ -95,10 +135,11 @@ export function blocksPowderMove(target: Pokemon, move: MoveData): boolean {
 export interface StatusTurnResult {
   blocked: boolean;
   messages: string[];
+  hpChanged?: boolean;
 }
 
 /** Resolve abilities and major status conditions immediately before a move. */
-export function statusBeforeMove(mon: Pokemon, foe: Pokemon): StatusTurnResult {
+export function statusBeforeMove(mon: Pokemon, foe: Pokemon, move?: Move): StatusTurnResult {
   const messages: string[] = [];
   if (mon.status === 'slp' && mon.hasAbility('Insomnia')) {
     mon.cureStatus();
@@ -112,6 +153,33 @@ export function statusBeforeMove(mon: Pokemon, foe: Pokemon): StatusTurnResult {
   } else if (mon.status !== 'none' && mon.hasAbility('Shed Skin') && Math.random() < 1 / 3) {
     mon.cureStatus();
     messages.push(`${mon.name}'s Shed Skin cured its status condition!`);
+  }
+
+  if (mon.consumeFlinch()) {
+    messages.push(`${mon.name} flinched and couldn't move!`);
+    return { blocked: true, messages };
+  }
+  if (mon.isInfatuated()) {
+    messages.push(`${mon.name} is in love!`);
+    if (Math.random() < 0.5) {
+      messages.push(`${mon.name} is immobilized by love!`);
+      return { blocked: true, messages };
+    }
+  }
+  const confusion = mon.confusionStep();
+  if (confusion === 'ended') {
+    messages.push(`${mon.name} snapped out of confusion!`);
+  } else if (confusion === 'active') {
+    messages.push(`${mon.name} is confused!`);
+    if (Math.random() < 1 / 3) {
+      const damage = mon.confusionDamage();
+      messages.push(`${mon.name} hurt itself in confusion for ${damage} HP!`);
+      return { blocked: true, messages, hpChanged: damage > 0 };
+    }
+  }
+  if (move && mon.isMoveDisabled(move.data.name)) {
+    messages.push(`${mon.name}'s ${move.data.name} is disabled!`);
+    return { blocked: true, messages };
   }
 
   if (mon.status === 'par' && Math.random() < 0.25) {
@@ -142,8 +210,11 @@ export function statusBeforeMove(mon: Pokemon, foe: Pokemon): StatusTurnResult {
 
 /** Called by switch flows so Natural Cure is not tied to a particular scene. */
 export function applySwitchOutAbility(mon: Pokemon): string | undefined {
-  if (mon.hasAbility('Natural Cure') && mon.cureStatus()) return `${mon.name}'s Natural Cure healed its status condition!`;
-  return undefined;
+  const message = mon.hasAbility('Natural Cure') && mon.cureStatus()
+    ? `${mon.name}'s Natural Cure healed its status condition!` : undefined;
+  mon.resetVolatileOnSwitch();
+  entered.delete(mon);
+  return message;
 }
 
 // Priority (선공기) by move name. Moves built by the Learnset/custom factories

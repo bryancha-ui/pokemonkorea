@@ -498,6 +498,133 @@ export function makeHanokPalace(width: number, depth: number): THREE.Group {
 }
 
 /**
+ * The Onnuri Pokémon League — a 3D reconstruction of the hall the courtyard paints
+ * in 2D (LeaguePlazaScene.drawPalace): stone woldae with a balustrade and a central
+ * stair, one continuous vermilion colonnade over a dark wall, gold-studded double
+ * doors, a dancheong band under each eave, and two sweeping tiers with upturned
+ * eave tips and chimi ridge ornaments.
+ *
+ * It replaces the shared `hanok-palace` here for one reason: EVERY piece is built
+ * symmetrically about x = 0 and spans the full plot width, so the facade is one
+ * flat mass. The generic palace sized several of its parts independently, which
+ * left one end standing proud of the wall and read as a separate block bolted onto
+ * the side of the building.
+ *
+ * Front (doors) faces +Z toward the courtyard; feet at y = 0.
+ */
+export function makeOnnuriLeague(width: number, depth: number): THREE.Group {
+  const g = new THREE.Group();
+  const WALL = 0x6e1f1a, PILLAR = 0xb23a2c, STONE = 0xd0c7b3, STONE_DK = 0xbcb29c, STONE_RAIL = 0xc6bca6;
+  const ROOF_LO = 0x33524a, ROOF_HI = 0x3a5e53, RIDGE = 0x223833, CHIMI = 0x1a2a26;
+  const GOLD = 0xddb24a, DOOR_DK = 0x241208, DOOR = 0x49301a;
+  const DANCHEONG = [0x2f7a44, 0x2f4f9a, 0xb83636, 0xeae2cf];
+
+  const box = (w: number, h: number, d: number, color: number, x: number, y: number, z: number) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), toonMat(color));
+    m.position.set(x, y, z); g.add(m); return m;
+  };
+
+  const bodyD = Math.max(2.4, depth * 0.66);
+  const frontZ = bodyD / 2;
+  const bodyH = Math.max(3.8, Math.min(5.6, width * 0.23));
+
+  // ── Woldae: apron, platform, balustrade, central stair ───────────────────
+  const apronH = 0.32, platH = 0.58;
+  box(width + 2.2, apronH, depth + 1.8, STONE_DK, 0, apronH / 2, 0);
+  box(width + 1.0, platH, depth + 0.9, STONE, 0, apronH + platH / 2, 0);
+  const platTop = apronH + platH;
+  // Balustrade along the front edge, broken by the stair.
+  const railZ = (depth + 0.9) / 2;
+  const stairW = Math.min(4.2, width * 0.22);
+  for (const side of [-1, 1]) {
+    const runW = (width + 1.0) / 2 - stairW / 2;
+    box(runW, 0.34, 0.26, STONE_RAIL, side * (stairW / 2 + runW / 2), platTop + 0.17, railZ);
+  }
+  for (let s = 0; s < 3; s++) {
+    const h = platTop * (1 - s / 3);
+    box(stairW, h, 0.46, s % 2 ? STONE_DK : STONE_RAIL, 0, h / 2, railZ + 0.23 + s * 0.46);
+  }
+
+  // ── One continuous hall: dark wall, full-width colonnade, dancheong band ──
+  box(width, bodyH, bodyD, WALL, 0, platTop + bodyH / 2, 0);
+  const nCol = 9;
+  for (let i = 0; i <= nCol; i++) {
+    box(0.46, bodyH, 0.36, PILLAR, -width / 2 + (width * i) / nCol, platTop + bodyH / 2, frontZ + 0.03);
+  }
+  const bandY = platTop + bodyH - 0.2;
+  const bandW = width / 12;
+  for (let i = 0; i < 12; i++) {
+    box(bandW * 0.94, 0.3, 0.14, DANCHEONG[i % DANCHEONG.length],
+      -width / 2 + bandW * (i + 0.5), bandY, frontZ + 0.16);
+  }
+
+  // ── Gold-studded double doors ────────────────────────────────────────────
+  const doorH = Math.min(2.4, bodyH * 0.6), doorW = 2.4;
+  box(doorW + 0.34, doorH + 0.24, 0.18, DOOR_DK, 0, platTop + (doorH + 0.24) / 2, frontZ + 0.1);
+  for (const side of [-1, 1]) {
+    box(doorW / 2 - 0.08, doorH, 0.12, DOOR, side * (doorW / 4 + 0.04), platTop + doorH / 2, frontZ + 0.2);
+  }
+  const studMat = toonMat(0xe0b24a);
+  for (let yy = 0; yy < 4; yy++) for (const sx of [-0.55, 0.55]) {
+    const stud = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.06, 10), studMat);
+    stud.rotation.x = Math.PI / 2;
+    stud.position.set(sx, platTop + 0.42 + yy * (doorH - 0.7) / 3, frontZ + 0.28);
+    g.add(stud);
+  }
+
+  /** One sweeping tier: hip roof, ridge, chimi, upturned eave tips, dancheong. */
+  const tier = (baseW: number, baseD: number, topRatio: number, h: number, yBottom: number, color: number) => {
+    const roof = new THREE.Mesh(new THREE.CylinderGeometry(topRatio, 1, h, 4), toonMat(color));
+    roof.rotation.y = Math.PI / 4;
+    roof.scale.set(baseW / Math.SQRT2, 1, baseD / Math.SQRT2);
+    roof.position.y = yBottom + h / 2;
+    g.add(roof);
+    const topY = yBottom + h;
+    // Ridge + the pair of chimi that cap it.
+    box(baseW * topRatio * 0.92, 0.26, 0.36, RIDGE, 0, topY - 0.05, 0);
+    for (const rx of [-1, 1]) {
+      box(0.38, 0.46, 0.38, CHIMI, rx * baseW * topRatio * 0.46, topY + 0.16, 0);
+    }
+    // Upturned eave tips — the same wedge at BOTH ends, which is what keeps the
+    // silhouette symmetrical.
+    for (const sx of [-1, 1]) {
+      const tip = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.22, baseD * 0.9), toonMat(color));
+      tip.position.set(sx * (baseW / 2 + 0.32), yBottom + 0.34, 0);
+      tip.rotation.z = sx * -0.42;
+      g.add(tip);
+    }
+    // Dancheong under the eave.
+    const segW = baseW / 12;
+    for (let i = 0; i < 12; i++) {
+      box(segW * 0.92, 0.2, 0.12, DANCHEONG[i % DANCHEONG.length],
+        -baseW / 2 + segW * (i + 0.5), yBottom + 0.12, baseD / 2 + 0.04);
+    }
+    return topY;
+  };
+
+  // Lower tier spans the whole facade; the clerestory sits on its flat top so the
+  // hall reads as one building with a raised centre, never as two structures.
+  const eaveY = platTop + bodyH;
+  const loW = width + 2.0, loD = depth + 1.4, loRatio = 0.5, loH = 1.5;
+  const loTop = tier(loW, loD, loRatio, loH, eaveY - 0.2, ROOF_LO);
+
+  const clW = loW * loRatio - 0.8, clD = loD * loRatio - 0.5, clH = bodyH * 0.4;
+  box(clW, clH, clD, WALL, 0, loTop + clH / 2 - 0.08, 0);
+  const clFrontZ = clD / 2;
+  for (let i = 0; i <= 5; i++) {
+    box(0.4, clH, 0.3, PILLAR, -clW / 2 + (clW * i) / 5, loTop + clH / 2 - 0.08, clFrontZ + 0.03);
+  }
+  tier(clW + 1.6, clD + 1.1, 0.24, 1.4, loTop + clH - 0.24, ROOF_HI);
+
+  // ── Signboard (현판) under the lower eave ────────────────────────────────
+  const boardW = Math.min(4.6, width * 0.24);
+  box(boardW, 1.02, 0.16, GOLD, 0, eaveY + 0.1, frontZ + 0.22);
+  box(boardW - 0.34, 0.74, 0.1, 0x1b110a, 0, eaveY + 0.1, frontZ + 0.31);
+
+  return g;
+}
+
+/**
  * A grand northern-capital palace — a wide granite hall raised on a stone woldae,
  * a full front colonnade under a gold cornice, flanking corner towers, and a
  * crowning central pavilion topped with a gold spire. Built entirely from toon

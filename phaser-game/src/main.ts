@@ -1,20 +1,48 @@
 import Phaser from 'phaser';
 
-// ── On-screen error catcher ──────────────────────────────────────────────────
-// Surfaces any uncaught error / promise rejection as a red banner so problems
-// are visible instead of silently freezing the game.
+// ── Recoverable error boundary ───────────────────────────────────────────────
+// Development builds retain full diagnostics. Players receive a compact,
+// non-technical recovery card: minified filenames and stack traces should never
+// cover a phone screen or expose internal implementation details.
 function showError(msg: string) {
+  console.error('[Pokemon Korea]', msg);
   let box = document.getElementById('__err__');
   if (!box) {
     box = document.createElement('div');
     box.id = '__err__';
+    document.body.appendChild(box);
+  }
+  if (import.meta.env.DEV) {
     box.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99999;max-height:40%;overflow:auto;'
       + 'background:#aa0000;color:#fff;font:12px/1.4 monospace;padding:8px 12px;white-space:pre-wrap;'
       + 'border-top:2px solid #ff5555;';
-    document.body.appendChild(box);
+    box.textContent = '⚠ ' + msg + '\n(tap to dismiss)';
+    box.onclick = () => box?.remove();
+    return;
   }
-  box.textContent = '⚠ ' + msg + '\n(tap to dismiss)';
-  box.onclick = () => box && box.remove();
+
+  box.style.cssText = 'position:fixed;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%);'
+    + 'z-index:99999;width:min(430px,calc(100vw - 28px));box-sizing:border-box;border:1px solid #79bde6;'
+    + 'border-radius:16px;background:rgba(7,22,40,.97);color:#eef8ff;font:14px/1.5 system-ui,sans-serif;'
+    + 'padding:18px;box-shadow:0 12px 40px #000b;text-align:center;';
+  const title = document.createElement('strong');
+  title.textContent = '잠시 문제가 발생했습니다 · Something went wrong';
+  title.style.cssText = 'display:block;font-size:16px;color:#fff;margin-bottom:7px;';
+  const body = document.createElement('span');
+  body.textContent = '저장 데이터는 그대로입니다. 화면을 새로고침해 계속 플레이해 주세요.\nYour save is safe. Reload to continue.';
+  body.style.whiteSpace = 'pre-line';
+  const actions = document.createElement('div');
+  actions.style.cssText = 'display:flex;justify-content:center;gap:8px;margin-top:14px;';
+  const reload = document.createElement('button');
+  reload.type = 'button'; reload.textContent = '새로고침 · Reload';
+  reload.style.cssText = 'border:0;border-radius:9px;padding:9px 13px;background:#2b91c9;color:#fff;font-weight:800;';
+  reload.onclick = () => location.reload();
+  const dismiss = document.createElement('button');
+  dismiss.type = 'button'; dismiss.textContent = '닫기 · Close';
+  dismiss.style.cssText = 'border:1px solid #7693aa;border-radius:9px;padding:9px 13px;background:#172d43;color:#fff;font-weight:700;';
+  dismiss.onclick = () => box?.remove();
+  actions.append(reload, dismiss);
+  box.replaceChildren(title, body, actions);
 }
 window.addEventListener('error', (e) => showError(`${e.message}\n${e.filename}:${e.lineno}`));
 window.addEventListener('unhandledrejection', (e) =>
@@ -34,6 +62,24 @@ import { standaloneTestMode } from './systems/StandaloneTestMode';
 import { LeaderboardProgress } from './systems/LeaderboardProgress';
 import { LeaderboardApi, type LeaderboardEntry } from './systems/LeaderboardApi';
 import { showRewardCeremony } from './systems/RewardCeremony';
+import { installFieldItems } from './systems/FieldItems';
+
+
+// ── Build stamp (dev only) ───────────────────────────────────────────────────
+// A small corner badge so it is obvious at a glance whether the running page is
+// the current code. Repeated "did the fix land?" rounds are almost always a
+// stale dev server or a cached asset, not a wrong edit — this makes that
+// answerable in one look instead of another round trip.
+export const BUILD_STAMP = 'hq-followers 2026-08-25c';
+if (import.meta.env.DEV) {
+  console.info(`[pokemonkorea] build ${BUILD_STAMP}`);
+  const badge = document.createElement('div');
+  badge.textContent = BUILD_STAMP;
+  badge.style.cssText = 'position:fixed;top:4px;right:6px;z-index:99999;pointer-events:none;'
+    + 'background:rgba(0,0,0,.55);color:#7CFC9B;font:11px/1.3 monospace;padding:2px 6px;border-radius:4px;';
+  if (document.body) document.body.appendChild(badge);
+  else addEventListener('DOMContentLoaded', () => document.body.appendChild(badge));
+}
 
 function launchRyeoBattleTest(game: Phaser.Game): void {
   // Restore into this window's Phaser registry only. The battle scene's save
@@ -343,7 +389,7 @@ function launchWaterfallFinaleTest(
   gender: 'boy' | 'girl' = 'boy',
 ): void {
   const requestedLang = new URLSearchParams(location.search).get('lang');
-  if (requestedLang === 'ko' || requestedLang === 'en') setLang(requestedLang, false);
+  if (requestedLang === 'ko' || requestedLang === 'en' || requestedLang === 'ja') setLang(requestedLang, false);
   game.registry.set('sceneFlowTest', true);
   game.registry.set('playerGender', gender);
   game.registry.set('playerName', gender === 'girl' ? 'Hana' : 'Jun');
@@ -428,7 +474,7 @@ async function launchRewardCeremonyTest(game: Phaser.Game): Promise<void> {
   const kind = params.get('reward') === 'mapae' ? 'mapae' : 'badge';
   const key = params.get('key') || (kind === 'mapae' ? 'pyeongseong' : 'sunriseGymDefeated');
   const requestedLang = params.get('lang');
-  if (requestedLang === 'ko' || requestedLang === 'en') setLang(requestedLang, false);
+  if (requestedLang === 'ko' || requestedLang === 'en' || requestedLang === 'ja') setLang(requestedLang, false);
   game.registry.set('sceneFlowTest', true);
   game.registry.set('party', '[]');
   game.registry.set('starterName', 'Vipour');
@@ -444,6 +490,69 @@ async function launchRewardCeremonyTest(game: Phaser.Game): Promise<void> {
     menu.time.delayedCall(250, () => showRewardCeremony(menu, { kind, key }));
   });
   game.scene.start('MenuScene');
+}
+
+/** The Hall of Fame ceremony with a full six-Pokémon team, no save writes.
+ *  `?clear=N` picks the rematch wording and the enshrinement number. */
+function launchHallOfFameTest(game: Phaser.Game): void {
+  const params = new URLSearchParams(location.search);
+  const requestedLang = params.get('lang');
+  if (requestedLang === 'ko' || requestedLang === 'en' || requestedLang === 'ja') setLang(requestedLang, false);
+  const clears = Math.max(0, Number(params.get('clear') ?? '0') || 0);
+  game.registry.set('sceneFlowTest', true);
+  game.registry.set('playerName', '한라');
+  game.registry.set('party', '[]');
+  game.registry.set('box', '[]');
+  game.registry.set('starterName', 'Vipour');
+  game.registry.set('starterKey', 'vipour');
+  game.registry.set('starterLevel', 70);
+  game.registry.set('starterExp', 0);
+  PartySystem.initFromStarter(game.registry);
+  const lead = PartySystem.get(game.registry)[0];
+  if (lead) {
+    const team = [
+      { key: 'vipour', name: '염혈목이', level: 72, url: 'assets/vipour.png' },
+      { key: 'thanatoat', name: '학동자', level: 70 },
+      { key: 'pipetiger', name: '관솔범', level: 71 },
+      { key: 'daejangseung', name: '대장승', level: 69 },
+      { key: 'turtleship', name: '거북선', level: 73 },
+      { key: 'nabihalmang', name: '나비할망', level: 74 },
+    ];
+    PartySystem.set(game.registry, team.map((m, i) => ({
+      ...lead, name: m.name, spriteKey: m.key,
+      spriteUrl: (m as { url?: string }).url ?? `assets/dex/${m.key}.png`,
+      level: m.level, breedingId: `hof-${i}`,
+    })));
+  }
+  game.registry.set('leagueClears', clears);
+  if (clears > 0) {
+    game.registry.set('hallOfFame', true);
+    game.registry.set('leagueHallOfFameRematchPending', true);
+  }
+  game.registry.set('hanbandoLeagueFloor', 5);
+  for (const k of ['e4-gyeoul', 'e4-hwageum', 'e4-baram', 'e4-saleum', 'champion-hwangeum']) {
+    game.registry.set(`trainerDefeated_${k}`, true);
+  }
+  if (game.scene.isActive('TitleScene')) game.scene.stop('TitleScene');
+  // `?room=1` opens the registration room directly; otherwise the fixture starts
+  // in the throne room so the champion's farewell and the hand-off are covered.
+  // `?theme=northern` shows the north's stone register instead.
+  const theme = params.get('theme') === 'northern' ? 'northern' as const : 'onnuri' as const;
+  if (params.get('room') === '1') {
+    game.scene.start('HallOfFameScene', { rematch: clears > 0, clears: clears + 1, theme });
+  } else if (theme === 'northern') {
+    game.registry.set('northHallOfFamePending', true);
+    game.registry.set('northLeagueClears', clears);
+    if (clears > 0) game.registry.set('northLeagueDone', true);
+    game.registry.set('northLeagueFloor', 5);
+    for (const k of ['north-seorak', 'north-hanseol', 'north-cheolgang', 'north-baekho', 'north-taewang']) {
+      game.registry.set(`trainerDefeated_${k}`, true);
+    }
+    game.scene.start('NorthernColiseumScene');
+  } else {
+    game.registry.set('leagueHallOfFamePending', true);
+    game.scene.start('PokemonLeagueScene');
+  }
 }
 
 /** Responsive leaderboard fixture with enough anonymous players to test paging. */
@@ -577,9 +686,10 @@ if (shell.mobile) {
 }
 
 initI18n(game);   // load the saved KO/EN language preference before any scene renders
+installFieldItems(game);
 LeaderboardProgress.install(game, snapshot => LeaderboardApi.queue(snapshot));
 
-(window as unknown as { __game: Phaser.Game }).__game = game;
+if (import.meta.env.DEV) (window as unknown as { __game: Phaser.Game }).__game = game;
 
 // ── 3D rendering layer ───────────────────────────────────────────────────────
 // Renders the game world in 3D (terrain, characters and approved local GLBs,
@@ -618,7 +728,7 @@ else if (shell.mobile) {
 }
 
 // Open isolated scene-flow checks directly from their dedicated URLs.
-const testMode = standaloneTestMode();
+const testMode = import.meta.env.DEV ? standaloneTestMode() : undefined;
 if (testMode === 'leaderboard') {
   game.events.once(Phaser.Core.Events.READY, () => {
     window.setTimeout(() => launchLeaderboardTest(game), 100);
@@ -670,6 +780,10 @@ if (testMode === 'leaderboard') {
 } else if (testMode === 'ui-localization') {
   game.events.once(Phaser.Core.Events.READY, () => {
     window.setTimeout(() => launchUiLocalizationTest(game), 350);
+  });
+} else if (testMode === 'hall-of-fame') {
+  game.events.once(Phaser.Core.Events.READY, () => {
+    window.setTimeout(() => launchHallOfFameTest(game), 350);
   });
 } else if (testMode === 'reward-ceremony') {
   game.events.once(Phaser.Core.Events.READY, () => {

@@ -1469,8 +1469,6 @@ export const KO_STRINGS: Record<string, string> = {
     '콘테스트 홀과 천 개의 등불 무대로 유명한 우아한 강변 도시.',
   'Contest Hall Usher: Welcome to the Geumgang Contest Hall!':
     '콘테스트 홀 안내원: 금강 콘테스트 홀에 오신 걸 환영합니다!',
-  'Usher: Coordinators dazzle the crowd here with their Pokémon. (Contests coming soon!)':
-    '안내원: 코디네이터들이 포켓몬으로 관중을 매료시키는 곳이에요. (콘테스트 곧 추가 예정!)',
 
   // ── Route 2 / signposts ──
   '↑ Pine Needle Town': '↑ 솔잎 마을',
@@ -2297,6 +2295,24 @@ export const KO_STRINGS: Record<string, string> = {
     '황금: 등록실은 이쪽이야. 같이 들어가자 — 네 팀도 자기 이름이 불리는 걸 직접 들어야지.',
   'Hwangeum: Come. The register is waiting, same as always.':
     '황금: 가자. 등록부는 늘 그렇듯 기다리고 있어.',
+  // ── Northern register (태왕) ──
+  'Taewang: Walk with me to the register. The north cuts its honoured names into stone, and today it cuts yours.':
+    '태왕: 함께 등록부로 가자. 북방은 명예로운 이름을 돌에 새긴다. 오늘은 네 이름을 새긴다.',
+  'Taewang: Come. The stone is waiting, as it always is.':
+    '태왕: 가자. 돌은 늘 그렇듯 기다리고 있다.',
+  'Taewang: The stone register of the north. Thirty years, and no southern name has been cut into it.':
+    '태왕: 북방의 석조 등록부다. 삼십 년 동안 남쪽 이름이 새겨진 적은 없었지.',
+  'Taewang: Set your six upon it. Let the north read them properly.':
+    '태왕: 여섯을 그 위에 올려라. 북방이 제대로 읽게 하라.',
+  'Taewang: Again, then. The register knows your hand by now.':
+    '태왕: 또인가. 등록부도 이제 네 손을 알아보겠군.',
+  "The stone register grinds open, and one by one your Pokémon are cut into the north's own roll of honour.":
+    '석조 등록부가 육중하게 열리고, 너의 포켓몬들이 하나씩 북방의 명예록에 새겨진다.',
+  'The stone register grinds open once more, and your team is cut in beside its earlier records.':
+    '석조 등록부가 다시 한번 열리고, 너의 팀이 이전 기록들 옆에 새겨진다.',
+  'CONQUEROR OF THE NORTHERN LEAGUE': '북방 리그 정복자',
+  'NORTHERN HALL OF FAME': '북방 명예의 전당',
+  'Taewang': '태왕',
   'Hwangeum: This is the recorder. Set your team on it — all six.':
     '황금: 이게 기록기야. 네 팀을 여기 올려놔 — 여섯 마리 전부.',
   'Hwangeum: It reads them itself. Names, levels, everything they became with you.':
@@ -2480,6 +2496,8 @@ export const KO_STRINGS: Record<string, string> = {
     '송 박사: 봉인된 북방 관문에서 무언가 꿈틀대고 있어. 노스단이 다시 움직이고 있어 — 이번엔 화산의 정령보다 훨씬 오래된 무언가를 노리고 있어.',
   "Prof. Song: Rest today. Tomorrow, the last road begins. I'll call again when it's time.  (To be continued…)":
     '송 박사: 오늘은 쉬어. 내일, 마지막 길이 시작돼. 때가 되면 다시 연락할게.  (다음에 계속…)',
+  'Prof. Song: Rest today. At first light, come to the lab. We will open the northern road together.':
+    '송남우 박사: 오늘은 쉬렴. 날이 밝으면 연구소로 오너라. 함께 북쪽 길을 열자꾸나.',
   "Prof. Song (over the Pokédex, grim): 노스단. Again — but bigger. With Commander Ryeo imprisoned, someone new has taken the banner, and they've abandoned the old plan entirely.":
     '송 박사 (도감 너머로, 심각하게): 노스단이야. 또 — 하지만 더 커졌어. 사령관 려가 투옥되자, 누군가 새로 깃발을 잡았고, 옛 계획을 완전히 버렸어.',
   "Prof. Song: I'm sending an image to your Pokédex now — an old scroll. A radiant figure descending, three spirits at its side. They reach for the one power above all others. 환웅 — Hwanung, the Sovereign Who Descended.":
@@ -2904,6 +2922,15 @@ export const KO_STRINGS: Record<string, string> = {
   "Max Potion": "풀회복약",
   "Revive": "기력의조각",
   "Max Revive": "기력의덩어리",
+  "Oran Berry": "오랭열매",
+  "Sitrus Berry": "자뭉열매",
+  "Lum Berry": "리샘열매",
+  "Leftovers": "먹다남은음식",
+  "Expert Belt": "달인의띠",
+  "Charcoal": "목탄",
+  "Mystic Water": "신비의물방울",
+  "Miracle Seed": "기적의씨",
+  "Magnet": "자석",
   "Antidote": "해독제",
   "Paralyze Heal": "마비치료제",
   "Burn Heal": "화상치료제",
@@ -2932,6 +2959,15 @@ export const KO_STRINGS: Record<string, string> = {
   "Restores 60 HP.": "HP를 60 회복한다.",
   "Restores 120 HP.": "HP를 120 회복한다.",
   "Fully restores HP.": "HP를 모두 회복한다.",
+  "Held: restores 10 HP at low HP.": "지니게 하면 HP가 낮을 때 10 회복한다.",
+  "Held: restores one quarter of max HP at low HP.": "지니게 하면 HP가 낮을 때 최대 HP의 1/4을 회복한다.",
+  "Held: cures any major status condition.": "지니게 하면 상태이상을 한 번 치료한다.",
+  "Held: gradually restores HP every turn.": "지니게 하면 매 턴 HP를 조금씩 회복한다.",
+  "Held: powers up super-effective attacks.": "지니게 하면 효과가 굉장한 기술의 위력이 오른다.",
+  "Held: powers up Fire-type attacks.": "지니게 하면 불꽃타입 기술의 위력이 오른다.",
+  "Held: powers up Water-type attacks.": "지니게 하면 물타입 기술의 위력이 오른다.",
+  "Held: powers up Grass-type attacks.": "지니게 하면 풀타입 기술의 위력이 오른다.",
+  "Held: powers up Electric-type attacks.": "지니게 하면 전기타입 기술의 위력이 오른다.",
   "Revives a fainted Pokémon to half HP.": "쓰러진 포켓몬을 HP 절반으로 되살린다.",
   "Revives a fainted Pokémon to full HP.": "쓰러진 포켓몬을 HP를 모두 채워 되살린다.",
   "Cures poison.": "독을 치료한다.",

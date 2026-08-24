@@ -27,6 +27,7 @@ function formatTime(ms: number | null): string {
   const minutes = Math.floor((totalSeconds % 3_600) / 60);
   const seconds = totalSeconds % 60;
   if (getLang() === 'ko') return hours > 0 ? `${hours}시간 ${minutes}분 ${seconds}초` : `${minutes}분 ${seconds}초`;
+  if (getLang() === 'ja') return hours > 0 ? `${hours}時間 ${minutes}分 ${seconds}秒` : `${minutes}分 ${seconds}秒`;
   return hours > 0 ? `${hours}h ${minutes}m ${seconds}s` : `${minutes}m ${seconds}s`;
 }
 

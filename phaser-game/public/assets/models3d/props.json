@@ -6,7 +6,7 @@
       "tags": [
         "home"
       ],
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/5c8d3ebc-4b0d-4efc-b0da-bb902b5d402e.glb"
+      "url": "assets/models3d/home.glb"
     },
     {
       "id": "rival",
@@ -14,7 +14,7 @@
       "tags": [
         "home"
       ],
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/74f59825-3dcd-41da-9847-ed278f332f35.glb"
+      "url": "assets/models3d/rival.glb"
     },
     {
       "id": "lab",
@@ -36,12 +36,12 @@
       "tags": [
         "traditional"
       ],
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/2c30f29a-f274-4bdb-b3ef-30e70cf61e2c.glb"
+      "url": "assets/models3d/pinehouse.glb"
     },
     {
       "id": "house",
       "role": "building",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/fbee8199-620a-4737-8e0b-a17603efb770.glb"
+      "url": "assets/models3d/alpinelodge.glb"
     },
     {
       "id": "deptstore",
@@ -95,7 +95,7 @@
       "tags": [
         "shop"
       ],
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/a412a0e9-ed1e-4029-80ea-3721a63f8d47.glb"
+      "url": "assets/models3d/mart.glb"
     },
     {
       "id": "bikeshop",
@@ -103,7 +103,7 @@
       "tags": [
         "shop"
       ],
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/3bce9d76-b9ea-4322-9905-c4ef10f3e59c.glb"
+      "url": "assets/models3d/gearshop.glb"
     },
     {
       "id": "pinehouse",
@@ -224,7 +224,7 @@
       "tags": [
         "shrine"
       ],
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/e0f6d538-0441-4c11-a306-894ad4ba78b1.glb"
+      "url": "assets/models3d/shrine.glb"
     },
     {
       "id": "jejumarket",
@@ -232,7 +232,7 @@
       "tags": [
         "market"
       ],
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/2f48342c-2e92-4c19-a747-31f6f2f12d74.glb"
+      "url": "assets/models3d/deptstore.glb"
     },
     {
       "id": "cheonjiyeon",
@@ -240,7 +240,7 @@
       "tags": [
         "pavilion"
       ],
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/d2fec8e7-2615-41ee-9261-d8fd156afabb.glb"
+      "url": "assets/models3d/palace.glb"
     },
     {
       "id": "cityfree_a",
@@ -382,11 +382,6 @@
         "station"
       ],
       "url": "assets/map3d/soolstation.glb"
-    },
-    {
-      "id": "bus",
-      "role": "vehicle",
-      "url": "https://d3u0tzju9qaucj.cloudfront.net/7d051b5a-7bfe-49fe-a484-24e7b3a9458a/5cbaedf8-b605-4f72-bde4-70ab3949cffc.glb"
     }
   ]
 }

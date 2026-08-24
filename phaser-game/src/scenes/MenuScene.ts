@@ -27,6 +27,8 @@ import { preloadRewardAssets, rewardTextureKey } from '../systems/RewardCeremony
 import { PROD_UI, roundedPanel } from '../systems/ProductionUi';
 import { sfxCancel, sfxConfirm, sfxMove } from '../systems/UiSfx';
 import { localizedCaughtLocation } from '../data/PokemonOrigin';
+import { completedQuestMilestones, currentQuest } from '../systems/QuestGuide';
+import { hasPendingEvolution } from '../systems/EvolutionSystem';
 
 export class MenuScene extends Phaser.Scene {
   private tab: 'pokemon' | 'bag' = 'pokemon';
@@ -580,8 +582,9 @@ export class MenuScene extends Phaser.Scene {
   private partyName(entry: PartyEntry): string {
     const key = dexKeyFor(entry.spriteKey);
     const korean = entry.nameKo ?? pokeName(key, pokeNameEn(entry.name));
+    const japanese = entry.nameJa ?? pokeName(key, pokeNameEn(entry.name));
     const english = entry.name.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-    return t(english, korean);
+    return t(english, korean, japanese);
   }
 
   /** Shared by the on-canvas button and the large mobile lower-screen picker. */
@@ -619,15 +622,17 @@ export class MenuScene extends Phaser.Scene {
         const battle = await fetchPokemon(Number(officialId));
         if (battle.ability) { entry.ability = battle.ability; changed = true; }
       } catch { /* offline: retain the local dictionary / English fallback */ }
-      if (!entry.nameKo) try {
+      if (!entry.nameKo || !entry.nameJa) try {
         const species = await fetchPokemonSpeciesInfo(Number(officialId));
         if (species.nameKo) { entry.nameKo = species.nameKo; changed = true; }
+        if (species.nameJa) { entry.nameJa = species.nameJa; changed = true; }
       } catch { /* offline: retain the local dictionary / English fallback */ }
 
-      if (entry.ability && !entry.abilityKo) {
+      if (entry.ability && (!entry.abilityKo || !entry.abilityJa)) {
         try {
           const localized = await fetchPokemonAbilityInfo(entry.ability);
           if (localized.nameKo) { entry.abilityKo = localized.nameKo; changed = true; }
+          if (localized.nameJa) { entry.abilityJa = localized.nameJa; changed = true; }
         } catch { /* local ability dictionary remains available offline */ }
       }
     }));
@@ -678,7 +683,7 @@ export class MenuScene extends Phaser.Scene {
     const origin = storedOrigin ?? caughtOriginForDexKey(key)
       ?? (STARTERS.some(s => s.spriteKey === entry.spriteKey) ? "Prof. Song's Lab" : 'Unknown location');
     const statusNames: Record<string, string> = {
-      none: t('Healthy', '정상'), psn: t('Poisoned', '독'), par: t('Paralyzed', '마비'),
+      none: t('Healthy', '정상'), psn: t('Poisoned', '독'), tox: t('Badly poisoned', '맹독', 'もうどく'), par: t('Paralyzed', '마비'),
       brn: t('Burned', '화상'), frz: t('Frozen', '얼음'), slp: t('Asleep', '잠듦'),
     };
 
@@ -817,7 +822,7 @@ export class MenuScene extends Phaser.Scene {
     overlay.add(this.add.text(rightLeft + 14, abilityY + 10, t('ABILITY', '특성'), {
       fontSize: '9px', color: '#86bad8', fontStyle: 'bold',
     }));
-    overlay.add(this.add.text(rightLeft + 14, abilityY + 27, abilityName(ability, entry.abilityKo), {
+    overlay.add(this.add.text(rightLeft + 14, abilityY + 27, abilityName(ability, entry.abilityKo, entry.abilityJa), {
       fontSize: '15px', color: '#ffffff', fontStyle: 'bold',
     }));
     overlay.add(this.add.text(rightLeft + 14, abilityY + 50,
@@ -900,11 +905,11 @@ export class MenuScene extends Phaser.Scene {
     // Ability + condition (one wrapped line).
     const ability = entry.ability ?? findForm(entry.spriteKey)?.ability ?? dex?.ability ?? t('Unknown', '알 수 없음');
     const statusNames: Record<string, string> = {
-      none: t('Healthy', '정상'), psn: t('Poisoned', '독'), par: t('Paralyzed', '마비'),
+      none: t('Healthy', '정상'), psn: t('Poisoned', '독'), tox: t('Badly poisoned', '맹독', 'もうどく'), par: t('Paralyzed', '마비'),
       brn: t('Burned', '화상'), frz: t('Frozen', '얼음'), slp: t('Asleep', '잠듦'),
     };
     const abilT = this.add.text(left + padX, y,
-      `${t('Ability', '특성')}: ${abilityName(ability, entry.abilityKo)}    ·    ${t('Condition', '상태')}: ${statusNames[entry.status ?? 'none'] ?? entry.status}`,
+      `${t('Ability', '특성')}: ${abilityName(ability, entry.abilityKo, entry.abilityJa)}    ·    ${t('Condition', '상태')}: ${statusNames[entry.status ?? 'none'] ?? entry.status}`,
       { fontSize: '13px', color: '#bcd3ff', wordWrap: { width: modalW - padX * 2 } });
     overlay.add(abilT); y += abilT.height + 12;
     const storedOrigin = entry.caughtAt && !/^Evolve\b/i.test(entry.caughtAt) ? entry.caughtAt : undefined;
@@ -975,6 +980,13 @@ export class MenuScene extends Phaser.Scene {
 
     type Row = { key?: string; name: string; desc: string; icon: string; count?: number; onClick?: () => void };
     const rows: Row[] = [];
+
+    const quest = currentQuest(this.registry);
+    rows.push({
+      name: t('Quest Log', '모험 기록'), icon: '❗',
+      desc: `${quest.title} · ${quest.destination}${quest.progress ? ` · ${quest.progress}` : ''}`,
+      onClick: () => this.showQuestLog(),
+    });
 
     // Town Map — always available; view the whole region and (post-League) Fly.
     rows.push({
@@ -1139,6 +1151,62 @@ export class MenuScene extends Phaser.Scene {
     this.renderBagTab();
   }
 
+  /** Always-available main-story objective and recovered milestone history. */
+  private showQuestLog() {
+    const cx = this.W / 2, cy = this.H / 2;
+    const quest = currentQuest(this.registry);
+    const history = completedQuestMilestones(this.registry);
+    const panelW = this.mobileMenu ? Math.min(this.W - 40, 1100) : 650;
+    const panelH = this.mobileMenu ? Math.min(this.H - 32, 660) : 470;
+    const left = cx - panelW / 2;
+    const top = cy - panelH / 2;
+    const overlay = this.add.container(0, 0).setDepth(70);
+    const shade = this.add.rectangle(cx, cy, this.W, this.H, 0x000000, 0.74)
+      .setInteractive({ useHandCursor: true });
+    const panel = this.add.rectangle(cx, cy, panelW, panelH, 0x09182b, 0.99)
+      .setStrokeStyle(2, 0xffd34d);
+    overlay.add([shade, panel]);
+
+    overlay.add(this.add.text(left + 28, top + 26, t('QUEST LOG', '모험 기록'), {
+      fontSize: '20px', color: '#ffdf69', fontStyle: 'bold', letterSpacing: 2,
+    }));
+    overlay.add(this.add.text(left + 28, top + 62, t('CURRENT OBJECTIVE', '현재 목표'), {
+      fontSize: '10px', color: '#65d8ff', fontStyle: 'bold', letterSpacing: 1,
+    }));
+    overlay.add(this.add.text(left + 28, top + 84, quest.title, {
+      fontSize: this.mobileMenu ? '18px' : '17px', color: '#ffffff', fontStyle: 'bold',
+      wordWrap: { width: panelW - 56 },
+    }));
+    overlay.add(this.add.text(left + 28, top + 120, quest.detail, {
+      fontSize: this.mobileMenu ? '14px' : '13px', color: '#c7d8ea', lineSpacing: 6,
+      wordWrap: { width: panelW - 56 },
+    }));
+    overlay.add(this.add.text(left + 28, top + 190,
+      `${t('DESTINATION', '목적지')}  ◆  ${quest.destination}${quest.progress ? `    ${quest.progress}` : ''}`, {
+        fontSize: '13px', color: '#ffe894', fontStyle: 'bold',
+        wordWrap: { width: panelW - 56 },
+      }));
+    overlay.add(this.add.rectangle(cx, top + 229, panelW - 56, 1, 0x42617c, 0.85));
+    overlay.add(this.add.text(left + 28, top + 246, t('COMPLETED MILESTONES', '완료한 주요 기록'), {
+      fontSize: '10px', color: '#65d8ff', fontStyle: 'bold', letterSpacing: 1,
+    }));
+    const historyText = history.length
+      ? history.slice(-8).map(entry => `✓  ${entry}`).join('\n')
+      : t('Your journey has only just begun.', '이제 막 여정이 시작되었습니다.');
+    overlay.add(this.add.text(left + 32, top + 271, historyText, {
+      fontSize: this.mobileMenu ? '13px' : '12px', color: '#b9cce0', lineSpacing: 8,
+      wordWrap: { width: panelW - 64 },
+    }));
+
+    const close = this.add.text(cx, top + panelH - 26, t('B  CLOSE', 'B  닫기'), {
+      fontSize: '13px', color: '#d9e8f7', backgroundColor: '#203854', padding: { x: 14, y: 7 },
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true }).setData('uiCancel', true);
+    const destroy = () => { sfxCancel(this); overlay.destroy(true); };
+    close.on('pointerdown', destroy);
+    shade.on('pointerdown', destroy);
+    overlay.add(close);
+  }
+
   /** Badge case — an 8-slot showcase of every Gym Badge, earned ones lit up. */
   private showBadgeCase() {
     const cx = this.W / 2, cy = this.H / 2;
@@ -1255,7 +1323,9 @@ export class MenuScene extends Phaser.Scene {
     const overlay = this.add.container(0, 0).setDepth(60);
     overlay.add(this.add.rectangle(cx, cy, this.W, this.H, 0x000000, 0.6));
     overlay.add(this.add.rectangle(cx, cy, 460, 420, 0x10142a, 0.99).setStrokeStyle(2, 0x5577aa));
-    overlay.add(this.add.text(cx, cy - 178, `Use ${itemDef(itemKey)?.name} on…`, { fontSize: '16px', color: '#ffe44e', fontStyle: 'bold' }).setOrigin(0.5));
+    const selectedDef = itemDef(itemKey);
+    const selectedName = selectedDef ? itemName(selectedDef) : itemKey;
+    overlay.add(this.add.text(cx, cy - 178, t(`Use ${selectedName} on…`, `${selectedName}을 사용할 포켓몬`, `${selectedName}を 使う ポケモン`), { fontSize: '16px', color: '#ffe44e', fontStyle: 'bold' }).setOrigin(0.5));
 
     party.forEach((e, i) => {
       const y = cy - 140 + i * 48;
@@ -1266,7 +1336,14 @@ export class MenuScene extends Phaser.Scene {
       r.on('pointerdown', () => {
         const res = useItemOnSlot(this.registry, itemKey, i);
         overlay.destroy(true);
-        this.showToast(res.message);
+        this.showToast(tr(res.message));
+        if (res.ok && hasPendingEvolution(this.registry)) {
+          this.time.delayedCall(280, () => {
+            this.scene.launch('EvolutionScene', { parentKey: 'MenuScene' });
+            this.scene.pause();
+          });
+          return;
+        }
         this.switchTab('bag');   // refresh
       });
     });
@@ -1321,7 +1398,7 @@ export class MenuScene extends Phaser.Scene {
     const newData = TM_MOVE_DATA[move.toLowerCase()] ?? HM_MOVE_DATA[move.toLowerCase()];
     if (!newData || newData.power <= 0) {
       const res = teachHM(this.registry, itemKey, slot);
-      this.showToast(res.message);
+      this.showToast(tr(res.message));
       this.switchTab('bag');
       return;
     }
@@ -1335,7 +1412,7 @@ export class MenuScene extends Phaser.Scene {
     if (current.length < 4) {
       // Free slot — just add it (keeps the Pokémon's normal move growth).
       const res = teachHM(this.registry, itemKey, slot);
-      this.showToast(res.message);
+      this.showToast(tr(res.message));
       this.switchTab('bag');
       return;
     }

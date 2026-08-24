@@ -109,10 +109,56 @@ const CAUGHT_LOCATION_KO: Record<string, string> = {
   'Sinuiju Ice Cave': '신의주 얼음동굴',
 };
 
+const CAUGHT_LOCATION_JA: Record<string, string> = {
+  'Unknown location': '不明な場所',
+  "Prof. Song's Lab": 'ソン博士の研究所',
+  'Pine Needle Pokémon Nursery': '松葉ポケモン育て屋',
+  'Cheonji Lake — Baekdu Peak': '天池 — 白頭山頂上',
+  'Ancient Forest': '古代の森',
+  'Forest Shrine': '森のほこら',
+  'Ancient Forest Shrine': '古代の森のほこら',
+  'Capitol Gym': 'ソウルジム',
+  'Geumgang Fairy Gym': 'クムガンシティ フェアリージム',
+  'Pokémon League (Hwageum)': 'ポケモンリーグ（ファグム）',
+  'Onnuri Sea': 'オンヌリ海',
+  'Onnuri Ferry Route': 'オンヌリ航路',
+  'Open sea': '外洋',
+  'Coastal waters': '沿岸海域',
+  'Nampo Beach': 'ナンポビーチ',
+  'Wonsan Beach': 'ウォンサンビーチ',
+  'Jeju Volcanic Vent': '済州火山噴気孔',
+  'Baekdu Summit': '白頭山頂上',
+  'Dolmoe Mine': 'トルメ鉱山',
+  'Dolmoe Ruins': 'トルメ支石墓遺跡',
+  'Northern Reaches': '北方辺境',
+  'Sacred Peak': '聖なる峰',
+};
+
 /** Localize both scene-derived and old-save English capture locations. */
 export function localizedCaughtLocation(location?: string): string {
-  if (!location) return getLang() === 'ko' ? '알 수 없는 장소' : 'Unknown location';
-  if (getLang() !== 'ko') return location;
+  const lang = getLang();
+  if (!location) return lang === 'ko' ? '알 수 없는 장소' : lang === 'ja' ? '不明な場所' : 'Unknown location';
+  if (lang === 'ja') {
+    const exact = CAUGHT_LOCATION_JA[location];
+    if (exact) return exact;
+    const dictionary = tr(location);
+    if (dictionary !== location) return dictionary;
+    return location
+      .replace(/Route\s+(\d+)/gi, '$1番道路')
+      .replace(/\(rare\)/gi, '（レア）')
+      .replace(/Ancient/gi, '古代の')
+      .replace(/Forest/gi, '森')
+      .replace(/Shrine/gi, 'ほこら')
+      .replace(/Caves?/gi, '洞窟')
+      .replace(/Coastal?/gi, '沿岸')
+      .replace(/Beaches?/gi, 'ビーチ')
+      .replace(/Snowfields?/gi, '雪原')
+      .replace(/Ruins?/gi, '遺跡')
+      .replace(/Village/gi, '村')
+      .replace(/City/gi, 'シティ')
+      .replace(/Onnuri/gi, 'オンヌリ');
+  }
+  if (lang !== 'ko') return location;
   const exact = CAUGHT_LOCATION_KO[location];
   if (exact) return exact;
   const dictionary = tr(location);

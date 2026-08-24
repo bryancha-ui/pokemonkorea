@@ -1,81 +1,1849 @@
 {
   "models": [
     {
-      "key": "vipour",
-      "scale": 0.6
+      "key": "10",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
     },
-    "arctorodon",
-    "babymammoth",
+    {
+      "key": "13",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "16",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "19",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "21",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "25",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "27",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "28",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "35",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "41",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "42",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "43",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "51",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "55",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "56",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "57",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "62",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "66",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "67",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "68",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "69",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "72",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "73",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "74",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "75",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "76",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "80",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "81",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "82",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "83",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "90",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "91",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "93",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "94",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "95",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "98",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "106",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "111",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "112",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "118",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "119",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "120",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "121",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "126",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "128",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "129",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "130",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "131",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "132",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "147",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "148",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "149",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "161",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "163",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "164",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "171",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "179",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "184",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "185",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "192",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "195",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "196",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "197",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "198",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "200",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "207",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "208",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "211",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "215",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "217",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "218",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "220",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "221",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "222",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "224",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "225",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "226",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "227",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "228",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "229",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "230",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "234",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "235",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "237",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "241",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "246",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "248",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "261",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "264",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "272",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "277",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "278",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "279",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "282",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "297",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "302",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "305",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "306",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "308",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "315",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "319",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "320",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "329",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "330",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "333",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "334",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "340",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "350",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "353",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "354",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "355",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "356",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "358",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "359",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "361",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "362",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "373",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "376",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "381",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "384",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "389",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "395",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "398",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "400",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "406",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "407",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "411",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "425",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "426",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "429",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "430",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "435",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "436",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "437",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "445",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "447",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "448",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "452",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "454",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "458",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "459",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "460",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "461",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "462",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "464",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "465",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "469",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "471",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "472",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "473",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "475",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "478",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "479",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "508",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "510",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "525",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "526",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "527",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "529",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "530",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "534",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "553",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "560",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "584",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "586",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "593",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "612",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "613",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "614",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "615",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "625",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "626",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "628",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "630",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "635",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "699",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "701",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "706",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "730",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "901",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "902",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "903",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "904",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "905",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "911",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "912",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "913",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "914",
+      "lightweight": true,
+      "source": "pokemon-3d-api"
+    },
+    {
+      "key": "ampere",
+      "rotY": 270,
+      "lightweight": true,
+      "optimized": true
+    },
+    {
+      "key": "arctorodon",
+      "lightweight": true,
+      "optimized": true
+    },
+    {
+      "key": "babymammoth",
+      "lightweight": true,
+      "optimized": true
+    },
     {
       "key": "balchataek",
-      "rotY": 90
+      "rotY": 90,
+      "lightweight": true,
+      "optimized": true
     },
-    "blazekunk",
-    "bonejoillion",
+    {
+      "key": "banderado",
+      "rotY": 90,
+      "lightweight": true,
+      "optimized": true
+    },
+    {
+      "key": "blazekunk",
+      "lightweight": true,
+      "optimized": true
+    },
+    {
+      "key": "bonejoillion",
+      "lightweight": true,
+      "optimized": true
+    },
     {
       "key": "bookbug",
       "scale": 0.5,
-      "rotY": 270
+      "rotY": 270,
+      "lightweight": true,
+      "optimized": true
     },
-    "bookmoth",
+    {
+      "key": "bookmoth",
+      "lightweight": true,
+      "optimized": true
+    },
+    "bosongnun",
+    "camerghoost",
     {
       "key": "cerrapin",
-      "scale": 0.6
+      "scale": 0.6,
+      "lightweight": true,
+      "optimized": true
     },
-    "foxgeist",
-    "hwanwoong",
     {
       "key": "daejangseung",
-      "rotY": 230
+      "rotY": 230,
+      "lightweight": true,
+      "optimized": true
     },
-    "nabihalmang",
+    {
+      "key": "foxgeist",
+      "lightweight": true,
+      "optimized": true
+    },
+    {
+      "key": "frysm",
+      "lightweight": true,
+      "optimized": true
+    },
+    "hambillet",
+    {
+      "key": "hwanwoong",
+      "lightweight": true,
+      "optimized": true
+    },
     {
       "key": "ivelon",
       "rotY": 270,
-      "scale": 0.4
+      "scale": 0.4,
+      "lightweight": true,
+      "optimized": true
     },
     {
       "key": "kidstrel",
-      "rotY": 270
+      "rotY": 270,
+      "lightweight": true,
+      "optimized": true
     },
-    "frysm",
+    {
+      "key": "kkaakdang",
+      "rotY": 40
+    },
+    "luninari",
     {
       "key": "munkain",
       "scale": 0.6
+    },
+    {
+      "key": "nabihalmang",
+      "lightweight": true,
+      "optimized": true,
+      "rotY": 180
+    },
+    {
+      "key": "npc_hwangeum",
+      "scale": 1
     },
     {
       "key": "onnurian",
       "scale": 0.6,
       "rotY": 335
     },
-    "thanatoat",
     {
-      "key": "banderado",
-      "rotY": 90
+      "key": "pipetiger",
+      "lightweight": true,
+      "optimized": true
     },
-    {
-      "key": "ampere",
-      "rotY": 270
-    },
-    "bosongnun",
-    "camerghoost",
-    "hambillet",
-    {
-      "key": "kkaakdang",
-      "rotY": 40
-    },
-    "luninari",
     "samdumae",
+    {
+      "key": "secommamma",
+      "lightweight": true
+    },
     "silicutis",
     "snoqueen",
     "supiryeong",
-    "unsilgami",
-    "pipetiger",
-    "yeomtaeja",
-    "turtleship",
     {
-      "key": "npc_hwangeum",
-      "scale": 1.0
+      "key": "thanatoat",
+      "lightweight": true,
+      "optimized": true
+    },
+    "turtleship",
+    "unsilgami",
+    {
+      "key": "vipour",
+      "scale": 0.6
+    },
+    "yeomtaeja",
+    {
+      "key": "aroryong",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "beardiedragon",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "bookkuddoong",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "booktoise",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "burinao",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "butlerawn",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "capaludar",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "chattyscream",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "cheonjisin",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "corrpanda",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "crystbeetle",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "danachungi",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "disguijar",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "doksalsa",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "doribi",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "dracoelido",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "dracopaia",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "dundunguri",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "dynabeetle",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "falcrush",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "feldaconda",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "gatnannu",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "gawlhawk",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "ghograss",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "glacewing",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "gorcobat",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "groundzomber",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "groundzoome",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "hallowknight",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "halubang",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "honupup",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "honutomb",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "hwidoribi",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "idolena",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "jakdangchi",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "jakdangsae",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "kelpoxin",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "kingfisher",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "kkorisagwi",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "komodread",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "kudzu",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "layone",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "liondance",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "longroffe",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "maewoyong",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "martbadger",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "merrloween",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "metdoyaroe",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "moktakgwi",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "moranlovebird",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "moransae",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "mperodactyl",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "mugunga",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "mugungmama",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "munklift",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "mushvenom",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "nabicocoon",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "nabiguni",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "neogulgamyeon",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "noeryong",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "nootillunar",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "norigung",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "nosepassx",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "odamryul",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "onnujang",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "onnuriarcanine",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "onnurigrowlithe",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "onnurismoochum",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "oribioass",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "ottermudang",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "ottershaman",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "palmcockatoo",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "palossandx",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "paratoxin",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "peacockrose",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "plumpypu",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "poongbaek",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "prowlnox",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "prowlrock",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "ratouille",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "redheadagama",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "rideer",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "roundtailor",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "saekomaga",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "saekomassi",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "salmua",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "sandfox",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "sandygastx",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "scorpent",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "seuphaisin",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "sotori",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "squirrel1",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "squirrel2",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "ssaktrin",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "ssangdungori",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "strawtle",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "thunderon",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "tigerbabe",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "tokkigongju",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "trumpetcreeper",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "twinkluppy",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "ureunggul",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "venombee",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "volthopper",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "waterdeer",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "wildcat",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "woonsa",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "woosa",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
+    },
+    {
+      "key": "zoltile",
+      "lightweight": true,
+      "generated": true,
+      "proceduralVolumetric": true,
+      "companionOnly": true
     }
   ]
 }

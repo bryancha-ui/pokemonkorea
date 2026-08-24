@@ -8,7 +8,7 @@ import {
   makeBellFrame, makeFirewoodStack, makeMeditationRock, makeSchoolBanner, makeSparringRing,
   makeStrawDummy, makeTrainingPost, makeWeaponRack,
   makeAlpineLake,
-  makeRocks, makeScenicRock, makeFerry, makeFrostGym, makeGrandPalace, makeHanokPalace, makeMountainRange, makeNosdanHQ, makePalmTree, makePokemonCenter, makePokeMart, makeSacredPeakCloudSea, makeStall, makeStoneLantern, makeStoreFixture, makeStreetlamp, makeTrees, makeTriumphalArch, makeWater, makeWaterfall, makeWoodBridge, makeBoat, toonRamp,
+  makeRocks, makeScenicRock, makeFerry, makeFrostGym, makeGrandPalace, makeHanokPalace, makeMountainRange, makeOnnuriLeague, makeNosdanHQ, makePalmTree, makePokemonCenter, makePokeMart, makeSacredPeakCloudSea, makeStall, makeStoneLantern, makeStoreFixture, makeStreetlamp, makeTrees, makeTriumphalArch, makeWater, makeWaterfall, makeWoodBridge, makeBoat, toonRamp,
   type StoreFixtureKind,
 } from './Props';
 import { buildCityDetail, CityTileSpec } from './CityDetail3D';
@@ -97,12 +97,10 @@ type Cell =
   | 'flat' | 'wall-high' | 'wall-low' | 'tree' | 'pine' | 'grass' | 'flower'
   | 'water' | 'rock' | 'building';
 
-// ── Facade texture (generated asset with procedural fallback) ───────────────
-// Drop a tileable facade at public/assets/textures3d/facade.png (e.g. generated
-// with Higgsfield) and every extruded building picks it up automatically.
-let facadeLoaded: THREE.Texture | null = null;
-let facadeTried = false;
-const facadeWaiters: THREE.MeshToonMaterial[] = [];
+// ── Built-in facade texture ─────────────────────────────────────────────────
+// The previous code requested optional facade.png/roof.png files that were not
+// shipped, producing two guaranteed 404s on every fresh mobile session. Keep
+// the exact procedural facade and painted-footprint roof without the requests.
 
 function proceduralFacade(): HTMLCanvasElement {
   const c = document.createElement('canvas');
@@ -127,43 +125,8 @@ function facadeMaterial(tint: number, repX: number, repY: number): THREE.MeshToo
   base.colorSpace = THREE.SRGBColorSpace;
   base.wrapS = base.wrapT = THREE.RepeatWrapping;
   base.repeat.set(repX, repY);
-  const mat = new THREE.MeshToonMaterial({ map: base, color: tint, gradientMap: toonRamp() });
-  if (facadeLoaded) {
-    swapFacade(mat, facadeLoaded);
-  } else {
-    facadeWaiters.push(mat);
-    if (!facadeTried) {
-      facadeTried = true;
-      new THREE.TextureLoader().load(
-        'assets/textures3d/facade.png',
-        (t) => {
-          t.colorSpace = THREE.SRGBColorSpace;
-          facadeLoaded = t;
-          for (const w of facadeWaiters) swapFacade(w, t);
-          facadeWaiters.length = 0;
-        },
-        undefined,
-        () => { facadeWaiters.length = 0; },     // keep procedural fallback
-      );
-    }
-  }
-  return mat;
+  return new THREE.MeshToonMaterial({ map: base, color: tint, gradientMap: toonRamp() });
 }
-
-function swapFacade(mat: THREE.MeshToonMaterial, tex: THREE.Texture): void {
-  const rep = mat.map ? mat.map.repeat.clone() : new THREE.Vector2(1, 1);
-  const t = tex.clone();
-  t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  t.repeat.copy(rep);
-  t.needsUpdate = true;
-  mat.map = t;
-  mat.needsUpdate = true;
-}
-
-// ── Roof texture (generated asset; falls back to the painted footprint) ─────
-let roofLoaded: THREE.Texture | null = null;
-let roofTried = false;
-const roofWaiters: { mat: THREE.MeshBasicMaterial; w: number; d: number }[] = [];
 
 function roofMaterial(
   groundTex: THREE.Texture,
@@ -176,37 +139,7 @@ function roofMaterial(
   crop.offset.set(b.x / cols, (rows - (b.z + b.d)) / rows);
   crop.needsUpdate = true;
   // Unlit for the same reason as the ground: the roof IS the original painting.
-  const mat = new THREE.MeshBasicMaterial({ map: crop });
-
-  if (roofLoaded) {
-    applyRoof(mat, roofLoaded, b.w, b.d);
-  } else {
-    roofWaiters.push({ mat, w: b.w, d: b.d });
-    if (!roofTried) {
-      roofTried = true;
-      new THREE.TextureLoader().load(
-        'assets/textures3d/roof.png',
-        (t) => {
-          t.colorSpace = THREE.SRGBColorSpace;
-          roofLoaded = t;
-          for (const w of roofWaiters) applyRoof(w.mat, t, w.w, w.d);
-          roofWaiters.length = 0;
-        },
-        undefined,
-        () => { roofWaiters.length = 0; },
-      );
-    }
-  }
-  return mat;
-}
-
-function applyRoof(mat: THREE.MeshBasicMaterial, tex: THREE.Texture, w: number, d: number): void {
-  const t = tex.clone();
-  t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  t.repeat.set(Math.max(1, Math.round(w / 3)), Math.max(1, Math.round(d / 3)));
-  t.needsUpdate = true;
-  mat.map = t;
-  mat.needsUpdate = true;
+  return new THREE.MeshBasicMaterial({ map: crop });
 }
 
 function classify(hsl: HSL, snowy: boolean, variance = 0, cavey = false, interior = false, grass3D = false): Cell {
@@ -1073,6 +1006,17 @@ export function buildTerrain(
     }
     // The southern Onnuri League hall is reproduced from its painted 2D palace
     // (LeaguePlazaScene.drawPalace) rather than a generic landmark GLB.
+    // The Onnuri League hall — a bespoke reconstruction of the courtyard's own 2D
+    // palace art, built symmetrically about its centre so the facade stays one
+    // flat mass with no end standing proud of the wall.
+    if (b.model === 'onnuri-league') {
+      const holder = new THREE.Group();
+      holder.position.set(b.x + b.w / 2, 0, b.z + b.d / 2);
+      holder.add(makeOnnuriLeague(b.w, b.d));
+      group.add(holder);
+      blockers.push({ node: holder, r: Math.max(b.w, b.d) / 2 + 0.6, fade: 0 });
+      continue;
+    }
     if (b.model === 'hanok-palace') {
       const holder = new THREE.Group();
       holder.position.set(b.x + b.w / 2, 0, b.z + b.d / 2);

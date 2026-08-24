@@ -4,8 +4,7 @@ import { tr } from '../systems/i18n';
 import { Inventory } from '../systems/Items';
 
 const SMEARGLE_TEXTURE = 'studio-smeargle';
-const SMEARGLE_ART =
-  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/home/235.png';
+const SMEARGLE_ART = 'assets/pokemon-official/235.png';
 
 type StudioNPC = NPC & {
   isSmeargle?: boolean;

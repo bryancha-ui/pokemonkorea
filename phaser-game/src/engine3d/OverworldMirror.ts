@@ -2,14 +2,48 @@ import Phaser from 'phaser';
 import * as THREE from 'three';
 import { CameraRig } from './CameraRig';
 import { buildBadgeScanner3D, type BadgeScannerModel3D } from './BadgeScanner3D';
+import { buildGymCounterweight3D, type GymCounterweightModel3D } from './GymCounterweight3D';
+import {
+  buildLanternStageProp3D,
+  type LanternStagePropKind,
+  type LanternStagePropModel3D,
+} from './LanternStage3D';
+import {
+  buildWaveGymProp3D,
+  type WaveGymPropKind,
+  type WaveGymPropModel3D,
+} from './WavePoolGym3D';
+import {
+  buildWorldTreeGymProp3D,
+  type WorldTreeGymModel3D,
+  type WorldTreePropKind,
+} from './WorldTreeGym3D';
+import {
+  buildStrengthQuarryProp3D,
+  type StrengthQuarryModel3D,
+  type StrengthQuarryPropKind,
+} from './StrengthQuarry3D';
+import type { StrengthRune } from '../systems/StrengthQuarryPuzzle';
+import {
+  buildIceArenaProp3D,
+  type IceArenaModel3D,
+  type IceArenaPropKind,
+} from './IceArenaGym3D';
+import {
+  buildStormCliffProp3D,
+  type StormCliffModel3D,
+  type StormCliffPropKind,
+} from './StormCliffGym3D';
+import { buildFieldItem3D, type FieldItemModel3D } from './FieldItem3D';
 import { buildCharacterModel, buildPlayerModel, CharacterProfile, PlayerModel } from './CharacterModel';
 import { buildSurfMountModel, type SurfMountModel } from './SurfMountModel';
 import { buildFlatCard, buildRelief, reliefMaterials } from './Extruder';
 import { drawCommands, hashCommands, measureCommands, rasterizeGraphics } from './GraphicsRaster';
 import { generateNabihalmangAppearance, type GeneratedCreatureAnimation } from './GeneratedCreatureAnimation';
-import { getModel, hasModel, modelBaseYawRad, primeManifest } from './GlbModels';
+import { getModel, hasModel, manifestReady, modelBaseYawRad, primeManifest } from './GlbModels';
 import { HatchEffect3D, type HatchEffectProfile3D } from './HatchEffect3D';
 import { makeBlobShadow } from './Props';
+import { OverworldCompanion } from './OverworldCompanion';
 import { getProp, propFailed, type PropDef } from './PropModels';
 import { buildTerrain, PX, TerrainResult } from './TerrainBuilder';
 import { disposeDeep, ThreeStage, type EnvProfile } from './ThreeStage';
@@ -17,8 +51,9 @@ import { disposeDeep, ThreeStage, type EnvProfile } from './ThreeStage';
 // ── Overworld mirror ─────────────────────────────────────────────────────────
 // Watches a running Phaser scene (which keeps 100% of the game logic) and
 // maintains a 3D twin of it: the big map Graphics become the painted terrain,
-// every human becomes an animated model, while tagged creatures use only an
-// approved local GLB and otherwise retain their authored 2D sprite. Props track
+// every human becomes an animated model, while tagged creatures with an
+// approved local GLB stay exclusively 3D. Only unregistered creatures retain
+// their authored 2D sprite. Props track
 // their 2D counterpart's position, alpha, tint, scale and visibility every frame.
 // World-space text becomes floating billboards. UI stays in Phaser on top.
 
@@ -37,7 +72,7 @@ interface Tracked {
   relief?: THREE.Mesh;
   mats: THREE.MeshBasicMaterial[] | null;
   shadow: THREE.Mesh | null;
-  kind: 'graphics' | 'character' | 'image' | 'text' | 'rect' | 'badge-scanner';
+  kind: 'graphics' | 'character' | 'image' | 'text' | 'rect' | 'badge-scanner' | 'gym-counterweight' | 'lantern-stage-prop' | 'wave-gym-prop' | 'world-tree-prop' | 'strength-quarry-prop' | 'ice-arena-prop' | 'storm-cliff-prop' | 'field-item';
   hash: number;
   /** px offset from object origin to art bottom (feet). */
   footY: number;
@@ -59,6 +94,22 @@ interface Tracked {
   creatureAnimation?: GeneratedCreatureAnimation;
   /** Authored interactive checkpoint that mirrors its Phaser gate state. */
   badgeScanner?: BadgeScannerModel3D;
+  /** Moving Summit Dojo mechanism; its Phaser counterpart owns position and puzzle state. */
+  gymCounterweight?: GymCounterweightModel3D;
+  /** Rotating lantern, floor emblem or light curtain from Namsun's Gym. */
+  lanternStageProp?: LanternStagePropModel3D;
+  /** Animated wave pool or rental surfboard from Harang's Gym. */
+  waveGymProp?: WaveGymPropModel3D;
+  /** Massive trunk, jump branch or summit crown from Noksaek's Gym. */
+  worldTreeProp?: WorldTreeGymModel3D;
+  /** Pushable rune boulder, matching hole, fissure or reset lever from Sandol's Gym. */
+  strengthQuarryProp?: StrengthQuarryModel3D;
+  /** Short-track, speed-skating and figure-skating equipment from Yeona's Gym. */
+  iceArenaProp?: IceArenaModel3D;
+  /** Lightning rods, insulated pads, cliff bridges and lift from Beonge's Gym. */
+  stormCliffProp?: StormCliffModel3D;
+  /** Lightweight Poké Ball pickup and rarity beam used across overworld maps. */
+  fieldItem?: FieldItemModel3D;
   fixedWorld?: { x: number; z: number };
 }
 
@@ -125,6 +176,7 @@ export class OverworldMirror {
   // Full 3D protagonist (replaces the player's flat relief with an animated model).
   private hero: PlayerModel | null = null;
   private surfMount: SurfMountModel | null = null;
+  private companion: OverworldCompanion | null = null;
   private heroWalkPhase = 0;
   private heroLast: { x: number; z: number } | null = null;
   private hatchEffect: HatchEffect3D | null = null;
@@ -150,6 +202,8 @@ export class OverworldMirror {
   destroy(): void {
     this.scene.events.off('addedtoscene', this.onAdded);
     this.stopHatchEffect();
+    this.companion?.destroy();
+    this.companion = null;
     for (const t of this.tracked.values()) t.creatureAnimation?.dispose();
     this.tracked.clear();
     this.mapGraphics.clear();
@@ -251,6 +305,9 @@ export class OverworldMirror {
 
     // Adopt every current world object.
     for (const obj of this.scene.children.list) this.adopt(obj as GO);
+    this.companion = new OverworldCompanion(
+      this.scene, this.root, () => this.stage.requestMeshPreparation(), this.isInterior,
+    );
     this.built = true;
     return true;
   }
@@ -540,6 +597,97 @@ export class OverworldMirror {
     if ((obj as unknown as { getData?: (k: string) => unknown }).getData?.('no3d')) { this.hideFrom2D(obj); return; }
 
     if (obj instanceof Phaser.GameObjects.Graphics) {
+      const fieldItem = obj.getData?.('fieldItem3D') as { color?: number; rare?: number } | undefined;
+      if (fieldItem) {
+        this.adoptFieldItem(
+          obj as GO & Phaser.GameObjects.Graphics,
+          Number(fieldItem.color) || 0xff6f6f,
+          Number(fieldItem.rare) > 0,
+        );
+        return;
+      }
+      const stormCliffProp = obj.getData?.('stormCliffProp3D') as {
+        kind?: StormCliffPropKind; width?: number; depth?: number; accent?: number;
+      } | undefined;
+      if (stormCliffProp?.kind) {
+        this.adoptStormCliffProp(
+          obj as GO & Phaser.GameObjects.Graphics,
+          stormCliffProp.kind,
+          Number(stormCliffProp.width) || 1.2,
+          Number(stormCliffProp.depth) || 1.2,
+          Number(stormCliffProp.accent) || 0xffdd55,
+        );
+        return;
+      }
+      const iceSportProp = obj.getData?.('iceSportProp3D') as {
+        kind?: IceArenaPropKind; width?: number; depth?: number; accent?: number;
+      } | undefined;
+      if (iceSportProp?.kind) {
+        this.adoptIceArenaProp(
+          obj as GO & Phaser.GameObjects.Graphics,
+          iceSportProp.kind,
+          Number(iceSportProp.width) || 1.2,
+          Number(iceSportProp.depth) || 1.2,
+          Number(iceSportProp.accent) || 0x8cecff,
+        );
+        return;
+      }
+      const strengthQuarryProp = obj.getData?.('strengthQuarryProp3D') as {
+        kind?: StrengthQuarryPropKind; width?: number; depth?: number; rune?: StrengthRune; accent?: number;
+      } | undefined;
+      if (strengthQuarryProp?.kind) {
+        this.adoptStrengthQuarryProp(
+          obj as GO & Phaser.GameObjects.Graphics,
+          strengthQuarryProp.kind,
+          Number(strengthQuarryProp.width) || 1.2,
+          Number(strengthQuarryProp.depth) || 1.2,
+          strengthQuarryProp.rune ?? 'circle',
+          Number(strengthQuarryProp.accent) || 0xffc96a,
+        );
+        return;
+      }
+      const worldTreeProp = obj.getData?.('worldTreeProp3D') as {
+        kind?: WorldTreePropKind; length?: number; width?: number; yaw?: number; accent?: number;
+      } | undefined;
+      if (worldTreeProp?.kind) {
+        this.adoptWorldTreeProp(
+          obj as GO & Phaser.GameObjects.Graphics,
+          worldTreeProp.kind,
+          Number(worldTreeProp.length) || 2.6,
+          Number(worldTreeProp.width) || 1.2,
+          Number(worldTreeProp.yaw) || 0,
+          Number(worldTreeProp.accent) || 0x78f28b,
+        );
+        return;
+      }
+      const waveGymProp = obj.getData?.('waveGymProp3D') as {
+        kind?: WaveGymPropKind; width?: number; depth?: number; accent?: number;
+      } | undefined;
+      if (waveGymProp?.kind) {
+        this.adoptWaveGymProp(
+          obj as GO & Phaser.GameObjects.Graphics,
+          waveGymProp.kind,
+          Number(waveGymProp.width) || 8,
+          Number(waveGymProp.depth) || 3,
+          Number(waveGymProp.accent) || 0x38d5ff,
+        );
+        return;
+      }
+      const lanternStageProp = obj.getData?.('lanternStageProp3D') as { kind?: LanternStagePropKind; color?: number; beamLength?: number } | undefined;
+      if (lanternStageProp?.kind) {
+        this.adoptLanternStageProp(
+          obj as GO & Phaser.GameObjects.Graphics,
+          lanternStageProp.kind,
+          Number(lanternStageProp.color) || 0xff8fd7,
+          Number(lanternStageProp.beamLength) || 5.4,
+        );
+        return;
+      }
+      const counterweight = obj.getData?.('gymCounterweight3D') as { id?: string } | undefined;
+      if (counterweight?.id) {
+        this.adoptGymCounterweight(obj as GO & Phaser.GameObjects.Graphics);
+        return;
+      }
       const scanner = obj.getData?.('badgeScanner3D') as { x?: number; y?: number } | undefined;
       if (typeof scanner?.x === 'number' && typeof scanner.y === 'number') {
         this.adoptBadgeScanner(obj as GO & Phaser.GameObjects.Graphics, scanner.x, scanner.y);
@@ -700,6 +848,208 @@ export class OverworldMirror {
     this.hideFrom2D(g);
   }
 
+  /** Replace the fallback drawing with the suspended, animated Summit Dojo mechanism. */
+  private adoptGymCounterweight(g: GO & Phaser.GameObjects.Graphics): void {
+    const gymCounterweight = buildGymCounterweight3D();
+    this.root.add(gymCounterweight.group);
+    this.tracked.set(g, {
+      obj: g,
+      mesh: gymCounterweight.group,
+      mats: null,
+      shadow: null,
+      kind: 'gym-counterweight',
+      hash: 0,
+      footY: 0,
+      halfW: 0.72,
+      baseColor: new THREE.Color(0xffffff),
+      phase: 0,
+      aspect: 1,
+      gymCounterweight,
+    });
+    this.hideFrom2D(g);
+  }
+
+  private adoptLanternStageProp(
+    g: GO & Phaser.GameObjects.Graphics,
+    kind: LanternStagePropKind,
+    color: number,
+    beamLength: number,
+  ): void {
+    const lanternStageProp = buildLanternStageProp3D(kind, color, beamLength);
+    this.root.add(lanternStageProp.group);
+    this.tracked.set(g, {
+      obj: g,
+      mesh: lanternStageProp.group,
+      mats: null,
+      shadow: null,
+      kind: 'lantern-stage-prop',
+      hash: 0,
+      footY: 0,
+      halfW: kind === 'gate' ? 1.9 : 0.8,
+      baseColor: new THREE.Color(0xffffff),
+      phase: 0,
+      aspect: 1,
+      lanternStageProp,
+    });
+    this.hideFrom2D(g);
+  }
+
+  private adoptWaveGymProp(
+    g: GO & Phaser.GameObjects.Graphics,
+    kind: WaveGymPropKind,
+    width: number,
+    depth: number,
+    accent: number,
+  ): void {
+    const waveGymProp = buildWaveGymProp3D(kind, width, depth, accent);
+    this.root.add(waveGymProp.group);
+    this.tracked.set(g, {
+      obj: g,
+      mesh: waveGymProp.group,
+      mats: null,
+      shadow: null,
+      kind: 'wave-gym-prop',
+      hash: 0,
+      footY: 0,
+      halfW: kind === 'pool' ? width / 2 : 0.55,
+      baseColor: new THREE.Color(0xffffff),
+      phase: 0,
+      aspect: 1,
+      waveGymProp,
+    });
+    this.hideFrom2D(g);
+  }
+
+  private adoptWorldTreeProp(
+    g: GO & Phaser.GameObjects.Graphics,
+    kind: WorldTreePropKind,
+    length: number,
+    width: number,
+    yaw: number,
+    accent: number,
+  ): void {
+    const worldTreeProp = buildWorldTreeGymProp3D(kind, length, width, yaw, accent);
+    this.root.add(worldTreeProp.group);
+    this.tracked.set(g, {
+      obj: g,
+      mesh: worldTreeProp.group,
+      mats: null,
+      shadow: null,
+      kind: 'world-tree-prop',
+      hash: 0,
+      footY: 0,
+      halfW: kind === 'trunk' ? 1.2 : Math.max(0.7, width),
+      baseColor: new THREE.Color(0xffffff),
+      phase: 0,
+      aspect: 1,
+      worldTreeProp,
+    });
+    this.hideFrom2D(g);
+  }
+
+  private adoptStrengthQuarryProp(
+    g: GO & Phaser.GameObjects.Graphics,
+    kind: StrengthQuarryPropKind,
+    width: number,
+    depth: number,
+    rune: StrengthRune,
+    accent: number,
+  ): void {
+    const strengthQuarryProp = buildStrengthQuarryProp3D(kind, width, depth, rune, accent);
+    this.root.add(strengthQuarryProp.group);
+    this.tracked.set(g, {
+      obj: g,
+      mesh: strengthQuarryProp.group,
+      mats: null,
+      shadow: null,
+      kind: 'strength-quarry-prop',
+      hash: 0,
+      footY: 0,
+      halfW: kind === 'chasm' ? width / 2 : 0.65,
+      baseColor: new THREE.Color(0xffffff),
+      phase: 0,
+      aspect: 1,
+      strengthQuarryProp,
+    });
+    this.hideFrom2D(g);
+  }
+
+  private adoptIceArenaProp(
+    g: GO & Phaser.GameObjects.Graphics,
+    kind: IceArenaPropKind,
+    width: number,
+    depth: number,
+    accent: number,
+  ): void {
+    const iceArenaProp = buildIceArenaProp3D(kind, width, depth, accent);
+    this.root.add(iceArenaProp.group);
+    this.tracked.set(g, {
+      obj: g,
+      mesh: iceArenaProp.group,
+      mats: null,
+      shadow: null,
+      kind: 'ice-arena-prop',
+      hash: 0,
+      footY: 0,
+      halfW: kind === 'short-track' || kind === 'figure-rink' || kind === 'speed-lane' ? width / 2 : 0.75,
+      baseColor: new THREE.Color(0xffffff),
+      phase: 0,
+      aspect: 1,
+      iceArenaProp,
+    });
+    this.hideFrom2D(g);
+  }
+
+  private adoptStormCliffProp(
+    g: GO & Phaser.GameObjects.Graphics,
+    kind: StormCliffPropKind,
+    width: number,
+    depth: number,
+    accent: number,
+  ): void {
+    const stormCliffProp = buildStormCliffProp3D(kind, width, depth, accent);
+    this.root.add(stormCliffProp.group);
+    this.tracked.set(g, {
+      obj: g,
+      mesh: stormCliffProp.group,
+      mats: null,
+      shadow: null,
+      kind: 'storm-cliff-prop',
+      hash: 0,
+      footY: 0,
+      halfW: kind === 'platform' ? width / 2 : 0.85,
+      baseColor: new THREE.Color(0xffffff),
+      phase: 0,
+      aspect: 1,
+      stormCliffProp,
+    });
+    this.hideFrom2D(g);
+  }
+
+  private adoptFieldItem(
+    g: GO & Phaser.GameObjects.Graphics,
+    color: number,
+    rare: boolean,
+  ): void {
+    const fieldItem = buildFieldItem3D(color, rare);
+    this.root.add(fieldItem.group);
+    this.tracked.set(g, {
+      obj: g,
+      mesh: fieldItem.group,
+      mats: null,
+      shadow: null,
+      kind: 'field-item',
+      hash: 0,
+      footY: 0,
+      halfW: rare ? .45 : .35,
+      baseColor: new THREE.Color(color),
+      phase: 0,
+      aspect: 1,
+      fieldItem,
+    });
+    this.hideFrom2D(g);
+  }
+
   /** Infer a safe procedural palette for legacy hand-drawn human Graphics. */
   private inferCharacterProfile(
     canvas: HTMLCanvasElement,
@@ -778,8 +1128,8 @@ export class OverworldMirror {
   private adoptImage(im: GO & Phaser.GameObjects.Image): void {
     const creatureKey = im.getData?.('creatureModel3DKey') as string | undefined;
     // Pokémon and other tagged creatures never receive a generated extrusion.
-    // Their authored Phaser sprite stays visible until a production GLB is
-    // completely loaded and validated.
+    // A manifest-backed creature reserves a 3D-only slot even while loading;
+    // only a key confirmed absent from the manifest keeps its Phaser sprite.
     if (creatureKey) {
       const holder = new THREE.Group();
       const halfW = Math.max(0.18, (im.displayWidth ?? im.width ?? 32) / (PX * 2));
@@ -797,7 +1147,8 @@ export class OverworldMirror {
         creatureKey,
         creatureBaseScale: Math.max(0.0001, Math.abs(im.scaleX ?? 1)),
       });
-      this.show2D(im);
+      if (manifestReady() && !hasModel(creatureKey)) this.show2D(im);
+      else this.hideFrom2D(im);
       return;
     }
 
@@ -939,6 +1290,7 @@ export class OverworldMirror {
       this.heroWalkPhase = 0;
       this.playerObj = livePlayer;
       if (!this.tracked.has(livePlayer)) this.adopt(livePlayer);
+      this.companion?.resetAt(new THREE.Vector3((livePlayer.x ?? 0) / PX, 0, (livePlayer.y ?? 0) / PX));
     }
     if (this.pendingObjects.size) {
       const ready = [...this.pendingObjects];
@@ -1001,8 +1353,80 @@ export class OverworldMirror {
       }
       const x = (o.x ?? 0) / PX;
       const z = ((o.y ?? 0) + t.footY * ((o.scaleY ?? 1))) / PX;
-      t.mesh.position.set(x, 0, z);
+      const authoredElevation = Number(o.getData?.('characterElevation3D') ?? 0);
+      t.mesh.position.set(x, Number.isFinite(authoredElevation) ? authoredElevation : 0, z);
       t.mesh.visible = (o.visible !== false) && ((o.alpha ?? 1) > 0.02);
+
+      if (t.gymCounterweight) {
+        const progress = Number(o.getData?.('gymCounterweightAligned3D') ?? 0);
+        t.gymCounterweight.setAligned(Number.isFinite(progress) ? progress : 0);
+        if (t.mesh.visible) t.gymCounterweight.update(this.time);
+        continue;
+      }
+      if (t.lanternStageProp) {
+        const active = Number(o.getData?.('lanternStageActive3D') ?? 0);
+        const rotation = Number(o.getData?.('lanternStageRotation3D') ?? 0);
+        const aligned = Number(o.getData?.('lanternStageAligned3D') ?? 0);
+        const cue = Number(o.getData?.('lanternStageCue3D') ?? 0);
+        t.lanternStageProp.setState(active, rotation, aligned, cue);
+        if (t.mesh.visible) t.lanternStageProp.update(this.time);
+        continue;
+      }
+      if (t.waveGymProp) {
+        const active = Number(o.getData?.('waveGymActive3D') ?? 0);
+        const cleared = Number(o.getData?.('waveGymCleared3D') ?? 0);
+        const intensity = Number(o.getData?.('waveGymIntensity3D') ?? 1);
+        const lean = Number(o.getData?.('waveGymLean3D') ?? 0);
+        const cue = Number(o.getData?.('waveGymCue3D') ?? 0);
+        t.waveGymProp.setState(active, cleared, intensity, lean, cue);
+        if (t.mesh.visible) t.waveGymProp.update(this.time);
+        continue;
+      }
+      if (t.worldTreeProp) {
+        const visited = Number(o.getData?.('worldTreeVisited3D') ?? 0);
+        const selected = Number(o.getData?.('worldTreeSelected3D') ?? 0);
+        const elevation = Number(o.getData?.('worldTreeElevation3D') ?? 0);
+        const trainerActive = Number(o.getData?.('worldTreeTrainer3D') ?? 0);
+        const cue = Number(o.getData?.('worldTreeCue3D') ?? 0);
+        t.worldTreeProp.setState(visited, selected, elevation, trainerActive, cue);
+        if (t.mesh.visible) t.worldTreeProp.update(this.time);
+        continue;
+      }
+      if (t.strengthQuarryProp) {
+        const moving = Number(o.getData?.('strengthMoving3D') ?? 0);
+        const filled = Number(o.getData?.('strengthFilled3D') ?? 0);
+        const solved = Number(o.getData?.('strengthSolved3D') ?? 0);
+        const cue = Number(o.getData?.('strengthCue3D') ?? 0);
+        t.strengthQuarryProp.setState(moving, filled, solved, cue);
+        if (t.mesh.visible) t.strengthQuarryProp.update(this.time);
+        continue;
+      }
+      if (t.iceArenaProp) {
+        const active = Number(o.getData?.('iceSportActive3D') ?? 0);
+        const cleared = Number(o.getData?.('iceSportCleared3D') ?? 0);
+        const cue = Number(o.getData?.('iceSportCue3D') ?? 0);
+        t.iceArenaProp.setState(active, cleared, cue);
+        if (t.mesh.visible) t.iceArenaProp.update(this.time);
+        continue;
+      }
+      if (t.stormCliffProp) {
+        const direction = Number(o.getData?.('stormDirection3D') ?? 0);
+        const height = Number(o.getData?.('stormHeight3D') ?? 0);
+        const charged = Number(o.getData?.('stormCharged3D') ?? 0);
+        const active = Number(o.getData?.('stormActive3D') ?? 0);
+        const cue = Number(o.getData?.('stormCue3D') ?? 0);
+        t.stormCliffProp.setState(direction, height, charged, active, cue);
+        const baseElevation = Number(o.getData?.('stormBaseElevation3D') ?? 0);
+        if (Number.isFinite(baseElevation)) t.mesh.position.y += baseElevation;
+        if (t.mesh.visible) t.stormCliffProp.update(this.time);
+        continue;
+      }
+      if (t.fieldItem) {
+        const state = o.getData?.('fieldItem3D') as { rare?: number } | undefined;
+        t.fieldItem.setRare(Number(state?.rare) > 0);
+        if (t.mesh.visible) t.fieldItem.update(this.time);
+        continue;
+      }
 
       // Named flat guardians/props can request a live yaw toward the player.
       // This preserves their authored front instead of leaving the relief at a
@@ -1022,9 +1446,8 @@ export class OverworldMirror {
       const inner = t.relief;
 
       // Tagged legendary/creature Images use only their local production GLB.
-      // Keep the real authored 2D sprite visible while the manifest/model loads
-      // (or forever if unavailable), then swap without changing the Phaser
-      // object that still owns cutscene position, alpha, scale and lifetime.
+      // The Phaser object remains the transform/lifetime authority but is never
+      // exposed when the manifest declares a model for this creature.
       if (t.kind === 'image' && t.creatureKey && !t.creature && hasModel(t.creatureKey)) {
         const loaded = getModel(t.creatureKey);
         if (loaded) {
@@ -1052,7 +1475,8 @@ export class OverworldMirror {
       } else if (t.creatureKey) {
         t.mesh.visible = false;
         if (t.shadow) t.shadow.visible = false;
-        this.show2D(o);
+        if (manifestReady() && !hasModel(t.creatureKey)) this.show2D(o);
+        else this.hideFrom2D(o);
       }
       if (inner) {
         const sx = Math.abs(o.scaleX ?? 1), sy = Math.abs(o.scaleY ?? 1);
@@ -1107,7 +1531,12 @@ export class OverworldMirror {
         // the head. Generic signs retain their authored ground anchor.
         const labelTarget = o.getData?.('characterLabelTarget3D') as GO | undefined;
         if (labelTarget?.scene) {
-          t.mesh.position.set((labelTarget.x ?? 0) / PX, 2.25, (labelTarget.y ?? 0) / PX);
+          const elevation = Number(labelTarget.getData?.('characterElevation3D') ?? 0);
+          t.mesh.position.set(
+            (labelTarget.x ?? 0) / PX,
+            2.25 + (Number.isFinite(elevation) ? elevation : 0),
+            (labelTarget.y ?? 0) / PX,
+          );
         } else {
           t.mesh.position.set((o.x ?? 0) / PX, 1.6, (o.y ?? 0) / PX);
         }
@@ -1130,6 +1559,14 @@ export class OverworldMirror {
     // The follow target might be untracked (e.g. a Container player) — derive from raw coords.
     if (!playerPos && followT && followT.x !== undefined) {
       playerPos = this.playerPosition.set((followT.x ?? 0) / PX, 0, ((followT.y ?? 0) + 14) / PX);
+    }
+
+    if (playerPos && this.companion) {
+      const playerVisible = followT?.visible !== false && (followT?.alpha ?? 1) > 0.02
+        && !(this.scene as unknown as { hideLeadCompanion3D?: boolean }).hideLeadCompanion3D;
+      const surfing = followT?.getData?.('characterSurfing3D') === true
+        || followT?.getData?.('characterSurfboard3D') === true;
+      this.companion.update(dt, playerPos, playerVisible, surfing);
     }
 
     // Terrain props are authored in group-local tile coordinates. Passing the
@@ -1210,6 +1647,8 @@ export class OverworldMirror {
   private updateHero(t: Tracked, dt: number): void {
     const riding = t.obj.getData?.('characterVehicle3D') === 'bike';
     const surfing = t.obj.getData?.('characterSurfing3D') === true;
+    const surfboarding = t.obj.getData?.('characterSurfboard3D') === true;
+    const waterRiding = surfing || surfboarding;
     if (!this.hero) {
       const design = this.scene.registry.get('playerGender') === 'girl' ? 'girl' : 'boy';
       this.hero = buildPlayerModel(design);
@@ -1225,8 +1664,8 @@ export class OverworldMirror {
     }
     const inner = t.relief;
     this.hero.group.visible = true;
-    this.hero.setRiding?.(riding && !surfing);
-    this.hero.setSurfing?.(surfing);
+    this.hero.setRiding?.(riding && !waterRiding);
+    this.hero.setSurfing?.(waterRiding);
     if (inner) inner.visible = false;
 
     const p = t.mesh.position;
@@ -1280,8 +1719,11 @@ export class OverworldMirror {
   apply3D(): void {
     for (const o of this.hiddenFrom2D) this.hideFrom2D(o);
     for (const t of this.tracked.values()) {
-      if (t.creatureKey && !t.creature) this.show2D(t.obj);
-      else this.hideFrom2D(t.obj);
+      if (t.creatureKey && !t.creature && manifestReady() && !hasModel(t.creatureKey)) {
+        this.show2D(t.obj);
+      } else {
+        this.hideFrom2D(t.obj);
+      }
     }
     for (const g of this.mapGraphics) this.hideFrom2D(g);
     for (const i of this.mapImages) this.hideFrom2D(i);

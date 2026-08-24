@@ -74,6 +74,19 @@ export function sfxConfirm(scene: Phaser.Scene): void {
   });
 }
 
+/** Field item obtained — the familiar bright pickup fanfare. A glassy rising
+ * arpeggio and short octave resolve make rare finds read clearly even without
+ * shipping another compressed audio file. */
+export function sfxItemGet(scene: Phaser.Scene): void {
+  withContext(scene, (ac, at) => {
+    pip(ac, at,        523.25, 0.11, 0.12, 'triangle');
+    pip(ac, at + 0.08, 659.25, 0.11, 0.12, 'triangle');
+    pip(ac, at + 0.16, 783.99, 0.13, 0.13, 'triangle');
+    pip(ac, at + 0.25, 1046.5, 0.30, 0.14, 'sine');
+    pip(ac, at + 0.29, 1567.9, 0.24, 0.07, 'sine');
+  });
+}
+
 /** Backing out / cancelling — a short falling blip. */
 export function sfxCancel(scene: Phaser.Scene): void {
   withContext(scene, (ac, at) => {

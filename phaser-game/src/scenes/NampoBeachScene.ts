@@ -23,7 +23,7 @@ const SOLID = new Set<Tile>([T.WALL, T.ROCK]);
 
 const THREAT_KEY = 'eosa-nampo-threat';
 const THREAT_TEXTURE = 'nampo-threat-gyarados';
-const THREAT_TEXTURE_URL = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/home/130.png';
+const THREAT_TEXTURE_URL = 'assets/pokemon-official/130.png';
 const THREAT_DISPLAY_H = 96;
 // Gyarados is the unmoving center of the challenge; only the whirlpools orbit.
 const THREAT = { col: 10, row: 10 };

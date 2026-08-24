@@ -177,7 +177,10 @@ export function mergeLearnset(base: MoveData[], spriteKey: string, t1?: string, 
     return true;
   });
   if (all.length <= 4) return all;
-  return [...all].sort((a, b) => b.power - a.power).slice(0, 4);
+  // Keep the four most recently learned moves, matching the normal progression
+  // model. Sorting by raw power erased recovery, weather and status options and
+  // made every late-game team a homogeneous four-attack set.
+  return all.slice(-4);
 }
 
 const EARLY_GRASS_COVERAGE = M('Rock Throw', 'rock', 'physical', 40, 95, 20);

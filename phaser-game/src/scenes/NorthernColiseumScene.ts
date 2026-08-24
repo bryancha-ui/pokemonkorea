@@ -390,7 +390,16 @@ export class NorthernColiseumScene extends Phaser.Scene {
     }
   }
 
-  // ── Victory ceremony — the Northern Hall of Fame ───────────────────────────
+  // ── Taewang's farewell ─────────────────────────────────────────────────────
+  /**
+   * The half of the ending that belongs to the THRONE ROOM. Taewang rises, says
+   * what thirty years on that throne earned him the right to say, and then walks
+   * the player to the stone register — HallOfFameScene takes it from there.
+   *
+   * This used to run the enshrinement inline, so his farewell scrolled underneath
+   * a wall of artwork that had already appeared. Splitting it lets each beat land,
+   * and both leagues now share one polished registration room.
+   */
   private runNorthernEnding() {
     const rematch = !!this.registry.get('northHallOfFameRematchPending')
       || (!!this.registry.get('northLeagueDone') && !this.registry.get('northReunionPending'));
@@ -399,91 +408,33 @@ export class NorthernColiseumScene extends Phaser.Scene {
     this.registry.set('northLeagueDone', true);
     this.registry.set('northHallOfFame', true);
     if (!rematch) this.registry.set('northReunionPending', true);
+    // Count every enshrinement so the register can announce which clear this is.
+    const clears = ((this.registry.get('northLeagueClears') as number) ?? 0) + 1;
+    this.registry.set('northLeagueClears', clears);
+    // The quiet register theme starts the moment he speaks, not when the room
+    // opens — otherwise the battle's restored track plays under the farewell.
     playBgm(this, 'halloffame');
     this.cutsceneActive = true;
     PartySystem.healAll(this.registry);
 
-    const W = this.scale.width, H = this.scale.height;
-    const kids: Phaser.GameObjects.GameObject[] = [];
-    // Cold northern night sky over the coliseum.
-    kids.push(this.add.rectangle(W / 2, H / 2, W, H, 0x070b18, 1));
-    const stars = this.add.graphics();
-    for (let i = 0; i < 90; i++) { stars.fillStyle(0xffffff, Math.random() * 0.7 + 0.2); stars.fillCircle(Math.random() * W, Math.random() * H, Math.random() < 0.2 ? 2 : 1); }
-    kids.push(stars);
-    // The gold star of the fortress, presiding over the ceremony.
-    kids.push(this.add.text(W / 2, H * 0.12, '★', { fontSize: '54px', color: '#ffe14a', stroke: '#7a5a00', strokeThickness: 5 }).setOrigin(0.5));
-    kids.push(this.add.text(W / 2, H * 0.045, tr('🏆 NORTHERN HALL OF FAME · 북방 명예의 전당'), {
-      fontSize: '23px', color: '#ffe88a', fontStyle: 'bold', stroke: '#000', strokeThickness: 5,
-    }).setOrigin(0.5));
+    // Where the forecourt should put the player back down after a re-clear.
+    this.registry.set('northPlazaReturnX', NORTH_CENTER_X);
+    this.registry.set('northPlazaReturnY', NORTH_CENTER_Y);
 
-    // Your team, displayed graphically.
-    const party = PartySystem.get(this.registry);
-    const cols = 3, cellW = 230, cellH = 170;
-    const rowsN = Math.ceil(Math.max(party.length, 1) / cols);
-    const startY = H * 0.32 - (rowsN - 1) * cellH / 2;
-    party.forEach((e, i) => {
-      const col = i % cols, row = Math.floor(i / cols);
-      const inRow = Math.min(party.length - row * cols, cols);
-      const x = W / 2 + (col - (inRow - 1) / 2) * cellW;
-      const y = startY + row * cellH;
-      const items: Phaser.GameObjects.GameObject[] = [];
-      if (this.textures.exists(e.spriteKey)) { const img = this.add.image(x, y, e.spriteKey).setAlpha(0); this.fitImg(img, 116); items.push(img); }
-      else items.push(this.add.circle(x, y, 40, 0x33405a).setAlpha(0));
-      items.push(this.add.text(x, y + 74, `${e.name}  Lv.${e.level}`, { fontSize: '13px', color: '#fff', fontStyle: 'bold', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5).setAlpha(0));
-      kids.push(...items);
-      this.tweens.add({ targets: items, alpha: 1, duration: 600, delay: 400 + i * 220 });
-    });
-
-    // The 3D overworld mirror is already active when this delayed ceremony is
-    // created. Pin every child to screen space before the next mirror update;
-    // setting only the parent container's scroll factor leaves the children
-    // eligible for adoption and makes the Hall of Fame artwork disappear.
-    kids.forEach(kid => {
-      const screenObject = kid as Phaser.GameObjects.GameObject & {
-        setScrollFactor?: (x: number, y?: number) => unknown;
-      };
-      screenObject.setScrollFactor?.(0);
-    });
-    const root = this.add.container(0, 0, kids).setScrollFactor(0).setDepth(140);
-    const zoom = this.cameras.main?.zoom ?? 1, s = 1 / zoom;
-    root.setScale(s); root.setPosition((W / 2) * (1 - s), (H / 2) * (1 - s));
-
-    const firstVictoryLines = [
+    const farewell = rematch ? [
+      'Taewang: You have climbed the Northern League and defeated me once again. Your strength is beyond dispute.',
+      'Taewang: Come. The stone is waiting, as it always is.',
+    ] : [
       'Taewang rises from his throne for the first time — slowly, deliberately.',
       'Taewang: ...In thirty years on this throne, I have beaten every Onnuri Champion sent to me. Every one.',
       'Taewang: Until now.',
-      'Taewang (inclining his head — a king\'s respect): The peninsula bred a real trainer at last. Your team is enshrined in the Northern Hall of Fame, beside the north\'s own legends.',
-      '🏆 Your team is recorded in the Northern Hall of Fame — the first southern names ever set in this stone!',
-      'Taewang: A celebration awaits in Sudo City. Go, Champion. The whole region will want to honor your achievement.',
+      "Taewang (inclining his head — a king's respect): The peninsula bred a real trainer at last.",
+      'Taewang: Walk with me to the register. The north cuts its honoured names into stone, and today it cuts yours.',
     ];
-    const rematchLines = [
-      'Taewang: You have climbed the Northern League and defeated me once again. Your strength is beyond dispute.',
-      '🏆 Your team is recorded in the Northern Hall of Fame once more!',
-      'Your Pokémon have been fully restored. You will now return to the Northern League Pokémon Center.',
-    ];
-    const lines = rematch ? rematchLines : firstVictoryLines;
-    this.dialog.show(lines, () => {
-      if (!rematch) this.registry.set('sudoPartyPending', true);
+
+    this.dialog.show(farewell, () => {
       this.cameras.main.fadeOut(900, 0, 0, 0, () => {
-        if (rematch) {
-          this.registry.set('northLeagueFloor', 1);
-          this.registry.remove('northColiseumReturnX');
-          this.registry.remove('northColiseumReturnY');
-          this.registry.set('northPlazaReturnX', NORTH_CENTER_X);
-          this.registry.set('northPlazaReturnY', NORTH_CENTER_Y);
-          // Save the safe post-rematch destination before leaving the throne room.
-          SaveManager.save(this.registry, NORTH_CENTER_X, NORTH_CENTER_Y, 'NorthernPlazaScene');
-          this.scene.start('NorthernPlazaScene');
-          return;
-        }
-        const capitalX = 24 * 32 + 16;
-        const capitalY = 31 * 32 + 16;
-        this.registry.set('capitalReturnX', capitalX);
-        this.registry.set('capitalReturnY', capitalY);
-        // Persist the League completion and destination before changing scenes,
-        // so a reload can never strand the player back at Taewang's throne.
-        SaveManager.save(this.registry, capitalX, capitalY, 'CapitolCityScene');
-        this.scene.start('CapitolCityScene');
+        this.scene.start('HallOfFameScene', { rematch, clears, theme: 'northern' });
       });
     });
   }

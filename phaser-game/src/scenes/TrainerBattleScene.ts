@@ -7,10 +7,10 @@ import {
 import { executeBattleMove, pendingMoveFor } from '../systems/MoveEffects';
 import { battle2DSpriteScale } from '../data/SpriteScale';
 import { performanceProfile } from '../engine3d/PerformanceProfile';
+import { HWANGEUM_FRAMES, hwangeumFramesReady, playHwangeumIntro, preloadHwangeumFrames, throwChampionBall } from '../systems/HwangeumIntro2D';
 import { runLevelUpLearning, runBenchLevelUpLearning } from '../systems/MoveLearning';
 import type { BenchLevelUp } from '../systems/BattleExp';
 import { Pokemon, Move, MoveData } from '../battle/Pokemon';
-import { getEffectiveness } from '../battle/TypeChart';
 import { STARTERS, findForm } from '../data/StarterData';
 import { fetchPokemon } from '../data/PokeAPI';
 import { customForm } from '../data/CustomBattle';
@@ -20,7 +20,7 @@ import { blackoutToCenter, blackoutMessage } from '../systems/Blackout';
 import { tr, pokeNameEn} from '../systems/i18n';
 import { fontScaleForScene } from '../systems/UiScale';
 import { awardBenchExp } from '../systems/BattleExp';
-import { buildFromEntry, ensurePartyTexture, persistMovePP, persistSwitchOut } from '../systems/PartyBattle';
+import { buildFromEntry, buildReplacement, ensurePartyTexture, persistMovePP, persistSwitchOut, transferReplacementState } from '../systems/PartyBattle';
 import { deLegendify } from '../data/Legendaries';
 import { openSwitchPanel } from '../systems/SwitchPanel';
 import { portraitFor, fitPortrait } from '../data/BattlePortraits';
@@ -39,6 +39,8 @@ import { showRewardCeremony } from '../systems/RewardCeremony';
 import { createBattleHud, hpColor, modernButton, modernMoveButton, syncBattleHudTypes, type BattleHud } from '../systems/ProductionUi';
 import { animateBattleHp, BATTLE_PACING, snapBattleHp } from '../systems/BattlePacing';
 import { BossPotionAI, type BossTrainerRank, type BossPotionUse } from '../systems/BossTrainerItems';
+import { playBattleEndTurn } from '../systems/BattleEndTurn';
+import { chooseBattleMove } from '../systems/BattleAI';
 
 // ── Enemy movesets ──────────────────────────────────────────────────────────
 // Strong authored move data is reserved for Elite Four / Champion teams below.
@@ -132,6 +134,8 @@ export class TrainerBattleScene extends Phaser.Scene {
   // twice if two delayed callbacks finish on the same frame (which previously
   // allowed Byeoksan's Balchataek slot to be jumped over).
   private advancingEnemy = false;
+  private battleTurn = 1;
+  private lastEnemyMove = '';
   private awaitingForcedSwitch = false;
   private totalExp = 0;
   private state: State = 'loading';
@@ -159,6 +163,9 @@ export class TrainerBattleScene extends Phaser.Scene {
   private enemySprite!: Phaser.GameObjects.Image;
   private playerSprite!: Phaser.GameObjects.Image;
   private trainerPortrait?: Phaser.GameObjects.Image;
+  /** True when the Champion's hand-posed 2D frames are driving his entrance. */
+  private hwangeum2D = false;
+  private stopHwangeumIntro?: () => void;
   private actionPanel!: Phaser.GameObjects.Container;
   private movePanel!: Phaser.GameObjects.Container;
   private bagPanel!: Phaser.GameObjects.Container;
@@ -170,6 +177,11 @@ export class TrainerBattleScene extends Phaser.Scene {
   constructor() { super('TrainerBattleScene'); }
 
   preload() {
+    // The Champion's hand-posed entrance frames. Queued only for his battle, so
+    // no other trainer pays for them.
+    // Read the registry, not this.trainerKey: that field is assigned in create(),
+    // which runs after preload(), so the guard would never have fired.
+    if (this.registry.get('trainerKey') === 'champion-hwangeum') preloadHwangeumFrames(this);
     const queued = new Set<string>();
     STARTERS.forEach(s => {
       if (!this.textures.exists(s.spriteKey) && !queued.has(s.spriteKey)) {
@@ -208,6 +220,8 @@ export class TrainerBattleScene extends Phaser.Scene {
     // previous team's size (e.g. Director Suri only sending out 1 after Commander Ryeo).
     this.enemyIdx = 0;
     this.advancingEnemy = false;
+    this.battleTurn = 1;
+    this.lastEnemyMove = '';
     this.awaitingForcedSwitch = false;
     this.activeSlot = 0;
     this.participants = new Set<number>([0]);
@@ -299,7 +313,10 @@ export class TrainerBattleScene extends Phaser.Scene {
         side: 'enemy', targetX: ENEMY_STAGE_X, targetY: ENEMY_STAGE_Y,
         // The Champion's 3D routine already threw a real ball across the arena;
         // drawing the flat one on top would show two balls for one send-out.
-        skipBall: this.isChampionHwangeum && this.using3D,
+        // The Champion already threw a real ball across the arena — in 3D, or as
+        // his own 2D frames. Drawing the flat one on top would show two balls
+        // for one send-out.
+        skipBall: (this.isChampionHwangeum && this.using3D) || this.hwangeum2D,
         onComplete: () => this.typeDialog(`${this.trainerName} sent out ${pokeNameEn(this.enemy.name).toUpperCase()}!`, leadPlayer),
       });
     };
@@ -308,7 +325,30 @@ export class TrainerBattleScene extends Phaser.Scene {
     // "wants to battle!" card; everyone else still gets it.
     if (this.trainerPortrait) this.tweens.add({ targets: this.trainerPortrait, alpha: 1, duration: 300 });
     if (!this.trainerKey.startsWith('rival')) this.typeDialog(`${this.trainerName} wants to battle!`);
-    // The Champion's routine releases the ball at 3.50s and it lands ~0.30s
+
+    if (this.hwangeum2D && this.trainerPortrait) {
+      // Dance, then throw — on his own artwork. The send-out is fired from the
+      // release frame itself rather than a fixed delay, so the Pokémon always
+      // emerges exactly when the ball leaves his hand no matter how the routine
+      // is retimed later.
+      const portrait = this.trainerPortrait;
+      this.time.delayedCall(420, () => {
+        if (!portrait.scene) return;
+        this.stopHwangeumIntro = playHwangeumIntro(this, portrait, {
+          onRelease: () => {
+            // Launch from his hand, not the middle of the picture: on the release
+            // frame the ball is up and to his right.
+            throwChampionBall(this,
+              portrait.x + portrait.displayWidth * 0.17,
+              portrait.y - portrait.displayHeight * 0.20,
+              ENEMY_STAGE_X, ENEMY_STAGE_Y, () => sendOut());
+          },
+        });
+      });
+      this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.stopHwangeumIntro?.());
+      return;
+    }
+    // The Champion's 3D routine releases the ball at 3.50s and it lands ~0.30s
     // later. Fire the send-out to coincide with that landing so the Pokémon
     // emerges FROM the ball it was thrown in, instead of appearing a beat after
     // the ball has already opened and faded.
@@ -477,18 +517,30 @@ export class TrainerBattleScene extends Phaser.Scene {
     // battle image. Keep it on Phaser's foreground above the 3D arena instead
     // of replacing it with a procedural 3D character.
     const portrait = this.resolvePortrait();
-    if (portrait && this.textures.exists(portrait.key)) {
-      this.trainerPortrait = this.add.image(ENEMY_STAGE_X, ENEMY_STAGE_Y, portrait.key)
+    // The Champion's entrance frames all share one canvas and one foot mark, so
+    // he starts ON the standing frame. fitPortrait() measures the OPAQUE bounding
+    // box, which differs per pose — fitting each frame would rescale and recentre
+    // him every swap, and the routine would jitter. Fit once, here, and hold that
+    // scale for the whole routine.
+    const useFrames = this.isChampionHwangeum && hwangeumFramesReady(this);
+    const startKey = useFrames ? HWANGEUM_FRAMES.stand : portrait?.key;
+    if (startKey && this.textures.exists(startKey)) {
+      this.trainerPortrait = this.add.image(ENEMY_STAGE_X, ENEMY_STAGE_Y, startKey)
         .setDepth(6)
         .setAlpha(0);
-      if (this.isChampionHwangeum && !performanceProfile().mobile) {
-        // Promote the Champion to a 3D character standing on the arena floor so
-        // he can dance and throw. With 3D off, this same image simply plays as
-        // the flat portrait it has always been.
-        //
-        // Phones skip this: the rigged dance clip does not play reliably on a
-        // mobile GPU (the choreography just never appeared), so on mobile we keep
-        // Hwangeum as his flat 2D portrait rather than a stuck 3D figure.
+      if (useFrames) {
+        // Hand-posed 2D frames of the champion himself — stand, four dance beats,
+        // five throwing frames. This replaces the rigged GLB's baked dance clip:
+        // that figure moved, but it was a different drawing from the Hwangeum the
+        // rest of the game shows, and on mobile the clip often never played at
+        // all. Frames run on every device, phone included.
+        this.trainerPortrait
+          .setData('no3d', true)
+          .setData('battleTrainer2DAnchor', 'enemy');
+        this.hwangeum2D = true;
+      } else if (this.isChampionHwangeum && !performanceProfile().mobile) {
+        // The frames are not on this build; fall back to the 3D figure so the
+        // Champion still gets an entrance rather than a static portrait.
         this.trainerPortrait
           .setData('battleTrainerEnemyAnchor', true)
           .setData('characterModel3DKey', 'npc_hwangeum')
@@ -769,7 +821,7 @@ export class TrainerBattleScene extends Phaser.Scene {
   private runTurn(playerMove: Move) {
     this.state = 'busy';
     if (this.maybeUseBossPotion(() =>
-      this.doPlayerMove(playerMove, () => this.playerAction()))) return;
+      this.doPlayerMove(playerMove, () => this.finishTurn(() => this.playerAction())))) return;
     const enemyMoves = this.enemy.moves.filter(m => m.pp > 0);
     const enemyMove = pendingMoveFor(this.enemy)
       ?? this.pickEnemyMove(enemyMoves.length ? enemyMoves : this.enemy.moves);
@@ -779,9 +831,9 @@ export class TrainerBattleScene extends Phaser.Scene {
     // next turn from playerAction() via pendingMoveFor.
     const playerFirst = actsBefore(this.player, playerMove, this.enemy, enemyMove);
     if (playerFirst) {
-      this.doPlayerMove(playerMove, () => this.doEnemyMove(() => this.playerAction(), enemyMove));
+      this.doPlayerMove(playerMove, () => this.doEnemyMove(() => this.finishTurn(() => this.playerAction()), enemyMove));
     } else {
-      this.doEnemyMove(() => this.doPlayerMove(playerMove, () => this.playerAction()), enemyMove);
+      this.doEnemyMove(() => this.doPlayerMove(playerMove, () => this.finishTurn(() => this.playerAction())), enemyMove);
     }
   }
 
@@ -800,7 +852,7 @@ export class TrainerBattleScene extends Phaser.Scene {
       animateTargetHp: done => this.animateHpBar('enemy', done),
       onPpUsed: () => persistMovePP(this.registry, this.activeSlot, this.player),
       onComplete: () => {
-        PartySystem.updateSlotHP(this.registry, this.activeSlot, this.player.hp, this.player.status);
+        PartySystem.updateSlotHP(this.registry, this.activeSlot, this.player.hp, this.player.status, this.player.heldItem ?? null);
         if (this.enemy.isKO) {
           this.typeDialog(`${pokeNameEn(this.enemy.name).toUpperCase()} fainted!`, () => this.afterEnemyKO());
           return;
@@ -853,23 +905,16 @@ export class TrainerBattleScene extends Phaser.Scene {
    *  type effectiveness vs the player), so they mix their own STAB with super-effective
    *  coverage — leaning toward damage without spamming a single best move. Others random. */
   private pickEnemyMove(pool: Move[]): Move {
-    const rand = (arr: Move[]) => arr[Math.floor(Math.random() * arr.length)];
-    if (!this.isElite) return rand(pool);
-    const damaging = pool.filter(m => m.data.power > 0);
-    if (!damaging.length) return rand(pool);
-    const weights = damaging.map(m =>
-      Math.max(0, m.data.power * getEffectiveness(m.data.type, this.player.data.type1, this.player.data.type2)));
-    const total = weights.reduce((a, b) => a + b, 0);
-    if (total <= 0) return rand(damaging);
-    let r = Math.random() * total;
-    for (let i = 0; i < damaging.length; i++) { r -= weights[i]; if (r <= 0) return damaging[i]; }
-    return damaging[damaging.length - 1];
+    const move = chooseBattleMove(this.enemy, this.player, pool,
+      this.isElite || !!this.badgeFlag ? 'boss' : 'trainer', this.battleTurn, this.lastEnemyMove);
+    this.lastEnemyMove = move.data.name;
+    return move;
   }
 
   /** The enemy attacks (after a switch or item use, this is its single turn). */
   private enemyTurn() {
-    if (this.maybeUseBossPotion(() => this.playerAction())) return;
-    this.doEnemyMove(() => this.playerAction());
+    if (this.maybeUseBossPotion(() => this.finishTurn(() => this.playerAction()))) return;
+    this.doEnemyMove(() => this.finishTurn(() => this.playerAction()));
   }
 
   /** Resolve the enemy's move; on a KO, hand off to sendNextOrLose instead of continuing. */
@@ -889,7 +934,7 @@ export class TrainerBattleScene extends Phaser.Scene {
       animateUserHp: done => this.animateHpBar('enemy', done),
       animateTargetHp: done => this.animateHpBar('player', done),
       onComplete: () => {
-        PartySystem.updateSlotHP(this.registry, this.activeSlot, this.player.hp, this.player.status);
+        PartySystem.updateSlotHP(this.registry, this.activeSlot, this.player.hp, this.player.status, this.player.heldItem ?? null);
         if (this.enemy.isKO) {
           this.typeDialog(`${pokeNameEn(this.enemy.name).toUpperCase()} fainted!`, () => this.afterEnemyKO());
           return;
@@ -899,6 +944,26 @@ export class TrainerBattleScene extends Phaser.Scene {
         } else {
           onDone();
         }
+      },
+    });
+  }
+
+  private finishTurn(onDone: () => void): void {
+    playBattleEndTurn({
+      scene: this,
+      first: this.player,
+      second: this.enemy,
+      animateFirst: done => this.animateHpBar('player', done),
+      animateSecond: done => this.animateHpBar('enemy', done),
+      showDialog: (text, done) => this.typeDialog(text, done),
+      onComplete: () => {
+        this.battleTurn++;
+        PartySystem.updateSlotHP(this.registry, this.activeSlot, this.player.hp, this.player.status, this.player.heldItem ?? null);
+        if (this.enemy.isKO) {
+          this.typeDialog(`${pokeNameEn(this.enemy.name).toUpperCase()} fainted!`, () => this.afterEnemyKO());
+        } else if (this.player.isKO) {
+          this.typeDialog(`${pokeNameEn(this.player.name).toUpperCase()} fainted!`, () => this.sendNextOrLose());
+        } else onDone();
       },
     });
   }
@@ -969,8 +1034,10 @@ export class TrainerBattleScene extends Phaser.Scene {
   /** Load and present one exact opponent roster slot without advancing past it. */
   private async sendNextEnemy(nextIdx: number): Promise<void> {
     try {
+      const outgoing = this.enemy;
       await this.loadEnemyPokemon(nextIdx);
       if (!this.enemy) throw new Error(`Opponent roster slot ${nextIdx} did not produce a Pokémon`);
+      if (outgoing && outgoing !== this.enemy) transferReplacementState(outgoing, this.enemy);
       syncBattleHudTypes(this.enemyBattleHud, [this.enemy.data.type1, this.enemy.data.type2]);
       this.enemyIdx = nextIdx;
       this.buffBoss();   // extra HP for a 우두머리 boss
@@ -1249,7 +1316,7 @@ export class TrainerBattleScene extends Phaser.Scene {
     this.activeSlot = slotIdx;
     this.participants.add(slotIdx);
     const entry = PartySystem.get(this.registry)[slotIdx];
-    this.player = buildFromEntry(entry);
+    this.player = buildReplacement(this.player, entry);
     syncBattleHudTypes(this.playerBattleHud, [this.player.data.type1, this.player.data.type2]);
     this.refreshMovePanel();
 
@@ -1283,7 +1350,7 @@ export class TrainerBattleScene extends Phaser.Scene {
     this.participants.add(slotIdx);
     const party = PartySystem.get(this.registry);
     const entry = party[slotIdx];
-    this.player = buildFromEntry(entry);
+    this.player = buildReplacement(this.player, entry);
     syncBattleHudTypes(this.playerBattleHud, [this.player.data.type1, this.player.data.type2]);
     this.refreshMovePanel();
 
@@ -1361,7 +1428,7 @@ export class TrainerBattleScene extends Phaser.Scene {
     this.activeSlot = nextIdx;
     this.participants.add(nextIdx);
     const entry = PartySystem.get(this.registry)[nextIdx];
-    this.player = buildFromEntry(entry);
+    this.player = buildReplacement(this.player, entry);
     syncBattleHudTypes(this.playerBattleHud, [this.player.data.type1, this.player.data.type2]);
     this.refreshMovePanel();
 

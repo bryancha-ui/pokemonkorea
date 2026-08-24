@@ -7,7 +7,7 @@ import Phaser from 'phaser';
 import { TMS } from '../data/TMs';
 import { t, tr } from './i18n';
 
-export type ItemCategory = 'heal' | 'status' | 'revive' | 'ball' | 'hm' | 'ppheal' | 'souvenir' | 'key';
+export type ItemCategory = 'heal' | 'status' | 'revive' | 'ball' | 'hm' | 'ppheal' | 'held' | 'souvenir' | 'key' | 'evolution';
 
 export interface ItemDef {
   key:      string;
@@ -23,6 +23,7 @@ export interface ItemDef {
   move?:    string;        // HM/TM: the move it teaches
   learnTypes?: string[];   // HM/TM: types allowed to learn it (empty = any type)
   ppRestore?: number;      // PP restored to each move (9999 = fully restore)
+  evolutionStone?: string; // stone key consumed by a matching evolution
 }
 
 export const ITEMS: ItemDef[] = [
@@ -32,7 +33,7 @@ export const ITEMS: ItemDef[] = [
   { key: 'maxpotion',   name: 'Max Potion',   icon: '🧪', price: 2500, category: 'heal',   desc: 'Fully restores HP.',       heal: 9999 },
   { key: 'revive',      name: 'Revive',       icon: '✨', price: 2000, category: 'revive', desc: 'Revives a fainted Pokémon to half HP.', revive: 0.5 },
   { key: 'maxrevive',   name: 'Max Revive',   icon: '🌟', price: 4000, category: 'revive', desc: 'Revives a fainted Pokémon to full HP.', revive: 1 },
-  { key: 'antidote',    name: 'Antidote',     icon: '💊', price: 100,  category: 'status', desc: 'Cures poison.',            cures: ['psn'] },
+  { key: 'antidote',    name: 'Antidote',     icon: '💊', price: 100,  category: 'status', desc: 'Cures poison.',            cures: ['psn', 'tox'] },
   { key: 'paralyzeheal',name: 'Paralyze Heal',icon: '💊', price: 200,  category: 'status', desc: 'Cures paralysis.',         cures: ['par'] },
   { key: 'burnheal',    name: 'Burn Heal',    icon: '💊', price: 250,  category: 'status', desc: 'Cures a burn.',            cures: ['brn'] },
   { key: 'iceheal',     name: 'Ice Heal',     icon: '💊', price: 250,  category: 'status', desc: 'Thaws a frozen Pokémon.',  cures: ['frz'] },
@@ -44,6 +45,29 @@ export const ITEMS: ItemDef[] = [
   { key: 'masterball',  name: 'Master Ball',  icon: '🟣', price: 0,    category: 'ball',   desc: 'The best Ball. Catches any Pokémon without fail.', ballRate: 255 },
   { key: 'ether',       name: 'Ether',        icon: '🧴', price: 1200, category: 'ppheal', desc: 'Restores 20 PP to each of a Pokémon\'s moves.', ppRestore: 20 },
   { key: 'elixir',      name: 'Elixir',       icon: '🍶', price: 2500, category: 'ppheal', desc: 'Fully restores the PP of all of a Pokémon\'s moves.', ppRestore: 9999 },
+  // Evolution stones are deliberately rare field rewards. Selecting one in the
+  // Bag opens the party picker and only a compatible species will react.
+  { key: 'firestone',    name: 'Fire Stone',    icon: '🔥', price: 3000, category: 'evolution', desc: 'A fiery stone that can trigger certain evolutions.', evolutionStone: 'firestone' },
+  { key: 'waterstone',   name: 'Water Stone',   icon: '💧', price: 3000, category: 'evolution', desc: 'A clear blue stone that can trigger certain evolutions.', evolutionStone: 'waterstone' },
+  { key: 'thunderstone', name: 'Thunder Stone', icon: '⚡', price: 3000, category: 'evolution', desc: 'A charged stone that can trigger certain evolutions.', evolutionStone: 'thunderstone' },
+  { key: 'leafstone',    name: 'Leaf Stone',    icon: '🍃', price: 3000, category: 'evolution', desc: 'A leaf-patterned stone that can trigger certain evolutions.', evolutionStone: 'leafstone' },
+  { key: 'icestone',     name: 'Ice Stone',     icon: '❄️', price: 3000, category: 'evolution', desc: 'A frozen stone that can trigger certain evolutions.', evolutionStone: 'icestone' },
+  { key: 'moonstone',    name: 'Moon Stone',    icon: '🌙', price: 3500, category: 'evolution', desc: 'A moonlit stone that can trigger certain evolutions.', evolutionStone: 'moonstone' },
+  { key: 'sunstone',     name: 'Sun Stone',     icon: '☀️', price: 3500, category: 'evolution', desc: 'A radiant stone that can trigger certain evolutions.', evolutionStone: 'sunstone' },
+  { key: 'shinystone',   name: 'Shiny Stone',   icon: '💎', price: 4000, category: 'evolution', desc: 'A brilliant stone that can trigger certain evolutions.', evolutionStone: 'shinystone' },
+  { key: 'duskstone',    name: 'Dusk Stone',    icon: '🌑', price: 4000, category: 'evolution', desc: 'A shadowy stone that can trigger certain evolutions.', evolutionStone: 'duskstone' },
+  { key: 'dawnstone',    name: 'Dawn Stone',    icon: '🌅', price: 4000, category: 'evolution', desc: 'A sparkling stone that can trigger certain evolutions.', evolutionStone: 'dawnstone' },
+  // Held items. Berries are consumed in battle; equipment can be swapped freely
+  // from the Bag and any replaced item is returned to the inventory.
+  { key: 'oranberry',   name: 'Oran Berry',   icon: '🫐', price: 200,  category: 'held', desc: 'Held: restores 10 HP at low HP.' },
+  { key: 'sitrusberry', name: 'Sitrus Berry', icon: '🍋', price: 800,  category: 'held', desc: 'Held: restores one quarter of max HP at low HP.' },
+  { key: 'lumberry',    name: 'Lum Berry',    icon: '🫒', price: 1200, category: 'held', desc: 'Held: cures any major status condition.' },
+  { key: 'leftovers',   name: 'Leftovers',    icon: '🍱', price: 4000, category: 'held', desc: 'Held: gradually restores HP every turn.' },
+  { key: 'expertbelt',  name: 'Expert Belt',  icon: '🥋', price: 3500, category: 'held', desc: 'Held: powers up super-effective attacks.' },
+  { key: 'charcoal',    name: 'Charcoal',     icon: '🪵', price: 2000, category: 'held', desc: 'Held: powers up Fire-type attacks.' },
+  { key: 'mysticwater', name: 'Mystic Water', icon: '💧', price: 2000, category: 'held', desc: 'Held: powers up Water-type attacks.' },
+  { key: 'miracleseed', name: 'Miracle Seed', icon: '🌱', price: 2000, category: 'held', desc: 'Held: powers up Grass-type attacks.' },
+  { key: 'magnet',      name: 'Magnet',       icon: '🧲', price: 2000, category: 'held', desc: 'Held: powers up Electric-type attacks.' },
   { key: 'hm_fly',      name: 'HM01 · Fly',   icon: '✈️', price: 0,    category: 'hm',     desc: 'Teach Fly to a Flying-type Pokémon. Reusable.', move: 'Fly', learnTypes: ['flying'] },
   // Key item — Prof. Song's gift. While carried, the whole party shares battle EXP.
   { key: 'expshare',    name: 'Exp. Share',   icon: '📡', price: 0,    category: 'key',    desc: 'Shares battle EXP with every Pokémon in your party, even benched ones.' },
@@ -73,6 +97,15 @@ export function itemDef(key: string): ItemDef | undefined { return BY_KEY.get(ke
 /** Localized item copy. TM strings are generated dynamically, so an exact
  * dictionary lookup cannot translate their move-dependent names/descriptions. */
 export function itemName(def: ItemDef): string {
+  const stoneNames: Record<string, [string, string]> = {
+    firestone: ['불꽃의돌', 'ほのおのいし'], waterstone: ['물의돌', 'みずのいし'],
+    thunderstone: ['천둥의돌', 'かみなりのいし'], leafstone: ['리프의돌', 'リーフのいし'],
+    icestone: ['얼음의돌', 'こおりのいし'], moonstone: ['달의돌', 'つきのいし'],
+    sunstone: ['태양의돌', 'たいようのいし'], shinystone: ['빛의돌', 'ひかりのいし'],
+    duskstone: ['어둠의돌', 'やみのいし'], dawnstone: ['각성의돌', 'めざめいし'],
+  };
+  const stone = stoneNames[def.key];
+  if (stone) return t(def.name, stone[0], stone[1]);
   if (def.key.startsWith('tm_') && def.move)
     return t(`TM · ${def.move}`, `기술머신 · ${tr(def.move)}`);
   if (def.key === 'hm_fly' && def.move)
@@ -81,6 +114,11 @@ export function itemName(def: ItemDef): string {
 }
 
 export function itemDescription(def: ItemDef): string {
+  if (def.category === 'evolution') return t(
+    def.desc,
+    '특정 포켓몬의 진화를 일으키는 신비한 돌이다.',
+    '特定の ポケモンを 進化させる 不思議な 石。',
+  );
   if (def.key.startsWith('tm_') && def.move)
     return t(
       `Teaches ${def.move}. Reusable — any Pokémon can learn it.`,
@@ -181,6 +219,7 @@ export function expShareActive(registry: Phaser.Data.DataManager): boolean {
 
 import { PartySystem, PartyEntry } from './PartySystem';
 import { buildFromEntry } from './PartyBattle';
+import { queueStoneEvolution } from './EvolutionSystem';
 
 export interface UseResult { ok: boolean; message: string; }
 
@@ -221,6 +260,31 @@ export function useItemOnSlot(
   const party = PartySystem.get(registry);
   const mon = party[slot];
   if (!def || !mon) return { ok: false, message: 'It had no effect.' };
+
+  if (def.category === 'evolution') {
+    const pending = queueStoneEvolution(registry, slot, itemKey);
+    if (!pending) return { ok: false, message: `${mon.name} won't react to ${itemName(def)}.` };
+    if (!Inventory.remove(registry, itemKey, 1)) {
+      registry.remove('pendingStoneEvolution');
+      return { ok: false, message: `You don't have that item.` };
+    }
+    return { ok: true, message: `${mon.name} is reacting to ${itemName(def)}!` };
+  }
+
+  if (def.category === 'held') {
+    if (mon.heldItem === itemKey) return { ok: false, message: `${mon.name} is already holding ${itemName(def)}.` };
+    if (!Inventory.remove(registry, itemKey, 1)) return { ok: false, message: `You don't have that item.` };
+    const previous = mon.heldItem;
+    mon.heldItem = itemKey;
+    if (previous) Inventory.add(registry, previous, 1);
+    PartySystem.set(registry, party);
+    return {
+      ok: true,
+      message: previous
+        ? `${mon.name} swapped its held item for ${itemName(def)}.`
+        : `${mon.name} is now holding ${itemName(def)}.`,
+    };
+  }
 
   if (def.category === 'heal') {
     if (mon.hp <= 0) return { ok: false, message: `${mon.name} has fainted — use a Revive first.` };
@@ -274,8 +338,8 @@ export function useItemOnSlot(
 }
 
 export const STATUS_LABEL: Record<string, string> = {
-  none: 'OK', psn: 'PSN', par: 'PAR', brn: 'BRN', frz: 'FRZ', slp: 'SLP',
+  none: 'OK', psn: 'PSN', tox: 'TOX', par: 'PAR', brn: 'BRN', frz: 'FRZ', slp: 'SLP',
 };
 export const STATUS_COLOR: Record<string, number> = {
-  none: 0x44aa44, psn: 0xaa44cc, par: 0xeecc22, brn: 0xff5522, frz: 0x66ccff, slp: 0x8899aa,
+  none: 0x44aa44, psn: 0xaa44cc, tox: 0x7b2cbf, par: 0xeecc22, brn: 0xff5522, frz: 0x66ccff, slp: 0x8899aa,
 };

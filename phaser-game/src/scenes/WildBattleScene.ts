@@ -17,7 +17,7 @@ import { PartySystem, PartyEntry, baseStatsFromData } from '../systems/PartySyst
 import { blackoutToCenter, blackoutMessage } from '../systems/Blackout';
 import { tr, pokeNameEn} from '../systems/i18n';
 import { awardBenchExp } from '../systems/BattleExp';
-import { buildFromEntry, ensurePartyTexture, persistMovePP, persistSwitchOut } from '../systems/PartyBattle';
+import { buildFromEntry, buildReplacement, ensurePartyTexture, persistMovePP, persistSwitchOut } from '../systems/PartyBattle';
 import { openSwitchPanel } from '../systems/SwitchPanel';
 import { DexTracker } from '../systems/DexTracker';
 import { LeaderboardProgress } from '../systems/LeaderboardProgress';
@@ -31,6 +31,8 @@ import { enemyLearnset, mergeLearnset } from '../data/Learnsets';
 import { BattleStatusBadge } from '../systems/BattleStatusBadge';
 import { createBattleHud, hpColor, modernButton, modernMoveButton, syncBattleHudTypes, type BattleHud } from '../systems/ProductionUi';
 import { animateBattleHp, BATTLE_PACING } from '../systems/BattlePacing';
+import { playBattleEndTurn } from '../systems/BattleEndTurn';
+import { chooseBattleMove } from '../systems/BattleAI';
 
 type WildState = 'loading' | 'intro' | 'playerAction' | 'playerMove' | 'bag' | 'busy' | 'catching' | 'over';
 
@@ -43,6 +45,8 @@ export class WildBattleScene extends Phaser.Scene {
   private ballRate = 1;
   private activeBallKey = 'pokeball';
   private state: WildState = 'loading';
+  private battleTurn = 1;
+  private lastWildMove = '';
 
   // UI
   private dialogText!: Phaser.GameObjects.Text;
@@ -90,6 +94,8 @@ export class WildBattleScene extends Phaser.Scene {
 
   async create() {
     this.cameras.main.fadeIn(300);
+    this.battleTurn = 1;
+    this.lastWildMove = '';
     this.awaitingForcedSwitch = false;
     Inventory.ensureInit(this.registry);   // sync legacy Pokéballs into the item system
     this.registry.set('wildOutcome', 'none');   // set to won/caught/fled on exit (callers may gate on it)
@@ -180,12 +186,13 @@ export class WildBattleScene extends Phaser.Scene {
         fetchMove('tackle'),
         fetchMove('growl'),
       ]);
-      // Load sprite from PokéAPI
+      // Load the locally vendored official sprite.  Keeping the URL intact is
+      // important: the old protocol-relative rewrite turned local paths into
+      // "//undefined" and caused species-specific battle startup failures.
       if (!this.textures.exists(`wild-${wildId}`)) {
         this.load.image(`wild-${wildId}`, data.spriteUrl);
         await new Promise<void>(r => { this.load.once('complete', r); this.load.start(); });
       }
-      data.spriteUrl = `//${data.spriteUrl.split('//')[1]}`;
       this.wild = new Pokemon(data, wildLevel,
         enemyLearnset(moves, `wild-${wildId}`, data.type1, data.type2, wildLevel));
     }
@@ -738,14 +745,16 @@ export class WildBattleScene extends Phaser.Scene {
     this.state = 'busy';
     const available = this.wild.moves.filter(m => m.pp > 0);
     const wildMove = pendingMoveFor(this.wild)
-      ?? (available.length ? available[Math.floor(Math.random() * available.length)] : this.wild.moves[0]);
+      ?? chooseBattleMove(this.wild, this.player, available.length ? available : this.wild.moves,
+        'wild', this.battleTurn, this.lastWildMove);
+    this.lastWildMove = wildMove.data.name;
     // Two-turn moves span two FULL turns — the opponent acts on both the charge and
     // release turns (its charge-turn move misses a dug-in/airborne target).
     const playerFirst = actsBefore(this.player, playerMove, this.wild, wildMove);
     if (playerFirst) {
-      this.doPlayerMove(playerMove, () => this.doWildMove(() => this.playerAction(), wildMove));
+      this.doPlayerMove(playerMove, () => this.doWildMove(() => this.finishTurn(() => this.playerAction()), wildMove));
     } else {
-      this.doWildMove(() => this.doPlayerMove(playerMove, () => this.playerAction()), wildMove);
+      this.doWildMove(() => this.doPlayerMove(playerMove, () => this.finishTurn(() => this.playerAction())), wildMove);
     }
   }
 
@@ -763,7 +772,7 @@ export class WildBattleScene extends Phaser.Scene {
       animateTargetHp: done => this.animateHpBar('wild', done),
       onPpUsed: () => persistMovePP(this.registry, this.activeSlot, this.player),
       onComplete: () => {
-        PartySystem.updateSlotHP(this.registry, this.activeSlot, this.player.hp, this.player.status);
+        PartySystem.updateSlotHP(this.registry, this.activeSlot, this.player.hp, this.player.status, this.player.heldItem ?? null);
         if (this.wild.isKO) {
           this.typeDialog(`${pokeNameEn(this.wild.name).toUpperCase()} fainted!`, () => {
             this.registry.set('wildOutcome', 'won');
@@ -782,12 +791,14 @@ export class WildBattleScene extends Phaser.Scene {
   }
 
   /** The wild Pokémon attacks (also used standalone after item use / a failed run). */
-  private enemyTurn(_: null) { void _; this.doWildMove(() => this.playerAction()); }
+  private enemyTurn(_: null) { void _; this.doWildMove(() => this.finishTurn(() => this.playerAction())); }
 
   private doWildMove(onDone: () => void, selectedMove?: Move) {
     const available = this.wild.moves.filter(m => m.pp > 0);
     const move = selectedMove ?? pendingMoveFor(this.wild)
-      ?? (available.length ? available[Math.floor(Math.random() * available.length)] : this.wild.moves[0]);
+      ?? chooseBattleMove(this.wild, this.player, available.length ? available : this.wild.moves,
+        'wild', this.battleTurn, this.lastWildMove);
+    this.lastWildMove = move.data.name;
     executeBattleMove({
       scene: this,
       user: this.wild,
@@ -800,7 +811,7 @@ export class WildBattleScene extends Phaser.Scene {
       animateUserHp: done => this.animateHpBar('wild', done),
       animateTargetHp: done => this.animateHpBar('player', done),
       onComplete: () => {
-        PartySystem.updateSlotHP(this.registry, this.activeSlot, this.player.hp, this.player.status);
+        PartySystem.updateSlotHP(this.registry, this.activeSlot, this.player.hp, this.player.status, this.player.heldItem ?? null);
         if (this.wild.isKO) {
           this.typeDialog(`${pokeNameEn(this.wild.name).toUpperCase()} fainted!`, () => {
             this.registry.set('wildOutcome', 'won');
@@ -814,6 +825,30 @@ export class WildBattleScene extends Phaser.Scene {
         } else {
           onDone();
         }
+      },
+    });
+  }
+
+  private finishTurn(onDone: () => void): void {
+    playBattleEndTurn({
+      scene: this,
+      first: this.player,
+      second: this.wild,
+      animateFirst: done => this.animateHpBar('player', done),
+      animateSecond: done => this.animateHpBar('wild', done),
+      showDialog: (text, done) => this.typeDialog(text, done),
+      onComplete: () => {
+        this.battleTurn++;
+        PartySystem.updateSlotHP(this.registry, this.activeSlot, this.player.hp, this.player.status, this.player.heldItem ?? null);
+        if (this.wild.isKO) {
+          this.typeDialog(`${pokeNameEn(this.wild.name).toUpperCase()} fainted!`, () => {
+            this.registry.set('wildOutcome', 'won');
+            const gained = Math.round(this.wild.level * 15 * expMultiplierFor(this.registry));
+            this.showExpAndLevelUp(gained, () => this.returnToRoute());
+          });
+        } else if (this.player.isKO) {
+          this.typeDialog(`${pokeNameEn(this.player.name).toUpperCase()} fainted!`, () => this.sendNextOrLose());
+        } else onDone();
       },
     });
   }
@@ -929,7 +964,7 @@ export class WildBattleScene extends Phaser.Scene {
     this.participants.add(slotIdx);
     const party = PartySystem.get(this.registry);
     const entry = party[slotIdx];
-    this.player = buildFromEntry(entry);
+    this.player = buildReplacement(this.player, entry);
     syncBattleHudTypes(this.playerBattleHud, [this.player.data.type1, this.player.data.type2]);
     this.refreshMovePanel();
 
@@ -995,7 +1030,7 @@ export class WildBattleScene extends Phaser.Scene {
     this.activeSlot = nextIdx;
     this.participants.add(nextIdx);
     const nextEntry = PartySystem.get(this.registry)[nextIdx];
-    this.player = buildFromEntry(nextEntry);
+    this.player = buildReplacement(this.player, nextEntry);
     syncBattleHudTypes(this.playerBattleHud, [this.player.data.type1, this.player.data.type2]);
     this.refreshMovePanel();
 

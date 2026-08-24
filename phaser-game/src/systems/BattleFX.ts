@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { MoveData } from '../battle/Pokemon';
 import { TYPE_COLORS } from '../data/StarterData';
 import { BATTLE_PACING, cinematic3DImpactDelay } from './BattlePacing';
+import { playMoveSfx } from './MoveSfx';
 
 const CINEMATIC_3D_IMPACT_DELAY: Readonly<Record<string, number>> = {
   'soul ferry deluge': 515, 'royal kiln roar': 450,
@@ -48,10 +49,16 @@ export function playMoveFX(
   const ax = attacker.x, ay = attacker.y;
   const tx = target.x, ty = target.y;
 
+  // Each element gets its own voice — fire crackles as it launches, fighting
+  // cracks like a snapped board when it lands. The cast layer plays quieter so
+  // it sits under the impact rather than competing with it.
+  playMoveSfx(scene, move.type, 'cast');
+
   const impact = () => {
     flashTarget(scene, target, color, !using3D);
     scene.cameras.main.shake(180, 0.0065);
     playHitSfx(scene, effectiveness);
+    if (effectiveness !== 0) playMoveSfx(scene, move.type, 'impact');
     onImpact();
   };
 

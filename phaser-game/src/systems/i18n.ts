@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { dexEntry, POKEDEX } from '../data/Pokedex';
 import { KO_STRINGS, KO_TYPES, KO_SPEAKERS } from '../data/ko_strings';
 import { KO_ABILITIES } from '../data/ko_abilities';
+import { JA_STRINGS, JA_TYPES, JA_ABILITIES, JA_SPEAKERS, JA_POKEMON, JA_OFFICIAL_POKEMON } from '../data/ja_strings';
 
 // Korean names for the region's custom Pokémon, from public/assets/pokemon_dictionary.xlsx.
 export const POKE_KR: Record<string, string> = {
@@ -170,12 +171,12 @@ export const POKE_KR: Record<string, string> = {
 };
 
 // ── Localization ─────────────────────────────────────────────────────────────
-// The game supports English and Korean. The chosen language is a global preference
+// The game supports English, Korean, and Japanese. The chosen language is a global preference
 // (localStorage), independent of any save slot, and is also mirrored into the Phaser
 // registry so scenes can react. Strings are localized at the call site with `t(en, ko)`
 // — pass the English text plus its Korean translation; the current language decides.
 
-export type Lang = 'en' | 'ko';
+export type Lang = 'en' | 'ko' | 'ja';
 
 const LS_KEY = 'pk_lang';
 let currentLang: Lang = 'en';
@@ -194,6 +195,7 @@ export const LANG_EVENT = 'pokemonkorea:lang';
 
 function announceLang(): void {
   if (typeof window === 'undefined') return;
+  document.documentElement.lang = currentLang;
   window.dispatchEvent(new CustomEvent(LANG_EVENT, { detail: { lang: currentLang } }));
 }
 
@@ -201,7 +203,7 @@ export function initI18n(game: Phaser.Game): void {
   gameRef = game;
   let saved: string | null = null;
   try { saved = localStorage.getItem(LS_KEY); } catch { /* private mode */ }
-  currentLang = saved === 'ko' ? 'ko' : 'en';
+  currentLang = saved === 'ko' || saved === 'ja' ? saved : 'en';
   game.registry.set('lang', currentLang);
   announceLang();
 }
@@ -218,7 +220,7 @@ export function setLang(l: Lang, persist = true): void {
 }
 
 export function toggleLang(): Lang {
-  setLang(currentLang === 'ko' ? 'en' : 'ko');
+  setLang(currentLang === 'en' ? 'ko' : currentLang === 'ko' ? 'ja' : 'en');
   return currentLang;
 }
 
@@ -265,15 +267,19 @@ function rivalDisplayName(): string | undefined {
  *  name. Only the nameplate at the very start of a line is swapped — a mid-sentence
  *  common-noun "라이벌" (e.g. "네 라이벌이 될 거야") is deliberately left untouched. */
 export function applyRivalName(s: string): string {
-  if (typeof s !== 'string' || (s[0] !== 'R' && s[0] !== '라')) return s;
+  if (typeof s !== 'string' || (s[0] !== 'R' && s[0] !== '라' && s[0] !== 'ラ')) return s;
   const name = rivalDisplayName();
   if (!name) return s;
-  return s.replace(/^(?:Rival|라이벌)(?=:\s)/, name);
+  return s.replace(/^(?:Rival|라이벌|ライバル)(?=:\s)/, name);
 }
 
 /** Pick the localized string for the current language (falls back to English). */
-export function t(en: string, ko?: string): string {
-  const base = currentLang === 'ko' && ko !== undefined ? resolveJosa(ko) : en;
+export function t(en: string, ko?: string, ja?: string): string {
+  const base = currentLang === 'ko'
+    ? resolveJosa(ko ?? KO_STRINGS[en] ?? en)
+    : currentLang === 'ja'
+      ? ja ?? JA_STRINGS[en] ?? en
+      : en;
   return applyRivalName(base);
 }
 
@@ -352,10 +358,22 @@ const EN_TO_KR_POKE: Record<string, string> = (() => {
   return map;
 })();
 
+const EN_TO_JA_POKE: Record<string, string> = (() => {
+  const map: Record<string, string> = {};
+  for (const e of POKEDEX) {
+    const ja = JA_POKEMON[e.key];
+    if (ja) map[normPoke(e.name)] = ja;
+  }
+  for (const [en, ja] of Object.entries(JA_OFFICIAL_POKEMON)) map[normPoke(en)] = ja;
+  return map;
+})();
+
 /** Translate a Pokémon's English display name (any case/format) to Korean, else return it. */
 export function pokeNameEn(name: string): string {
-  if (currentLang !== 'ko' || typeof name !== 'string') return name;
-  return EN_TO_KR_POKE[normPoke(name)] ?? name;
+  if (typeof name !== 'string') return name;
+  if (currentLang === 'ko') return EN_TO_KR_POKE[normPoke(name)] ?? name;
+  if (currentLang === 'ja') return EN_TO_JA_POKE[normPoke(name)] ?? name;
+  return name;
 }
 
 // Case-insensitive speaker lookup for trainer nameplates / battle intros.
@@ -364,6 +382,50 @@ const SPEAKER_LC: Record<string, string> = (() => {
   for (const k of Object.keys(KO_SPEAKERS)) map[k.toLowerCase()] = KO_SPEAKERS[k];
   return map;
 })();
+const SPEAKER_JA_LC: Record<string, string> = (() => {
+  const map: Record<string, string> = {};
+  for (const k of Object.keys(JA_SPEAKERS)) map[k.toLowerCase()] = JA_SPEAKERS[k];
+  return map;
+})();
+
+/** Japanese trainer classes are compositional (for example "Hiker Cheolho").
+ * Translating the role prefix here gives every long-tail trainer a localized
+ * nameplate without requiring hundreds of duplicated proper-name entries. */
+const JA_SPEAKER_ROLE_PREFIXES: Array<[RegExp, string]> = [
+  [/^Team Suri Grunts?\b/i, 'スリ団のしたっぱ'], [/^Team Suri Operative\b/i, 'スリ団員'],
+  [/^Team Suri Admin\b/i, 'スリ団幹部'], [/^Team Suri\b/i, 'スリ団'],
+  [/^노스단 Commander\b/i, 'ノス団司令官'], [/^노스단 Sovereign-Claimant\b/i, 'ノス団王位僭称者'],
+  [/^노스단 Garrison Officer\b/i, 'ノス団守備隊士官'], [/^노스단 Operative\b/i, 'ノス団員'],
+  [/^노스단 Admin\b/i, 'ノス団幹部'], [/^노스단 Soldier\b/i, 'ノス団兵士'],
+  [/^노스단 Grunt\b/i, 'ノス団のしたっぱ'], [/^노스단 Lookout\b/i, 'ノス団見張り'],
+  [/^노스단 Digger\b/i, 'ノス団発掘員'], [/^노스단\b/i, 'ノス団'],
+  [/^어사대장 Supreme\b/i, '王室監察長'], [/^어사대장\b/i, '王室監察官'], [/^어사대 Inspector\b/i, '王室監察官'],
+  [/^Gym Trainer\b/i, 'ジムトレーナー'], [/^Ace Trainer\b/i, 'エリートトレーナー'],
+  [/^Bug Catcher\b/i, 'むしとりしょうねん'], [/^Bird Keeper\b/i, 'とりつかい'],
+  [/^Black Belt\b/i, 'からておう'], [/^Dragon Tamer\b/i, 'ドラゴンつかい'],
+  [/^Hex Maniac\b/i, 'オカルトマニア'], [/^Aroma Lady\b/i, 'アロマなおねえさん'],
+  [/^Rich Boy\b/i, 'おぼっちゃま'], [/^School Kid\b/i, 'スクールボーイ'],
+  [/^Paddy Farmer\b/i, '田んぼ農家'], [/^Snow Worker\b/i, '除雪作業員'],
+  [/^Quarry Worker\b/i, '採石場作業員'], [/^Steelworker\b/i, '製鉄工'],
+  [/^Hiker\b/i, 'やまおとこ'], [/^Mountaineer\b/i, '登山家'], [/^Skier\b/i, 'スキーヤー'],
+  [/^Swimmer\b/i, 'かいパンやろう'], [/^Sailor\b/i, 'ふなのり'], [/^Fisherman\b/i, 'つりびと'],
+  [/^Fisher\b/i, 'つりびと'], [/^Angler\b/i, 'つりびと'], [/^Camper\b/i, 'キャンプボーイ'],
+  [/^Picnicker\b/i, 'ピクニックガール'], [/^Psychic\b/i, 'サイキッカー'],
+  [/^Veteran\b/i, 'ベテラントレーナー'], [/^Miner\b/i, 'こうふ'], [/^Digger\b/i, '発掘家'],
+  [/^Prospector\b/i, '探鉱家'], [/^Herder\b/i, '牧童'], [/^Deckhand\b/i, '甲板員'],
+  [/^Medium\b/i, 'きとうし'], [/^Scholar\b/i, '学者'], [/^Ranger\b/i, 'レンジャー'],
+  [/^Disciple\b/i, '弟子'], [/^Dock ?worker\b/i, '港湾作業員'], [/^Reporter\b/i, '記者'],
+  [/^Leader\b/i, 'ジムリーダー'], [/^Champion\b/i, 'チャンピオン'],
+];
+
+function japaneseSpeakerName(name: string): string {
+  const exact = SPEAKER_JA_LC[name.toLowerCase()];
+  if (exact) return exact;
+  for (const [pattern, role] of JA_SPEAKER_ROLE_PREFIXES) {
+    if (pattern.test(name)) return name.replace(pattern, role);
+  }
+  return name;
+}
 
 // Exact strings returned by speakerName() are nameplates when passed directly
 // to Phaser Text. UiScale uses this to keep overworld labels compact without
@@ -372,11 +434,12 @@ const SPEAKER_LABEL_TEXTS = new Set<string>();
 
 /** Translate a trainer/NPC name to Korean (from KO_SPEAKERS), else return it. */
 export function speakerName(name: string): string {
-  let result = currentLang !== 'ko' || typeof name !== 'string'
-    ? name
-    : SPEAKER_LC[name.toLowerCase()] ?? name;
+  let result = typeof name !== 'string' ? name
+    : currentLang === 'ko' ? SPEAKER_LC[name.toLowerCase()] ?? name
+      : currentLang === 'ja' ? japaneseSpeakerName(name)
+        : name;
   // The generic rival label — in either language — resolves to the player-chosen name.
-  if (typeof name === 'string' && /^(?:rival|라이벌)$/i.test(name.trim())) {
+  if (typeof name === 'string' && /^(?:rival|라이벌|ライバル)$/i.test(name.trim())) {
     result = rivalDisplayName() ?? result;
   }
   if (typeof result === 'string') SPEAKER_LABEL_TEXTS.add(result);
@@ -440,6 +503,7 @@ const BATTLE_PATTERNS: Array<[RegExp, (m: RegExpMatchArray) => string]> = [
   [/^(.+) was paralyzed!$/,   m => `${P(m[1])}(은)는 마비되어 버렸다!`],
   [/^(.+) was burned!$/,      m => `${P(m[1])}(은)는 화상을 입었다!`],
   [/^(.+) was poisoned!$/,    m => `${P(m[1])}(은)는 독에 걸렸다!`],
+  [/^(.+) was badly poisoned!$/, m => `${P(m[1])}(은)는 맹독에 걸렸다!`],
   [/^(.+) fell asleep!$/,     m => `${P(m[1])}(은)는 잠들어 버렸다!`],
   [/^(.+) was frozen!$/,      m => `${P(m[1])}(은)는 얼어붙었다!`],
   [/^(.+) was afflicted!$/,   m => `${P(m[1])}(은)는 상태이상에 걸렸다!`],
@@ -468,6 +532,7 @@ const BATTLE_PATTERNS: Array<[RegExp, (m: RegExpMatchArray) => string]> = [
   [/^(.+) was poisoned by (.+)!$/, m => `${P(m[1])}은 ${AB(m[2])}(으)로 독에 걸렸다!`],
   [/^(.+) was afflicted by (.+)!$/, m => `${P(m[1])}은 ${AB(m[2])}(으)로 상태이상에 걸렸다!`],
   [/^(.+) was captivated by (.+)!$/, m => `${P(m[1])}은 ${AB(m[2])}(으)로 헤롱헤롱해졌다!`],
+  [/^(.+) fell in love through Cute Charm!$/, m => `${P(m[1])}은 헤롱헤롱바디로 헤롱헤롱해졌다!`],
   // ── Weather / entry / stat abilities ──
   [/^(.+)'s Drizzle made it rain!$/, m => `${P(m[1])}의 잔비 특성으로 비가 내리기 시작했다!`],
   [/^(.+)'s Drought intensified the sunlight!$/, m => `${P(m[1])}의 가뭄 특성으로 햇살이 강해졌다!`],
@@ -486,6 +551,25 @@ const BATTLE_PATTERNS: Array<[RegExp, (m: RegExpMatchArray) => string]> = [
   [/^(.+)'s HP is already full!$/, m => `${P(m[1])}의 HP는 이미 가득 찼다!`],
   [/^(.+) absorbed (\d+) HP!$/, m => `${P(m[1])}은 HP를 ${m[2]} 흡수했다!`],
   [/^(.+) was damaged by recoil!$/, m => `${P(m[1])}은 반동으로 데미지를 입었다!`],
+  [/^(.+) flinched and couldn't move!$/, m => `${P(m[1])}(은)는 풀이 죽어 움직일 수 없다!`],
+  [/^(.+) is in love!$/, m => `${P(m[1])}(은)는 헤롱헤롱 상태다!`],
+  [/^(.+) is immobilized by love!$/, m => `${P(m[1])}(은)는 헤롱헤롱해서 움직일 수 없다!`],
+  [/^(.+) became confused!$/, m => `${P(m[1])}(은)는 혼란에 빠졌다!`],
+  [/^(.+) is already confused!$/, m => `${P(m[1])}(은)는 이미 혼란 상태다!`],
+  [/^(.+) is confused!$/, m => `${P(m[1])}(은)는 혼란 상태다!`],
+  [/^(.+) snapped out of confusion!$/, m => `${P(m[1])}의 혼란이 풀렸다!`],
+  [/^(.+) hurt itself in confusion for (\d+) HP!$/, m => `${P(m[1])}(은)는 영문도 모른 채 자신을 공격해 HP ${m[2]}의 피해를 입었다!`],
+  [/^(.+)'s (.+) is disabled!$/, m => `${P(m[1])}의 ${KO_STRINGS[m[2]] ?? m[2]} 기술은 봉인되어 있다!`],
+  [/^(.+) was seeded!$/, m => `${P(m[1])}에게 씨가 심어졌다!`],
+  [/^Leech Seed could not affect (.+)!$/, m => `${P(m[1])}에게는 씨뿌리기가 통하지 않았다!`],
+  [/^(.+)'s Lum Berry cured its status condition!$/, m => `${P(m[1])}의 리샘열매가 상태이상을 치료했다!`],
+  [/^(.+) was hurt by (burn|poison)!$/, m => `${P(m[1])}(은)는 ${m[2] === 'burn' ? '화상' : '독'}의 피해를 입었다!`],
+  [/^(.+) was buffeted by the sandstorm!$/, m => `${P(m[1])}(은)는 모래바람에 휩쓸렸다!`],
+  [/^(.+)'s health was sapped by Leech Seed!$/, m => `${P(m[1])}의 체력을 씨뿌리기가 빼앗았다!`],
+  [/^(.+) restored (\d+) HP with Leftovers!$/, m => `${P(m[1])}(은)는 먹다남은음식으로 HP를 ${m[2]} 회복했다!`],
+  [/^(.+) restored (\d+) HP with its (Oran Berry|Sitrus Berry)!$/, m => `${P(m[1])}(은)는 ${KO_STRINGS[m[3]] ?? m[3]}로 HP를 ${m[2]} 회복했다!`],
+  [/^(.+)'s Cheek Pouch restored (\d+) more HP!$/, m => `${P(m[1])}의 볼주머니로 HP를 ${m[2]} 더 회복했다!`],
+  [/^The weather returned to normal\.$/, () => '날씨가 원래대로 돌아왔다.'],
   [/^(.+) flinched from Stench!$/, m => `${P(m[1])}은 악취 특성에 풀이 죽었다!`],
   [/^(.+) endured the hit with Sturdy!$/, m => `${P(m[1])}은 옹골참 특성으로 공격을 버텨냈다!`],
   [/^(.+) is immune through Levitate!$/, m => `${P(m[1])}은 부유 특성으로 공격을 받지 않았다!`],
@@ -554,6 +638,12 @@ const BATTLE_PATTERNS: Array<[RegExp, (m: RegExpMatchArray) => string]> = [
   [/^(\d+) of (\d+) badges collected\. Tap to view your case\.$/, m => `배지 ${m[2]}개 중 ${m[1]}개 획득. 탭하면 배지 케이스를 봐.`],
   [/^Teach (.+) to…$/, m => `${KO_STRINGS[m[1]] ?? m[1]}(을)를 누구에게 가르칠까…`],
   [/^Use (.+) on…$/, m => `${KO_STRINGS[m[1]] ?? m[1]}(을)를 누구에게 쓸까…`],
+  [/^(.+) is already holding (.+)\.$/, m => `${P(m[1])}(은)는 이미 ${m[2]}을(를) 지니고 있어.`],
+  [/^(.+) won't react to (.+)\.$/, m => `${P(m[1])}(은)는 ${m[2]}에 반응하지 않는다.`],
+  [/^(.+) is reacting to (.+)!$/, m => `${P(m[1])}(이)가 ${m[2]}에 반응하고 있다!`],
+  [/^(.+) swapped its held item for (.+)\.$/, m => `${P(m[1])}(은)는 지닌물건을 ${m[2]}(으)로 바꿨다.`],
+  [/^(.+) is now holding (.+)\.$/, m => `${P(m[1])}(은)는 ${m[2]}을(를) 지니게 되었다.`],
+  [/^You don't have that item\.$/, () => '그 도구를 가지고 있지 않다.'],
   // ── Quiz / checkpoints ──
   [/^Question (\d+) of (\d+)\.$/, m => `${m[2]}문제 중 ${m[1]}번.`],
   [/^어사대장 Hyeon: (\d+) of (\d+)\. A clear and ordered mind\. The academy is satisfied\.$/, m => `어사대장 현: ${m[2]}문제 중 ${m[1]}개 정답. 맑고 정연한 정신이군. 학원은 만족한다.`],
@@ -580,10 +670,119 @@ const BATTLE_PATTERNS: Array<[RegExp, (m: RegExpMatchArray) => string]> = [
   [/^Teach (.+) to a Pokémon to fly between cities\.   ·   ESC\/M: close$/, m => `${KO_STRINGS[m[1]] ?? m[1]}을(를) 포켓몬에게 가르치면 도시 사이를 즉시 비행할 수 있어.   ·   ESC/M: 닫기`],
 ];
 
+const JMOVE = (name: string) => JA_STRINGS[name] ?? name;
+const JABILITY = (name: string) => JA_ABILITIES[name.trim().replace(/[-_]+/g, ' ').toLowerCase()] ?? name;
+const JSTAT: Record<string, string> = {
+  Attack: 'こうげき', Defense: 'ぼうぎょ', 'Sp. Atk': 'とくこう',
+  'Sp. Def': 'とくぼう', Speed: 'すばやさ', Accuracy: '命中率', Evasion: '回避率',
+};
+
+/** High-frequency dynamic battle copy. Long-form story dialogue that has not yet
+ * been authored in Japanese deliberately remains English instead of showing an
+ * empty string or a machine-translated proper noun. */
+const BATTLE_PATTERNS_JA: Array<[RegExp, (m: RegExpMatchArray) => string]> = [
+  [/^What will (.+) do\?  🔴×(\d+)$/, m => `${P(m[1])}は どうする？  🔴×${m[2]}`],
+  [/^What will (.+) do\?$/, m => `${P(m[1])}は どうする？`],
+  [/^A wild (.+) appeared!$/, m => `野生の ${P(m[1])}が 飛び出してきた！`],
+  [/^(.+) wants to battle!$/, m => `${S(m[1])}が 勝負をしかけてきた！`],
+  [/^Go,? (.+)!$/, m => `ゆけっ！ ${P(m[1])}！`],
+  [/^(.+) sent out (.+)!$/, m => `${S(m[1])}は ${P(m[2])}を くりだした！`],
+  [/^(.+) sent out (.+)\.\nWill you switch your Pokémon\?$/, m =>
+    `${S(m[1])}は ${P(m[2])}を くりだした。\nポケモンを 入れ替えますか？`],
+  [/^(.+) used (Potion|Super Potion|Hyper Potion|Max Potion) on (.+)!$/, m =>
+    `${S(m[1])}は ${P(m[3])}に ${JMOVE(m[2])}を 使った！`],
+  [/^Wild (.+) used (.+)!$/, m => `野生の ${P(m[1])}の ${JMOVE(m[2])}！`],
+  [/^(.+) used (.+)!$/, m => `${P(m[1])}の ${JMOVE(m[2])}！`],
+  [/^(.+) fainted!$/, m => `${P(m[1])}は たおれた！`],
+  [/^(.+) fainted! You win!$/, m => `${P(m[1])}は たおれた！ 勝利！`],
+  [/^(.+) fainted! You lose!$/, m => `${P(m[1])}は たおれた！ 敗北……`],
+  [/^(.+) gained (\d+) EXP!$/, m => `${P(m[1])}は ${m[2]} 経験値を もらった！`],
+  [/^✨ (.+) grew to Lv\. (\d+)!$/, m => `✨ ${P(m[1])}は Lv.${m[2]}に あがった！`],
+  [/^✨ (.+) grew to Lv\. (\d+)!\nMax HP: (\d+)$/, m =>
+    `✨ ${P(m[1])}は Lv.${m[2]}に あがった！\n最大HP：${m[3]}`],
+  [/^(.+) is now your lead!$/, m => `${P(m[1])}を 先頭にした！`],
+  [/^(.+) learned (.+)!$/, m => `${P(m[1])}は ${JMOVE(m[2])}を おぼえた！`],
+  [/^(.+) forgot (.+) and learned (.+)!$/, m => `${P(m[1])}は ${JMOVE(m[2])}を わすれて ${JMOVE(m[3])}を おぼえた！`],
+  [/^(.+) already knows (.+)\.$/, m => `${P(m[1])}は すでに ${JMOVE(m[2])}を おぼえている。`],
+  [/^(.+) did not learn (.+)\.$/, m => `${P(m[1])}は ${JMOVE(m[2])}を おぼえなかった。`],
+  [/^(.+) wants to learn (.+), but it already knows 4 moves\.$/, m =>
+    `${P(m[1])}は ${JMOVE(m[2])}を おぼえたい……しかし わざを4つ おぼえている。`],
+  [/^(.+) wants to learn (.+)\.$/, m => `${P(m[1])}は ${JMOVE(m[2])}を おぼえたがっている。`],
+  [/^(.+)'s attack missed!$/, m => `${P(m[1])}の 攻撃は はずれた！`],
+  [/^(.+) restored (\d+) HP!$/, m => `${P(m[1])}は HPを ${m[2]} 回復した！`],
+  [/^(.+)'s HP is already full!$/, m => `${P(m[1])}の HPは 満タンだ！`],
+  [/^(.+) absorbed (\d+) HP!$/, m => `${P(m[1])}は HPを ${m[2]} 吸い取った！`],
+  [/^(.+) was damaged by recoil!$/, m => `${P(m[1])}は 反動で ダメージを受けた！`],
+  [/^(.+) flinched and couldn't move!$/, m => `${P(m[1])}は ひるんで 動けない！`],
+  [/^(.+) is in love!$/, m => `${P(m[1])}は メロメロだ！`],
+  [/^(.+) is immobilized by love!$/, m => `${P(m[1])}は メロメロで 技が出せない！`],
+  [/^(.+) fell in love through Cute Charm!$/, m => `${P(m[1])}は メロメロボディで メロメロになった！`],
+  [/^(.+) became confused!$/, m => `${P(m[1])}は 混乱した！`],
+  [/^(.+) is already confused!$/, m => `${P(m[1])}は すでに混乱している！`],
+  [/^(.+) is confused!$/, m => `${P(m[1])}は 混乱している！`],
+  [/^(.+) snapped out of confusion!$/, m => `${P(m[1])}の 混乱がとけた！`],
+  [/^(.+) hurt itself in confusion for (\d+) HP!$/, m => `${P(m[1])}は わけも分からず自分を攻撃して HP ${m[2]}のダメージ！`],
+  [/^(.+)'s (.+) is disabled!$/, m => `${P(m[1])}の ${JMOVE(m[2])}は かなしばりで出せない！`],
+  [/^(.+) was seeded!$/, m => `${P(m[1])}に やどりぎのタネを植えつけた！`],
+  [/^Leech Seed could not affect (.+)!$/, m => `${P(m[1])}には やどりぎのタネが効かなかった！`],
+  [/^(.+)'s Lum Berry cured its status condition!$/, m => `${P(m[1])}の ラムのみが 状態異常を治した！`],
+  [/^(.+) was hurt by (burn|poison)!$/, m => `${P(m[1])}は ${m[2] === 'burn' ? 'やけど' : '毒'}のダメージを受けた！`],
+  [/^(.+) was buffeted by the sandstorm!$/, m => `${P(m[1])}は 砂あらしに巻き込まれた！`],
+  [/^(.+)'s health was sapped by Leech Seed!$/, m => `${P(m[1])}は やどりぎのタネに HPを吸い取られた！`],
+  [/^(.+) restored (\d+) HP with Leftovers!$/, m => `${P(m[1])}は たべのこしで HPを ${m[2]} 回復した！`],
+  [/^(.+) restored (\d+) HP with its (Oran Berry|Sitrus Berry)!$/, m => `${P(m[1])}は きのみで HPを ${m[2]} 回復した！`],
+  [/^(.+)'s Cheek Pouch restored (\d+) more HP!$/, m => `${P(m[1])}の ほおぶくろで HPを ${m[2]} さらに回復した！`],
+  [/^The weather returned to normal\.$/, () => '天気が元に戻った。'],
+  [/^(.+) was paralyzed!$/, m => `${P(m[1])}は まひして 技が出にくくなった！`],
+  [/^(.+) was burned!$/, m => `${P(m[1])}は やけどを負った！`],
+  [/^(.+) was poisoned!$/, m => `${P(m[1])}は 毒をあびた！`],
+  [/^(.+) was badly poisoned!$/, m => `${P(m[1])}は もうどくをあびた！`],
+  [/^(.+) fell asleep!$/, m => `${P(m[1])}は 眠ってしまった！`],
+  [/^(.+) was frozen!$/, m => `${P(m[1])}は 凍ってしまった！`],
+  [/^(.+) woke up!$/, m => `${P(m[1])}は 目を覚ました！`],
+  [/^(.+) thawed out!$/, m => `${P(m[1])}の 氷がとけた！`],
+  [/^(.+)'s (Attack|Defense|Sp\. Atk|Sp\. Def|Speed|Accuracy|Evasion) rose!$/, m => `${P(m[1])}の ${JSTAT[m[2]]}が 上がった！`],
+  [/^(.+)'s (Attack|Defense|Sp\. Atk|Sp\. Def|Speed|Accuracy|Evasion) rose sharply!$/, m => `${P(m[1])}の ${JSTAT[m[2]]}が ぐーんと上がった！`],
+  [/^(.+)'s (Attack|Defense|Sp\. Atk|Sp\. Def|Speed|Accuracy|Evasion) fell!$/, m => `${P(m[1])}の ${JSTAT[m[2]]}が 下がった！`],
+  [/^(.+)'s (Attack|Defense|Sp\. Atk|Sp\. Def|Speed|Accuracy|Evasion) harshly fell!$/, m => `${P(m[1])}の ${JSTAT[m[2]]}が がくっと下がった！`],
+  [/^(.+)'s Drizzle made it rain!$/, m => `${P(m[1])}の あめふらしで 雨が降り始めた！`],
+  [/^(.+)'s Drought intensified the sunlight!$/, m => `${P(m[1])}の ひでりで 日差しが強くなった！`],
+  [/^(.+)'s Sand Stream whipped up a sandstorm!$/, m => `${P(m[1])}の すなおこしで 砂あらしになった！`],
+  [/^(.+)'s Snow Warning summoned snow!$/, m => `${P(m[1])}の ゆきふらしで 雪が降り始めた！`],
+  [/^(.+)'s (.+) prevents escape!$/, m => `${P(m[1])}の ${JABILITY(m[2])}で 逃げられない！`],
+  [/^(.+) flew up high!$/, m => `${P(m[1])}は 空高く 飛び上がった！`],
+  [/^(.+) began charging power!$/, m => `${P(m[1])}は 力をため始めた！`],
+  [/^✨ Gotcha! (.+) was caught!$/, m => `✨ やったー！ ${P(m[1])}を 捕まえた！`],
+  [/^✨ Gotcha! (.+) was caught!\nAdded to your party!$/, m =>
+    `✨ やったー！ ${P(m[1])}を 捕まえた！\nてもちに 加わった！`],
+  [/^✨ Gotcha! (.+) was caught!\nBut your party is full\.$/, m =>
+    `✨ やったー！ ${P(m[1])}を 捕まえた！\nしかし てもちが いっぱいだ。`],
+  [/^(.+) joined the party!$/, m => `${P(m[1])}を てもちに加えた！`],
+  [/^(.+) was sent to the PC\.$/, m => `${P(m[1])}を ボックスへ送った。`],
+  [/^You got (.+) for winning!$/, m => `賞金として ${m[1]}を 手に入れた！`],
+  [/^Received: TM — (.+)!  \(Check your Bag to teach it\.\)$/, m =>
+    `わざマシン「${JMOVE(m[1])}」を 手に入れた！ （バッグから おぼえさせられます）`],
+  [/^Congratulations! (.+) Badge obtained! 🏅$/, m => `おめでとう！ ${m[1]}バッジを 手に入れた！ 🏅`],
+  [/^Choose (.+)\?$/, m => `${P(m[1])}に しますか？`],
+  [/^What\? (.+) is evolving!$/, m => `おや……？ ${P(m[1])}の ようすが……！`],
+  [/^Congratulations! Your ([\s\S]+?)\nevolved into (.+)!$/, m =>
+    `おめでとう！ ${P(m[1])}は\n${P(m[2])}に 進化した！`],
+  [/^(.+) stopped evolving!$/, m => `${P(m[1])}の 進化は 止まった！`],
+  [/^(.+) is already holding (.+)\.$/, m => `${P(m[1])}は すでに ${m[2]}を 持っている。`],
+  [/^(.+) won't react to (.+)\.$/, m => `${P(m[1])}は ${m[2]}に 反応しない。`],
+  [/^(.+) is reacting to (.+)!$/, m => `${P(m[1])}が ${m[2]}に 反応している！`],
+  [/^(.+) swapped its held item for (.+)\.$/, m => `${P(m[1])}の 持ち物を ${m[2]}に 取り替えた。`],
+  [/^(.+) is now holding (.+)\.$/, m => `${P(m[1])}に ${m[2]}を 持たせた。`],
+  [/^You don't have that item\.$/, () => 'その道具を 持っていない。'],
+  [/^Prof\. Song: Excellent choice! (.+) is happy to travel with you\.\nAnd take this — your very own Pokédex! Press M, open your BAG,\nand select the Pokémon Encyclopedia to study every Pokémon you meet\.$/, m =>
+    `ソン博士: すばらしい選択だ！ ${P(m[1])}も きみと旅ができて うれしそうだ。\nそして これを――きみだけのポケモン図鑑だ！ Mでバッグを開き、\nポケモン図鑑を選んで 出会ったポケモンを調べてみよう。`],
+];
+
 export function tr(en: string): string {
   if (typeof en !== 'string') return en;
-  if (currentLang !== 'ko') return applyRivalName(en);
-  return applyRivalName(resolveJosa(trKo(en)));
+  if (currentLang === 'ko') return applyRivalName(resolveJosa(trKo(en)));
+  if (currentLang === 'ja') return applyRivalName(trJa(en));
+  return applyRivalName(en);
 }
 
 function trKo(en: string): string {
@@ -616,29 +815,63 @@ function trKo(en: string): string {
   return en;
 }
 
+function trJa(en: string): string {
+  const exact = JA_STRINGS[en] ?? JA_STRINGS[en.trim()];
+  if (exact) return exact;
+  for (const [re, fn] of BATTLE_PATTERNS_JA) {
+    const match = en.match(re);
+    if (match) return fn(match);
+  }
+  const idx = en.indexOf(': ');
+  if (idx > 0 && idx <= 24) {
+    const speaker = en.slice(0, idx);
+    const rest = en.slice(idx + 2);
+    const translatedRest = JA_STRINGS[rest] ?? JA_STRINGS[rest.trim()];
+    const translatedSpeaker = japaneseSpeakerName(speaker);
+    if (translatedRest || translatedSpeaker !== speaker) {
+      return `${translatedSpeaker}: ${translatedRest ?? rest}`;
+    }
+  }
+  if (en.includes('\n')) {
+    const lines = en.split('\n');
+    const translated = lines.map(line => trJa(line));
+    if (translated.some((line, i) => line !== lines[i])) return translated.join('\n');
+  }
+  return en;
+}
+
 /** A type's display name in the current language. */
 export function typeName(type: string): string {
   if (currentLang === 'ko') return KO_TYPES[type?.toLowerCase?.()] ?? type;
+  if (currentLang === 'ja') return JA_TYPES[type?.toLowerCase?.()] ?? type;
   return type ? type.charAt(0).toUpperCase() + type.slice(1) : type;
 }
 
 /** Localize both official and Onnuri-original ability names. `localizedKo` is
  * supplied for official abilities hydrated from PokeAPI; the local dictionary
  * keeps custom abilities and offline play fully translated. */
-export function abilityName(ability: string, localizedKo?: string): string {
-  if (!ability) return currentLang === 'ko' ? '알 수 없음' : 'Unknown';
+export function abilityName(ability: string, localizedKo?: string, localizedJa?: string): string {
+  if (!ability) return currentLang === 'ko' ? '알 수 없음' : currentLang === 'ja' ? '不明' : 'Unknown';
   const humanize = (value: string) => value.trim().replace(/[-_]+/g, ' ')
     .replace(/\b\w/g, c => c.toUpperCase());
-  if (currentLang !== 'ko') return ability.split('/').map(humanize).join(' / ');
-  if (localizedKo) return localizedKo;
+  if (currentLang === 'en') return ability.split('/').map(humanize).join(' / ');
+  if (currentLang === 'ko') {
+    if (localizedKo) return localizedKo;
+    return ability.split('/').map(part => {
+      const normalized = part.trim().replace(/[-_]+/g, ' ').toLowerCase();
+      return KO_ABILITIES[normalized] ?? humanize(part);
+    }).join(' / ');
+  }
+  if (localizedJa) return localizedJa;
   return ability.split('/').map(part => {
     const normalized = part.trim().replace(/[-_]+/g, ' ').toLowerCase();
-    return KO_ABILITIES[normalized] ?? humanize(part);
+    return JA_ABILITIES[normalized] ?? humanize(part);
   }).join(' / ');
 }
 
 /** A Pokémon's display name in the current language (Korean from the dictionary). */
 export function pokeName(key: string, fallback?: string): string {
   if (currentLang === 'ko' && POKE_KR[key]) return POKE_KR[key];
+  if (currentLang === 'ja' && JA_POKEMON[key]) return JA_POKEMON[key];
   return dexEntry(key)?.name ?? fallback ?? key;
 }

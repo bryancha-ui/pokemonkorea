@@ -255,6 +255,51 @@ export class ThreeStage {
     this.scene.environmentIntensity = battle ? 0.42 : profile === 'interior' ? 0.46 : 0.38;
   }
 
+  /** Temporary battle-weather grading. Particle/sun objects live in
+   * BattleMirror; this adjusts the actual sky, clouds, fog and arena lighting so
+   * Snowscape and Sunny Day change the whole 3D field instead of adding a flat
+   * screen overlay. */
+  setBattleWeather(weather: 'clear' | 'rain' | 'sun' | 'sand' | 'snow'): void {
+    this.setEnvironment('battle');
+    if (weather === 'snow') {
+      (this.skyMat.uniforms.top.value as THREE.Color).set(0x7893b7);
+      (this.skyMat.uniforms.bottom.value as THREE.Color).set(0xeaf3fb);
+      this.scene.background = new THREE.Color(0xe4eef7);
+      this.scene.fog = new THREE.Fog(0xdde8f2, 22, 62);
+      this.hemi.color.set(0xeaf4ff);
+      this.hemi.groundColor.set(0xb9cad8);
+      this.sun.color.set(0xe8f2ff);
+      this.sun.intensity = 0.92;
+      this.cloudMaterial.opacity = 0.9;
+    } else if (weather === 'sun') {
+      (this.skyMat.uniforms.top.value as THREE.Color).set(0x168ee8);
+      (this.skyMat.uniforms.bottom.value as THREE.Color).set(0xffefb4);
+      this.scene.background = new THREE.Color(0xffe8a6);
+      this.scene.fog = new THREE.Fog(0xf8dd9b, 42, 118);
+      this.hemi.color.set(0xfff1c5);
+      this.hemi.groundColor.set(0xb49a59);
+      this.hemi.intensity = 1.24;
+      this.sun.color.set(0xffd276);
+      this.sun.intensity = 3.15;
+      this.cloudMaterial.opacity = 0.12;
+    } else if (weather === 'rain') {
+      (this.skyMat.uniforms.top.value as THREE.Color).set(0x405775);
+      (this.skyMat.uniforms.bottom.value as THREE.Color).set(0x9eb4c5);
+      this.scene.background = new THREE.Color(0x93aabc);
+      this.scene.fog = new THREE.Fog(0x899ead, 24, 68);
+      this.sun.intensity = 0.62;
+      this.cloudMaterial.opacity = 0.94;
+    } else if (weather === 'sand') {
+      (this.skyMat.uniforms.top.value as THREE.Color).set(0xad7943);
+      (this.skyMat.uniforms.bottom.value as THREE.Color).set(0xe4c184);
+      this.scene.background = new THREE.Color(0xd8b273);
+      this.scene.fog = new THREE.Fog(0xc69d61, 14, 46);
+      this.sun.color.set(0xffce83);
+      this.sun.intensity = 1.18;
+      this.cloudMaterial.opacity = 0.18;
+    }
+  }
+
   /** Scene-specific clear/fog colour used by bright authored interiors. */
   setBackgroundColor(color: number): void {
     this.scene.background = new THREE.Color(color);

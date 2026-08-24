@@ -84,6 +84,9 @@ const NOSDAN_RETURN_SCENES = new Set(['NosdanHideoutScene', 'SamjiyonAjitRoadSce
 
 const GYM_RETURN_SCENE: Record<string, string> = {
   CapitolGymScene: 'capitol',
+  CapitolGymMirrorRoomScene: 'capitol',
+  CapitolGymVeilRoomScene: 'capitol',
+  CapitolGymSanctumScene: 'capitol',
   BaekduGymScene: 'baekdu',
   GeumgangGymScene: 'geumgang',
   HaeanGymScene: 'haean',

@@ -57,12 +57,23 @@ export class CreatureAnimator {
         const clip = animations.find(c => NAME_HINTS[st].test(c.name));
         if (clip) byState[st] = mixer.clipAction(clip);
       }
-      // No name matched at all → treat the first clip as the idle loop.
-      if (!Object.keys(byState).length && animations[0]) {
-        byState.idle = mixer.clipAction(animations[0]);
+      // A model shipping exactly one non-idle clip is showing its signature move,
+      // not a damage reaction. Pikachu's only clip is "Impactrueno", which the hit
+      // pattern claimed because the word contains "impact" — so its thunder
+      // animation fired when it got hurt and never when it attacked, and its
+      // resting pose stayed the mid-leap bind pose.
+      if (!byState.idle && !byState.attack && byState.hit && animations.length === 1) {
+        byState.attack = byState.hit;
+        delete byState.hit;
       }
-      this.clips = { mixer, byState };
-      this.play('idle');
+      // Do not guess that an unknown first clip is idle. Many sourced GLBs name
+      // a single attack/effect clip in another language; looping it made the
+      // follower convulse and could reintroduce the old accordion distortion.
+      // Procedural motion remains available when no semantic clip is found.
+      if (Object.keys(byState).length) {
+        this.clips = { mixer, byState };
+        this.play('idle');
+      }
     }
   }
 

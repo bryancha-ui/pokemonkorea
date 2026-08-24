@@ -2,10 +2,35 @@
   "name": "pokemon-korea",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.19"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "audit:battle-data": "node scripts/run-audit.mjs scripts/audit-battle-data.ts",
+    "audit:battle-rules": "node scripts/run-audit.mjs scripts/audit-battle-rules.ts",
+    "audit:companion": "node scripts/run-audit.mjs scripts/audit-overworld-companion.ts",
+    "audit:mobile-layout": "node scripts/run-audit.mjs scripts/audit-mobile-layout.ts",
+    "audit:shadow-gym": "node scripts/run-audit.mjs scripts/audit-shadow-gym.ts",
+    "audit:summit-dojo": "node scripts/run-audit.mjs scripts/audit-summit-dojo.ts",
+    "audit:lantern-stage": "node scripts/run-audit.mjs scripts/audit-lantern-stage.ts",
+    "audit:wave-pool-gym": "node scripts/run-audit.mjs scripts/audit-wave-pool-gym.ts",
+    "audit:world-tree-gym": "node scripts/run-audit.mjs scripts/audit-world-tree-gym.ts",
+    "audit:strength-quarry-gym": "node scripts/run-audit.mjs scripts/audit-strength-quarry-gym.ts",
+    "audit:ice-arena-gym": "node scripts/run-audit.mjs scripts/audit-ice-arena-gym.ts",
+    "audit:storm-cliff-gym": "node scripts/run-audit.mjs scripts/audit-storm-cliff-gym.ts",
+    "audit:field-items": "node scripts/run-audit.mjs scripts/audit-field-items.ts",
+    "audit:production": "node scripts/run-audit.mjs scripts/audit-production-readiness.ts",
+    "generate:companion-glbs": "node scripts/run-audit.mjs scripts/generate-companion-glbs.ts",
+    "generate:secommamma-model": "node scripts/generate-secommamma-model.mjs",
+    "vendor:pokemon3d": "node scripts/vendor-pokemon3d-models.mjs",
+    "optimize:creature-models": "node scripts/optimize-heavy-creature-models.mjs",
+    "audit:i18n": "node scripts/run-audit.mjs scripts/audit-i18n-coverage.ts",
+    "audit:assets": "node scripts/audit-assets.mjs",
+    "test": "npm run typecheck && npm run audit:battle-data && npm run audit:battle-rules && npm run audit:companion && npm run audit:i18n && npm run audit:assets && npm run audit:mobile-layout && npm run audit:shadow-gym && npm run audit:summit-dojo && npm run audit:lantern-stage && npm run audit:wave-pool-gym && npm run audit:world-tree-gym && npm run audit:strength-quarry-gym && npm run audit:ice-arena-gym && npm run audit:storm-cliff-gym && npm run audit:field-items && npm run audit:production"
   },
   "dependencies": {
     "firebase": "^12.17.1",

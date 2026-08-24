@@ -6,7 +6,7 @@ import { buildGeographicBattleArena, resolveOutdoorBattleTheme } from './BattleG
 import { buildCharacterModel, ChoreoPose, PlayerModel } from './CharacterModel';
 import { CreatureAnimator, MoveCategory } from './CreatureAnimator';
 import { measureCommands } from './GraphicsRaster';
-import { getModel, hasModel, isRenderableModel, manifestReady, modelLoadStatus, primeManifest } from './GlbModels';
+import { getModel, hasModel, isCompanionOnlyModel, isRenderableModel, manifestReady, modelLoadStatus, primeManifest } from './GlbModels';
 import { MoveFX3D } from './MoveFX3D';
 import { RainFX, SandstormFX, SnowFX, SunFX, type WeatherFX3D } from './WeatherFX3D';
 import { makeBlobShadow, makePokeBallProp } from './Props';
@@ -96,8 +96,11 @@ const TIMED_SPECIAL_MOVES = new Set([
 // Restore the authored stage presence after that safety clamp.
 const BATTLE_SIZE_OVERRIDES: Record<string, number> = {
   // Nabihalmang's wingspan was crowding the opposing battler in the 3D arena;
-  // keep the 2D battle art unchanged and use a slightly smaller 3D stage size.
-  nabihalmang: 1.05,
+  // keep the 2D battle art unchanged and use a smaller 3D stage size. On the
+  // player's mark — which sits 5.2 units from the camera against the enemy's
+  // 9.5 — 1.05 still measured 860px wide on a 1280px canvas, roughly double a
+  // normal battler, so the moth filled the left half of the screen.
+  nabihalmang: 0.82,
   palmcockatoo: 1.45,
   bosongnun: 0.72,
   yeomtaeja: 0.78,
@@ -736,7 +739,7 @@ export class BattleMirror {
       lastPos: { x: im.x ?? 0, y: im.y ?? 0 }, speed: 0,
       baseSX: null, baseSY: null,
       lastSX: Math.abs(im.scaleX ?? 1), scaleStill: 0,
-      glbKey: !trainerAtEnemy && hasModel(im.texture.key) ? im.texture.key : null,
+      glbKey: !trainerAtEnemy && hasModel(im.texture.key) && !isCompanionOnlyModel(im.texture.key) ? im.texture.key : null,
       glb: null,
       glbVerifyFrames: 0,
       glbHealthTimer: 0,
@@ -771,7 +774,7 @@ export class BattleMirror {
     cb.baseSX = null; cb.baseSY = null; cb.scaleStill = 0;   // re-settle on the new art
     cb.targetH = (cb.side === 'enemy' ? 1.92 : 1.58) * Math.min(1.25, Math.max(0.95, dh / 220)) * speciesSize;
     // A different creature key means a different production GLB (or no GLB).
-    const nk = hasModel(im.texture.key) ? im.texture.key : null;
+    const nk = hasModel(im.texture.key) && !isCompanionOnlyModel(im.texture.key) ? im.texture.key : null;
     if (cb.rejectedGlbKey !== im.texture.key) cb.rejectedGlbKey = null;
     if (cb.glb && nk !== cb.glbKey) {
       cb.holder.remove(cb.glb);
@@ -1340,7 +1343,8 @@ export class BattleMirror {
       // The manifest loads asynchronously, so a creature adopted before it
       // arrived still resolves to its local GLB once the list is in. Until that
       // moment, and for species without a local GLB, the 2D image remains live.
-      if (!cb.glbKey && !cb.glb && cb.rejectedGlbKey !== cb.obj.texture.key && hasModel(cb.obj.texture.key)) {
+      if (!cb.glbKey && !cb.glb && cb.rejectedGlbKey !== cb.obj.texture.key
+          && hasModel(cb.obj.texture.key) && !isCompanionOnlyModel(cb.obj.texture.key)) {
         cb.glbKey = cb.obj.texture.key;
       }
 

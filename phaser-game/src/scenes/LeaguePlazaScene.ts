@@ -6,8 +6,8 @@ import { drawTrainerBody, playerDesign } from '../data/CharacterSprite';
 import { DialogBox } from '../ui/DialogBox';
 import { SaveManager } from '../utils/SaveManager';
 import { maybeLaunchEvolution } from '../systems/EvolutionSystem';
-import { PartySystem } from '../systems/PartySystem';
 import { DexTracker } from '../systems/DexTracker';
+import { BADGES, reconcileBadgeProgress } from '../data/Badges';
 
 // ── Tiles ─────────────────────────────────────────────────────────────────────
 // The grand courtyard before the Pokémon League — a great ancient-Korean palace.
@@ -21,9 +21,18 @@ const COLORS: Record<Tile, number> = {
 const SOLID = new Set<Tile>([T.WALL, T.TREE, T.LANTERN]);
 
 const DOOR = { col: 13, row: 11 };   // palace entrance (gap in the base)
-const PC    = { col: 9,  row: 24 };  // Pokémon Center nurse (left of the entrance)
-const PCBOX = { col: 6,  row: 24 };  // storage PC terminal, beside the Center
-const MART  = { col: 18, row: 24 };  // Mart clerk (right of the entrance)
+
+// ── Courtyard service buildings ──────────────────────────────────────────────
+// The Center and the Mart used to be a painted kiosk with a lone attendant stood
+// in front of it, which read as scenery rather than a place. They are real
+// buildings now, each with a doorway onto its own interior scene — the same
+// PokemonCenterScene / MartScene every city uses, so healing, shopping and the
+// storage PC all behave exactly as they do everywhere else.
+interface Service { col: number; row: number; w: number; h: number; door: number; }
+const PC_BLD:   Service = { col: 4,  row: 19, w: 6, h: 5, door: 6 };
+const MART_BLD: Service = { col: 18, row: 19, w: 6, h: 5, door: 20 };
+/** The walkable doorway tile of a service building (its bottom edge). */
+const doorTile = (b: Service) => ({ col: b.door, row: b.row + b.h - 1 });
 
 // Atmosphere NPCs in the courtyard (talk-only).
 interface Talker { col: number; row: number; coat: number; cap: number; label: string; lines: string[]; id?: string; }
@@ -33,14 +42,18 @@ const TALKERS: Talker[] = [
     lines: [],   // generated dynamically — see receptionLines()
   },
   {
-    col: 21, row: 22, coat: 0x6a6a72, cap: 0x222222, label: 'Veteran', id: 'veteran',
+    col: 16, row: 14, coat: 0x7a5a2a, cap: 0xe0b24a, label: 'Badge Judge', id: 'badge-judge',
+    lines: [],   // generated dynamically — see badgeJudgeLines()
+  },
+  {
+    col: 24, row: 22, coat: 0x6a6a72, cap: 0x222222, label: 'Veteran', id: 'veteran',
     lines: [
       "Veteran: I've stood in this courtyard four times. Reached the Champion twice. Never beat him.",
       "Veteran: Hwangeum kneels to his Pokémon before he stands. Win or lose. That's the trainer you have to surpass.",
     ],
   },
   {
-    col: 5, row: 22, coat: 0xcc4466, cap: 0xffffff, label: 'Reporter', id: 'reporter',
+    col: 5, row: 26, coat: 0xcc4466, cap: 0xffffff, label: 'Reporter', id: 'reporter',
     lines: [
       'Reporter: Onnuri News, live from the League steps! You — you came down from Baekdu Peak, didn\'t you?',
       'Reporter: The whole region is watching. If you take the title today, you\'ll be the trainer who healed the land AND became Champion. Some story!',
@@ -68,7 +81,15 @@ function buildMap(): Tile[][] {
   // Stone lanterns lining the path
   for (const [r, c] of [[14,11],[14,16],[19,11],[19,16],[24,11],[24,16]] as [number,number][]) m[r][c] = T.LANTERN;
   // Lotus ponds in the lawns
-  fill(16, 19, 6, 9, T.WATER); fill(16, 19, COLS - 9, COLS - 6, T.WATER);
+  fill(15, 18, 6, 9, T.WATER); fill(15, 18, COLS - 9, COLS - 6, T.WATER);
+  // The Centre and the Mart, each a solid block with one walkable doorway and a
+  // paved apron leading to it off the ceremonial path.
+  for (const b of [PC_BLD, MART_BLD]) {
+    fill(b.row, b.row + b.h, b.col, b.col + b.w, T.WALL);
+    const d = doorTile(b);
+    m[d.row][d.col] = T.PATH;
+    for (let r = d.row + 1; r < d.row + 3 && r < ROWS; r++) m[r][d.col] = T.PATH;
+  }
   // South entry from Scholars' Road
   fill(ROWS - 2, ROWS, 12, 16, T.PATH);
   return m;
@@ -78,8 +99,17 @@ export class LeaguePlazaScene extends Phaser.Scene {
   private map!: Tile[][];
   /** The palace hall is the generated League building, centred on the entrance
    *  gap (DOOR.col 13) so its doorway lines up with where the player walks in.
-   *  onlyNamedBuildings keeps everything else off. */
-  public buildingPlots = [{ x: 3, y: 4, w: 21, h: 7, model: 'hanok-palace' }];
+   *  onlyNamedBuildings keeps everything else off.
+   *
+   *  The plot must cover the WHOLE wall footprint (cols 3–24, i.e. w = 22). It
+   *  was one tile short, so the leftover column of wall tiles was extruded on its
+   *  own — the stub that made one end of the hall look like a separate building
+   *  bolted onto a flat facade. */
+  public buildingPlots = [
+    { x: 3, y: 4, w: 22, h: 7, model: 'onnuri-league' },
+    { x: PC_BLD.col, y: PC_BLD.row, w: PC_BLD.w, h: PC_BLD.h, model: 'pokecenter' },
+    { x: MART_BLD.col, y: MART_BLD.row, w: MART_BLD.w, h: MART_BLD.h, model: 'mart' },
+  ];
   public onlyNamedBuildings = true;
   /** Stone lanterns lining the ceremonial path, mirrored into 3D. Coordinates match
    *  the T.LANTERN tiles placed in buildMap() ([row, col]); the builder centres each
@@ -170,7 +200,9 @@ export class LeaguePlazaScene extends Phaser.Scene {
     const g = this.add.graphics().setDepth(4);
     const cx = 14 * TILE;            // courtyard centre
     const baseY = 11 * TILE;         // ground level of the hall
-    const bodyW = 21 * TILE;
+    // Exactly the wall footprint (cols 3–24). At 21 tiles the painted hall stopped
+    // half a tile inside its own base on both ends, which showed as a seam.
+    const bodyW = 22 * TILE;
 
     // Stone platform (woldae) with balustrade + central staircase.
     g.fillStyle(0xd0c7b3); g.fillRect(cx - bodyW/2 - 24, baseY - 4, bodyW + 48, 22);
@@ -225,38 +257,14 @@ export class LeaguePlazaScene extends Phaser.Scene {
     this.dancheongBand(g, left + 6, eaveY - 7, w - 12, 7);
   }
 
-  /** A Pokémon Center kiosk + a Poké Mart stall flanking the courtyard entrance. */
+  /** The Pokémon Center and Poké Mart that flank the ceremonial path. */
   private drawServices() {
-    // Pokémon Center kiosk (red roof + cross) behind the nurse.
-    const px = PC.col * TILE + 16, py = PC.row * TILE + 16;
-    const cg = this.add.graphics().setDepth(3);
-    cg.fillStyle(0xf4ead6); cg.fillRect(px - 30, py - 44, 60, 40);
-    cg.fillStyle(0xcc2a3a); cg.fillTriangle(px - 36, py - 44, px, py - 66, px + 36, py - 44);
-    cg.fillStyle(0xffffff); cg.fillRect(px - 4, py - 58, 8, 4); cg.fillRect(px - 2, py - 62, 4, 12);
-    cg.fillStyle(0x88ccff, 0.8); cg.fillRect(px - 22, py - 36, 14, 14); cg.fillRect(px + 8, py - 36, 14, 14);
-    cg.fillStyle(0x6b4a28); cg.fillRect(px - 8, py - 20, 16, 16);
-    this.add.text(px, py - 70, tr('🏥 Pokémon Center'), { fontSize: '8px', color: '#fff', backgroundColor: '#00000099', padding: { x: 3, y: 1 } }).setOrigin(0.5).setDepth(5);
-    this.drawAttendant(px, py, 0xff7799, 0xffffff);   // Nurse (pink)
-
-    // Storage PC terminal beside the Center.
-    const qx = PCBOX.col * TILE + 16, qy = PCBOX.row * TILE + 16;
-    const pg = this.add.graphics().setDepth(3);
-    pg.fillStyle(0x000000, 0.2); pg.fillEllipse(qx, qy + 12, 30, 7);
-    pg.fillStyle(0x3a3f4a); pg.fillRect(qx - 16, qy - 6, 32, 16);     // desk/base
-    pg.fillStyle(0x12161f); pg.fillRect(qx - 14, qy - 30, 28, 22);    // monitor body
-    pg.fillStyle(0x2a8acc); pg.fillRect(qx - 11, qy - 27, 22, 16);    // screen
-    pg.fillStyle(0x7fd0ff, 0.85); pg.fillRect(qx - 9, qy - 25, 9, 4); pg.fillRect(qx - 9, qy - 19, 14, 3);
-    this.add.text(qx, qy - 40, tr('💻 PC'), { fontSize: '8px', color: '#fff', backgroundColor: '#00000099', padding: { x: 3, y: 1 } }).setOrigin(0.5).setDepth(5);
-
-    // Poké Mart stall (blue roof) behind the clerk.
-    const mx = MART.col * TILE + 16, my = MART.row * TILE + 16;
-    const mg = this.add.graphics().setDepth(3);
-    mg.fillStyle(0xeae0cc); mg.fillRect(mx - 30, my - 44, 60, 40);
-    mg.fillStyle(0x2a6aaa); mg.fillTriangle(mx - 36, my - 44, mx, my - 64, mx + 36, my - 44);
-    mg.fillStyle(0xffe44e); mg.fillRect(mx - 16, my - 40, 32, 8);
-    mg.fillStyle(0x88ccff, 0.8); mg.fillRect(mx - 22, my - 28, 14, 12); mg.fillRect(mx + 8, my - 28, 14, 12);
-    this.add.text(mx, my - 68, tr('🛒 Poké Mart'), { fontSize: '8px', color: '#fff', backgroundColor: '#00000099', padding: { x: 3, y: 1 } }).setOrigin(0.5).setDepth(5);
-    this.drawAttendant(mx, my, 0x2a8a5a, 0xffe0a0);   // Mart clerk (green apron)
+    this.drawServiceBuilding(PC_BLD, {
+      roof: 0xcc2a3a, roofDark: 0xa61f2d, wall: 0xf4ead6, sign: tr('🏥 Pokémon Center'), cross: true,
+    });
+    this.drawServiceBuilding(MART_BLD, {
+      roof: 0x2a6aaa, roofDark: 0x1f5087, wall: 0xeae0cc, sign: tr('🛒 Poké Mart'), cross: false,
+    });
 
     // Atmosphere NPCs.
     for (const t of TALKERS) {
@@ -266,6 +274,56 @@ export class LeaguePlazaScene extends Phaser.Scene {
         fontSize: '8px', color: '#fff', backgroundColor: '#00000099', padding: { x: 2, y: 1 },
       }).setOrigin(0.5).setDepth(9);
     }
+  }
+
+  /** One service building: pitched roof, lit windows, and a marked doorway. */
+  private drawServiceBuilding(
+    b: Service,
+    style: { roof: number; roofDark: number; wall: number; sign: string; cross: boolean },
+  ) {
+    const g = this.add.graphics().setDepth(3);
+    const left = b.col * TILE, top = b.row * TILE;
+    const w = b.w * TILE, h = b.h * TILE;
+    const eaveY = top + h * 0.42;
+
+    // Body
+    g.fillStyle(0x000000, 0.18); g.fillEllipse(left + w / 2, top + h + 5, w * 0.92, 14);
+    g.fillStyle(style.wall, 1); g.fillRect(left, eaveY, w, top + h - eaveY);
+    g.fillStyle(0x000000, 0.10); g.fillRect(left, top + h - 10, w, 10);
+
+    // Roof with a small overhang on both sides — one shape, no bolted-on annex.
+    g.fillStyle(style.roof, 1);
+    g.fillTriangle(left - 12, eaveY, left + w / 2, top, left + w + 12, eaveY);
+    g.fillStyle(style.roofDark, 1);
+    g.fillRect(left - 12, eaveY, w + 24, 7);
+    if (style.cross) {
+      g.fillStyle(0xffffff, 1);
+      g.fillRect(left + w / 2 - 11, top + 26, 22, 7);
+      g.fillRect(left + w / 2 - 3.5, top + 18, 7, 23);
+    } else {
+      g.fillStyle(0xffe44e, 1);
+      g.fillRect(left + w / 2 - 22, top + 24, 44, 9);
+    }
+
+    // Windows either side of the doorway
+    g.fillStyle(0x88ccff, 0.85);
+    for (const wx of [left + w * 0.16, left + w * 0.7]) g.fillRect(wx, eaveY + 18, w * 0.14, 22);
+    g.lineStyle(2, 0xffffff, 0.5);
+    for (const wx of [left + w * 0.16, left + w * 0.7]) g.strokeRect(wx, eaveY + 18, w * 0.14, 22);
+
+    // Doorway, aligned with the walkable tile carved in buildMap().
+    const d = doorTile(b);
+    const dx = d.col * TILE, dy = (d.row + 1) * TILE;
+    g.fillStyle(0x2a1c10, 1); g.fillRect(dx + 2, dy - 34, TILE - 4, 34);
+    g.fillStyle(0x5a3f22, 1); g.fillRect(dx + 5, dy - 31, TILE - 10, 31);
+    g.fillStyle(0xffe8b0, 0.55); g.fillRect(dx + 5, dy - 8, TILE - 10, 8);
+
+    this.add.text(left + w / 2, top - 8, style.sign, {
+      fontSize: '9px', color: '#fff', backgroundColor: '#00000099', padding: { x: 4, y: 2 },
+    }).setOrigin(0.5, 1).setDepth(5);
+    this.add.text(dx + TILE / 2, dy + 8, tr('SPACE'), {
+      fontSize: '7px', color: '#ffe44e', backgroundColor: '#00000088', padding: { x: 2, y: 1 },
+    }).setOrigin(0.5, 0).setDepth(5);
   }
 
   private drawAttendant(x: number, y: number, coat: number, cap: number) {
@@ -355,11 +413,11 @@ export class LeaguePlazaScene extends Phaser.Scene {
 
   /** Palace doors, the Pokémon Center nurse, and the Mart clerk. */
   private checkInteractions() {
+    const pcDoor = doorTile(PC_BLD), martDoor = doorTile(MART_BLD);
     const targets = [
       { x: (DOOR.col + 1) * TILE, y: DOOR.row * TILE + 8, prompt: 'SPACE — Enter the Pokémon League', act: () => this.enterLeague() },
-      { x: PC.col * TILE + 16,    y: PC.row * TILE + 16,  prompt: 'SPACE — Heal your team (Pokémon Center)', act: () => this.healTeam() },
-      { x: PCBOX.col * TILE + 16, y: PCBOX.row * TILE + 16, prompt: 'SPACE — Access the Storage PC', act: () => this.openPC() },
-      { x: MART.col * TILE + 16,  y: MART.row * TILE + 16, prompt: 'SPACE — Shop (Poké Mart)', act: () => this.openMart() },
+      { x: pcDoor.col * TILE + 16, y: pcDoor.row * TILE + 16, prompt: 'SPACE — Enter the Pokémon Center', act: () => this.enterCenter() },
+      { x: martDoor.col * TILE + 16, y: martDoor.row * TILE + 16, prompt: 'SPACE — Enter the Poké Mart', act: () => this.enterMart() },
       ...TALKERS.map(t => ({
         x: t.col * TILE + 16, y: t.row * TILE + 16,
         prompt: `${tr('SPACE — Talk to')} ${tr(t.label)}`,
@@ -407,6 +465,7 @@ export class LeaguePlazaScene extends Phaser.Scene {
   /** Pick a talker's lines — the receptionist, veteran and reporter all react to progress. */
   private linesFor(t: Talker): string[] {
     if (t.id === 'reception') return this.receptionLines();
+    if (t.id === 'badge-judge') return this.badgeJudgeLines();
     const champ = !!(this.registry.get('championDefeated') || this.registry.get('hallOfFame'));
     if (champ && t.id === 'veteran') return [
       'Veteran: You did it. You actually beat him. Four times I stood in this courtyard and never could.',
@@ -448,23 +507,48 @@ export class LeaguePlazaScene extends Phaser.Scene {
     ];
   }
 
-  private healTeam() {
-    PartySystem.healAll(this.registry);
+  /** Step outside the doorway again on the way back from either interior. */
+  private rememberDoorReturn(door: { col: number; row: number }) {
+    this.registry.set('leaguePlazaReturnX', door.col * TILE + TILE / 2);
+    this.registry.set('leaguePlazaReturnY', (door.row + 1) * TILE + TILE / 2);
+  }
+
+  private enterCenter() {
     this.cutsceneActive = true;
-    this.dialog.show([
-      'Nurse: Welcome to the League Pokémon Center.',
-      'Nurse: Your Pokémon are fully healed. We hope to see your name in the Hall of Fame!',
-    ], () => { this.cutsceneActive = false; });
+    this.rememberDoorReturn(doorTile(PC_BLD));
+    this.registry.set('pcReturnScene', 'LeaguePlazaScene');
+    this.cameras.main.fadeOut(400, 0, 0, 0, () => this.scene.start('LeaguePCScene'));
   }
 
-  private openMart() {
-    this.scene.launch('ShopScene', { parentKey: this.scene.key });
-    this.scene.pause();
+  private enterMart() {
+    this.cutsceneActive = true;
+    this.rememberDoorReturn(doorTile(MART_BLD));
+    this.registry.set('martReturnScene', 'LeaguePlazaScene');
+    this.cameras.main.fadeOut(400, 0, 0, 0, () => this.scene.start('MartScene'));
   }
 
-  private openPC() {
-    this.scene.launch('BoxScene', { parentKey: this.scene.key });
-    this.scene.pause();
+  /**
+   * The gate's badge judge. A challenger cannot climb without all eight, so the
+   * courtyard should say so out loud rather than letting the player find out at
+   * the door — and once they are complete, it should feel like a checkpoint
+   * passed.
+   */
+  private badgeJudgeLines(): string[] {
+    const earned = reconcileBadgeProgress(this.registry);
+    const missing = BADGES.filter(b => !this.registry.get(b.flag));
+    if (earned >= BADGES.length) {
+      return [
+        `Badge Judge: Let me see your case... ${earned} of ${BADGES.length}. Every badge in the region.`,
+        'Badge Judge: Shadow, Summit Seal, Lantern Stage, Tidekeeper, Ancient Keeper, Bedrock, Frostbell, Stormwatcher — all present and verified.',
+        'Badge Judge: You are cleared to challenge the Elite Four. Go on up, challenger. They are waiting.',
+      ];
+    }
+    const nextUp = missing[0];
+    return [
+      `Badge Judge: Badge check, challenger. Open your case... ${earned} of ${BADGES.length}.`,
+      `Badge Judge: You are still ${BADGES.length - earned} short. Nearest one missing is the ${nextUp.name} — ${nextUp.leader}, at the ${nextUp.city} Gym.`,
+      'Badge Judge: Come back when the case is full. Nobody climbs these steps on eight-minus-one.',
+    ];
   }
 
   private checkExit() {

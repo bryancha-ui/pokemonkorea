@@ -390,11 +390,11 @@ export class JejuVentScene extends Phaser.Scene {
     this.spaceKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.M).on('down', () => { if (!this.cutsceneActive) this.scene.launch('MenuScene'); });
     this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.B).on('down', () => { if (!this.cutsceneActive) this.scene.launch('MenuScene'); });
-    // DEBUG: press 0 to (re)stage the Commander Ryeo confrontation as if 나비할망 was just caught.
-    this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ZERO).on('down', () => this.debugStageRyeoBattle());
-    // Open a separate browser window for the non-destructive post-capture battle test.
-    this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.F9).on('down', () => this.openRyeoBattleTestWindow());
-    this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.R).on('down', () => this.ryeoBattleTestAction?.());
+    if (import.meta.env.DEV) {
+      this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ZERO).on('down', () => this.debugStageRyeoBattle());
+      this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.F9).on('down', () => this.openRyeoBattleTestWindow());
+      this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.R).on('down', () => this.ryeoBattleTestAction?.());
+    }
   }
 
   private openRyeoBattleTestWindow() {

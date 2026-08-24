@@ -482,7 +482,7 @@ export class BoxScene extends Phaser.Scene {
     const profileX = left + 258;
     const profileW = modalW - 288;
     const profileRows: Array<[string, string]> = [
-      [t('ABILITY', '특성'), abilityName(ability, entry.abilityKo)],
+      [t('ABILITY', '특성'), abilityName(ability, entry.abilityKo, entry.abilityJa)],
       [t('HELD ITEM', '지닌 물건'), held],
       [t('HP', '체력'), `${entry.hp} / ${entry.maxHp}`],
       [t('CONDITION', '상태'), entry.status && entry.status !== 'none' ? tr(entry.status) : t('Healthy', '정상')],
@@ -639,7 +639,11 @@ export class BoxScene extends Phaser.Scene {
   private localName(entry: PartyEntry): string {
     const key = dexKeyFor(entry.spriteKey);
     const english = entry.name.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-    return t(english, entry.nameKo ?? pokeName(key, pokeNameEn(entry.name)));
+    return t(
+      english,
+      entry.nameKo ?? pokeName(key, pokeNameEn(entry.name)),
+      entry.nameJa ?? pokeName(key, pokeNameEn(entry.name)),
+    );
   }
 
   private occupied(slots: Array<PartyEntry | null>): number {

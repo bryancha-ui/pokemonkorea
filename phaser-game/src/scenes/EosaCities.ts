@@ -11,7 +11,7 @@ const NORTH = { x: 13.5 * 32, y: 2 * 32 + 16 };    // spawn when arriving from t
 const NAMPO: EosaCity = {
   key: 'NampoCityScene', name: 'Parangpo (파랑포)', mapaeKey: 'nampo', bgm: 'nampo',
   chiefKey: 'eosa-nampo', chiefName: '어사대장 Haemin',
-  ground: 0x5a8a6a, accent: 0x2f78b4, hallRoof: 0x2a6a9a, robe: 0x2a6a8a,
+  ground: 0xcabfa2, accent: 0x2f78b4, hallRoof: 0x2a6a9a, robe: 0x2a6a8a,   // coastal sand/stone (was green 0x5a8a6a that read as grass/tree cover)
   team: [{ id: 130, level: 68 }, { id: 121, level: 68 }, { id: 272, level: 69 }, { id: 230, level: 69 }, { id: 350, level: 70 }],
   expPool: 4000,
   intro: ['Parangpo (파랑포) — the great West-Sea barrage holds back the tide beyond the quay, its sluice-gates gleaming with salt.',

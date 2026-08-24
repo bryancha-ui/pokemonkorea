@@ -1,6 +1,7 @@
 import { MoveData, PokemonData } from '../battle/Pokemon';
 import { PokemonType } from '../battle/TypeChart';
 import { registerSpeciesHeight } from './SpriteScale';
+import offlineBundleJson from './pokemon-offline.json';
 
 const BASE = 'https://pokeapi.co/api/v2';
 
@@ -13,20 +14,46 @@ const BASE = 'https://pokeapi.co/api/v2';
 // from the network at most once, ever.
 const POKE_CACHE = 'pokeapi_pokemon_v4';   // v4: adds species height (real-scale battle sizing)
 const MOVE_CACHE = 'pokeapi_move_v4';   // v4 adds major-status metadata for abilities and move effects
-const SPECIES_CACHE = 'pokeapi_species_v1';
-const ABILITY_CACHE = 'pokeapi_ability_v1';
+const SPECIES_CACHE = 'pokeapi_species_v2'; // v2: Korean + Japanese display names
+const ABILITY_CACHE = 'pokeapi_ability_v2'; // v2: Korean + Japanese display names
 
 const pokeMem = new Map<string, PokemonData>();
 const moveMem = new Map<string, MoveData>();
 const speciesMem = new Map<string, PokemonSpeciesInfo>();
 const abilityMem = new Map<string, PokemonAbilityInfo>();
 
+interface OfflineBundle {
+  pokemon: Record<string, PokemonData>;
+  species: Record<string, PokemonSpeciesInfo>;
+  abilities: Record<string, PokemonAbilityInfo>;
+}
+
+const offlineBundle = offlineBundleJson as unknown as OfflineBundle;
+const offlinePokemonByName = new Map(
+  Object.values(offlineBundle.pokemon).map(data => [data.name.toLowerCase(), data]),
+);
+
+function offlinePokemon(idOrName: number | string): PokemonData | undefined {
+  const id = String(idOrName).toLowerCase();
+  return offlineBundle.pokemon[id] ?? offlinePokemonByName.get(id);
+}
+
+function rememberPokemon(id: string, data: PokemonData): PokemonData {
+  pokeMem.set(id, data);
+  pokeMem.set(String(data.id), data);
+  pokeMem.set(data.name.toLowerCase(), data);
+  if (data.heightDm) registerSpeciesHeight(data.id, data.heightDm);
+  return data;
+}
+
 export interface PokemonSpeciesInfo {
   nameKo?: string;
+  nameJa?: string;
 }
 
 export interface PokemonAbilityInfo {
   nameKo?: string;
+  nameJa?: string;
 }
 
 function loadDisk<T>(key: string): Record<string, T> {
@@ -48,8 +75,10 @@ export function cachedPokemon(idOrName: number | string): PokemonData | undefine
   const id = String(idOrName).toLowerCase();
   const mem = pokeMem.get(id);
   if (mem) { if (mem.heightDm) registerSpeciesHeight(mem.id, mem.heightDm); return mem; }
+  const bundled = offlinePokemon(id);
+  if (bundled) return rememberPokemon(id, bundled);
   const disk = loadDisk<PokemonData>(POKE_CACHE)[id];
-  if (disk) { pokeMem.set(id, disk); if (disk.heightDm) registerSpeciesHeight(disk.id, disk.heightDm); }
+  if (disk) rememberPokemon(id, disk);
   return disk;
 }
 
@@ -57,8 +86,10 @@ export async function fetchPokemon(idOrName: number | string): Promise<PokemonDa
   const id = String(idOrName).toLowerCase();
   const mem = pokeMem.get(id);
   if (mem) { if (mem.heightDm) registerSpeciesHeight(mem.id, mem.heightDm); return mem; }
+  const bundled = offlinePokemon(id);
+  if (bundled) return rememberPokemon(id, bundled);
   const disk = loadDisk<PokemonData>(POKE_CACHE)[id];
-  if (disk) { pokeMem.set(id, disk); if (disk.heightDm) registerSpeciesHeight(disk.id, disk.heightDm); return disk; }
+  if (disk) return rememberPokemon(id, disk);
 
   const res = await fetch(`${BASE}/pokemon/${idOrName}`);
   if (!res.ok) throw new Error(`PokeAPI: pokemon "${idOrName}" not found`);
@@ -90,7 +121,7 @@ export async function fetchPokemon(idOrName: number | string): Promise<PokemonDa
       ?? json.sprites.front_default) as string,
     heightDm: Number(json.height) || undefined,
   };
-  pokeMem.set(id, data);
+  rememberPokemon(id, data);
   saveDisk(POKE_CACHE, id, data);
   if (data.heightDm) registerSpeciesHeight(data.id, data.heightDm);
   return data;
@@ -102,6 +133,9 @@ export async function fetchPokemonSpeciesInfo(idOrName: number | string): Promis
   const id = String(idOrName).toLowerCase();
   const mem = speciesMem.get(id);
   if (mem) return mem;
+  const bundledPokemon = offlinePokemon(id);
+  const bundled = bundledPokemon ? offlineBundle.species[String(bundledPokemon.id)] : undefined;
+  if (bundled) { speciesMem.set(id, bundled); return bundled; }
   const disk = loadDisk<PokemonSpeciesInfo>(SPECIES_CACHE)[id];
   if (disk) { speciesMem.set(id, disk); return disk; }
 
@@ -111,6 +145,8 @@ export async function fetchPokemonSpeciesInfo(idOrName: number | string): Promis
   const data: PokemonSpeciesInfo = {
     nameKo: (json.names as { name: string; language: { name: string } }[] | undefined)
       ?.find(n => n.language.name === 'ko')?.name,
+    nameJa: (json.names as { name: string; language: { name: string } }[] | undefined)
+      ?.find(n => n.language.name === 'ja-Hrkt')?.name,
   };
   speciesMem.set(id, data);
   saveDisk(SPECIES_CACHE, id, data);
@@ -122,6 +158,8 @@ export async function fetchPokemonAbilityInfo(idOrName: number | string): Promis
   const id = String(idOrName).toLowerCase();
   const mem = abilityMem.get(id);
   if (mem) return mem;
+  const bundled = offlineBundle.abilities[id];
+  if (bundled) { abilityMem.set(id, bundled); return bundled; }
   const disk = loadDisk<PokemonAbilityInfo>(ABILITY_CACHE)[id];
   if (disk) { abilityMem.set(id, disk); return disk; }
 
@@ -131,6 +169,8 @@ export async function fetchPokemonAbilityInfo(idOrName: number | string): Promis
   const data: PokemonAbilityInfo = {
     nameKo: (json.names as { name: string; language: { name: string } }[] | undefined)
       ?.find(n => n.language.name === 'ko')?.name,
+    nameJa: (json.names as { name: string; language: { name: string } }[] | undefined)
+      ?.find(n => n.language.name === 'ja-Hrkt')?.name,
   };
   abilityMem.set(id, data);
   saveDisk(ABILITY_CACHE, id, data);
@@ -164,10 +204,26 @@ export function prefetchPokemon(ids: (number | string)[], gapMs = 140): void {
   });
 }
 
+// The only official moves fetched dynamically by the game are bundled here so
+// a first encounter never depends on PokeAPI availability.  Authored Onnuri
+// moves continue to come from Learnsets.ts.
+const OFFLINE_MOVES: Record<string, MoveData> = {
+  tackle: { name: 'tackle', type: 'normal', category: 'physical', power: 40, accuracy: 100, pp: 35 },
+  growl: {
+    name: 'growl', type: 'normal', category: 'status', power: 0, accuracy: 100, pp: 40,
+    statChanges: [{ stat: 'atk', change: -1 }], effectTarget: 'target', effectChance: 100,
+  },
+  bite: { name: 'bite', type: 'dark', category: 'physical', power: 60, accuracy: 100, pp: 25 },
+  'wing-attack': { name: 'wing-attack', type: 'flying', category: 'physical', power: 60, accuracy: 100, pp: 35 },
+  peck: { name: 'peck', type: 'flying', category: 'physical', power: 35, accuracy: 100, pp: 35 },
+};
+
 export async function fetchMove(idOrName: number | string): Promise<MoveData> {
   const id = String(idOrName).toLowerCase();
   const mem = moveMem.get(id);
   if (mem) return mem;
+  const bundled = OFFLINE_MOVES[id];
+  if (bundled) { moveMem.set(id, bundled); return bundled; }
   const disk = loadDisk<MoveData>(MOVE_CACHE)[id];
   if (disk) { moveMem.set(id, disk); return disk; }
 

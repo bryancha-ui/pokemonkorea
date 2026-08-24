@@ -1,4 +1,5 @@
 import { customPokemonStage } from './CustomBattle';
+import offlineBundleJson from './pokemon-offline.json';
 
 /**
  * Battle display-size multiplier for physically-large Pokémon. All sprites are
@@ -71,10 +72,20 @@ const NUMERIC_SPECIES_SCALE: Record<number, number> = {
   699: 1.50,  // Aurorus (아마루르가)
 };
 
-/** Real-species height (decimetres) registered as PokéAPI species are fetched, so
- *  API Pokémon can be sized to roughly their real-world scale instead of all
- *  sharing one flat fit. Populated by data/PokeAPI.ts. */
-const SPECIES_HEIGHT_DM = new Map<number, number>();
+/** Real-species height (decimetres), seeded offline and extended when PokéAPI
+ *  species are fetched. This keeps official Pokémon at a recognisable relative
+ *  scale even on the first frame of an offline/mobile session. */
+// Seed physical sizes from the offline roster so an already-caught Pokémon is
+// sized correctly before any asynchronous PokéAPI request runs. Online data can
+// still extend/refresh this registry through registerSpeciesHeight().
+const OFFLINE_HEIGHTS = (offlineBundleJson as unknown as {
+  pokemon: Record<string, { id: number; heightDm?: number }>;
+}).pokemon;
+const SPECIES_HEIGHT_DM = new Map<number, number>(
+  Object.values(OFFLINE_HEIGHTS)
+    .filter(entry => Number.isFinite(entry.heightDm) && (entry.heightDm ?? 0) > 0)
+    .map(entry => [entry.id, entry.heightDm!] as [number, number]),
+);
 export function registerSpeciesHeight(id: number, heightDm: number): void {
   if (id > 0 && heightDm > 0) SPECIES_HEIGHT_DM.set(id, heightDm);
 }

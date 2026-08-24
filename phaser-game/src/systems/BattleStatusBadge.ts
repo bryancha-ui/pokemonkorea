@@ -9,7 +9,8 @@ interface StatusBadgeStyle {
 
 function badgeStyle(status?: string): StatusBadgeStyle | undefined {
   switch ((status ?? 'none').toLowerCase()) {
-    case 'psn': case 'tox': return { label: t('PSN', '독'), background: '#9847c7', foreground: '#ffffff' };
+    case 'psn': return { label: t('PSN', '독', 'どく'), background: '#9847c7', foreground: '#ffffff' };
+    case 'tox': return { label: t('TOX', '맹독', 'もうどく'), background: '#6f299f', foreground: '#ffffff' };
     case 'par': return { label: t('PAR', '마비'), background: '#f2c94c', foreground: '#251f08' };
     case 'frz': return { label: t('FRZ', '얼음'), background: '#75d7ee', foreground: '#082633' };
     case 'brn': return { label: t('BRN', '화상'), background: '#e85b38', foreground: '#ffffff' };

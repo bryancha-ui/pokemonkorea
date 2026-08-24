@@ -6,10 +6,14 @@ import { t, getLang, setLang } from '../systems/i18n';
 import { fontScaleForScene } from '../systems/UiScale';
 import { standaloneTestMode } from '../systems/StandaloneTestMode';
 import { LeaderboardProgress } from '../systems/LeaderboardProgress';
+import { isSafeResumeScene } from '../data/ResumeScenes';
 
 const TITLE_BACKGROUNDS = {
   ko: { key: 'pokemon-string-opening-ko', url: 'assets/title/pokemon-string-opening-ko.png' },
   en: { key: 'pokemon-string-opening-en', url: 'assets/title/pokemon-string-opening-en.png' },
+  // Japanese currently shares the language-neutral English key art; all menu
+  // copy is still localized and this avoids requesting a non-existent asset.
+  ja: { key: 'pokemon-string-opening-ja', url: 'assets/title/pokemon-string-opening-en.png' },
 } as const;
 
 export class TitleScene extends Phaser.Scene {
@@ -59,7 +63,7 @@ export class TitleScene extends Phaser.Scene {
     this.refreshSelection();
   }
 
-  /** Language selector at game start — flip between English and Korean.
+  /** Language selector at game start — choose English, Korean, or Japanese.
    *  Laid out right-to-left from the screen edge with scale-aware gaps so the
    *  enlarged mobile font can't make the buttons overlap each other, run off the
    *  edge, or crowd the centred title. Font sizes are unchanged. */
@@ -76,7 +80,7 @@ export class TitleScene extends Phaser.Scene {
       rightX = Math.round(rightX - txt.displayWidth - gap);
     };
 
-    const mk = (label: string, l: 'en' | 'ko') => {
+    const mk = (label: string, l: 'en' | 'ko' | 'ja') => {
       const on = lang === l;
       const b = this.add.text(0, 0, label, {
         fontSize: '15px', fontStyle: on ? 'bold' : 'normal',
@@ -88,9 +92,10 @@ export class TitleScene extends Phaser.Scene {
       placeRight(b);
     };
 
-    mk('한국어', 'ko');                              // rightmost
+    mk('日本語', 'ja');                              // rightmost
+    mk('한국어', 'ko');
     mk('EN', 'en');
-    placeRight(this.add.text(0, 0, t('Language', '언어'), { fontSize: '14px', color: '#9aa8cc' }));
+    placeRight(this.add.text(0, 0, t('Language', '언어', '言語'), { fontSize: '14px', color: '#9aa8cc' }));
   }
 
   update() {
@@ -405,6 +410,13 @@ export class TitleScene extends Phaser.Scene {
 
   /** Pick the furthest-progressed resumable city from save flags (recovery for old saves). */
   private sceneFromProgress(d: Record<string, unknown>): string {
+    // Ending cinematics persist their own exact resume phase. They must win over
+    // broad Champion flags or a closed mobile tab skips straight back to town.
+    if (d['finalePartyPending']) return 'SudoLabScene';
+    if (d['waterfallFinalePartyPending'] || d['finaleResumePhase']) return 'WaterfallFinaleScene';
+    if (d['partIIStarted'] && !d['trueEndDone']) {
+      return d['northReachesDone'] ? 'SacredPeakScene' : 'NorthernReachesScene';
+    }
     if (d['chapter11Done'] || d['championDefeated']) return 'CapitolCityScene';
     if (d['sunriseGymDefeated'] || d['seventhTablet']) return 'SunriseCityScene';
     if (d['forestGymDefeated'])   return 'ForestCityScene';
@@ -484,36 +496,14 @@ export class TitleScene extends Phaser.Scene {
         let target = 'WorldMapScene';
         if (save) {
           SaveManager.restore(this.registry, save);
-          // Resume in a safe overworld scene matching where the player saved
-          const safe = ['WorldMapScene', 'RouteScene', 'Route2Scene',
-            'CapitolCityScene', 'PineNeedleTownScene', 'HanRiverParkScene',
-            'BaekduPassScene', 'BaekduCityScene',
-            'Route3Scene', 'GeumgangCityScene',
-            'Route4Scene', 'HaeanCityScene',
-            'Route5Scene', 'ForestCityScene',
-            'FerryScene', 'JejuPortScene', 'JejuVentScene', 'JejuCityScene',
-            'Route6Scene', 'SunriseCityScene',
-            'SunriseCliff1Scene', 'SunriseCliff2Scene', 'SunriseCliff3Scene',
-            'BaekduCheckpointScene', 'BaekduSummitScene',
-            'ScholarsRoadScene', 'LeaguePlazaScene', 'PokemonLeagueScene',
-            'NorthernColiseumScene', 'NorthernPlazaScene', 'PyeongseongCheckpointScene', 'PyeongyangCityScene',
-            'NorthernReachesScene', 'SacredPeakScene',
-            'DolmoeCityScene', 'DolmoeMineScene', 'SeoraeTownScene', 'SeoraePassScene',
-            // Northern 어사대 circuit — cities, routes, beaches & the mine
-            'KaesongCityScene', 'NampoCityScene', 'WonsanCityScene', 'HamhungCityScene',
-            'ChongjinCityScene', 'SinuijuCityScene', 'SamjiyonCityScene',
-            'RyesongValleyScene', 'AhobiryongPassScene', 'SijungCoastScene', 'ChilboHighlandsScene', 'KaemaPlateauScene',
-            'RangrimFoothillsScene', 'RangrimCavernScene', 'RangrimAltarScene', 'RangrimSnowfieldScene', 'RangrimSummitScene',
-            'NampoBeachScene', 'WonsanBeachScene', 'HamhungMineScene', 'FogboundManorScene', 'SamjiyonAjitRoadScene', 'SinuijuIceCaveScene',
-            'NorthernBuildingScene', 'HamhungNaengmyeonScene'];
           const d = save.data ?? {};
           const lastScene = d['lastScene'] as string | undefined;
           // A WorldMap save is only trusted if the player has NO mid/late progress —
           // otherwise it's a corrupted stamp, so recover from progress flags instead.
           const lateProgress = !!(d['gymLeaderDefeated'] || d['baekduGymDefeated']
             || d['geumgangGymDefeated'] || d['haeanGymDefeated'] || d['forestGymDefeated']);
-          const cand = (lastScene && safe.includes(lastScene)) ? lastScene
-            : (safe.includes(save.scene) ? save.scene : '');
+          const cand = isSafeResumeScene(lastScene) ? lastScene
+            : (isSafeResumeScene(save.scene) ? save.scene : '');
           if (cand && !(cand === 'WorldMapScene' && lateProgress)) {
             target = cand;
           } else {

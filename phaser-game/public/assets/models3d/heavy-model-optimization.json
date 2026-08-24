@@ -1,0 +1,184 @@
+{
+  "generatedAt": "2026-08-21T03:55:53.992Z",
+  "settings": {
+    "maxSourceMiB": 16,
+    "simplifyRatio": 0.35,
+    "simplifyError": 0.0005,
+    "textureSize": 1024,
+    "textureFormat": "webp",
+    "geometryCompression": "draco"
+  },
+  "models": {
+    "ampere": {
+      "beforeBytes": 42207620,
+      "afterBytes": 1724740,
+      "reductionPercent": 95.91,
+      "beforeVertices": 758313,
+      "afterVertices": 279036,
+      "beforeSha256": "a75a4275e638b95ac6435fdce8fc86c169ff4deaf10e2eb44dab908af91c81b3",
+      "afterSha256": "42b9fcea068974277e725f509adc315ef2f7891a9f34365dcf9cdc08f58dda1f"
+    },
+    "arctorodon": {
+      "beforeBytes": 41829240,
+      "afterBytes": 1539556,
+      "reductionPercent": 96.32,
+      "beforeVertices": 750711,
+      "afterVertices": 272737,
+      "beforeSha256": "f6e14be75b929c31253e55b6c759f50dfd45c7c8c0fc64b6eee570d1e486da71",
+      "afterSha256": "234cbecd03c7f3987bc57fb5aa2b2faf192def03092de319171b7a9b6109edcf"
+    },
+    "babymammoth": {
+      "beforeBytes": 41860456,
+      "afterBytes": 1621992,
+      "reductionPercent": 96.13,
+      "beforeVertices": 752613,
+      "afterVertices": 274332,
+      "beforeSha256": "a4ccf9eb98714d6e74ecc624b6cba24f6ece26b95d165980b02e2d93ac620190",
+      "afterSha256": "045702759055cb09688614782df2050f2a29179cf8a5ceec4f3ce780cc77a0be"
+    },
+    "balchataek": {
+      "beforeBytes": 41599292,
+      "afterBytes": 1597780,
+      "reductionPercent": 96.16,
+      "beforeVertices": 748453,
+      "afterVertices": 273211,
+      "beforeSha256": "8201c380cdd94d7a3be09a9b66de015e21a4b3cd3622d227a8fa44366015621f",
+      "afterSha256": "dd2703e1fc09c0c7bf3e5c56d6f502010fca751b3b628029ea7e8904175a81e4"
+    },
+    "banderado": {
+      "beforeBytes": 55536112,
+      "afterBytes": 1121824,
+      "reductionPercent": 97.98,
+      "beforeVertices": 447864,
+      "afterVertices": 184652,
+      "beforeSha256": "2eba391a36cbed458c309badd535848f83601b0a2c57016680a0fa2519522b54",
+      "afterSha256": "1dc370ea7d1f00a74cf34a7d08dd6a1317d98ca94d0e5c78401cffac52866a3d"
+    },
+    "blazekunk": {
+      "beforeBytes": 40329240,
+      "afterBytes": 1624896,
+      "reductionPercent": 95.97,
+      "beforeVertices": 729381,
+      "afterVertices": 271796,
+      "beforeSha256": "5418d10985940ee9a3ce9731f5beb2f56a28d5291c33f886ae082453eb77c710",
+      "afterSha256": "8007b500c0be0cab57be8077472bc7199e77abd90ee890357b194a9a32836275"
+    },
+    "bonejoillion": {
+      "beforeBytes": 40564628,
+      "afterBytes": 1623016,
+      "reductionPercent": 96,
+      "beforeVertices": 727972,
+      "afterVertices": 264582,
+      "beforeSha256": "b74ace35738d2bc53fea1a681390216de7ea71fc9968c09e6f30126c5d83241d",
+      "afterSha256": "11d14b1977bf294061961400ac70ed6a8b22dd0ca4cf6e209ba5c64d8efedec0"
+    },
+    "bookbug": {
+      "beforeBytes": 41336556,
+      "afterBytes": 1613132,
+      "reductionPercent": 96.1,
+      "beforeVertices": 742811,
+      "afterVertices": 271973,
+      "beforeSha256": "1fcf117863c3cc767532936559ba1d7f20a721fd380a1f176507d69038774173",
+      "afterSha256": "c6bd5fe2e5b35d460bef720876597e79382e7eacf1f5bb975ec57c34ec6275d0"
+    },
+    "bookmoth": {
+      "beforeBytes": 40944116,
+      "afterBytes": 1680812,
+      "reductionPercent": 95.89,
+      "beforeVertices": 735231,
+      "afterVertices": 269505,
+      "beforeSha256": "5ab29ebc87ef4a65bb3995d35dd0b70047c108c0c9000e37f9126a629f23aa3f",
+      "afterSha256": "b778653243b80c661ff454dc5f30c04dd6847c42cf3a7057bbcd32df78cb1452"
+    },
+    "cerrapin": {
+      "beforeBytes": 40656064,
+      "afterBytes": 1531816,
+      "reductionPercent": 96.23,
+      "beforeVertices": 730953,
+      "afterVertices": 265964,
+      "beforeSha256": "5af7dfdf09daac29c8c632bcd477e12b31ffb312861681372e3261f64dba3442",
+      "afterSha256": "fb9e7111b0e7e446251230233adc55ad76a2089b200cc3df2af7b6567cbd23ce"
+    },
+    "daejangseung": {
+      "beforeBytes": 41343536,
+      "afterBytes": 1496664,
+      "reductionPercent": 96.38,
+      "beforeVertices": 742995,
+      "afterVertices": 270528,
+      "beforeSha256": "4f6a5c8a34e7e3136e3d4ff4a48601118f163f43f49e136b31b3b559f8d3370f",
+      "afterSha256": "6e31824ce0912875dfdcd67327199d245de7cb8af3beac23a8e574088ed6324a"
+    },
+    "foxgeist": {
+      "beforeBytes": 40828068,
+      "afterBytes": 1524928,
+      "reductionPercent": 96.27,
+      "beforeVertices": 733757,
+      "afterVertices": 266825,
+      "beforeSha256": "f765831e67d11978d11cd19679af63957e325155b61b51c51b599a4817fa8469",
+      "afterSha256": "4edfd401ed1107649834720c7c5c9d256e346fb629a774efe0a4d8a3e6c2e40a"
+    },
+    "frysm": {
+      "beforeBytes": 42193856,
+      "afterBytes": 1664392,
+      "reductionPercent": 96.06,
+      "beforeVertices": 760219,
+      "afterVertices": 280252,
+      "beforeSha256": "822e19968c876d6c9b86ef91a2249040a2bc03c031de99e076dddfc5d820fcaf",
+      "afterSha256": "b5aa63c6ea01e860e4179115811759e2233d6e448180c6fe315ecbdf5fd9ee0c"
+    },
+    "hwanwoong": {
+      "beforeBytes": 42330888,
+      "afterBytes": 1634044,
+      "reductionPercent": 96.14,
+      "beforeVertices": 759828,
+      "afterVertices": 277008,
+      "beforeSha256": "dcd7c48366b15383c840d5a365d5a8e8491fa6d2f488868c6126556c86849e95",
+      "afterSha256": "97954286441325d983c14115f503004e417069289b7000c2607aac801b8a87c8"
+    },
+    "ivelon": {
+      "beforeBytes": 41743452,
+      "afterBytes": 1534756,
+      "reductionPercent": 96.32,
+      "beforeVertices": 749410,
+      "afterVertices": 270741,
+      "beforeSha256": "3eef70b60c5648da311e8f4bf20884e9d7b21ca4e1fde69f731872044356139e",
+      "afterSha256": "6fec6af7203341a001711c6cb9015f584574ce85f449aa9a528b79198bbb4b90"
+    },
+    "kidstrel": {
+      "beforeBytes": 42501536,
+      "afterBytes": 1576464,
+      "reductionPercent": 96.29,
+      "beforeVertices": 764196,
+      "afterVertices": 278233,
+      "beforeSha256": "9be63f08fcca861b3119c957bd08f78882c16ebd14de48e264b8afbc8867538b",
+      "afterSha256": "d0c83fa1e063e43111e42dad65fc05f06aab92b463d2e233a95622492ac61d9e"
+    },
+    "nabihalmang": {
+      "beforeBytes": 41102132,
+      "afterBytes": 1673064,
+      "reductionPercent": 95.93,
+      "beforeVertices": 736344,
+      "afterVertices": 268844,
+      "beforeSha256": "dc755362243bd74c3cb420890bd4442cd9c2cc4eec60482cbf232a4281a6b6db",
+      "afterSha256": "bbc4802e0973de86f6a6b27c43d92b2490fdb8a54eec26c2b17fdc634baaf7ae"
+    },
+    "pipetiger": {
+      "beforeBytes": 59393440,
+      "afterBytes": 1199276,
+      "reductionPercent": 97.98,
+      "beforeVertices": 452052,
+      "afterVertices": 186478,
+      "beforeSha256": "e35572b2e8eaabce4824eb597b092a5952f1cb7e6259d90f380a2b8ff021f410",
+      "afterSha256": "f605206a13257afe97020f3b3886e1f0fcc355081e7614e27490d4c9551e814c"
+    },
+    "thanatoat": {
+      "beforeBytes": 49097236,
+      "afterBytes": 1176044,
+      "reductionPercent": 97.6,
+      "beforeVertices": 480584,
+      "afterVertices": 210751,
+      "beforeSha256": "0056ff435b49fbb81cf3304e3da73f64017cdedb837db353a49eb38b34314632",
+      "afterSha256": "9805870f6434a5b3e6d6c8ffd9672eb13d9a6583afc2f5a438a431fa352b7679"
+    }
+  }
+}

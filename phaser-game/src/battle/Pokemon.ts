@@ -1,5 +1,6 @@
 import { getEffectiveness, PokemonType } from './TypeChart';
 import { hpAfterMaxHpIncrease } from './LevelUpHp';
+import type { BattleWeather } from '../systems/AbilitySystem';
 
 export type MoveCategory = 'physical' | 'special' | 'status';
 export type BattleStat = 'atk' | 'def' | 'spAtk' | 'spDef' | 'spd' | 'accuracy' | 'evasion';
@@ -69,7 +70,17 @@ export class Pokemon {
   spd = 0;
   exp = 0;
   status = 'none';
+  /** Battle-held item key. Berries may clear this when consumed. */
+  heldItem?: string;
   private flashFireBoosted = false;
+  private toxicCounter = 0;
+  private confusionTurns = 0;
+  private infatuatedBy?: Pokemon;
+  private infatuatedTargets = new Set<Pokemon>();
+  private flinched = false;
+  private seededBy?: Pokemon;
+  private seededTargets = new Set<Pokemon>();
+  private disabledMoves = new Map<string, number>();
   private stages: Record<BattleStat, number> = {
     atk: 0, def: 0, spAtk: 0, spDef: 0, spd: 0, accuracy: 0, evasion: 0,
   };
@@ -82,8 +93,21 @@ export class Pokemon {
     // which would permanently strip a species' typing — e.g. wiping a Ghost's
     // Normal-immunity for every later battle in the session.
     this.data = { ...data };
-    this._level = level;
-    this.moves = moves.slice(0, 4).map(m => ({ data: m, pp: m.pp }));
+    this._level = Number.isFinite(level) ? Math.max(1, Math.min(100, Math.floor(level))) : 1;
+    // Old saves and partially hydrated API Pokémon can contain an empty or
+    // malformed curated move array. A selected Pokémon must still enter battle
+    // safely; discard invalid records and provide one deterministic fallback.
+    const validMoves = (Array.isArray(moves) ? moves : []).filter((move): move is MoveData =>
+      !!move && typeof move.name === 'string' && move.name.trim().length > 0
+      && typeof move.type === 'string'
+      && ['physical', 'special', 'status'].includes(move.category)
+      && Number.isFinite(move.power) && move.power >= 0
+      && Number.isFinite(move.accuracy) && move.accuracy > 0
+      && Number.isFinite(move.pp) && move.pp > 0);
+    const safeMoves = validMoves.length ? validMoves : [{
+      name: 'Tackle', type: 'normal', category: 'physical', power: 40, accuracy: 100, pp: 35,
+    } satisfies MoveData];
+    this.moves = safeMoves.slice(0, 4).map(m => ({ data: { ...m }, pp: m.pp }));
     this.status = data.status ?? 'none';
     this.recalcStats();
     this.hp = this.maxHp;
@@ -178,21 +202,23 @@ export class Pokemon {
    * immunities. Corrosion belongs to the source, so it may poison Steel and
    * Poison targets just like the main-series games. */
   trySetStatus(condition: string, source?: Pokemon): boolean {
-    const next = condition.toLowerCase() === 'tox' ? 'psn' : condition.toLowerCase();
+    const next = condition.toLowerCase();
     if (this.status !== 'none') return false;
     if (next === 'par' && (this.hasAbility('Limber') || this.data.type1 === 'electric' || this.data.type2 === 'electric')) return false;
     if (next === 'slp' && this.hasAbility('Insomnia')) return false;
     if (next === 'brn' && (this.data.type1 === 'fire' || this.data.type2 === 'fire')) return false;
     if (next === 'frz' && (this.data.type1 === 'ice' || this.data.type2 === 'ice')) return false;
-    if (next === 'psn' && !source?.hasAbility('Corrosion')
+    if ((next === 'psn' || next === 'tox') && !source?.hasAbility('Corrosion')
       && ['poison', 'steel'].some(t => this.data.type1 === t || this.data.type2 === t)) return false;
     this.status = next;
+    this.toxicCounter = next === 'tox' ? 1 : 0;
     return true;
   }
 
   cureStatus(): boolean {
     if (this.status === 'none') return false;
     this.status = 'none';
+    this.toxicCounter = 0;
     return true;
   }
 
@@ -206,7 +232,125 @@ export class Pokemon {
     return stage >= 0 ? (3 + stage) / 3 : 3 / (3 - stage);
   }
 
-  takeDamage(move: Move, attacker: Pokemon): { dmg: number; critical: boolean; effectiveness: number; abilityMessages: string[] } {
+  setHeldItem(item?: string): this {
+    this.heldItem = item || undefined;
+    return this;
+  }
+
+  heldItemActive(key?: string): boolean {
+    if (!this.heldItem || this.hasAbility('Klutz')) return false;
+    return key ? this.heldItem === key : true;
+  }
+
+  consumeHeldItem(): string | undefined {
+    if (!this.heldItemActive()) return undefined;
+    const item = this.heldItem;
+    this.heldItem = undefined;
+    return item;
+  }
+
+  confuse(turns = 2 + Math.floor(Math.random() * 4)): boolean {
+    if (this.confusionTurns > 0) return false;
+    this.confusionTurns = Math.max(1, turns);
+    return true;
+  }
+
+  confusionStep(): 'none' | 'active' | 'ended' {
+    if (this.confusionTurns <= 0) return 'none';
+    this.confusionTurns--;
+    return this.confusionTurns <= 0 ? 'ended' : 'active';
+  }
+
+  confusionDamage(): number {
+    const raw = ((2 * this.level / 5 + 2) * 40 * (this.battleStat('atk') / this.battleStat('def')) / 50 + 1);
+    const damage = Math.max(1, Math.floor(raw));
+    const before = this.hp;
+    this.hp = Math.max(0, this.hp - damage);
+    return before - this.hp;
+  }
+
+  attract(source: Pokemon): boolean {
+    if (this.infatuatedBy || this.data.gender === 'genderless' || source.data.gender === 'genderless'
+      || !this.data.gender || !source.data.gender || this.data.gender === source.data.gender) return false;
+    this.infatuatedBy = source;
+    source.infatuatedTargets.add(this);
+    return true;
+  }
+
+  isInfatuated(): boolean { return !!this.infatuatedBy && !this.infatuatedBy.isKO; }
+  markFlinch(): void { this.flinched = true; }
+  consumeFlinch(): boolean { const value = this.flinched; this.flinched = false; return value; }
+  clearFlinch(): void { this.flinched = false; }
+
+  disableMove(name: string, turns = 4): void {
+    this.disabledMoves.set(name.toLowerCase(), Math.max(1, turns));
+  }
+  isMoveDisabled(name: string): boolean { return (this.disabledMoves.get(name.toLowerCase()) ?? 0) > 0; }
+  tickDisabledMoves(): void {
+    for (const [name, turns] of this.disabledMoves) {
+      if (turns <= 1) this.disabledMoves.delete(name);
+      else this.disabledMoves.set(name, turns - 1);
+    }
+  }
+
+  seed(source: Pokemon): boolean {
+    if (this.seededBy || this.data.type1 === 'grass' || this.data.type2 === 'grass') return false;
+    this.seededBy = source;
+    source.seededTargets.add(this);
+    return true;
+  }
+
+  leechSeedSource(): Pokemon | undefined { return this.seededBy; }
+
+  /** Leech Seed belongs to the seeder's side, so a replacement receives the
+   * drain healing. Keeping the reverse links here also prevents a withdrawn
+   * target from continuing to feed a benched object. */
+  transferSeededTargetsTo(replacement: Pokemon): void {
+    for (const target of this.seededTargets) {
+      if (!target.isKO && target.seededBy === this) {
+        target.seededBy = replacement;
+        replacement.seededTargets.add(target);
+      }
+    }
+    this.seededTargets.clear();
+  }
+
+  /** Standard end-turn major-status damage. Magic Guard prevents indirect damage. */
+  takeResidualStatusDamage(): { damage: number; label?: string } {
+    if (this.isKO || this.hasAbility('Magic Guard')) return { damage: 0 };
+    let amount = 0;
+    let label: string | undefined;
+    if (this.status === 'brn') {
+      amount = Math.max(1, Math.floor(this.maxHp / 16)); label = 'burn';
+    } else if (this.status === 'psn') {
+      amount = Math.max(1, Math.floor(this.maxHp / 8)); label = 'poison';
+    } else if (this.status === 'tox') {
+      amount = Math.max(1, Math.floor(this.maxHp * Math.max(1, this.toxicCounter) / 16));
+      this.toxicCounter = Math.min(15, this.toxicCounter + 1); label = 'poison';
+    }
+    const before = this.hp;
+    this.hp = Math.max(0, this.hp - amount);
+    return { damage: before - this.hp, label };
+  }
+
+  /** Switching clears volatile effects while preserving major status. */
+  resetVolatileOnSwitch(): void {
+    this.confusionTurns = 0;
+    if (this.infatuatedBy) this.infatuatedBy.infatuatedTargets.delete(this);
+    this.infatuatedBy = undefined;
+    for (const target of this.infatuatedTargets) {
+      if (target.infatuatedBy === this) target.infatuatedBy = undefined;
+    }
+    this.infatuatedTargets.clear();
+    this.flinched = false;
+    if (this.seededBy) this.seededBy.seededTargets.delete(this);
+    this.seededBy = undefined;
+    this.disabledMoves.clear();
+    this.toxicCounter = this.status === 'tox' ? 1 : 0;
+    for (const stat of Object.keys(this.stages) as BattleStat[]) this.stages[stat] = 0;
+  }
+
+  takeDamage(move: Move, attacker: Pokemon, weather: BattleWeather = 'clear'): { dmg: number; critical: boolean; effectiveness: number; abilityMessages: string[] } {
     const messages: string[] = [];
     let moveType = move.data.type;
     let abilityPower = 1;
@@ -295,22 +439,32 @@ export class Pokemon {
     if (attacker.flashFireBoosted && moveType === 'fire') abilityPower *= 1.5;
 
     const weatherSuppressed = attacker.hasAbility('Cloud Nine') || this.hasAbility('Cloud Nine');
-    if (!weatherSuppressed && (attacker.hasAbility('Drizzle') || this.hasAbility('Drizzle'))) {
+    if (!weatherSuppressed && weather === 'rain') {
       if (moveType === 'water') abilityPower *= 1.5;
       if (moveType === 'fire') abilityPower *= 0.5;
     }
+    if (!weatherSuppressed && weather === 'sun') {
+      if (moveType === 'fire') abilityPower *= 1.5;
+      if (moveType === 'water') abilityPower *= 0.5;
+    }
     if (!weatherSuppressed && attacker.hasAbility('Sand Force')
-      && (attacker.hasAbility('Sand Stream') || this.hasAbility('Sand Stream'))
+      && weather === 'sand'
       && ['rock', 'ground', 'steel'].includes(moveType)) abilityPower *= 1.3;
+    const heldTypeBoost: Partial<Record<PokemonType, string>> = {
+      fire: 'charcoal', water: 'mysticwater', grass: 'miracleseed', electric: 'magnet',
+    };
+    if (heldTypeBoost[moveType] && attacker.heldItemActive(heldTypeBoost[moveType])) abilityPower *= 1.2;
+    if (attacker.heldItemActive('expertbelt') && effectiveness > 1) abilityPower *= 1.2;
 
     let defenseAbility = 1;
     if (this.hasAbility('Thick Fat') && (moveType === 'fire' || moveType === 'ice')) defenseAbility *= 0.5;
     if (this.hasAbility('Multiscale') && this.hp === this.maxHp) defenseAbility *= 0.5;
     if (this.hasAbility('Solid Rock') && effectiveness > 1) defenseAbility *= 0.75;
     if (this.hasAbility('Resilience') && this.hp <= this.maxHp / 2) defenseAbility *= 0.85;
-    if (!weatherSuppressed && (attacker.hasAbility('Snow Warning') || this.hasAbility('Snow Warning'))
-      && this.data.type1 === 'ice' && move.data.category === 'physical') defenseAbility *= 2 / 3;
-    if (!weatherSuppressed && (attacker.hasAbility('Sand Stream') || this.hasAbility('Sand Stream'))
+    if (this.hasAbility('Friend Guard')) defenseAbility *= 0.9;
+    if (!weatherSuppressed && weather === 'snow'
+      && (this.data.type1 === 'ice' || this.data.type2 === 'ice') && move.data.category === 'physical') defenseAbility *= 2 / 3;
+    if (!weatherSuppressed && weather === 'sand'
       && (this.data.type1 === 'rock' || this.data.type2 === 'rock') && move.data.category === 'special') defenseAbility *= 2 / 3;
 
     // Constant reduced from +2 → +1 so the floor term doesn't dominate
@@ -340,7 +494,7 @@ export class Pokemon {
       messages.push(`${this.name} changed to ${moveType} type!`);
     }
     if (dmg > 0 && this.hasAbility('Cursed Body') && Math.random() < 0.3) {
-      move.pp = 0;
+      attacker.disableMove(move.data.name, 4);
       messages.push(`${this.name}'s Cursed Body disabled ${move.data.name}!`);
     }
     if (dmg > 0 && isContactMove(move.data)) {
@@ -358,11 +512,11 @@ export class Pokemon {
         if (attacker.trySetStatus(sporeStatus, this)) messages.push(`${attacker.name} was afflicted by Effect Spore!`);
       }
       if (this.hasAbility('Cute Charm') && Math.random() < 0.3) {
-        attacker.modifyStage('atk', -1); messages.push(`${attacker.name} was captivated by Cute Charm!`);
+        if (attacker.attract(this)) messages.push(`${attacker.name} fell in love through Cute Charm!`);
       }
     }
     if (dmg > 0 && attacker.hasAbility('Stench') && Math.random() < 0.1) {
-      this.modifyStage('spd', -1); messages.push(`${this.name} flinched from Stench!`);
+      this.markFlinch(); messages.push(`${this.name} flinched from Stench!`);
     }
     return { dmg, critical: isCritical, effectiveness, abilityMessages: messages };
   }

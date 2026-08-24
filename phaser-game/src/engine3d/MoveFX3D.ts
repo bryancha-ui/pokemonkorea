@@ -39,6 +39,35 @@ function getGlowTex(): THREE.Texture {
   return glowTex;
 }
 
+/**
+ * Stat-boosting moves that own a bespoke 3D signature, keyed by lower-cased move
+ * name. Anything not listed falls through to the generic rising aura, so adding
+ * a move here is purely additive and never breaks an existing one.
+ *
+ * The names are matched against the ENGLISH move name, which is what the battle
+ * data carries; the Korean labels are only display strings.
+ */
+const BUFF_SIGNATURES: Record<string, (fx: MoveFX3D, at: THREE.Vector3, color: number, type: string) => void> = {
+  'swords dance':  (fx, at, c) => fx.bladeDance(at, c),          // 칼춤
+  'calm mind':     (fx, at, c) => fx.calmFocus(at, c),           // 명상
+  'meditate':      (fx, at, c) => fx.calmFocus(at, c),           // 마음의눈
+  'dragon dance':  (fx, at, c) => fx.dragonSpiral(at, c),        // 용의춤
+  'bulk up':       (fx, at, c) => fx.powerSurge(at, c),          // 벌크업
+  'work up':       (fx, at, c) => fx.powerSurge(at, c),          // 노력
+  'howl':          (fx, at, c) => fx.powerSurge(at, c),          // 짖기
+  'iron defense':  (fx, at, c) => fx.ironShell(at, c),           // 철벽
+  'harden':        (fx, at, c) => fx.ironShell(at, c),           // 단단해지기
+  'withdraw':      (fx, at, c) => fx.ironShell(at, c),           // 껍질에숨기
+  'defense curl':  (fx, at, c) => fx.ironShell(at, c),           // 웅크리기
+  'agility':       (fx, at, c) => fx.speedStreaks(at, c),        // 고속이동
+  'rock polish':   (fx, at, c) => fx.speedStreaks(at, c),        // 바위갈기
+  'nasty plot':    (fx, at, c) => fx.darkScheme(at, c),          // 나쁜음모
+  'hone claws':    (fx, at, c) => fx.bladeDance(at, c),          // 손톱갈기
+  'quiver dance':  (fx, at, c) => fx.dragonSpiral(at, c),        // 나비춤
+  'amnesia':       (fx, at, c) => fx.calmFocus(at, c),           // 망각
+  'cosmic power':  (fx, at, c) => fx.ironShell(at, c),           // 코스믹파워
+};
+
 const TYPE_ACCENTS: Record<string, number> = {
   fire: 0xffd05a, water: 0xbfefff, grass: 0xb8f06a, electric: 0xffffa8,
   ice: 0xffffff, fighting: 0xffc18a, poison: 0xe7a6ff, ground: 0xe4bd77,
@@ -298,8 +327,264 @@ export class MoveFX3D {
     this.typedProjectile(from, to, 'normal', color, 1, eff, onImpact);
   }
 
-  /** Non-damaging move: layered rings and motes rise around the user. */
+  /**
+   * Non-damaging move. Stat-boosting moves get a bespoke signature: every buff
+   * used to play the same rising rings, so Calm Mind and Swords Dance — opposite
+   * ideas, one inward and still, the other outward and armed — were indis-
+   * tinguishable on screen. Anything without a signature falls through to the
+   * generic aura below.
+   */
   statusAura(at: THREE.Vector3, moveType: string, moveName: string, color: number): void {
+    const name = moveName.toLowerCase().replace(/[-_]/g, ' ').trim();
+    const buff = BUFF_SIGNATURES[name];
+    if (buff) { buff(this, at, color, moveType); return; }
+    this.genericAura(at, moveType, moveName, color);
+  }
+
+  // ── Buff signatures ────────────────────────────────────────────────────────
+
+  // Every signature below is sized to the SAME envelope as the generic aura it
+  // replaces — about 0.7 units of radius and 1.5 of height. Built larger they
+  // dwarfed the battler, and additive blending at high opacity stacked into a
+  // white sheet that hid both the effect and the Pokémon behind it.
+
+  /** Swords Dance — blades sweep up out of the ground, orbit, then flare out. */
+  bladeDance(at: THREE.Vector3, color: number): void {
+    const group = new THREE.Group();
+    group.position.copy(at);
+    const blades: THREE.Mesh[] = [];
+    const BLADES = 6;
+    for (let i = 0; i < BLADES; i++) {
+      // A long thin wedge reads as a blade from any camera angle; a box does not.
+      const blade = new THREE.Mesh(
+        new THREE.ConeGeometry(0.05, 0.62, 4),
+        solidMaterial(i % 2 ? 0xffe9a8 : color, 0.85),
+      );
+      blade.rotation.z = Math.PI;                 // point the tip upward
+      group.add(blade); blades.push(blade);
+    }
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.024, 6, 32), glowMaterial(0xffd06a, 0));
+    ring.rotation.x = Math.PI / 2; ring.position.y = 0.06;
+    group.add(ring);
+    this.addTask(group, 1.05, (k) => {
+      // Three beats: draw the blades out of the floor, spin them up, throw them wide.
+      const draw = Math.min(1, k / 0.3);
+      const spin = k * Math.PI * 5.5;
+      const flare = Math.max(0, (k - 0.62) / 0.38);
+      const radius = 0.3 + draw * 0.18 + flare * 0.62;
+      for (let i = 0; i < BLADES; i++) {
+        const a = (i / BLADES) * Math.PI * 2 + spin;
+        const b = blades[i];
+        b.position.set(Math.cos(a) * radius, -0.2 + draw * (0.62 + i % 2 * 0.14), Math.sin(a) * radius);
+        // Lean each blade along its own tangent so the ring reads as spinning.
+        b.rotation.set(flare * 1.1, -a, Math.PI + Math.sin(k * Math.PI * 3 + i) * 0.22);
+        b.scale.setScalar(0.7 + draw * 0.35);
+        opacity(b, draw * (1 - flare * flare) * 0.92);
+      }
+      ring.scale.setScalar(0.6 + k * 1.0);
+      opacity(ring, Math.sin(Math.min(1, k * 1.6) * Math.PI) * 0.45);
+      group.rotation.y = k * 0.6;
+    });
+  }
+
+  /** Calm Mind — the inverse of a power-up: everything contracts and settles. */
+  calmFocus(at: THREE.Vector3, color: number): void {
+    const group = new THREE.Group();
+    group.position.copy(at);
+    // Halo at head height, tipped slightly toward the camera so it reads as a ring
+    // rather than a line.
+    const halo = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.018, 8, 44), glowMaterial(0xdcc8ff, 0));
+    halo.rotation.x = Math.PI / 2 - 0.28;
+    halo.position.y = 1.05;
+    group.add(halo);
+    // Two counter-rotating orbits: stillness with something turning inside it.
+    const orbits: THREE.Mesh[] = [];
+    for (let i = 0; i < 2; i++) {
+      const o = new THREE.Mesh(new THREE.TorusGeometry(0.48, 0.012, 6, 40), glowMaterial(color, 0));
+      o.rotation.set(Math.PI / 2 - 0.5 + i * 1.0, 0, i * 0.7);
+      o.position.y = 0.68;
+      group.add(o); orbits.push(o);
+    }
+    // Motes drift DOWN and INWARD — the opposite of every other buff here.
+    const motes: THREE.Mesh[] = [];
+    for (let i = 0; i < 16; i++) {
+      const m = new THREE.Mesh(new THREE.SphereGeometry(0.026, 6, 5), glowMaterial(0xf0e6ff, 0));
+      group.add(m); motes.push(m);
+    }
+    this.addTask(group, 1.25, (k) => {
+      const settle = 1 - Math.pow(1 - k, 2);
+      opacity(halo, Math.sin(k * Math.PI) * 0.6);
+      halo.scale.setScalar(1.3 - settle * 0.38);
+      halo.rotation.z = k * 0.9;
+      for (let i = 0; i < orbits.length; i++) {
+        const dir = i ? -1 : 1;
+        orbits[i].rotation.z = i * 0.7 + k * Math.PI * 1.6 * dir;
+        orbits[i].scale.setScalar(1.25 - settle * 0.4);
+        opacity(orbits[i], Math.sin(k * Math.PI) * 0.5);
+      }
+      for (let i = 0; i < motes.length; i++) {
+        const a = (i / motes.length) * Math.PI * 2 + k * 0.8;
+        const r = (1.0 - settle * 0.76) * (0.55 + (i % 3) * 0.14);
+        motes[i].position.set(Math.cos(a) * r, 1.35 - settle * (0.66 + (i % 4) * 0.09), Math.sin(a) * r);
+        opacity(motes[i], Math.sin(k * Math.PI) * 0.6);
+      }
+    });
+  }
+
+  /** Dragon Dance — a helix of trailing sparks winds up around the battler. */
+  dragonSpiral(at: THREE.Vector3, color: number): void {
+    const group = new THREE.Group();
+    group.position.copy(at);
+    const scales: THREE.Mesh[] = [];
+    for (let i = 0; i < 22; i++) {
+      const s = new THREE.Mesh(
+        new THREE.TetrahedronGeometry(0.055),
+        solidMaterial(i % 3 ? color : 0x9ce8ff, 0),
+      );
+      group.add(s); scales.push(s);
+    }
+    const base = new THREE.Mesh(new THREE.TorusGeometry(0.44, 0.022, 6, 32), glowMaterial(0x9ce8ff, 0));
+    base.rotation.x = Math.PI / 2; base.position.y = 0.05;
+    group.add(base);
+    this.addTask(group, 1.1, (k) => {
+      for (let i = 0; i < scales.length; i++) {
+        const lead = i / scales.length;
+        const p = (k * 1.5 - lead * 0.55);
+        if (p < 0 || p > 1) { opacity(scales[i], 0); continue; }
+        const a = p * Math.PI * 4.5;
+        const r = 0.46 * (1 - p * 0.32);
+        scales[i].position.set(Math.cos(a) * r, p * 1.4, Math.sin(a) * r);
+        scales[i].rotation.set(a, a * 1.3, 0);
+        opacity(scales[i], Math.sin(p * Math.PI) * 0.9);
+      }
+      base.scale.setScalar(0.7 + k * 0.8);
+      opacity(base, Math.sin(k * Math.PI) * 0.45);
+    });
+  }
+
+  /** Bulk Up / Work Up — heavy shockwaves push out along the floor. */
+  powerSurge(at: THREE.Vector3, color: number): void {
+    const group = new THREE.Group();
+    group.position.copy(at);
+    const waves: THREE.Mesh[] = [];
+    for (let i = 0; i < 3; i++) {
+      const w = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.035, 6, 30), glowMaterial(color, 0));
+      w.rotation.x = Math.PI / 2; w.position.y = 0.05 + i * 0.02;
+      group.add(w); waves.push(w);
+    }
+    const cones: THREE.Mesh[] = [];
+    for (let i = 0; i < 6; i++) {
+      const c = new THREE.Mesh(new THREE.ConeGeometry(0.075, 0.34, 5), solidMaterial(0xffc18a, 0));
+      const a = (i / 6) * Math.PI * 2;
+      c.position.set(Math.cos(a) * 0.42, 0.2, Math.sin(a) * 0.42);
+      group.add(c); cones.push(c);
+    }
+    this.addTask(group, 0.95, (k) => {
+      for (let i = 0; i < waves.length; i++) {
+        const p = Math.max(0, Math.min(1, (k - i * 0.14) / 0.7));
+        waves[i].scale.setScalar(0.5 + p * 1.5);
+        opacity(waves[i], (1 - p) * 0.5);
+      }
+      for (let i = 0; i < cones.length; i++) {
+        cones[i].position.y = 0.2 + k * 1.0 + (i % 3) * 0.08;
+        cones[i].scale.setScalar(1 - k * 0.4);
+        opacity(cones[i], Math.sin(k * Math.PI) * 0.85);
+      }
+    });
+  }
+
+  /** Iron Defense — plates snap into a shell around the battler and lock. */
+  ironShell(at: THREE.Vector3, color: number): void {
+    const group = new THREE.Group();
+    group.position.copy(at);
+    const plates: THREE.Mesh[] = [];
+    const N = 10;
+    for (let i = 0; i < N; i++) {
+      const p = new THREE.Mesh(new THREE.CircleGeometry(0.2, 6), solidMaterial(i % 2 ? 0xc9d3dd : color, 0));
+      group.add(p); plates.push(p);
+    }
+    this.addTask(group, 1.0, (k) => {
+      const snap = Math.min(1, k / 0.45);
+      const ease = 1 - Math.pow(1 - snap, 3);
+      for (let i = 0; i < N; i++) {
+        const a = (i / N) * Math.PI * 2;
+        const tier = (i % 3) - 1;
+        const r = 1.15 - ease * 0.62;
+        plates[i].position.set(Math.cos(a) * r, 0.7 + tier * 0.3, Math.sin(a) * r);
+        plates[i].lookAt(group.position.x, group.position.y + 0.7 + tier * 0.3, group.position.z);
+        plates[i].rotation.z = (1 - ease) * 2.4;
+        // Hold at full opacity once locked, then release together.
+        opacity(plates[i], (k < 0.45 ? ease : 1 - (k - 0.45) / 0.55) * 0.8);
+      }
+      group.rotation.y = ease * 0.5;
+    });
+  }
+
+  /** Agility — afterimage rings whip past, reading as pure speed. */
+  speedStreaks(at: THREE.Vector3, color: number): void {
+    const group = new THREE.Group();
+    group.position.copy(at);
+    const streaks: THREE.Mesh[] = [];
+    for (let i = 0; i < 14; i++) {
+      const s = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.34, 0.03), solidMaterial(i % 2 ? 0xffffff : color, 0));
+      group.add(s); streaks.push(s);
+    }
+    const halos: THREE.Mesh[] = [];
+    for (let i = 0; i < 3; i++) {
+      const h = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.014, 6, 30), glowMaterial(color, 0));
+      h.rotation.x = Math.PI / 2; group.add(h); halos.push(h);
+    }
+    this.addTask(group, 0.85, (k) => {
+      for (let i = 0; i < streaks.length; i++) {
+        const p = ((k * 2.1) + i / streaks.length) % 1;
+        const a = (i / streaks.length) * Math.PI * 2;
+        streaks[i].position.set(Math.cos(a) * 0.55, p * 1.5, Math.sin(a) * 0.55);
+        streaks[i].scale.y = 0.6 + p * 1.2;
+        opacity(streaks[i], Math.sin(p * Math.PI) * 0.85);
+      }
+      for (let i = 0; i < halos.length; i++) {
+        const p = Math.max(0, Math.min(1, (k - i * 0.12) / 0.6));
+        halos[i].position.y = 0.1 + p * 1.25;
+        halos[i].scale.setScalar(1 + p * 0.4);
+        opacity(halos[i], (1 - p) * 0.42);
+      }
+    });
+  }
+
+  /** Nasty Plot — dark pulses gather and a violet crown flares overhead. */
+  darkScheme(at: THREE.Vector3, color: number): void {
+    const group = new THREE.Group();
+    group.position.copy(at);
+    const pulses: THREE.Mesh[] = [];
+    for (let i = 0; i < 4; i++) {
+      const p = new THREE.Mesh(new THREE.SphereGeometry(0.34, 12, 9), glowMaterial(0x6a3f9e, 0));
+      p.position.y = 0.75; group.add(p); pulses.push(p);
+    }
+    const crown: THREE.Mesh[] = [];
+    for (let i = 0; i < 7; i++) {
+      const c = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.24, 4), solidMaterial(i % 2 ? color : 0xe7a6ff, 0));
+      const a = (i / 7) * Math.PI * 2;
+      c.position.set(Math.cos(a) * 0.28, 1.15, Math.sin(a) * 0.28);
+      group.add(c); crown.push(c);
+    }
+    this.addTask(group, 1.1, (k) => {
+      for (let i = 0; i < pulses.length; i++) {
+        const p = Math.max(0, Math.min(1, (k - i * 0.13) / 0.55));
+        pulses[i].scale.setScalar(0.4 + p * 1.1);
+        opacity(pulses[i], (1 - p) * 0.26);
+      }
+      const rise = Math.max(0, (k - 0.35) / 0.65);
+      for (let i = 0; i < crown.length; i++) {
+        crown[i].position.y = 1.15 + rise * 0.22;
+        crown[i].scale.setScalar(0.6 + rise * 0.75);
+        opacity(crown[i], Math.sin(rise * Math.PI) * 0.9);
+      }
+      group.rotation.y = k * Math.PI * 0.9;
+    });
+  }
+
+  /** The original layered rings and motes, for any move without a signature. */
+  private genericAura(at: THREE.Vector3, moveType: string, moveName: string, color: number): void {
     const group = new THREE.Group();
     group.position.copy(at);
     const rings: THREE.Mesh[] = [];
@@ -2204,6 +2489,22 @@ export class MoveFX3D {
       }
     }
   }
+}
+
+/**
+ * Solid, normally-blended counterpart to glowMaterial.
+ *
+ * Additive blending is right for thin light — rings, motes, sparks — but a buff
+ * signature also has BODY: blades, armour plates, thrust cones. Rendered
+ * additively over a bright battlefield those saturate to flat white within a
+ * couple of overlaps, which is exactly how the first pass lost both its colour
+ * and the Pokémon behind it. These keep their hue at any stacking depth.
+ */
+function solidMaterial(color: number, opacityValue: number): THREE.MeshBasicMaterial {
+  return new THREE.MeshBasicMaterial({
+    color, transparent: true, opacity: opacityValue,
+    depthWrite: false, side: THREE.DoubleSide,
+  });
 }
 
 function glowMaterial(color: number, opacityValue: number): THREE.MeshBasicMaterial {

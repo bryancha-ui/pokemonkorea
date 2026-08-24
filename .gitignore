@@ -36,3 +36,6 @@ Thumbs.db
 # Other non-essential files
 .claude/
 sprite_backup_orig/
+
+# Local Shap-E ML toolkit + 3.7GB model cache (used to generate GLBs; not a game asset)
+/shap-e/

@@ -11,6 +11,7 @@ import { PartySystem } from '../systems/PartySystem';
 import { hasMapae, awardMapae } from '../data/Mapae';
 import { markTrainerPortrait } from '../data/BattlePortraits';
 import { showRewardCeremony } from '../systems/RewardCeremony';
+import type { PropPlot } from '../engine3d/TerrainBuilder';
 
 // ── POST-LEAGUE NORTH — Songhyeon (송현), an 어사대 circuit city ──────────────────────
 // Apolitical: real Songhyeon geography only — Songak Mountain, the Sungkyunkwan Confucian
@@ -75,8 +76,9 @@ function buildMap(): Tile[][] {
   fill(16, 20, 2, 8, T.GINSENG);
   fill(16, 20, 24, 31, T.GINSENG);
 
-  // Pines & rocks around the Songak foothills, wildflowers by the road
-  for (const [r,c] of [[5,2],[6,31],[9,24],[9,6],[20,12],[20,22],[15,15],[15,21]] as [number,number][]) set(r, c, T.TREE);
+  // Rocks around the Songak foothills, wildflowers by the road. (The old flat
+  // 2D tree tiles left green tree blobs painted on the ground — removed so the
+  // city floor reads clean; ginseng fields and wildflowers remain.)
   for (const [r,c] of [[7,13],[7,23],[21,5],[21,28]] as [number,number][]) set(r, c, T.ROCK);
   for (const [r,c] of [[14,14],[14,22],[15,12],[15,24]] as [number,number][]) set(r, c, T.FLOWER);
 
@@ -89,10 +91,78 @@ export class KaesongCityScene extends Phaser.Scene {
   // reuse the custom Higgsfield models, the 어사대 Hall uses the palace model.
   // onlyNamedBuildings erases every OTHER detected block (the Songak Mountain
   // backdrop shapes) instead of extruding stray free-asset buildings.
-  public buildingPlots = BUILDINGS.map((b, i) => ({
-    x: b.x, y: b.y, w: b.w, h: b.h, model: ['mart', 'palace', 'pokecenter'][i],
-  }));
+  public buildingPlots = [
+    ...BUILDINGS.map((b, i) => ({
+      x: b.x, y: b.y, w: b.w, h: b.h, model: ['mart', 'palace', 'pokecenter'][i],
+    })),
+    // Songak Mountain, as real geometry along the north edge. It used to be a
+    // translucent green wash painted onto the floor, which in 3D read as a stain
+    // on the ground rather than a mountain behind the town.
+    { x: 0, y: 0, w: COLS, h: 3, model: 'mountainrange' },
+  ];
   public onlyNamedBuildings = true;
+
+  /**
+   * Songhyeon's 3D dressing.
+   *
+   * Everything that used to be painted INTO the floor texture — rocks, trees,
+   * the mountain wash — is a standing object here instead, and the town is
+   * furnished the way old Kaesong actually reads: pine on the Songak slopes,
+   * stone lanterns walking you up to the 어사대 Hall, guardian statues at its
+   * stair, a ginseng market on the plaza, and a length of the old city wall.
+   */
+  public propPlots: PropPlot[] = [
+    // ── Songak foothills: pine, boulders, a meditation stone by the shrine path
+    ...([[4, 3], [4, 6], [5, 20], [4, 26], [5, 30], [6, 2], [6, 31]] as [number, number][])
+      .map(([r, c]) => ({ x: c, y: r, kind: 'pine' as const, scale: 1.15 })),
+    ...([[7, 13], [7, 23], [21, 5], [21, 28]] as [number, number][])
+      .map(([r, c]) => ({ x: c, y: r, kind: 'rock' as const, scale: 1.0 })),
+    { x: 12, y: 4, kind: 'meditationrock', scale: 0.95 },
+    // The closed capital road, blocked by a real rockfall rather than painted stones.
+    { x: 17, y: 23, kind: 'rock', scale: 1.25 },
+    { x: 18, y: 23, kind: 'rock', scale: 1.1 },
+
+    // ── The main east–west street: stone lanterns, cherries at the corners
+    ...([2, 5, 13, 22, 26, 30] as number[])
+      .flatMap(c => [
+        { x: c, y: 11, kind: 'lantern' as const, scale: 0.85 },
+        { x: c, y: 14, kind: 'lantern' as const, scale: 0.85 },
+      ]),
+    { x: 7, y: 11, kind: 'cherry', scale: 1.05 },
+    { x: 24, y: 14, kind: 'cherry', scale: 1.05 },
+    { x: 12, y: 15, kind: 'cherry', scale: 0.95 },
+    // Roadside planting beds, standing where the old flat flower tiles were painted.
+    ...([[14, 14], [14, 22], [15, 12], [15, 24]] as [number, number][])
+      .map(([r, c]) => ({ x: c, y: r, kind: 'flower' as const, scale: 0.9 })),
+
+    // ── 어사대 Hall approach: guardian statues, banners, a bell frame
+    { x: 16, y: 12, kind: 'statue', scale: 1.05 },
+    { x: 21, y: 12, kind: 'statue', scale: 1.05 },
+    { x: 15, y: 11, kind: 'banner', scale: 1.0 },
+    { x: 22, y: 11, kind: 'banner', scale: 1.0 },
+    { x: 13, y: 8, kind: 'bellframe', scale: 0.95 },
+
+    // ── Ginseng market on the plaza south of the crossing
+    { x: 14, y: 16, kind: 'stall', scale: 1.0 },
+    { x: 20, y: 16, kind: 'stall', scale: 1.0 },
+    { x: 15, y: 18, kind: 'pot', scale: 0.9 },
+    { x: 20, y: 18, kind: 'pot', scale: 0.9 },
+    { x: 21, y: 19, kind: 'crates', scale: 0.85 },
+    { x: 14, y: 19, kind: 'dryingrack', scale: 0.9 },   // ginseng laid out to dry
+    { x: 22, y: 20, kind: 'firewood', scale: 0.85 },
+
+    // ── Seonjukgyo: the stone bridge itself, lit at both ends
+    { x: 9, y: 12, kind: 'woodbridge', scale: 1.0 },
+    { x: 8, y: 12, kind: 'lantern', scale: 0.8 },
+    { x: 11, y: 13, kind: 'lantern', scale: 0.8 },
+
+    // ── A surviving run of the old city wall along the west approach.
+    // Built from stone markers rather than a wall fixture: 'wall-high' is a shop
+    // interior fitting, not an outdoor prop, and would have raised a storefront
+    // panel in the middle of a ginseng field.
+    ...([16, 18, 20] as number[])
+      .map(r => ({ x: 1, y: r, kind: 'obelisk' as const, scale: 0.85 })),
+  ];
   private playerG!: Phaser.GameObjects.Graphics;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd!: Record<string, Phaser.Input.Keyboard.Key>;
@@ -174,19 +244,35 @@ export class KaesongCityScene extends Phaser.Scene {
       const t = this.map[r][c];
       const x = c * TILE, y = r * TILE;
       g.fillStyle(COLORS[t], 1); g.fillRect(x, y, TILE, TILE);
-      if (t === T.GROUND) { g.fillStyle(0x9a8a6a, 0.4); g.fillRect(x+5, y+7, 5, 4); g.fillRect(x+20, y+18, 5, 4); }
-      if (t === T.PATH) { g.fillStyle(0xb6a686, 0.5); g.fillRect(x+3, y+6, TILE-6, 3); }
+      // The floor carries GROUND MATERIAL only — no painted objects. Rocks and
+      // trees used to be drawn into this texture, so in 3D they showed as flat
+      // stickers lying on the terrain with real props standing next to them.
+      // Everything solid is a 3D prop now (see propPlots); these are just the
+      // subtle tonal breaks that keep a large flat area from looking like vinyl.
+      if (t === T.GROUND) { g.fillStyle(0x94855f, 0.22); g.fillRect(x, y+9, TILE, 6); g.fillStyle(0x7e7150, 0.16); g.fillRect(x+11, y, 9, TILE); }
+      if (t === T.PATH) {
+        // Fitted flagstones, drawn as joints in the surface rather than objects.
+        g.fillStyle(0xbfae8b, 0.55); g.fillRect(x+2, y+2, TILE-4, TILE-4);
+        g.lineStyle(1, 0xa08e6c, 0.6); g.strokeRect(x+2, y+2, TILE-4, TILE-4);
+        g.fillStyle(0xd6c8a8, 0.35); g.fillRect(x+4, y+4, TILE-8, 2);
+      }
       if (t === T.MOUNTAIN_PATH) { g.fillStyle(0x9bb083, 0.45); g.fillRect(x+3, y+6, TILE-6, 3); g.fillStyle(0x526f43, 0.35); g.fillRect(x+7, y+20, 8, 3); }
       if (t === T.GRASS) { g.fillStyle(0x5f9a4a, 0.5); g.fillRect(x+5, y+8, 4, 6); }
       if (t === T.WATER) { g.fillStyle(0x66bbe6, 0.4); g.fillRect(x+4, y+9, 12, 3); g.fillRect(x+14, y+22, 10, 3); }
       if (t === T.BRIDGE) { g.fillStyle(0x7a5628); for (let i=0;i<TILE;i+=7) g.fillRect(x, y+i, TILE, 2); g.fillStyle(0x5a3e1c); g.fillRect(x+1, y, 3, TILE); g.fillRect(x+TILE-4, y, 3, TILE); }
-      if (t === T.TREE) { g.fillStyle(0x1e421e); g.fillCircle(x+16, y+15, 12); g.fillStyle(0x347a34); g.fillCircle(x+12, y+12, 6); g.fillCircle(x+21, y+15, 5); g.fillStyle(0x5a3a20); g.fillRect(x+14, y+24, 4, 6); }
+      // TREE and ROCK render as the ground UNDER them; the trunk and the stone
+      // are 3D props standing on that ground.
+      if (t === T.TREE) { g.fillStyle(0x3f6a34, 1); g.fillRect(x, y, TILE, TILE); g.fillStyle(0x365c2c, 0.5); g.fillRect(x+6, y+6, TILE-12, TILE-12); }
       if (t === T.GINSENG) { g.fillStyle(0x3f6a2a, 0.5); g.fillRect(x, y+TILE-4, TILE, 4); for (const [dx,dy] of [[8,10],[18,8],[24,16],[12,20]] as [number,number][]){ g.fillStyle(0x6aa84a,1); g.fillCircle(x+dx, y+dy, 3); g.fillStyle(0xd83a2a,1); g.fillCircle(x+dx, y+dy-2, 1.2);} }
-      if (t === T.FLOWER) { const cs=[0xff6a9a,0xffffff,0xffdd55]; for(let i=0;i<3;i++){ g.fillStyle(cs[i],1); g.fillCircle(x+9+i*7, y+12+(i%2)*8, 2.4);} }
-      if (t === T.ROCK) { g.fillStyle(0x2a2620); g.fillEllipse(x+16, y+18, 22, 14); g.fillStyle(0x555049); g.fillEllipse(x+13, y+15, 13, 9); }
+      if (t === T.FLOWER) {
+        g.fillStyle(0xbfae8b, 0.55); g.fillRect(x+2, y+2, TILE-4, TILE-4);
+        g.lineStyle(1, 0xa08e6c, 0.6); g.strokeRect(x+2, y+2, TILE-4, TILE-4);
+        g.fillStyle(0x6f8f52, 0.30); g.fillEllipse(x+16, y+18, 20, 12);   // a planted bed, not a lawn
+      }
+      if (t === T.ROCK) { g.fillStyle(0x8f8570, 1); g.fillRect(x, y, TILE, TILE); g.fillStyle(0x7c7462, 0.45); g.fillRect(x+5, y+5, TILE-10, TILE-10); }
     }
-    // Songak Mountain backdrop glow at the top
-    g.fillStyle(0x6a8a5a, 0.18); g.fillRect(0, 0, COLS * TILE, 4 * TILE);
+    // No painted mountain glow: Songak is a real 3D range along the north edge
+    // (see buildingPlots). A flat green wash on the floor only fought with it.
     const key = '__kaesongMap__';
     if (this.textures.exists(key)) this.textures.remove(key);
     g.generateTexture(key, COLS * TILE, ROWS * TILE); g.destroy();

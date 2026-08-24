@@ -10,7 +10,7 @@ import { STARTERS, findForm } from '../data/StarterData';
 import { SaveManager } from '../utils/SaveManager';
 import { PartySystem } from '../systems/PartySystem';
 import { awardBenchExp } from '../systems/BattleExp';
-import { buildFromEntry, persistMovePP, persistSwitchOut } from '../systems/PartyBattle';
+import { buildFromEntry, buildReplacement, persistMovePP, persistSwitchOut } from '../systems/PartyBattle';
 import { openSwitchPanel } from '../systems/SwitchPanel';
 import { DexTracker } from '../systems/DexTracker';
 import { AVATAR_URL, playerAvatarKey, rivalAvatarKey } from '../data/PlayerAvatar';
@@ -23,6 +23,8 @@ import { enemyLearnset, mergeLearnset } from '../data/Learnsets';
 import { BattleStatusBadge } from '../systems/BattleStatusBadge';
 import { createBattleHud, modernButton, modernMoveButton, syncBattleHudTypes, type BattleHud } from '../systems/ProductionUi';
 import { animateBattleHp, BATTLE_PACING, snapBattleHp } from '../systems/BattlePacing';
+import { playBattleEndTurn } from '../systems/BattleEndTurn';
+import { chooseBattleMove } from '../systems/BattleAI';
 
 type BattleState = 'intro' | 'playerAction' | 'playerMove' | 'busy' | 'levelUp' | 'over';
 const RIVAL_STAGE_X = 580;
@@ -33,6 +35,7 @@ export class RivalBattleScene extends Phaser.Scene {
   private rival!: Pokemon;
   private state: BattleState = 'intro';
   private lastRivalMoveName = '';
+  private battleTurn = 1;
   /** Gender-based rival trainer name: 'Minhyuk' (male) / 'Soohyun' (female). */
   private get rivalTName() { return rivalTrainerName(this.registry); }
 
@@ -86,6 +89,8 @@ export class RivalBattleScene extends Phaser.Scene {
 
   create() {
     this.cameras.main.fadeIn(400);
+    this.battleTurn = 1;
+    this.lastRivalMoveName = '';
     // Keep the ambient track playing through the rival's run-in + dialogue, and preload
     // the rival battle theme now so it can start the INSTANT the battle begins (revealBattle).
     if (!this.cache.audio.exists('rival') && TRACKS.rival) { this.load.audio('rival', TRACKS.rival); this.load.start(); }
@@ -458,9 +463,9 @@ export class RivalBattleScene extends Phaser.Scene {
     // release turns (its charge-turn move misses a dug-in/airborne target).
     const playerFirst = actsBefore(this.player, playerMove, this.rival, rivalMove);
     if (playerFirst) {
-      this.doPlayerMove(playerMove, () => this.doRivalMove(() => this.playerAction(), rivalMove));
+      this.doPlayerMove(playerMove, () => this.doRivalMove(() => this.finishTurn(() => this.playerAction()), rivalMove));
     } else {
-      this.doRivalMove(() => this.doPlayerMove(playerMove, () => this.playerAction()), rivalMove);
+      this.doRivalMove(() => this.doPlayerMove(playerMove, () => this.finishTurn(() => this.playerAction())), rivalMove);
     }
   }
 
@@ -478,7 +483,7 @@ export class RivalBattleScene extends Phaser.Scene {
       animateTargetHp: done => this.animateHpBar('rival', done),
       onPpUsed: () => persistMovePP(this.registry, this.activeSlot, this.player),
       onComplete: result => {
-        PartySystem.updateSlotHP(this.registry, this.activeSlot, this.player.hp, this.player.status);
+        PartySystem.updateSlotHP(this.registry, this.activeSlot, this.player.hp, this.player.status, this.player.heldItem ?? null);
         if (this.rival.isKO) {
           this.typeDialog(`${pokeNameEn(this.rival.name).toUpperCase()} fainted!`, () => this.handleWin());
           return;
@@ -495,7 +500,7 @@ export class RivalBattleScene extends Phaser.Scene {
 
   private afterPlayerAttack(_dmg: number) {
     void _dmg;
-    this.doRivalMove(() => this.playerAction());
+    this.doRivalMove(() => this.finishTurn(() => this.playerAction()));
   }
 
   /**
@@ -509,7 +514,7 @@ export class RivalBattleScene extends Phaser.Scene {
     const canUseRock = !!rockThrow && alternatives.length > 0
       && this.lastRivalMoveName !== 'rock throw' && Math.random() < 0.25;
     const choices = canUseRock ? [rockThrow] : (alternatives.length ? alternatives : pool);
-    const selected = choices[Math.floor(Math.random() * choices.length)];
+    const selected = chooseBattleMove(this.rival, this.player, choices, 'rival', this.battleTurn, this.lastRivalMoveName);
     this.lastRivalMoveName = selected.data.name.toLowerCase();
     return selected;
   }
@@ -533,7 +538,7 @@ export class RivalBattleScene extends Phaser.Scene {
       animateUserHp: done => this.animateHpBar('rival', done),
       animateTargetHp: done => this.animateHpBar('player', done),
       onComplete: () => {
-        PartySystem.updateSlotHP(this.registry, this.activeSlot, this.player.hp, this.player.status);
+        PartySystem.updateSlotHP(this.registry, this.activeSlot, this.player.hp, this.player.status, this.player.heldItem ?? null);
         if (this.rival.isKO) {
           this.typeDialog(`${pokeNameEn(this.rival.name).toUpperCase()} fainted!`, () => this.handleWin());
           return;
@@ -543,6 +548,26 @@ export class RivalBattleScene extends Phaser.Scene {
         } else {
           onDone();
         }
+      },
+    });
+  }
+
+  private finishTurn(onDone: () => void): void {
+    playBattleEndTurn({
+      scene: this,
+      first: this.player,
+      second: this.rival,
+      animateFirst: done => this.animateHpBar('player', done),
+      animateSecond: done => this.animateHpBar('rival', done),
+      showDialog: (text, done) => this.typeDialog(text, done),
+      onComplete: () => {
+        this.battleTurn++;
+        PartySystem.updateSlotHP(this.registry, this.activeSlot, this.player.hp, this.player.status, this.player.heldItem ?? null);
+        if (this.rival.isKO) {
+          this.typeDialog(`${pokeNameEn(this.rival.name).toUpperCase()} fainted!`, () => this.handleWin());
+        } else if (this.player.isKO) {
+          this.typeDialog(`${pokeNameEn(this.player.name).toUpperCase()} fainted...`, () => this.rivalSendNextOrLose());
+        } else onDone();
       },
     });
   }
@@ -571,7 +596,7 @@ export class RivalBattleScene extends Phaser.Scene {
     this.participants.add(slotIdx);
     const party = PartySystem.get(this.registry);
     const entry = party[slotIdx];
-    this.player = buildFromEntry(entry);
+    this.player = buildReplacement(this.player, entry);
     syncBattleHudTypes(this.playerBattleHud, [this.player.data.type1, this.player.data.type2]);
     this.refreshMovePanel();
 
@@ -605,7 +630,7 @@ export class RivalBattleScene extends Phaser.Scene {
     this.activeSlot = nextIdx;
     this.participants.add(nextIdx);
     const entry = party[nextIdx];
-    this.player = buildFromEntry(entry);
+    this.player = buildReplacement(this.player, entry);
     syncBattleHudTypes(this.playerBattleHud, [this.player.data.type1, this.player.data.type2]);
     this.refreshMovePanel();
     this.playerNameText.setText(this.playerHudName());

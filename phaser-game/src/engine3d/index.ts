@@ -16,9 +16,9 @@ import { ThreeStage } from './ThreeStage';
 //
 //   • Overworld / interior scenes (anything that camera-follows the player)
 //     get painted 3D terrain, characters and a third-person camera. Tagged
-//     creatures keep their authored 2D art until an approved GLB is ready.
-//   • Battle scenes get a cinematic arena with approved local GLBs (or the
-//     authored 2D battler) and a drifting battle camera.
+//     creatures registered in the model manifest remain exclusively 3D.
+//   • Battle scenes get a cinematic arena with approved local GLBs; only
+//     unregistered species and trainers without a model retain authored 2D art.
 //   • Menu / Pokédex / title screens intentionally stay crisp 2D.
 //
 //   F3 toggles 2D ↔ 3D at any time (saved to localStorage).

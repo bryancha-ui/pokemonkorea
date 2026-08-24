@@ -762,7 +762,7 @@ export class CapitolCityScene extends Phaser.Scene {
           '📟 Your Pokédex buzzes before you\'re even fully awake — an incoming call from Professor Song.',
           'Prof. Song (over the Pokédex, quietly): Champion. I let you have your night — you deserved a hundred of them. But those reports I mentioned...',
           'Prof. Song: Something is stirring in the sealed northern reaches. 노스단 is moving again — and this time they reach for something far older than the Spirit of Cheonji.',
-          'Prof. Song: Rest today. Tomorrow, the last road begins. I\'ll call again when it\'s time.  (To be continued…)',
+          'Prof. Song: Rest today. At first light, come to the lab. We will open the northern road together.',
         ], () => { this.cutsceneActive = false; });
       });
     });

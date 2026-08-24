@@ -1,0 +1,2071 @@
+{
+  "sourceRepo": "https://github.com/Pokemon-3D-api/assets",
+  "rightsNotice": "Models are identified upstream as property of Nintendo / Creatures Inc. / GAME FREAK Inc.",
+  "models": {
+    "10": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/10.glb",
+      "sha256": "41d694bae74bee7cea7bed41b2efa3c8559356bdd4a44672a4152053ab20c5ac",
+      "bytes": 39612,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "13": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/13.glb",
+      "sha256": "eedbfe651fa08ba716964af8d810e1969bf3f155a44c831bfa7ffba05dbf186f",
+      "bytes": 35916,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "16": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/16.glb",
+      "sha256": "5d250a341650112934979699a0f2db6bcdf9bedc35df859ffc0c08ec0e6a6f8a",
+      "bytes": 57812,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "19": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/19.glb",
+      "sha256": "1e59c633c921529a1f4c404d7f4ac39e12cc3b982e3f1d0c8a63f98ac5af6709",
+      "bytes": 51136,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "21": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/21.glb",
+      "sha256": "97e929387f41d31ce4ff82b40715d753f78aaf636c700645548adee550cabb09",
+      "bytes": 65196,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "25": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/25.glb",
+      "sha256": "6c09be51ffcf8caf45ae0980c9e11a0e963fc6fdbf111a200910982ba9bf8b2c",
+      "bytes": 146152,
+      "meshes": 5,
+      "animations": 1,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "27": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/27.glb",
+      "sha256": "993c80edbc234a9708bc83f8f5cfd63e12396d22c394dd3caa9e6a323130de3b",
+      "bytes": 86496,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "28": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/28.glb",
+      "sha256": "0793a259bdc19a42202f633012ecb3e7e460acba52af8940abdb2f3242c4bebd",
+      "bytes": 78744,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "35": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/35.glb",
+      "sha256": "d6db3655265d61e35d22bf184ededc8d4f09cb482e479641426582d0a7a4308a",
+      "bytes": 18952,
+      "meshes": 3,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "41": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/41.glb",
+      "sha256": "cb97d709f685a1ef4f9c9c855ebb892df2f032997b1f9ca9e71722f49f40c4f3",
+      "bytes": 159936,
+      "meshes": 2,
+      "animations": 1,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "42": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/42.glb",
+      "sha256": "25d86c04dbff473ab67fd9cfd43619333c7bb7f4f58bc087189261ade90eec7a",
+      "bytes": 16968,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "43": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/43.glb",
+      "sha256": "cffd5802f946aa02048aea0453ed8c8598fb2b9e3320f65f6d11202bd2a0fb5e",
+      "bytes": 36872,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "51": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/51.glb",
+      "sha256": "4a3bb37c3ae6c3467ba86cbafb503d80726c3f1000f5d47c67e3cc99005e8d9e",
+      "bytes": 40360,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "55": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/55.glb",
+      "sha256": "50bd1b5b6abf4cb2fb6643111197cfa06092b25db73ea8d0623d63fe0dc38b6b",
+      "bytes": 57764,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "56": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/56.glb",
+      "sha256": "06136dc247ce385d890c5da7d694af314433b35c9b448d13c205fdf2bb1aa56f",
+      "bytes": 42996,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "57": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/57.glb",
+      "sha256": "9c6f1faeb3257ff3db7e768d0f1a57bb260bdf0f560bdedb00e1e5671d6192b2",
+      "bytes": 46112,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "62": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/62.glb",
+      "sha256": "495f67a9aa465f8deb32189dfadad990318374ee3dcbe6d45b7fe498692f3554",
+      "bytes": 49468,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "66": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/66.glb",
+      "sha256": "24c7b613d547d595ab0ec78a88570e5e63a15db1a79c69b7e0e2c309cc640ae1",
+      "bytes": 59372,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "67": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/67.glb",
+      "sha256": "d4aba5cc0cc32561aac7c1151b82137a306d10c573e2d733d53f5c797e518282",
+      "bytes": 67456,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "68": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/68.glb",
+      "sha256": "1bcd6b44189a07de02115885961d3951798ce1b17459cdf452526873f85137fc",
+      "bytes": 88116,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "69": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/69.glb",
+      "sha256": "c1f38166b8313fd1cfe6d2e9b0b90caa5c996899d92bca114ff7ccf94e88b0e5",
+      "bytes": 45844,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "72": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/72.glb",
+      "sha256": "7a29494bd7d75d40edf5d038d7a8cd18967da4b6f291ebd52f9b8b52a73cdf6a",
+      "bytes": 70540,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "73": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/73.glb",
+      "sha256": "4e266793704d60f4928386f65c9ad1a3627178595221e5d9326f60f724288367",
+      "bytes": 63256,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "74": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/74.glb",
+      "sha256": "6a3dd1e93824aec535bca1467b613b9bd75abd25cd07cb3d81ff46db6dd9f676",
+      "bytes": 48056,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "75": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/75.glb",
+      "sha256": "e8217a5445957bbf95c150f349b662025d38deb0e5e717fc737708be6e6aa265",
+      "bytes": 78700,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "76": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/76.glb",
+      "sha256": "d237d8ecebe73835d922953ac059833b135f44e02f75742411124dc39e0d40f4",
+      "bytes": 60512,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "80": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/80.glb",
+      "sha256": "62a52ab0674c7a08da0bf0daaf9cce3f725f1d35452d811d46ae07858a828416",
+      "bytes": 71216,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "81": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/81.glb",
+      "sha256": "75c633ff0f44ad3ec1c2a399df813bccb1e4301808e387633f7a5952dfc3d967",
+      "bytes": 228312,
+      "meshes": 6,
+      "animations": 1,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "82": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/82.glb",
+      "sha256": "903af93b3cb71fd2fc9bcafbf99392536906121d07931491a08096b93d6c4173",
+      "bytes": 219500,
+      "meshes": 3,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "83": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/83.glb",
+      "sha256": "fc4c5383497fe613d0f2cc72d4d93585cf2ca7da95e911087e005d2a9d770165",
+      "bytes": 67108,
+      "meshes": 4,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "90": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/90.glb",
+      "sha256": "cea1da91f70c15595fc3bdf2d31e7d94cb5968130cee0d057ebf2fa86a596b90",
+      "bytes": 43972,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "91": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/91.glb",
+      "sha256": "ef0d7e57ed5cdd0727bd0c3e0c2f04373449209fecaca7a9168e0fe4557fde7f",
+      "bytes": 50520,
+      "meshes": 4,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "93": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/93.glb",
+      "sha256": "8397b786234f5048fcc378e1279fc096a94558ee5ee2d7f356cf266794758dbd",
+      "bytes": 34032,
+      "meshes": 5,
+      "animations": 1,
+      "extensions": [
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "94": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/94.glb",
+      "sha256": "14f689ea8609d9669504b7fb4b4a97c7a50bf997ae9bdc3df3101901d33b13ef",
+      "bytes": 47372,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "95": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/95.glb",
+      "sha256": "c6c74802fbe86b160ae20802c829131b145cea4793df66a22d035c6bc2d740d9",
+      "bytes": 322808,
+      "meshes": 2,
+      "animations": 1,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "98": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/98.glb",
+      "sha256": "65d0420961782c40d8bc6b75106c383bbd42c4a1532e37b72a0149894cd183c0",
+      "bytes": 71136,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "106": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/106.glb",
+      "sha256": "a11a7365af8ba1d899359c3d964618c98f6037af85c7a713c380a9016efa86ce",
+      "bytes": 55148,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "111": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/111.glb",
+      "sha256": "ddba7d173ee3461ccaa2ba671238c45969d83b2ad735f795346fa175f9fb1769",
+      "bytes": 87688,
+      "meshes": 3,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "112": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/112.glb",
+      "sha256": "4f3d3a1fa24914c669f7a5cbe59fa66ec497b1e812f1665afad784e32821260a",
+      "bytes": 70476,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "118": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/118.glb",
+      "sha256": "bf3cbb6963d1a80e8529dc15bb8a12a5845a8b7bb319672f26d61f9a894dc881",
+      "bytes": 63032,
+      "meshes": 3,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "119": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/119.glb",
+      "sha256": "2488f2af1e9e509a8fa353788f76eb0defbf3e1a18db98f09500851a4859ad4a",
+      "bytes": 69512,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "120": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/120.glb",
+      "sha256": "96ebf6b2f5f07ba9aba46d4db8bc9a97fb6c163da5b4a796611982b492aea5f1",
+      "bytes": 35556,
+      "meshes": 4,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "121": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/121.glb",
+      "sha256": "ab24bb12f7fc42cda90cdd02efd437c33e72db2054ba3d8f9c9b80905a722e2a",
+      "bytes": 57476,
+      "meshes": 7,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "126": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/126.glb",
+      "sha256": "ee580134f3d17f9342d0e5ad4aaedf87fb0900c2ffcf171e347decf6cd5c6f5f",
+      "bytes": 96052,
+      "meshes": 6,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "128": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/128.glb",
+      "sha256": "92c004fc425b27159f266a5a019b3a84368bdb5d069fd33becec51718f914296",
+      "bytes": 17956,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "129": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/129.glb",
+      "sha256": "3288c802758922b7cfb0f25468c2ae8d9c4d4341e9c8df4544401bde412a70bc",
+      "bytes": 51632,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "130": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/130.glb",
+      "sha256": "48153f4695ca4dc3b8d66e1cfef8a0c49fa4e647a6d657c1194c753d44dc591b",
+      "bytes": 76920,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "131": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/131.glb",
+      "sha256": "d4165d082f4419a84653ea6ab835adc1c977c50895f28915775528ebbd1349f1",
+      "bytes": 211424,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "132": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/132.glb",
+      "sha256": "b5b46d5618ba46108ad1e3d92d388c93477e9e0aec4916eee0cec9a25623431a",
+      "bytes": 45348,
+      "meshes": 1,
+      "animations": 1,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "147": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/147.glb",
+      "sha256": "ae28a1041e835c618adbdac544cd6fa5a74b691f942cbf9d69b5a13deab7cb44",
+      "bytes": 38528,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "148": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/148.glb",
+      "sha256": "b9b8bc0be64df910687b0825d23b783346ef4cdbd815635c09c71f63d21c5401",
+      "bytes": 49040,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "149": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/149.glb",
+      "sha256": "becaa8098e26676837dd2f19589a16c774e46b433118b9d911cc7876abbe36b8",
+      "bytes": 5675848,
+      "meshes": 4,
+      "animations": 62,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "161": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/161.glb",
+      "sha256": "74c3f2f713c4779d9a3dc831ed030f18b4ad62d8fbe3e6ac5c122c1273f4393e",
+      "bytes": 331260,
+      "meshes": 5,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "163": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/163.glb",
+      "sha256": "2c4b1f7fac96d231f16b7c3486623c940a113fee6634400e141f92c46c2a2644",
+      "bytes": 70856,
+      "meshes": 4,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "164": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/164.glb",
+      "sha256": "ec1603cf6cb7843cd0c2ddd16a9c39a47190439b94fbf3c0c4c3763a61cf6786",
+      "bytes": 103968,
+      "meshes": 6,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "171": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/171.glb",
+      "sha256": "c1d3b3b3fbb57fa2b58935948f35f5c24c5d3c1ce03ea32fb637c21b649c0261",
+      "bytes": 26416,
+      "meshes": 7,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "179": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/179.glb",
+      "sha256": "787eba7d64c85539cdcb06151c2d4c5480dc8fd791eaec3a99e08668caf207f2",
+      "bytes": 20060,
+      "meshes": 3,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "184": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/184.glb",
+      "sha256": "3c305d7757b53d1036650abbec9e7dfdb79917b8b5af89d9a319ccd6474afa2e",
+      "bytes": 64928,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "185": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/185.glb",
+      "sha256": "02508ac4d3cf775b5d17f71cdc059a50a4ae0e4a6f2d6fbb036148584b6a23c7",
+      "bytes": 24292,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "192": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/192.glb",
+      "sha256": "75b8d7458d527852ef21ee7bd1edad109bdae46852cebd028a1c6664b8ff309a",
+      "bytes": 22192,
+      "meshes": 3,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "195": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/195.glb",
+      "sha256": "5f6a327de5f512241da4ccdfc03f78c45c2966e2464f8fff61509215025ee2dc",
+      "bytes": 16584,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "196": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/196.glb",
+      "sha256": "2e14f4e0a636b0ef3390b91994dabacf83f262c75d1ea732f29840aae020baeb",
+      "bytes": 208556,
+      "meshes": 6,
+      "animations": 1,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "197": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/197.glb",
+      "sha256": "b109f07a1ea5a2ada4bab8312dd54efa6b324d837d2de7ff0f14f697bfd68dd8",
+      "bytes": 172224,
+      "meshes": 8,
+      "animations": 1,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "198": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/198.glb",
+      "sha256": "436de6d45e8f6de8e6a09f120359fbfa0fa36b951d455deb4b7f21c6ec9b1346",
+      "bytes": 25372,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "200": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/200.glb",
+      "sha256": "3ff9955771873cc584030560ce3e4e2f934d8d5930ac423d4743d0652211287e",
+      "bytes": 137348,
+      "meshes": 2,
+      "animations": 1,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "207": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/207.glb",
+      "sha256": "c89eadbdaac24a05c034983008381861c010b14837e4e9245340a16d51a67a62",
+      "bytes": 20964,
+      "meshes": 3,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "208": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/208.glb",
+      "sha256": "3640e4bebabe59e662438494fca9490c0aee6e2db18e1e6879d0262b6933fa59",
+      "bytes": 28700,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "211": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/211.glb",
+      "sha256": "2f14135b9c8b6b1246e0ff6475ed2bb69dab67206ba62c3b10815f10666f9546",
+      "bytes": 16624,
+      "meshes": 3,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "215": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/215.glb",
+      "sha256": "f9d31dddc9661e6d466ebef6175badf75e164fa5a566989acb36f64c5362fa11",
+      "bytes": 58100,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "217": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/217.glb",
+      "sha256": "352a90f0de4a97d3755b0354484edde037d2276f2c88a5554965cf55abee62ed",
+      "bytes": 18936,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "218": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/218.glb",
+      "sha256": "bd7bdeebee9666eafc517b82ce79ec41ab86417e3a3b0e911ce922b7dfde29df",
+      "bytes": 18116,
+      "meshes": 3,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "220": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/220.glb",
+      "sha256": "48e4fdceeb1d54083a7aa0b52fe9f3bba84571886197744ce7b0bfc29473ce06",
+      "bytes": 15524,
+      "meshes": 3,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "221": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/221.glb",
+      "sha256": "ada156752c294923c0cee775dc12f838c1c3e4598fa58015fd090fbf71c61e5a",
+      "bytes": 25700,
+      "meshes": 3,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "222": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/222.glb",
+      "sha256": "b5503d2c68547ed8290eb3b02d556b9ec558ba9a108cfba519e21365be06f9ce",
+      "bytes": 48664,
+      "meshes": 4,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "224": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/224.glb",
+      "sha256": "562da58c106d8ba5ab929c4b8f0598cabfdcbb5ad24627ef141ad7db73fbab8b",
+      "bytes": 20972,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "225": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/225.glb",
+      "sha256": "6b73bcf71ff6155ec0333b6de750b258e67af4cbcec2b843143a5ebc7e23cc98",
+      "bytes": 77396,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "226": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/226.glb",
+      "sha256": "677b0a68e49ae585fe079ab665fd0582c89051735ba2e790978cd58b7522f707",
+      "bytes": 5676,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "227": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/227.glb",
+      "sha256": "9f73335ade553d1855ded7b900ab90650796b7c5f7294824684f2315e6c2ed18",
+      "bytes": 42460,
+      "meshes": 5,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "228": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/228.glb",
+      "sha256": "521104f328b1b558b10422d1dffeaaf7fcfbca19543d87db8536459f6a2a46f2",
+      "bytes": 21164,
+      "meshes": 3,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "229": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/229.glb",
+      "sha256": "d96642ebffa81354747b6c68e60debc9d479e69cc0c949a3b939240827bebc27",
+      "bytes": 62380,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "230": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/230.glb",
+      "sha256": "019416d2e8108cfcb3db6fad5f083c7144e2d7d0359dd58b257a060d30a77858",
+      "bytes": 17916,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "234": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/234.glb",
+      "sha256": "faf5bd6f65163dced1986b676ee0aedc7cf33ce0e81b687900f05e4d498f1714",
+      "bytes": 21012,
+      "meshes": 3,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "235": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/235.glb",
+      "sha256": "c0af60bd3a41538667c0321571b9ad20c42f76e519adacf00037de70c9e3213d",
+      "bytes": 68880,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "237": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/237.glb",
+      "sha256": "2dd94d318481c312237e01357c72b772c5dd842829c3a0732fe7be7bd47af6ac",
+      "bytes": 21812,
+      "meshes": 3,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "241": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/241.glb",
+      "sha256": "1127c5d702caf703e4c3fb085601b9f4ef6c858dd2d7473e1ad6975e421bcd74",
+      "bytes": 69888,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "246": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/246.glb",
+      "sha256": "59499862c32d425489079373265c49536a75585f5e328a7ddafc8d22e2e264e5",
+      "bytes": 53932,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "248": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/248.glb",
+      "sha256": "4b123fbe632a085649b88f8c80765aa1932157d4ffc3dca9d8fb9bfc9b4de22e",
+      "bytes": 83188,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "261": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/261.glb",
+      "sha256": "6f94b6e1c6b9729107d9d4e1aa3ae3ecb762dc087834b5e56dfcf53819f7aa5d",
+      "bytes": 69400,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "264": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/264.glb",
+      "sha256": "c1e2c16b0bac11e880bfcd803c1f3cd915ffb3eb7f8a4e2f38fa5c209dd1760a",
+      "bytes": 67548,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "272": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/272.glb",
+      "sha256": "c036829384ab9be7be92908f89619c38fb442a1cc5c8b77fa507a4259bb774cb",
+      "bytes": 34392,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "277": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/277.glb",
+      "sha256": "cdb7e1eae21329ce1fbae1b8c75fbd03773c0666ce752df57a38d9d16b49a4de",
+      "bytes": 38644,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "278": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/278.glb",
+      "sha256": "0cf733b4e469620039461dd4669dd2e7e3f42f48b7ed2b3d1ea8647a5eaae7c7",
+      "bytes": 18648,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "279": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/279.glb",
+      "sha256": "5643a6ec9170086d3d4e226941888bc97d407f32ea557deaff69c84952646a28",
+      "bytes": 20740,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "282": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/282.glb",
+      "sha256": "7c51ee42878eedb358ccc729355e16428b4e09a8bcf859a1cbc18cd30da1db7e",
+      "bytes": 81540,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "297": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/297.glb",
+      "sha256": "cf2f73f301db35da7cf362109fcbabaee816dba077dadd04c38d152f67e7cd47",
+      "bytes": 28292,
+      "meshes": 14,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "302": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/302.glb",
+      "sha256": "287a6bbc93834da962c3fe5a52410bfd683183498b04d2bbc40cef505fcd5121",
+      "bytes": 377180,
+      "meshes": 1,
+      "animations": 1,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "305": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/305.glb",
+      "sha256": "ffa0a2e8f9bd7abd0c9ccf361497dc231458e04e59c0a5a81ced38e2e5deaf57",
+      "bytes": 22024,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "306": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/306.glb",
+      "sha256": "a5c4bd4132d1defc954eb4c4c78ca03ecedeb4a8b2f2752d5cf27686a41c98ac",
+      "bytes": 69484,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "308": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/308.glb",
+      "sha256": "b4df891e0379f811dafc24e4ba5d65f208e582a14c7d1de08d95be7183559502",
+      "bytes": 28804,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "315": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/315.glb",
+      "sha256": "dec4e7eba37192431e36e8e63ec2cd4dfa88c8e8f70d7a6bffcce50f59ebbc2a",
+      "bytes": 88940,
+      "meshes": 11,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "319": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/319.glb",
+      "sha256": "336ce03b458c1b0f1a97efdcb2509e2f21629f3165f44441cea49817bf0db9ee",
+      "bytes": 62228,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "320": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/320.glb",
+      "sha256": "41768b53c64b3f81a5eb6736b3aeda368e56d6071f4265b48de49a377dbe6ef7",
+      "bytes": 41784,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "329": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/329.glb",
+      "sha256": "d72f04561e37e8fbde5008b74e9f882e53e8b7d930a62c7f9d127d08af1635b7",
+      "bytes": 113552,
+      "meshes": 4,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "330": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/330.glb",
+      "sha256": "b8a6bc5cc609f070eb91daf79374f7aef83913966a50b5a15d89c4dc93d56c20",
+      "bytes": 6421888,
+      "meshes": 6,
+      "animations": 62,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "333": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/333.glb",
+      "sha256": "b2ad0be0380999cd4ac3e33d81ae9621add870e91bf67743e7c816eecd173edf",
+      "bytes": 108444,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "334": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/334.glb",
+      "sha256": "72e60805470fb8f44391766f334028b08424ee8101aa96720848103fea9893b2",
+      "bytes": 18536,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "340": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/340.glb",
+      "sha256": "94bfe887cd1393bf0591e5a04d6e13aac4f6e889afed32cd1580bae8a356e43b",
+      "bytes": 19016,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "350": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/350.glb",
+      "sha256": "3a0cd171f390171bbd96374a735235168477c00c4ad4fd3e8c2fe61eba601f85",
+      "bytes": 22640,
+      "meshes": 3,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "353": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/353.glb",
+      "sha256": "b7d15dae190b6253450a1ac394fe5050ca7227ae636cd91ae05a478d7a6962bb",
+      "bytes": 129924,
+      "meshes": 4,
+      "animations": 1,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "354": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/354.glb",
+      "sha256": "5806248b4679a7ddb36b0fde514fe7bdb032d3dab1fa1503f81b29224036ede6",
+      "bytes": 62124,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "355": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/355.glb",
+      "sha256": "fa14fd0b1cc7fc13fdae06c5249b44cd7f98aa05ea7e38f00d834ef594b957ff",
+      "bytes": 19548,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "356": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/356.glb",
+      "sha256": "58c0c002d32afc4b6561ff470d0c7e283326639aa64062a2ab74da9b1ca26a24",
+      "bytes": 18736,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "358": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/358.glb",
+      "sha256": "e7c904414798cb8b59e5a4fd6f552409dd117265969cb96685d028db04c74406",
+      "bytes": 896272,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "359": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/359.glb",
+      "sha256": "26ba37cad8d2ca97c2105d59cf3ccc1b83fa709fdec5e743791b3e4e2d1e0b36",
+      "bytes": 70600,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "361": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/361.glb",
+      "sha256": "a22e8fe81464976cc7251469ee31ee8d4a2637a874efd14f9236c7f40c503a4d",
+      "bytes": 72676,
+      "meshes": 4,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "362": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/362.glb",
+      "sha256": "1ecfb1246a62e30b3729d65190c5347e855280ba18c8f6378bbb6cce2c7d0902",
+      "bytes": 81472,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "373": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/373.glb",
+      "sha256": "d0c49d9745088b823fa00d8bdd7b2c3a54f703dd8543da04b0d8e68b1c0be710",
+      "bytes": 21588,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "376": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/376.glb",
+      "sha256": "ec1733a18e95e48b1bba14fa9357acc005615087de1a14f05a480cde4fc4d4ea",
+      "bytes": 92136,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "381": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/381.glb",
+      "sha256": "4103019bd63a6d624d3aecd9438ae98abebad99189063e5a01d192511498cb7b",
+      "bytes": 71764,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "384": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/384.glb",
+      "sha256": "1eed0a7edd0a31e7c4fbf5a45dd18da8ac91a28885e1186b82bc2798e7ca450d",
+      "bytes": 77660,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "389": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/389.glb",
+      "sha256": "5aa988efce797ecd039b1056869786c319140b00eef32405a8e3142dddf6f8ae",
+      "bytes": 26988,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "395": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/395.glb",
+      "sha256": "6256c20c71b04360eb08be12f853c5e2c04bd07804f2f81d950326e48f25730e",
+      "bytes": 20500,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "398": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/398.glb",
+      "sha256": "384dcc1bc8d7694cffaf8a359caa18ed025ae51e0851bbe9844f08e6be576945",
+      "bytes": 21856,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "400": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/400.glb",
+      "sha256": "c58feb5fe4496341ac4cd557c51f0b7974e35ede22f44bacef68233fd734eec0",
+      "bytes": 69884,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "406": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/406.glb",
+      "sha256": "6ca1e8ea7d45bcd6c987a5fc3a731d548c4fb51f0516997c05c0ddadf1ce7137",
+      "bytes": 17212,
+      "meshes": 3,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "407": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/407.glb",
+      "sha256": "2fa555686942cab39add94683b4a8890db23d76de0947c1a3ae4a02cd583a573",
+      "bytes": 79412,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "411": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/411.glb",
+      "sha256": "8f9f7a2ab4589dc971998dcd622286d7ea98b6a4b08a66d00d3667e1b5f24a91",
+      "bytes": 23208,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "425": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/425.glb",
+      "sha256": "aaad66452e31b804db040b21dceb41a8db60d6aca37c8e9fb8f379e553f9afad",
+      "bytes": 18296,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "426": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/426.glb",
+      "sha256": "4828ae2a8f55789e7d77b87580bbd7c3018e31c78ba8e7870b4202d28f1584ff",
+      "bytes": 18148,
+      "meshes": 3,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "429": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/429.glb",
+      "sha256": "d67d3c0e7618ae1e57e8feae128201faaa0dec1cc9b5a7719e703c0612a19522",
+      "bytes": 272036,
+      "meshes": 9,
+      "animations": 1,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "430": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/430.glb",
+      "sha256": "a3f0cc2228df5d0e058c0ac55610f862d63a4d86bba9571657ee92db9a939f62",
+      "bytes": 26376,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "435": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/435.glb",
+      "sha256": "257b83a654bad7cb2e251bb97fcdbaca00945c1fb1027beda07fae12795e5197",
+      "bytes": 26100,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "436": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/436.glb",
+      "sha256": "63a3ab919e3b760ee6159c828aad01160bba888fd06024cb51ff2866e66f020f",
+      "bytes": 20584,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "437": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/437.glb",
+      "sha256": "0eec7ab6f6f6ecd0ba203cf4f9a7c2b0648969489d3da76661c157a342f0d74a",
+      "bytes": 34752,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "445": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/445.glb",
+      "sha256": "2d453e23c287eba0da171a73f318273418124f0ea0abd6f96424eccca9626e9d",
+      "bytes": 70316,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "447": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/447.glb",
+      "sha256": "ef8e6db8fd4bad46a2043e40f6e3b0974b76a4193c19b0d8657776d07d761344",
+      "bytes": 61864,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "448": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/448.glb",
+      "sha256": "50de3d407a145acd5e7c769b5ac4f7a7b9fc1748176d393e7e96cee3b986d33e",
+      "bytes": 82332,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "452": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/452.glb",
+      "sha256": "739b7215509aaa2437ba3bf9026842dd489086f8926ade7c3f3981de0d8e3f39",
+      "bytes": 236628,
+      "meshes": 11,
+      "animations": 1,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "454": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/454.glb",
+      "sha256": "f97fda384883a3947a6c201797f7d1c81ef08e7ac895fd7c09702c668bdcf1b8",
+      "bytes": 72532,
+      "meshes": 4,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "458": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/458.glb",
+      "sha256": "bd0e987ed55bedcef19c5292bd4299c8a428074cf6f5841ca0a22673bc141b97",
+      "bytes": 17200,
+      "meshes": 3,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "459": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/459.glb",
+      "sha256": "6a1b7bf426e5bf5d62ce67611513f1b5aaa6a58d62f78df3df78335cf8118171",
+      "bytes": 17684,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "460": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/460.glb",
+      "sha256": "68a61ed827c3898c63b95102a76ff0a209ceb4c342a5009897fc431347ef60d4",
+      "bytes": 75700,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "461": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/461.glb",
+      "sha256": "2722d83a96404f099524746c37210f7de5280f1b9de3a8f2dfa20f7464ec3cc0",
+      "bytes": 90160,
+      "meshes": 3,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "462": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/462.glb",
+      "sha256": "31f29807bc109c72bb556ee6554ff1e18c34654794d3521a522acf3bab2303d2",
+      "bytes": 232492,
+      "meshes": 7,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "464": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/464.glb",
+      "sha256": "7d478905f7fce44a588dd51cc7382c8dfd02982d1048f3952f66b661cfac25cf",
+      "bytes": 23088,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "465": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/465.glb",
+      "sha256": "a5f014bf5c62d7b69cf416f6343fbb0bf4a5d313e56ab2e26790c66db36b1bb0",
+      "bytes": 37892,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "469": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/469.glb",
+      "sha256": "ba14ee2097c8c3a8225820c1fc467ff9249448dd0ef37afcbc0b45009207e86e",
+      "bytes": 54364,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "471": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/471.glb",
+      "sha256": "88865df58f5259b6c313af8295f41b631757d2b6e80c7ff46c24549b8c7f952f",
+      "bytes": 183012,
+      "meshes": 5,
+      "animations": 1,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "472": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/472.glb",
+      "sha256": "99033ce4e41d2f4d7e561ade17643a95d491809722df9e5c5401cca5c296ba9d",
+      "bytes": 157016,
+      "meshes": 6,
+      "animations": 1,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "473": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/473.glb",
+      "sha256": "5317f1014eb15009255de5edade4f331fe5a143a3341f3edc1aea182d71f0151",
+      "bytes": 35828,
+      "meshes": 3,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "475": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/475.glb",
+      "sha256": "f2f8608cfcf2a46eb0814afc0905964a325a7d55dc4058e75d9b49711e15fa21",
+      "bytes": 62576,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "478": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/478.glb",
+      "sha256": "66353086f5aff42db99e35fbc351c96e0298ca38d9bf2ead117a4f16bdc51efb",
+      "bytes": 89136,
+      "meshes": 5,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "479": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/479.glb",
+      "sha256": "9165ce79f5313d44eb9db19616514bb1a7a7f256c7b42e378a9e5090bae922a5",
+      "bytes": 55084,
+      "meshes": 4,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "508": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/508.glb",
+      "sha256": "49907487d5120961893e23f3c64cb7bf3fbd28d9c7c1e10544e2f97fbe2c7e49",
+      "bytes": 88248,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "510": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/510.glb",
+      "sha256": "5c7bf1b422da8a0872d32b7b12afc199444972e65f38950c628ec6bd88cc163a",
+      "bytes": 18376,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "525": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/525.glb",
+      "sha256": "a2d9d19a9b8d845b5d7ec0f86029bc33da4a53e51c2e7af8a9a19d30ae08b8ba",
+      "bytes": 15172,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "526": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/526.glb",
+      "sha256": "828ac9ad20121610b3a3b18ddb3bcd9c244dc6ea20226b86aa80a2a5212d2f93",
+      "bytes": 21764,
+      "meshes": 3,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "527": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/527.glb",
+      "sha256": "e7e062dcbf728d717ab5cd53072de67afb18d8edb21e9e83d01b4b699b410cd3",
+      "bytes": 16420,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "529": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/529.glb",
+      "sha256": "0db7a78cf207164a65e72a91f943ae5ca7e7546a75d7431e6dc88d0290cfc829",
+      "bytes": 53464,
+      "meshes": 1,
+      "animations": 1,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "530": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/530.glb",
+      "sha256": "b19d5e173555ca450dfc4533b23e336d70eb304c0c83a0837e4aaea7b5dbe46b",
+      "bytes": 22232,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "534": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/534.glb",
+      "sha256": "8ce2bfcc3e39f3647c49a824a8a710ab6fc6e322e443fc3a753290c87e65fff6",
+      "bytes": 26100,
+      "meshes": 4,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "553": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/553.glb",
+      "sha256": "3f0316e6e6763441f6bfe610db588b76f7379b6ce04816ecdeae8e0c34426419",
+      "bytes": 73500,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "560": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/560.glb",
+      "sha256": "363bfb65e57fc7947240c89896f6a9e6ec6bb40274558da637d7e27e17dfcf9a",
+      "bytes": 73044,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "584": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/584.glb",
+      "sha256": "15b090fabd5c1606b8005b139d12604e4dc1dd81a757650b4f12561d29567eee",
+      "bytes": 24000,
+      "meshes": 5,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "586": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/586.glb",
+      "sha256": "6e2e79a7514783ad9d002c30905c5204558df84da622440ae00706ae0c6f06eb",
+      "bytes": 32336,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "593": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/593.glb",
+      "sha256": "43dc6d2d12d28a0b8206fc6d4e2725a65d23b8fcccd1a1da7ba967321be5c421",
+      "bytes": 18248,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "612": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/612.glb",
+      "sha256": "bd0bce4e2422a4ea1daaaf943f3be688e544a6d08c42bd74ffc35c9b0f4751c5",
+      "bytes": 28936,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "613": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/613.glb",
+      "sha256": "d0ad07c350a1c4945db9cce1c488ea9f38df07a19eb5a7c9d239baa2d011072f",
+      "bytes": 22288,
+      "meshes": 3,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "614": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/614.glb",
+      "sha256": "adf116d2b069b196d26b63f7871b5a86114d33958953ba063aa0a58d263897ac",
+      "bytes": 24296,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "615": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/615.glb",
+      "sha256": "acb5bb7a56dc7771f6ea6f921c2055c459b0a07d263476d0399170cc7f996575",
+      "bytes": 16404,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "625": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/625.glb",
+      "sha256": "bca7a32cfa3f696b33fd22a73c1b5b1f872df8930f46610d4fab0ca37a027fba",
+      "bytes": 62528,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "626": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/626.glb",
+      "sha256": "501de9cc2739528e9daa251d1d98d868433f5459764e33570a0240c2ce640bfb",
+      "bytes": 24028,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "628": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/628.glb",
+      "sha256": "20e2807362bfa19ad38fd9fe1ed3bf90abec593fdb93d598870866640470a153",
+      "bytes": 27704,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "630": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/630.glb",
+      "sha256": "11353d1d8dab7b0e825875900ecbad767c4e801aea7c8f6f1e40d6af5f33c681",
+      "bytes": 25996,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "635": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/635.glb",
+      "sha256": "68291ef3af81fc4e6fb6ddb64aaa91394926b4dafb5b7a92a8ea0809cebe0c2e",
+      "bytes": 72584,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "699": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/699.glb",
+      "sha256": "f2cc908841b862b29d9f63e1426b84344e9ac056f481f680381f1f90491618aa",
+      "bytes": 86576,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "701": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/701.glb",
+      "sha256": "fbbcd9e6c1c2974d33dd769d7a318caa8f558521968e64ecee3f2e55c76f4d36",
+      "bytes": 80276,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "706": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/706.glb",
+      "sha256": "afab755cc3aca5c44f4e0183f9c1b7f1f9f0c22fe031517a3fdceb9f8887fa8c",
+      "bytes": 73036,
+      "meshes": 2,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "730": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/730.glb",
+      "sha256": "91599e849dab2007194e5c9870bd753ada9f78ff190c5d83938805dd5a791c23",
+      "bytes": 186004,
+      "meshes": 14,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "901": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/901.glb",
+      "sha256": "96f4c76770f0a26535d7c783ae9a2c851a2e65990a8eb4185ed77a5f8457e5f0",
+      "bytes": 467880,
+      "meshes": 9,
+      "animations": 6,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "902": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/902.glb",
+      "sha256": "39f051712b7420d5926363e18505622ae70ded21e9067c5eb30db8141b604fd7",
+      "bytes": 280496,
+      "meshes": 5,
+      "animations": 4,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "903": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/903.glb",
+      "sha256": "a488331b07ab6619af35e43e4cec9c5fb3b891a4d58d1863baeb9379f35f6de2",
+      "bytes": 328412,
+      "meshes": 4,
+      "animations": 3,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "904": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/904.glb",
+      "sha256": "0c25c302b02855db32784155b83ee2e82afb447d65fd449d6536c59d4bfa8b3d",
+      "bytes": 130472,
+      "meshes": 3,
+      "animations": 1,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "905": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/905.glb",
+      "sha256": "ab53bea850338c28a479d7cff55adb201810c887ba47f6ba81cf68dd731d296b",
+      "bytes": 410816,
+      "meshes": 6,
+      "animations": 3,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "911": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/911.glb",
+      "sha256": "3277c09ea2789cbbf0659fce46dbd14b08cd8bb071c50f1475b7ae3860df38f9",
+      "bytes": 9988460,
+      "meshes": 8,
+      "animations": 54,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "912": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/912.glb",
+      "sha256": "876cd557650173dab875baba7d3564831484484b4a0451672eee642827cd331f",
+      "bytes": 185704,
+      "meshes": 11,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "913": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/913.glb",
+      "sha256": "59993b31c5e8c26eb9c2fc6767cb20f920d8f06e63d5ff6a73c599a0d35a7506",
+      "bytes": 429868,
+      "meshes": 1,
+      "animations": 0,
+      "extensions": [
+        "KHR_draco_mesh_compression"
+      ]
+    },
+    "914": {
+      "url": "https://raw.githubusercontent.com/Pokemon-3D-api/assets/main/models/opt/regular/914.glb",
+      "sha256": "b067508849a751f2241e378ba09a16cee953b883d194a2f9b6da1726bf91f6ba",
+      "bytes": 347660,
+      "meshes": 27,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ]
+    }
+  }
+}

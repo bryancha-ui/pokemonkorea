@@ -66,8 +66,9 @@ export class WaterfallFinaleScene extends Phaser.Scene {
   preload() {
     const lang = getLang();
     const key = `finale-title-${lang}`;
+    const assetLang = lang === 'ko' ? 'ko' : 'en';
     if (!this.textures.exists(key)) {
-      this.load.image(key, `assets/title/pokemon-string-opening-${lang}.png`);
+      this.load.image(key, `assets/title/pokemon-string-opening-${assetLang}.png`);
     }
     if (!this.textures.exists('finale-ending-background')) {
       this.load.image('finale-ending-background', 'assets/title/pokemon-string-ending-background.png');

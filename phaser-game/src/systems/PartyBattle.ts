@@ -11,7 +11,7 @@ import { DISGUIJAR_DATA, DISGUIJAR_MOVES } from '../data/CustomPokemon';
 import { customForm } from '../data/CustomBattle';
 import { mergeLearnset } from '../data/Learnsets';
 import { TM_MOVE_DATA } from '../data/TMs';
-import { applySwitchOutAbility } from './AbilitySystem';
+import { applySwitchOutAbility, transferBattleWeather } from './AbilitySystem';
 
 const TAUGHT_MOVE_DATA: Record<string, MoveData> = {
   ...TM_MOVE_DATA,
@@ -22,7 +22,13 @@ const TAUGHT_MOVE_DATA: Record<string, MoveData> = {
  *  battle actions now, and Fly retains its two-turn behavior through MoveEffects. */
 function foldTaughtMoves(moves: MoveData[], entry: PartyEntry): MoveData[] {
   // A player-curated moveset (from choosing which move to forget for a TM) wins outright.
-  if (entry.battleMoves && entry.battleMoves.length) return entry.battleMoves.slice(0, 4);
+  if (entry.battleMoves && entry.battleMoves.length) {
+    const safe = entry.battleMoves.filter(move => move && typeof move.name === 'string'
+      && typeof move.type === 'string' && ['physical', 'special', 'status'].includes(move.category)
+      && Number.isFinite(move.power) && Number.isFinite(move.accuracy) && move.accuracy > 0
+      && Number.isFinite(move.pp) && move.pp > 0).slice(0, 4);
+    if (safe.length) return safe;
+  }
   const have = new Set(moves.map(m => m.name.toLowerCase()));
   const taught = (entry.moves ?? [])
     .map(n => TAUGHT_MOVE_DATA[n.toLowerCase()])
@@ -71,7 +77,7 @@ const TACKLE_FALLBACK: MoveData =
 
 function movesForEntry(entry: PartyEntry): MoveData[] {
   const moves: MoveData[] = [];
-  for (const name of entry.moves) {
+  for (const name of entry.moves ?? []) {
     const key = name.toLowerCase();
     const md  = KNOWN_MOVES[key];
     if (md) moves.push(md);
@@ -107,6 +113,7 @@ export function buildFromEntry(entry: PartyEntry): Pokemon {
     const p = new Pokemon({ ...form.data, ability: entry.ability ?? form.ability, gender: entry.gender, status: entry.status }, entry.level, moves);
     p.hp  = Math.min(entry.hp, p.maxHp);
     p.exp = entry.exp ?? 0;
+    p.setHeldItem(entry.heldItem);
     restorePP(p, entry);
     return p;
   }
@@ -117,6 +124,7 @@ export function buildFromEntry(entry: PartyEntry): Pokemon {
     const p = new Pokemon({ ...DISGUIJAR_DATA, ability: entry.ability ?? DISGUIJAR_DATA.ability, gender: entry.gender, status: entry.status }, entry.level, moves);
     p.hp  = Math.min(entry.hp, p.maxHp);
     p.exp = entry.exp ?? 0;
+    p.setHeldItem(entry.heldItem);
     restorePP(p, entry);
     return p;
   }
@@ -128,6 +136,7 @@ export function buildFromEntry(entry: PartyEntry): Pokemon {
     const p = new Pokemon({ ...cf.data, ability: entry.ability ?? cf.data.ability, gender: entry.gender, status: entry.status }, entry.level, moves);
     p.hp  = Math.min(entry.hp, p.maxHp);
     p.exp = entry.exp ?? 0;
+    p.setHeldItem(entry.heldItem);
     restorePP(p, entry);
     return p;
   }
@@ -155,8 +164,23 @@ export function buildFromEntry(entry: PartyEntry): Pokemon {
   const p = new Pokemon(data, entry.level, moves);
   p.hp  = Math.min(entry.hp, p.maxHp);
   p.exp = entry.exp ?? 0;
+  p.setHeldItem(entry.heldItem);
   restorePP(p, entry);
   return p;
+}
+
+/** Finish a field replacement without losing side-owned effects such as active
+ * weather or Leech Seed healing. Volatile effects tied to the withdrawn
+ * combatant are cleared, while entry abilities are allowed to trigger again. */
+export function transferReplacementState(outgoing: Pokemon, replacement: Pokemon): Pokemon {
+  outgoing.transferSeededTargetsTo(replacement);
+  outgoing.resetVolatileOnSwitch();
+  transferBattleWeather(outgoing, replacement);
+  return replacement;
+}
+
+export function buildReplacement(outgoing: Pokemon, entry: PartyEntry): Pokemon {
+  return transferReplacementState(outgoing, buildFromEntry(entry));
 }
 
 /** Ensure a party member's current species texture exists before a switch-in.
@@ -213,6 +237,8 @@ export function persistSwitchOut(registry: Phaser.Data.DataManager, slot: number
   if (!entry) return message;
   entry.hp = mon.hp;
   entry.status = mon.status;
+  if (mon.heldItem) entry.heldItem = mon.heldItem;
+  else delete entry.heldItem;
   const pp: Record<string, number> = { ...(entry.movePP ?? {}) };
   for (const move of mon.moves) pp[move.data.name.toLowerCase()] = move.pp;
   entry.movePP = pp;

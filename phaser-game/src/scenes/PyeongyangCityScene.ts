@@ -325,12 +325,6 @@ export class PyeongyangCityScene extends Phaser.Scene {
     this.spaceKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.M).on('down', () => { if (!this.cutsceneActive) this.scene.launch('MenuScene'); });
     this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.B).on('down', () => { if (!this.cutsceneActive) this.scene.launch('MenuScene'); });
-    // DEV: preview the 어사대 circuit template (Songhyeon). Temporary until the circuit is wired.
-    this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.K).on('down', () => {
-      if (this.cutsceneActive) return;
-      this.cutsceneActive = true;
-      this.cameras.main.fadeOut(400, 0, 0, 0, () => this.scene.start('KaesongCityScene'));
-    });
   }
   private createUI() {
     this.dialog = new DialogBox(this, this.scale.width, this.scale.height);
