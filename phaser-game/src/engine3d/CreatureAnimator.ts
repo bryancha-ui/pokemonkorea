@@ -83,7 +83,19 @@ export class CreatureAnimator {
     const c = this.clips;
     if (!c) return;
     const next = c.byState[state] ?? c.byState.idle;
-    if (!next) return;
+    if (!next) {
+      // Nothing to play for this state, and no idle to fall back on. Returning
+      // here used to leave the PREVIOUS action running — and one-shot actions are
+      // clamped on their final frame, so the creature froze in the end pose of
+      // its last move. Pikachu ships a single clip (its thunder attack) and no
+      // idle, so after every move it stayed at the top of that leap and read as
+      // hovering above the ground. Release the held pose instead.
+      if (c.current) {
+        c.current.fadeOut(0.18);
+        c.current = undefined;
+      }
+      return;
+    }
     if (c.current && c.current !== next) c.current.fadeOut(0.15);
     next.reset();
     next.setLoop(once ? THREE.LoopOnce : THREE.LoopRepeat, once ? 1 : Infinity);

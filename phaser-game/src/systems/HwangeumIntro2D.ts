@@ -132,20 +132,99 @@ export function playHwangeumIntro(
   // reads these two data keys and adds them. With 3D off nothing is pinned, so
   // the same numbers are applied here directly.
   const off = { dx: 0, dy: 0 };
+  let ghost: Phaser.GameObjects.Image | undefined;
+  // A slow figure-of-eight added on top of the pose offsets. Ten drawings cannot
+  // fill a 420 ms hold on their own, and a body that is perfectly still between
+  // beats is what reads as "stuck" — this keeps him alive through every hold
+  // without competing with the beat's own accent.
+  const sway = { t: 0 };
   const publish = () => {
-    portrait.setData('pin2DOffsetX', off.dx);
-    portrait.setData('pin2DOffsetY', off.dy);
-    portrait.setPosition(homeX + off.dx, homeY + off.dy);
+    const sx = Math.sin(sway.t * 1.9) * 1.8;
+    const sy = Math.sin(sway.t * 2.7 + 1.1) * 1.2;
+    portrait.setData('pin2DOffsetX', off.dx + sx);
+    portrait.setData('pin2DOffsetY', off.dy + sy);
+    portrait.setPosition(homeX + off.dx + sx, homeY + off.dy + sy);
+    // The blend layer is pinned by the same mirror pass, so it must publish the
+    // same offset — otherwise the mirror re-seats it on the bare anchor and the
+    // two drawings drift apart by the sway amount mid-dissolve.
+    if (ghost?.scene) {
+      ghost.setData('pin2DOffsetX', off.dx + sx);
+      ghost.setData('pin2DOffsetY', off.dy + sy);
+      ghost.setPosition(portrait.x, portrait.y);
+    }
   };
+
+  // ── Cross-dissolve layer ──────────────────────────────────────────────────
+  // The outgoing drawing is held on a ghost image ABOVE the portrait and faded
+  // out while the portrait already shows the incoming one. Blending on the ghost
+  // rather than the portrait means the portrait's own alpha is never touched, so
+  // a scene-level fade of the champion still behaves normally.
+  //
+  // The ghost carries the same pin tags, so the 3D mirror seats it on the exact
+  // same anchor as the portrait instead of leaving it behind at a stale spot.
+  const anchorSide = portrait.getData?.('battleTrainer2DAnchor');
+  try {
+    ghost = scene.add.image(portrait.x, portrait.y, portrait.texture.key)
+      .setOrigin(portrait.originX, portrait.originY)
+      .setDisplaySize(portrait.displayWidth, portrait.displayHeight)
+      .setDepth((portrait.depth ?? 0) + 0.01)
+      .setScrollFactor(portrait.scrollFactorX, portrait.scrollFactorY)
+      .setAlpha(0);
+    ghost.setData('no3d', true);
+    if (anchorSide) ghost.setData('battleTrainer2DAnchor', anchorSide);
+  } catch { ghost = undefined; }
+
+  /** Fade the previous pose out over the incoming one. */
+  const dissolve = (fromKey: string, fromW: number, fromH: number, fromAngle: number, ms: number) => {
+    if (!ghost || !ghost.scene) return;
+    ghost.setTexture(fromKey);
+    ghost.setDisplaySize(fromW, fromH);
+    ghost.setAngle(fromAngle);
+    ghost.setAlpha(portrait.alpha);
+    scene.tweens.add({
+      targets: ghost, alpha: 0, duration: ms, ease: 'Sine.InOut',
+      onUpdate: () => {
+        if (!ghost?.scene) return;
+        // Follow the portrait so the two stay registered while blending, and
+        // never exceed the portrait's own opacity.
+        ghost.setPosition(portrait.x, portrait.y);
+        ghost.setAlpha(Math.min(ghost.alpha, portrait.alpha));
+      },
+    });
+  };
+
   let cancelled = false;
   let timer: Phaser.Time.TimerEvent | undefined;
   let index = 0;
+  const swayTick = (_t: number, delta: number) => {
+    if (cancelled) return;
+    sway.t += delta / 1000;
+    publish();
+  };
+  scene.events.on(Phaser.Scenes.Events.UPDATE, swayTick);
+
+  /** Detach the per-frame sway and drop the blend layer. Safe to call twice. */
+  const cleanup = () => {
+    scene.events.off(Phaser.Scenes.Events.UPDATE, swayTick);
+    if (ghost) {
+      scene.tweens.killTweensOf(ghost);
+      if (ghost.scene) ghost.destroy();
+      ghost = undefined;
+    }
+  };
 
   const step = () => {
     if (cancelled || !portrait.scene) return;
     const beat = beats[index] as Beat & { release?: boolean };
+    // Capture the outgoing pose before switching, so it can be dissolved out.
+    const prevKey = portrait.texture.key;
+    const prevW = portrait.displayWidth, prevH = portrait.displayHeight;
+    const prevAngle = portrait.angle;
     portrait.setTexture(beat.key);
     options.onFrame?.(beat.key);
+    // Blend proportionally to the beat, capped: long holds get a soft dissolve,
+    // while the 90 ms elbow-lead and release frames keep their snap.
+    if (index > 0) dissolve(prevKey, prevW, prevH, prevAngle, Math.min(150, Math.max(40, beat.hold * 0.5)));
     // Snap most of the way to the pose, then ease the rest across the hold.
     // Snapping is what gives the dance its attack; easing is what stops four
     // drawings from reading as a slideshow.
@@ -167,7 +246,10 @@ export function playHwangeumIntro(
     if (index >= beats.length) {
       timer = scene.time.delayedCall(beat.hold, () => {
         if (cancelled || !portrait.scene) return;
-        off.dx = 0; off.dy = 0; publish();
+        cleanup();
+        off.dx = 0; off.dy = 0;
+        portrait.setData('pin2DOffsetX', 0).setData('pin2DOffsetY', 0);
+        portrait.setPosition(homeX, homeY);
         portrait.setAngle(homeAngle);
         options.onDone?.();
       });
@@ -180,6 +262,7 @@ export function playHwangeumIntro(
   return () => {
     cancelled = true;
     timer?.remove();
+    cleanup();
     if (portrait.scene) {
       portrait.setData('pin2DOffsetX', 0).setData('pin2DOffsetY', 0);
       portrait.setPosition(homeX, homeY).setAngle(homeAngle);

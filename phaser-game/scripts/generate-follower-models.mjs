@@ -14,7 +14,7 @@ const REPO = '/sessions/wizardly-vigilant-pasteur/mnt/PokemonKorea/phaser-game';
 const OUT  = path.join(REPO, 'public/assets/models3d');
 const GRID = 104;      // silhouette cells on the long axis
 const THICK = 0.26;    // balloon depth as a fraction of the short axis
-const SMOOTH_H = 4;    // height-field blur passes
+const SMOOTH_H = 5;    // height-field blur passes
 const RELAX = 6;       // mesh relaxation passes
 const K = 9;          // palette size
 const ART_ALIAS = { groundzomber: 'groundzoome' };
@@ -40,6 +40,10 @@ function artFor(key) {
 
 function build(key, artFile) {
   const img = readImage(artFile);
+  // Deterministic RNG. k-means++ seeding with Math.random made the palette — and
+  // therefore the model's whole colour scheme — change on every regeneration.
+  let seed = 0; for (const c of key) seed = (seed * 31 + c.charCodeAt(0)) >>> 0;
+  const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
 
   // ── background key ────────────────────────────────────────────────────────
   let bg = null;
@@ -146,6 +150,75 @@ function build(key, artFile) {
   const T = THICK * Math.min(W, H);
   let hgt = new Float32Array(nx*ny);
   for (let i = 0; i < nx*ny; i++) hgt[i] = T * Math.sin(Math.min(1, dist[i]/dmax) * Math.PI/2);   // domed, not conical
+
+  // ── shape from shading ────────────────────────────────────────────────────
+  // A distance transform only knows the OUTLINE, so every model came out as the
+  // same uniform pillow. The artwork already encodes its own form: the artist
+  // lit it, so bright areas face the viewer and shaded areas recede. Sampling
+  // that lets a snout, a belly or a curled tail read as separate volumes.
+  //
+  // The raw luminance is dominated by base colour (a yellow belly is brighter
+  // than a green back regardless of form), so it is high-pass filtered against a
+  // heavily blurred copy — what survives is the SHADING gradient, not the hue.
+  {
+    const lum = new Float32Array(nx*ny), inside = new Uint8Array(nx*ny);
+    for (let gy = 0; gy < ny; gy++) for (let gx = 0; gx < nx; gx++) {
+      const i = gy*nx+gx; if (mask[i] <= 0.5) continue;
+      const [r,g,b] = px(img, ipx(gx), ipy(gy));
+      lum[i] = (0.299*r + 0.587*g + 0.114*b) / 255; inside[i] = 1;
+    }
+    // blur only across covered cells so the background never bleeds inward
+    const blur = (src, passes) => {
+      let cur = Float32Array.from(src);
+      for (let p = 0; p < passes; p++) {
+        const prev = Float32Array.from(cur);
+        for (let gy = 0; gy < ny; gy++) for (let gx = 0; gx < nx; gx++) {
+          const i = gy*nx+gx; if (!inside[i]) continue;
+          let s2 = 0, n2 = 0;
+          for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+            const X = gx+dx, Y = gy+dy; if (X<0||Y<0||X>=nx||Y>=ny) continue;
+            const j = Y*nx+X; if (!inside[j]) continue;
+            s2 += prev[j]; n2++;
+          }
+          cur[i] = n2 ? s2/n2 : prev[i];
+        }
+      }
+      return cur;
+    };
+    const base = blur(lum, Math.max(3, Math.round(Math.min(gw, gh) / 7)));
+    let lo = 1e9, hi = -1e9;
+    const detail = new Float32Array(nx*ny);
+    for (let i = 0; i < nx*ny; i++) {
+      if (!inside[i]) continue;
+      detail[i] = lum[i] - base[i];
+      if (detail[i] < lo) lo = detail[i];
+      if (detail[i] > hi) hi = detail[i];
+    }
+    const span = Math.max(1e-4, Math.max(Math.abs(lo), Math.abs(hi)));
+    // Internal contour creases: where the palette/colour changes sharply the
+    // artist drew a form boundary (a limb against a body). Pinching the surface
+    // there separates the parts instead of welding them into one blob.
+    const edge = new Float32Array(nx*ny);
+    for (let gy = 0; gy < ny; gy++) for (let gx = 0; gx < nx; gx++) {
+      const i = gy*nx+gx; if (!inside[i]) continue;
+      const [r,g,b] = px(img, ipx(gx), ipy(gy));
+      let worst = 0;
+      for (const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+        const X = gx+dx, Y = gy+dy; if (X<0||Y<0||X>=nx||Y>=ny) continue;
+        if (!inside[Y*nx+X]) continue;
+        const [r2,g2,b2] = px(img, ipx(X), ipy(Y));
+        worst = Math.max(worst, (Math.abs(r-r2)+Math.abs(g-g2)+Math.abs(b-b2)) / 765);
+      }
+      edge[i] = Math.min(1, worst * 2.6);
+    }
+    const edgeSoft = blur(edge, 1);
+    for (let i = 0; i < nx*ny; i++) {
+      if (!inside[i]) continue;
+      const lit = detail[i] / span;                    // -1 shaded .. +1 lit
+      hgt[i] *= (1 + 0.42 * lit) * (1 - 0.26 * edgeSoft[i]);
+      if (hgt[i] < 0) hgt[i] = 0;
+    }
+  }
   for (let pass = 0; pass < SMOOTH_H; pass++) {
     const src = Float32Array.from(hgt);
     for (let gy = 0; gy < ny; gy++) for (let gx = 0; gx < nx; gx++) {
@@ -212,7 +285,7 @@ function build(key, artFile) {
   while (cent.length < Math.min(K, samples.length)) {                 // k-means++
     let best = null, bestD = -1;
     for (let t = 0; t < 64; t++) {
-      const s = samples[(Math.random()*samples.length)|0];
+      const s = samples[(rnd()*samples.length)|0];
       let d = Infinity;
       for (const c of cent) d = Math.min(d, (s[0]-c[0])**2 + (s[1]-c[1])**2 + (s[2]-c[2])**2);
       if (d > bestD) { bestD = d; best = s; }

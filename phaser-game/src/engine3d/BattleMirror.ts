@@ -6,7 +6,7 @@ import { buildGeographicBattleArena, resolveOutdoorBattleTheme } from './BattleG
 import { buildCharacterModel, ChoreoPose, PlayerModel } from './CharacterModel';
 import { CreatureAnimator, MoveCategory } from './CreatureAnimator';
 import { measureCommands } from './GraphicsRaster';
-import { getModel, hasModel, isCompanionOnlyModel, isRenderableModel, manifestReady, modelLoadStatus, primeManifest } from './GlbModels';
+import { getModel, hasModel, isBorrowedApiModel, isCompanionOnlyModel, isRenderableModel, manifestReady, modelLoadStatus, primeManifest } from './GlbModels';
 import { MoveFX3D } from './MoveFX3D';
 import { RainFX, SandstormFX, SnowFX, SunFX, type WeatherFX3D } from './WeatherFX3D';
 import { makeBlobShadow, makePokeBallProp } from './Props';
@@ -112,13 +112,19 @@ const BATTLE_SIZE_OVERRIDES: Record<string, number> = {
   turtleship: 1.28,
 };
 
+// Borrowed Pokémon-3D-API models are authored large and read oversized in the
+// arena next to the game's own species, so trim every one of them to this
+// fraction of its computed battle height. Named/authored models are unaffected.
+const BORROWED_API_BATTLE_SCALE = 0.6;
+
 function battleSizeOverride(textureKey: string): number {
+  const borrowed = isBorrowedApiModel(textureKey) ? BORROWED_API_BATTLE_SCALE : 1;
   const explicit = BATTLE_SIZE_OVERRIDES[textureKey];
-  if (explicit) return explicit;
+  if (explicit) return explicit * borrowed;
   // The GLB pipeline deliberately clamps raw display-height influence
   // to 1.15. Restore the remainder of the authored species multiplier so large
   // Pokémon such as Garchomp and Tyranitar stay imposing in 3D as well as 2D.
-  return Math.max(1, spriteScale(textureKey) / 1.15);
+  return Math.max(1, spriteScale(textureKey) / 1.15) * borrowed;
 }
 
 // Battle trainers share their side's Pokémon anchor, then retire when the
@@ -1290,9 +1296,17 @@ export class BattleMirror {
       const anchorY = (1 - feet.y) * 0.5 * this.scene.scale.height;
       const originX = Number.isFinite(im.originX) ? im.originX : 0.5;
       const originY = Number.isFinite(im.originY) ? im.originY : 0.5;
+      // Honour the animator's published offset. A pinned portrait is re-seated on
+      // its anchor every frame, so any x/y an animation writes is overwritten
+      // before it draws — which silently discarded ALL of the champion's dance
+      // motion in 3D battles and left ten hard texture cuts with no movement
+      // between them. The routine publishes its weight shift through these two
+      // data keys precisely so the pin can add it back.
+      const dx = Number(im.getData?.('pin2DOffsetX')) || 0;
+      const dy = Number(im.getData?.('pin2DOffsetY')) || 0;
       im.setPosition(
-        anchorX + (originX - 0.5) * (im.displayWidth ?? 0),
-        anchorY - (1 - originY) * (im.displayHeight ?? 0),
+        anchorX + (originX - 0.5) * (im.displayWidth ?? 0) + dx,
+        anchorY - (1 - originY) * (im.displayHeight ?? 0) + dy,
       );
     }
   }
