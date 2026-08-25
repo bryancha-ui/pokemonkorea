@@ -5,7 +5,8 @@ import { PartySystem, type PartyEntry } from '../systems/PartySystem';
 import { buildFlatCard, reliefMaterials } from './Extruder';
 import { appendFollowerPoint, followerPointBehind, type FollowPoint } from './FollowerPath';
 import {
-  getModel, hasModel, manifestReady, modelBaseYawRad, pinModel, unpinModel, type LoadedModel,
+  getModel, hasModel, isBorrowedApiModel, manifestReady, modelBaseYawRad, pinModel, unpinModel,
+  type LoadedModel,
 } from './GlbModels';
 import { makeBlobShadow } from './Props';
 
@@ -21,6 +22,9 @@ interface CompanionVisual {
 
 /** How long to wait for the GLB manifest before falling back to artwork. */
 const MANIFEST_GRACE_S = 2.5;
+
+/** Follower size for PokeAPI-sourced rigs, relative to the authored scale. */
+const API_COMPANION_SCALE = 0.5;
 
 const IDLE_CLIP = /idle|breath|stand|rest|loop/i;
 const WALK_CLIP = /walk|run|move|trot|crawl|fly|swim/i;
@@ -80,11 +84,17 @@ function withoutStudioBackground(
 /** Companion-scale curve. It preserves authored small/large species differences
  * but compresses battle-scale extremes so a Wailord never covers a city street. */
 export function companionHeightFor(key: string): number {
-  const authored = battle2DSpriteScale(canonicalKey(key));
+  const canonical = canonicalKey(key);
+  const authored = battle2DSpriteScale(canonical);
   // Roughly 0.5–1.3 world units: first forms stay near the trainer's ankles,
   // ordinary partners sit around knee/waist height, and giants retain their
   // presence without covering streets, doors, or the player camera.
-  return Math.max(0.46, Math.min(1.28, 0.68 * authored));
+  const height = Math.max(0.46, Math.min(1.28, 0.68 * authored));
+  // Borrowed 3D-API rigs are modelled at true creature proportions rather than
+  // to this game's partner scale, so beside the trainer they walk far larger
+  // than the authored roster. Halve them for the FOLLOWER only — battle sizing
+  // goes through targetH in BattleMirror and is untouched by this.
+  return isBorrowedApiModel(canonical) ? height * API_COMPANION_SCALE : height;
 }
 
 /** A single scene-local lead Pokémon. Phaser remains authoritative for player
@@ -273,6 +283,11 @@ export class OverworldCompanion {
 
   private attachModel(key: string, loaded: LoadedModel): void {
     const previousBaseYaw = this.visual.baseYaw;
+    // Re-evaluate the height here rather than trusting syncLead's value. syncLead
+    // runs the moment the lead changes, which can be BEFORE the manifest has
+    // loaded — and the API-scale rule needs the manifest to know a model's
+    // source. getModel has just resolved through it, so it is authoritative now.
+    if (this.lead) this.companionHeight = companionHeightFor(this.lead.spriteKey);
     this.removeRelief();
     const model = loaded.group;
     model.updateMatrixWorld(true);

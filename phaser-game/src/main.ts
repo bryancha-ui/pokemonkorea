@@ -70,7 +70,7 @@ import { installFieldItems } from './systems/FieldItems';
 // the current code. Repeated "did the fix land?" rounds are almost always a
 // stale dev server or a cached asset, not a wrong edit — this makes that
 // answerable in one look instead of another round trip.
-export const BUILD_STAMP = 'shaded-followers 2026-08-25e';
+export const BUILD_STAMP = 'backview-followers 2026-08-25h';
 if (import.meta.env.DEV) {
   console.info(`[pokemonkorea] build ${BUILD_STAMP}`);
   const badge = document.createElement('div');

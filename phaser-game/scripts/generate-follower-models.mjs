@@ -19,6 +19,29 @@ const RELAX = 6;       // mesh relaxation passes
 const K = 9;          // palette size
 const ART_ALIAS = { groundzomber: 'groundzoome' };
 
+// How to build the far side of a model, per species.
+//
+//   'mirror' — the artwork is a SIDE profile, so the far side is the creature's
+//              other flank: mirror it and keep every detail, including the eye.
+//              Front and back then read as the same creature from either side.
+//   'infer'  — the artwork FACES the viewer, so the far side is a genuine back:
+//              sample it wide so eyes, mouth and chest markings dissolve into the
+//              body colour and the creature does not wear a face behind its head.
+//
+// This cannot be decided reliably from the image. Shape symmetry, colour symmetry
+// and eye-blob asymmetry were all measured across the roster and none separated a
+// profile fish from a front-facing lizard, so it is authored per species in the
+// manifest via `backView`, defaulting to 'mirror'.
+const BACK_VIEW = (() => {
+  const map = new Map();
+  try {
+    const man = JSON.parse(fs.readFileSync(
+      path.join(REPO, 'public/assets/models3d/manifest.json'), 'utf8')).models;
+    for (const e of man) if (e && typeof e === 'object' && e.backView) map.set(e.key, e.backView);
+  } catch { /* default for everything */ }
+  return map;
+})();
+
 function readImage(file) {
   const buf = fs.readFileSync(file);
   if (file.endsWith('.png')) { const p = PNG.sync.read(buf); return { w: p.width, h: p.height, data: p.data, alpha: true }; }
@@ -39,6 +62,8 @@ function artFor(key) {
 }
 
 function build(key, artFile) {
+  const backMode = BACK_VIEW.get(key) ?? 'mirror';
+  let holesFilled = 0;
   const img = readImage(artFile);
   // Deterministic RNG. k-means++ seeding with Math.random made the palette — and
   // therefore the model's whole colour scheme — change on every regeneration.
@@ -105,7 +130,7 @@ function build(key, artFile) {
       }
       const i = gy*nx+gx;
       if (src[i] <= 0.5 && on >= tot - 2) mask[i] = 1;
-      else if (src[i] > 0.5 && on <= 2) mask[i] = 0;
+      else if (src[i] > 0.5 && on <= 1) mask[i] = 0;
     }
   }
   { const comp = new Int32Array(nx*ny).fill(-1), sizes = [];
@@ -146,10 +171,49 @@ function build(key, artFile) {
   for (let gy = ny-1; gy >= 0; gy--) for (let gx = nx-1; gx >= 0; gx--) { const i = gy*nx+gx;
     if (gx<nx-1) relax2(i,i+1,1); if (gy<ny-1) relax2(i,i+nx,1);
     if (gx<nx-1&&gy<ny-1) relax2(i,i+nx+1,1.414); if (gx>0&&gy<ny-1) relax2(i,i+nx-1,1.414); }
+  // Fill enclosed background pockets. A gap the artist drew INSIDE the outline —
+  // between an ear and the head, the loop of a curled tail, the space under a
+  // raised arm — is not a hole through the creature's body, but leaving it in the
+  // mask punched a real hole in the mesh and showed daylight through the head.
+  // Anything not reachable from the border is interior, so fill it.
+  {
+    const outside = new Uint8Array(nx*ny);
+    const q = [];
+    const push = (x, y) => {
+      if (x < 0 || y < 0 || x >= nx || y >= ny) return;
+      const i = y*nx+x;
+      if (outside[i] || mask[i] > 0.5) return;
+      outside[i] = 1; q.push(i);
+    };
+    for (let x = 0; x < nx; x++) { push(x, 0); push(x, ny-1); }
+    for (let y = 0; y < ny; y++) { push(0, y); push(nx-1, y); }
+    while (q.length) {
+      const i = q.pop(); const x = i % nx, y = (i / nx) | 0;
+      push(x+1, y); push(x-1, y); push(x, y+1); push(x, y-1);
+    }
+    let filled = 0;
+    for (let i = 0; i < nx*ny; i++) if (mask[i] <= 0.5 && !outside[i]) { mask[i] = 1; filled++; }
+    if (filled) holesFilled = filled;
+  }
+
+  // The rim is the ring of grid nodes OUTSIDE the silhouette. Deriving it from a
+  // height threshold failed the moment the profile became circular: that profile
+  // is already at ~46% thickness one cell in, so nothing fell under the
+  // threshold, nothing welded, and the model split open down the middle.
+  const isRim = new Uint8Array(nx*ny);
+  for (let i = 0; i < nx*ny; i++) isRim[i] = mask[i] <= 0.5 ? 1 : 0;
+
   const dmax = Math.max(2, 0.30 * Math.min(gw, gh));
   const T = THICK * Math.min(W, H);
   let hgt = new Float32Array(nx*ny);
-  for (let i = 0; i < nx*ny; i++) hgt[i] = T * Math.sin(Math.min(1, dist[i]/dmax) * Math.PI/2);   // domed, not conical
+  for (let i = 0; i < nx*ny; i++) {
+    // Circular arc, not a sine dome. Its tangent is vertical where the height
+    // reaches zero, so the surface rolls over the outline instead of tapering to
+    // a knife edge — which is what made every model read as a flat almond from
+    // the side.
+    const x = Math.min(1, dist[i]/dmax);
+    hgt[i] = T * Math.sqrt(Math.max(0, 1 - (1 - x) * (1 - x)));
+  }
 
   // ── shape from shading ────────────────────────────────────────────────────
   // A distance transform only knows the OUTLINE, so every model came out as the
@@ -230,6 +294,9 @@ function build(key, artFile) {
       hgt[gy*nx+gx] = s / n;
     }
   }
+  // Blurring lifts the boundary off zero; pin it back so the two sides still
+  // share a vertex and the surface stays closed.
+  for (let i = 0; i < nx*ny; i++) if (isRim[i]) hgt[i] = 0;
 
   // ── shared vertex ring (front/back pair per grid node) ───────────────────
   const need = new Uint8Array(nx*ny);
@@ -237,22 +304,44 @@ function build(key, artFile) {
     const c = [gy*nx+gx, gy*nx+gx+1, (gy+1)*nx+gx, (gy+1)*nx+gx+1];
     if (c.some(i => mask[i] > 0.25)) for (const i of c) need[i] = 1;
   }
-  const vid = new Int32Array(nx*ny).fill(-1);
+  // Front and back are ONE closed surface, not two sheets laid back to back.
+  // They used to be separate vertex sets: at the outline their normals met head
+  // on, which drew a thick weld seam straight down the body, and because the
+  // material was single-sided any sliver where they failed to meet showed as a
+  // hole. Where the height falls to zero (the silhouette edge) both sides now
+  // share ONE vertex, so normals average across it and the surface closes and
+  // rounds over instead of creasing.
+  const vidF = new Int32Array(nx*ny).fill(-1);
+  const vidB = new Int32Array(nx*ny).fill(-1);
   const P = [], onRim = [];
   for (let gy = 0; gy < ny; gy++) for (let gx = 0; gx < nx; gx++) {
     const i = gy*nx+gx; if (!need[i]) continue;
     const X = ipx(gx) - (x0 + W/2), Y = (y1 - ipy(gy)), Z = hgt[i];
-    vid[i] = P.length / 3 / 2;
-    P.push(X, Y, Z, X, Y, -Z);
-    const rim = hgt[i] < T * 0.06;
-    onRim.push(rim, rim);
+    const rim = isRim[i] === 1;
+    vidF[i] = P.length / 3;
+    P.push(X, Y, rim ? 0 : Z); onRim.push(rim);
+    if (rim) {
+      vidB[i] = vidF[i];                       // welded: one vertex, both sides
+    } else {
+      vidB[i] = P.length / 3;
+      P.push(X, Y, -Z); onRim.push(false);
+    }
   }
-  const tri = [];
+  const tri = [], triSide = [];
   for (let gy = 0; gy < gh; gy++) for (let gx = 0; gx < gw; gx++) {
-    const a = vid[gy*nx+gx], b = vid[gy*nx+gx+1], c = vid[(gy+1)*nx+gx], d = vid[(gy+1)*nx+gx+1];
+    const i0 = gy*nx+gx, i1 = gy*nx+gx+1, i2 = (gy+1)*nx+gx, i3 = (gy+1)*nx+gx+1;
+    const a = vidF[i0], b = vidF[i1], c = vidF[i2], d = vidF[i3];
     if (a<0||b<0||c<0||d<0) continue;
-    const A=a*2,B=b*2,C=c*2,D=d*2;
-    tri.push([A,C,B],[B,C,D],[A+1,B+1,C+1],[B+1,D+1,C+1]);
+    const ab = vidB[i0], bb = vidB[i1], cb = vidB[i2], db = vidB[i3];
+    // A cell whose four corners are ALL on the rim has no thickness: front and
+    // back collapse onto the same quad. Emitting just the front left a flat flap
+    // whose outer edge belonged to one triangle only — an open boundary, i.e. a
+    // hole. Such cells are outside the body, so drop them entirely; the closing
+    // fold is then formed by cells that have at least one interior corner, whose
+    // front and back sheets meet at the shared rim vertices.
+    if (ab === a && bb === b && cb === c && db === d) continue;
+    tri.push([a,c,b], [b,c,d]); triSide.push(0, 0);
+    tri.push([ab,bb,cb], [bb,db,cb]); triSide.push(1, 1);
   }
   // ── Laplacian relaxation (rim held, so the silhouette stays sharp) ────────
   const nbr = new Map();
@@ -320,9 +409,9 @@ function build(key, artFile) {
   // Sample an AREA, not a pixel. Single-pixel sampling landed on dark ink
   // outlines and stray highlights, scattering the surface with speckles.
   const rad = Math.max(1, Math.round(Math.min(W, H) / 90));
-  const areaColour = (cx, cy) => {
+  const areaColour = (cx, cy, r0 = rad) => {
     let r = 0, g = 0, b = 0, n = 0;
-    for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
+    for (let dy = -r0; dy <= r0; dy++) for (let dx = -r0; dx <= r0; dx++) {
       const X = cx + dx, Y = cy + dy;
       if (covered(X, Y) < 0.6) continue;
       const [pr,pg,pb] = px(img, X, Y); r+=pr; g+=pg; b+=pb; n++;
@@ -330,10 +419,26 @@ function build(key, artFile) {
     if (!n) { const [pr,pg,pb] = px(img, cx, cy); return [pr,pg,pb]; }
     return [r/n, g/n, b/n];
   };
-  let triPal = tri.map(t => {
-    let u = 0, vv = 0;
-    for (const v of t) { const [a,b] = uvOf(v); u += a/3; vv += b/3; }
-    return nearest(...areaColour(x0 + u*W, y0 + vv*H));
+  // The back is INFERRED, not a copy of the front. Two changes make it read as
+  // the far side of the same creature: the artwork is mirrored horizontally, so
+  // an asymmetric marking wraps around the body instead of appearing twice
+  // facing the same way; and it is sampled over a much wider area, which averages
+  // small high-contrast features — eyes, mouth, chest badges — into the
+  // surrounding body colour, so the creature no longer has a face on its back.
+  let triPal = tri.map((t, ti) => {
+    let u = 0, vv = 0, depth = 0;
+    for (const v of t) { const [a,b] = uvOf(v); u += a/3; vv += b/3; depth += Math.abs(P[v*3+2])/3; }
+    if (triSide[ti] !== 1) return nearest(...areaColour(x0 + u*W, y0 + vv*H, rad));
+    // Ease the back INTO being a back. Right at the outline it samples exactly
+    // what the front samples, so the two palettes meet with no visible seam;
+    // further from the rim it mirrors and widens until it is a proper back view.
+    const k = Math.min(1, depth / Math.max(1e-6, T));
+    const blend = k * k * (3 - 2 * k);                 // smoothstep
+    const su = u * (1 - blend) + (1 - u) * blend;
+    // Only an inferred back widens its sampling; a mirrored flank keeps the
+    // artwork's full detail so both sides of the creature match.
+    const r = backMode === 'infer' ? rad * (1 + 3 * blend) : rad;
+    return nearest(...areaColour(x0 + su*W, y0 + vv*H, r));
   });
   // Majority-vote over shared-edge neighbours: removes any speckle that survived.
   {
@@ -395,7 +500,7 @@ function build(key, artFile) {
     const lin = (u) => { const s = u/255; return s <= 0.04045 ? s/12.92 : ((s+0.055)/1.055)**2.4; };
     const mat = doc.createMaterial(`palette_${gi}`)
       .setBaseColorFactor([lin(c[0]), lin(c[1]), lin(c[2]), 1])
-      .setMetallicFactor(0).setRoughnessFactor(0.8).setDoubleSided(false);
+      .setMetallicFactor(0).setRoughnessFactor(0.8).setDoubleSided(true);
     const prim = doc.createPrimitive()
       .setAttribute('POSITION', doc.createAccessor().setType('VEC3').setArray(new Float32Array(pos)).setBuffer(buffer))
       .setAttribute('NORMAL',   doc.createAccessor().setType('VEC3').setArray(new Float32Array(nor)).setBuffer(buffer))
@@ -404,21 +509,22 @@ function build(key, artFile) {
       .setMaterial(mat);
     mesh.addPrimitive(prim); prims++;
   }
-  return { doc, prims, verts: P.length/3, tris: tri.length };
+  return { doc, prims, verts: P.length/3, tris: tri.length, holesFilled };
 }
 
 const keys = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
 const io = new NodeIO();
-let ok = 0; const fail = [];
+let ok = 0, totalHoles = 0; const fail = [];
 for (const key of keys) {
   const art = artFor(key);
   if (!art) { fail.push([key, 'no artwork']); continue; }
   try {
-    const { doc, prims, verts, tris } = build(key, art);
+    const { doc, prims, verts, tris, holesFilled } = build(key, art);
     await io.write(path.join(OUT, `${key}.glb`), doc);
     const kb = (fs.statSync(path.join(OUT, `${key}.glb`)).size/1024)|0;
     ok++;
-    if (ok <= 3 || ok % 30 === 0) console.log(`  ${key}: ${prims} colour prims, ${verts}v/${tris}t, ${kb}KB`);
+    totalHoles += holesFilled;
+    if (ok <= 3 || ok % 30 === 0) console.log(`  ${key}: ${prims} colour prims, ${verts}v/${tris}t, ${kb}KB${holesFilled ? `, ${holesFilled} pockets filled` : ''}`);
   } catch (e) { fail.push([key, String(e).slice(0,60)]); }
 }
-console.log(`done: ${ok} generated, ${fail.length} failed`, fail.slice(0,5));
+console.log(`done: ${ok} generated, ${fail.length} failed, ${totalHoles} interior pockets filled`, fail.slice(0,5));

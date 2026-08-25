@@ -1094,7 +1094,8 @@
       "lightweight": true,
       "generated": true,
       "proceduralVolumetric": true,
-      "companionOnly": true
+      "companionOnly": true,
+      "backView": "infer"
     },
     {
       "key": "bookkuddoong",
