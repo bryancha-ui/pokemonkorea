@@ -12,6 +12,7 @@ import {
 } from '../systems/ShadowGymPuzzle';
 import { SaveManager } from '../utils/SaveManager';
 import { DialogBox } from '../ui/DialogBox';
+import { maybeLaunchEvolution } from '../systems/EvolutionSystem';
 
 const IT = 36;
 const W = 16;
@@ -78,6 +79,12 @@ abstract class ShadowGymRoomScene extends Phaser.Scene {
     this.gateHintShown = false;
     this.input.keyboard?.resetKeys();
 
+    // Battle scenes leave these coordinates only when returning to this exact
+    // room. Use that signal before restorePosition consumes it so a level-up
+    // evolution happens after the battle that earned it, not after an unrelated
+    // Potion is later selected from the menu.
+    const returnedFromBattle = Number.isFinite(this.registry.get('gymPosX'))
+      && Number.isFinite(this.registry.get('gymPosY'));
     this.restorePosition();
     this.drawRoom();
     this.drawCandidates();
@@ -93,6 +100,7 @@ abstract class ShadowGymRoomScene extends Phaser.Scene {
     this.registry.set('shadowGymCurrentRoom', this.room.stage);
     this.rememberPosition();
     this.showRoomIntroduction();
+    if (returnedFromBattle) this.time.delayedCall(300, () => maybeLaunchEvolution(this));
   }
 
   private restorePosition(): void {

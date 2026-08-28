@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import * as THREE from 'three';
-import { getModel, hasModel, modelBaseYawRad, modelNormalizedHeight, primeManifest } from './GlbModels';
+import { getModel, hasModel, modelBaseYawRad, modelNormalizedHeight, pinModel, primeManifest, unpinModel } from './GlbModels';
 
 // ── Starter preview ──────────────────────────────────────────────────────────
 // A small self-contained Three.js stage that shows ONE generated creature model
@@ -29,6 +29,7 @@ export class StarterPreview3D {
   private holder = new THREE.Group();
   private current: THREE.Group | null = null;
   private currentKey = '';
+  private pinnedModelKey = '';
   private pending = '';
   private rect: PreviewRect;
   private t = 0;
@@ -143,6 +144,10 @@ export class StarterPreview3D {
       this.holder.remove(this.current);
       this.current = null;
     }
+    if (this.pinnedModelKey) {
+      unpinModel(this.pinnedModelKey);
+      this.pinnedModelKey = '';
+    }
     this.currentKey = '';
     this.entry = 0;
     this.currentScale = PREVIEW_MODEL_HEIGHT;
@@ -166,6 +171,8 @@ export class StarterPreview3D {
         this.holder.add(g);
         this.current = g;
         this.currentKey = this.pending;
+        pinModel(this.currentKey);
+        this.pinnedModelKey = this.currentKey;
         this.entry = 0;
       }
     }

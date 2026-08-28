@@ -41,6 +41,7 @@ import { animateBattleHp, BATTLE_PACING, snapBattleHp } from '../systems/BattleP
 import { BossPotionAI, type BossTrainerRank, type BossPotionUse } from '../systems/BossTrainerItems';
 import { playBattleEndTurn } from '../systems/BattleEndTurn';
 import { chooseBattleMove } from '../systems/BattleAI';
+import { battlePokemonTextureKey, setBattlePokemonSprite } from '../systems/BattlePokemonSprite';
 
 // ── Enemy movesets ──────────────────────────────────────────────────────────
 // Strong authored move data is reserved for Elite Four / Champion teams below.
@@ -130,6 +131,8 @@ export class TrainerBattleScene extends Phaser.Scene {
   private _returnScene  = 'RouteScene';  // filled from registry in create()
   private enemyQueue: { id: number; level: number; custom?: string }[] = [];
   private enemyIdx = 0;
+  /** Scene-local authoritative key; never reuse a stale registry texture key. */
+  private enemyTextureKey = '';
   // A faint/EXP sequence is asynchronous. Keep it from advancing the roster
   // twice if two delayed callbacks finish on the same frame (which previously
   // allowed Byeoksan's Balchataek slot to be jumped over).
@@ -219,6 +222,7 @@ export class TrainerBattleScene extends Phaser.Scene {
     // trainer fought after another multi-Pokémon trainer loses Pokémon equal to the
     // previous team's size (e.g. Director Suri only sending out 1 after Commander Ryeo).
     this.enemyIdx = 0;
+    this.enemyTextureKey = '';
     this.advancingEnemy = false;
     this.battleTurn = 1;
     this.lastEnemyMove = '';
@@ -385,6 +389,7 @@ export class TrainerBattleScene extends Phaser.Scene {
       if (form) {
         DexTracker.markSeen(this.registry, form.data.id);
         const texKey = entry.custom;  // custom sprite keys double as texture keys
+        this.enemyTextureKey = texKey;
         if (!this.textures.exists(texKey)) {
           this.load.image(texKey, form.data.spriteUrl);
           await new Promise<void>(r => { this.load.once('complete', r); this.load.start(); });
@@ -395,7 +400,6 @@ export class TrainerBattleScene extends Phaser.Scene {
           this.isElite
             ? eliteMovesForTypes(form.data.type1, form.data.type2, entry.custom)
             : enemyLearnset(form.moves, texKey, form.data.type1, form.data.type2, entry.level));
-        this.registry.set('_teKey', texKey);
         return;
       }
       // Starter / evolved-starter forms (munklift, scorpent, banderado…) live in StarterData.
@@ -403,6 +407,7 @@ export class TrainerBattleScene extends Phaser.Scene {
       if (sf) {
         DexTracker.markSeen(this.registry, entry.custom);
         const texKey = entry.custom;
+        this.enemyTextureKey = texKey;
         if (!this.textures.exists(texKey)) {
           this.load.image(texKey, sf.data.spriteUrl);
           await new Promise<void>(r => { this.load.once('complete', r); this.load.start(); });
@@ -411,7 +416,6 @@ export class TrainerBattleScene extends Phaser.Scene {
           this.isElite
             ? eliteMovesForTypes(sf.data.type1, sf.data.type2, entry.custom)
             : enemyLearnset(sf.startingMoves, texKey, sf.data.type1, sf.data.type2, entry.level));
-        this.registry.set('_teKey', texKey);
         return;
       }
     }
@@ -419,6 +423,7 @@ export class TrainerBattleScene extends Phaser.Scene {
     DexTracker.markSeen(this.registry, entry.id);
     const data = await fetchPokemon(entry.id);
     const texKey = `te-${entry.id}`;
+    this.enemyTextureKey = texKey;
     if (!this.textures.exists(texKey)) {
       this.load.image(texKey, data.spriteUrl);
       await new Promise<void>(r => { this.load.once('complete', r); this.load.start(); });
@@ -428,8 +433,6 @@ export class TrainerBattleScene extends Phaser.Scene {
         ? eliteMovesForTypes(data.type1, data.type2)
         : enemyLearnset([FALLBACK_MOVE], texKey, data.type1, data.type2, entry.level));
     this.enemy.data.spriteUrl = data.spriteUrl;
-    // Store tex key for sprite creation
-    this.registry.set('_teKey', texKey);
   }
 
   // ── Background ────────────────────────────────────────────────────────────
@@ -502,12 +505,14 @@ export class TrainerBattleScene extends Phaser.Scene {
     // Use the actual lead's sprite (it may not be slot 0 if slot 0 was fainted).
     const pKey  = PartySystem.get(this.registry)[this.activeSlot]?.spriteKey
                 ?? (this.registry.get('starterKey') as string) ?? 'vipour';
-    const teKey = (this.registry.get('_teKey') as string) ?? 'vipour';
+    const teKey = this.enemyTextureKey;
 
-    this.enemySprite  = this.add.image(900, 60, this.textures.exists(teKey) ? teKey : pKey)
+    this.enemySprite  = this.add.image(900, 60, battlePokemonTextureKey(this, teKey))
       .setDepth(5).setAlpha(0).setData('battlePokemonSide', 'enemy');
-    this.playerSprite = this.add.image(-80, 320, pKey)
+    this.playerSprite = this.add.image(-80, 320, battlePokemonTextureKey(this, pKey))
       .setDepth(5).setFlipX(true).setAlpha(0).setData('battlePokemonSide', 'player');
+    setBattlePokemonSprite(this, this.enemySprite, teKey);
+    setBattlePokemonSprite(this, this.playerSprite, pKey);
 
     this.fitSprite(this.enemySprite, this.enemySpriteSize());
     this.fitSprite(this.playerSprite, 140);
@@ -1041,9 +1046,10 @@ export class TrainerBattleScene extends Phaser.Scene {
       syncBattleHudTypes(this.enemyBattleHud, [this.enemy.data.type1, this.enemy.data.type2]);
       this.enemyIdx = nextIdx;
       this.buffBoss();   // extra HP for a 우두머리 boss
-      const teKey = (this.registry.get('_teKey') as string);
-      this.enemySprite.setTexture(this.textures.exists(teKey) ? teKey : 'vipour');
-      this.fitSprite(this.enemySprite, this.enemySpriteSize());
+      const teKey = this.enemyTextureKey;
+      if (setBattlePokemonSprite(this, this.enemySprite, teKey)) {
+        this.fitSprite(this.enemySprite, this.enemySpriteSize());
+      }
       this.enemyNameText?.setText(this.enemyHudName());
       this.enemyLvText.setText(`Lv.${this.enemy.level}`);
       snapBattleHp(this.enemyHpBar, this.enemyHpText, this.hpW, this.enemy.hp, this.enemy.maxHp);
@@ -1324,15 +1330,15 @@ export class TrainerBattleScene extends Phaser.Scene {
     this.playerLvText.setText(`Lv.${this.player.level}`);
     snapBattleHp(this.playerHpBar, this.playerHpText, this.hpW, this.player.hp, this.player.maxHp);
 
+    setBattlePokemonSprite(this, this.playerSprite, entry.spriteKey);
     if (this.textures.exists(entry.spriteKey)) {
-      this.playerSprite.setTexture(entry.spriteKey);
       const tex = this.textures.get(entry.spriteKey).getSourceImage();
       const dim = Math.max((tex.width as number) || 1, (tex.height as number) || 1);
       this.playerSprite.setScale((140 * battle2DSpriteScale(entry.spriteKey)) / dim);
     }
     if (!this.textures.exists(entry.spriteKey)) await ensurePartyTexture(this, entry);
     if (this.textures.exists(entry.spriteKey) && this.playerSprite.texture.key !== entry.spriteKey) {
-      this.playerSprite.setTexture(entry.spriteKey);
+      setBattlePokemonSprite(this, this.playerSprite, entry.spriteKey);
       const tex = this.textures.get(entry.spriteKey).getSourceImage();
       const dim = Math.max((tex.width as number) || 1, (tex.height as number) || 1);
       this.playerSprite.setScale((140 * battle2DSpriteScale(entry.spriteKey)) / dim);
@@ -1358,15 +1364,15 @@ export class TrainerBattleScene extends Phaser.Scene {
     this.playerLvText.setText(`Lv.${this.player.level}`);
     snapBattleHp(this.playerHpBar, this.playerHpText, this.hpW, this.player.hp, this.player.maxHp);
 
+    setBattlePokemonSprite(this, this.playerSprite, entry.spriteKey);
     if (this.textures.exists(entry.spriteKey)) {
-      this.playerSprite.setTexture(entry.spriteKey);
       const tex = this.textures.get(entry.spriteKey).getSourceImage();
       const dim = Math.max((tex.width as number) || 1, (tex.height as number) || 1);
       this.playerSprite.setScale((140 * battle2DSpriteScale(entry.spriteKey)) / dim);
     }
     if (!this.textures.exists(entry.spriteKey)) await ensurePartyTexture(this, entry);
     if (this.textures.exists(entry.spriteKey) && this.playerSprite.texture.key !== entry.spriteKey) {
-      this.playerSprite.setTexture(entry.spriteKey);
+      setBattlePokemonSprite(this, this.playerSprite, entry.spriteKey);
       const tex = this.textures.get(entry.spriteKey).getSourceImage();
       const dim = Math.max((tex.width as number) || 1, (tex.height as number) || 1);
       this.playerSprite.setScale((140 * battle2DSpriteScale(entry.spriteKey)) / dim);
@@ -1442,9 +1448,10 @@ export class TrainerBattleScene extends Phaser.Scene {
 
     // Swap sprite
     const key = entry.spriteKey;
+    setBattlePokemonSprite(this, this.playerSprite, key);
     await ensurePartyTexture(this, entry);
     if (this.textures.exists(key)) {
-      this.playerSprite.setTexture(key);
+      setBattlePokemonSprite(this, this.playerSprite, key);
       const tex = this.textures.get(key).getSourceImage();
       const dim = Math.max((tex.width as number) || 1, (tex.height as number) || 1);
       this.playerSprite.setScale((140 * battle2DSpriteScale(key)) / dim);

@@ -31,6 +31,8 @@ import { animateBattleHp, BATTLE_PACING } from '../systems/BattlePacing';
 import { BossPotionAI, type BossPotionUse } from '../systems/BossTrainerItems';
 import { playBattleEndTurn } from '../systems/BattleEndTurn';
 import { chooseBattleMove } from '../systems/BattleAI';
+import { MOBILE_ACTION_EVENT } from '../systems/TouchControls';
+import { battlePokemonTextureKey, setBattlePokemonSprite } from '../systems/BattlePokemonSprite';
 
 type State = 'intro' | 'playerAction' | 'playerMove' | 'busy' | 'over';
 const HP_W = 200;
@@ -44,9 +46,8 @@ export class GymLeaderBattleScene extends Phaser.Scene {
   private participants = new Set<number>([0]);
   private battleTurn = 1;
   private lastEnemyMove = '';
-  // Guards playerFainted against a duplicate trigger for the same KO (e.g. a
-  // double-fired dialog advance). Without it, the second call runs after the
-  // switch-in, zeroes the freshly sent-in Pokémon and falsely reports a wipe.
+  // Guards playerFainted against a duplicate trigger for the same KO and keeps
+  // the forced replacement picker single-instance until the player chooses.
   private resolvingFaint = false;
   private bossPotionAI = new BossPotionAI('gym');
 
@@ -281,10 +282,13 @@ export class GymLeaderBattleScene extends Phaser.Scene {
   private createSprites() {
     const pKey = PartySystem.get(this.registry)[this.activeSlot]?.spriteKey
                ?? (this.registry.get('starterKey') as string) ?? 'vipour';
-    this.enemySprite  = this.add.image(900, 100, 'corrpanda')
+    const enemyKey = this.currentEnemyTextureKey();
+    this.enemySprite  = this.add.image(900, 100, battlePokemonTextureKey(this, enemyKey))
       .setDepth(5).setAlpha(0).setData('battlePokemonSide', 'enemy');
-    this.playerSprite = this.add.image(-80, 340, pKey)
+    this.playerSprite = this.add.image(-80, 340, battlePokemonTextureKey(this, pKey))
       .setDepth(5).setFlipX(true).setAlpha(0).setData('battlePokemonSide', 'player');
+    setBattlePokemonSprite(this, this.enemySprite, enemyKey);
+    setBattlePokemonSprite(this, this.playerSprite, pKey);
     this.fitSprite(this.enemySprite, 150);
     this.fitSprite(this.playerSprite, 160);
     this.updateEnemySprite();
@@ -307,11 +311,14 @@ export class GymLeaderBattleScene extends Phaser.Scene {
   }
 
   private updateEnemySprite() {
-    const key = this.leaderSlot === 2 ? 'corrpanda' : `gym-${this.leaderSlot === 0 ? 197 : 198}`;
-    if (this.textures.exists(key)) {
-      this.enemySprite.setTexture(key);
+    const key = this.currentEnemyTextureKey();
+    if (setBattlePokemonSprite(this, this.enemySprite, key)) {
       this.fitSprite(this.enemySprite, 150);
     }
+  }
+
+  private currentEnemyTextureKey(): string {
+    return this.leaderSlot === 2 ? 'corrpanda' : `gym-${this.leaderSlot === 0 ? 197 : 198}`;
   }
 
   // ── Dialog ────────────────────────────────────────────────────────────────
@@ -676,8 +683,8 @@ export class GymLeaderBattleScene extends Phaser.Scene {
     this.resolvingFaint = true;
     const party = PartySystem.get(this.registry);
     if (party[this.activeSlot]) { party[this.activeSlot].hp = 0; PartySystem.set(this.registry, party); }
-    const nextIdx = party.findIndex((e, i) => i !== this.activeSlot && e && e.hp > 0);
-    if (nextIdx === -1) {
+    const anyHealthy = party.some((e, i) => i !== this.activeSlot && e && e.hp > 0);
+    if (!anyHealthy) {
       this.typeDialog('All your Pokémon fainted!', () => {
         this.typeDialog('Leader Jin: Rest and recover. Your spirit is strong.', () => {
           // A Gym loss is a normal whiteout. Returning straight to a freshly
@@ -688,15 +695,28 @@ export class GymLeaderBattleScene extends Phaser.Scene {
       });
       return;
     }
+
+    // A fainted battler must never silently choose the first healthy slot.
+    // Use the same non-cancellable party picker as wild and trainer battles;
+    // SwitchPanel also mirrors these choices into the mobile control deck.
+    this.state = 'busy';
+    this.hideAllPanels();
+    this.typeDialog('Choose your next Pokémon!');
+    openSwitchPanel(this, this.activeSlot, () => {}, (idx) => this.sendInChosen(idx), false);
+  }
+
+  private sendInChosen(nextIdx: number) {
+    if (!this.resolvingFaint) return;
+    const party = PartySystem.get(this.registry);
+    const entry = party[nextIdx];
+    if (!entry || nextIdx === this.activeSlot || entry.hp <= 0) return;
     this.activeSlot = nextIdx;
     this.participants.add(nextIdx);
-    const entry = PartySystem.get(this.registry)[nextIdx];
     this.player = buildReplacement(this.player, entry);
     syncBattleHudTypes(this.playerBattleHud, [this.player.data.type1, this.player.data.type2]);
     this.refreshMovePanel();
     this.refreshPlayerHud();
-    if (this.textures.exists(entry.spriteKey)) {
-      this.playerSprite.setTexture(entry.spriteKey);
+    if (setBattlePokemonSprite(this, this.playerSprite, entry.spriteKey)) {
       this.fitSprite(this.playerSprite, 160);
     }
     this.playerSprite.setAlpha(0);
@@ -728,8 +748,7 @@ export class GymLeaderBattleScene extends Phaser.Scene {
         syncBattleHudTypes(this.playerBattleHud, [this.player.data.type1, this.player.data.type2]);
         this.refreshMovePanel();
         this.refreshPlayerHud();
-        if (this.textures.exists(entry.spriteKey)) {
-          this.playerSprite.setTexture(entry.spriteKey);
+        if (setBattlePokemonSprite(this, this.playerSprite, entry.spriteKey)) {
           this.fitSprite(this.playerSprite, 160);
         }
         this.playerSprite.setAlpha(0);
@@ -761,8 +780,39 @@ export class GymLeaderBattleScene extends Phaser.Scene {
     lines.push("Capitol City's secrets are now open to you. Journey on, trainer.");
 
     let idx = 0;
+    let advanceArmed = false;
+    let returning = false;
+
+    // The Shadow Gym originally armed only Phaser's physical SPACE key after
+    // each reward line. The on-screen A button emits a dedicated DOM action
+    // before its synthetic key event, and on some mobile browsers that key event
+    // never reaches Phaser after the badge overlay has held focus. Listen to all
+    // supported confirm paths and disarm them together so one tap cannot advance
+    // two lines or start the return transition twice.
+    const removeAdvanceInput = () => {
+      advanceArmed = false;
+      this.input.keyboard?.off('keydown-SPACE', advance);
+      this.input.off('pointerdown', advance);
+      window.removeEventListener(MOBILE_ACTION_EVENT, advance);
+    };
+    const advance = () => {
+      if (!advanceArmed || returning) return;
+      removeAdvanceInput();
+      next();
+    };
+    const armAdvanceInput = () => {
+      if (returning || !this.scene.isActive()) return;
+      removeAdvanceInput();
+      advanceArmed = true;
+      this.input.keyboard?.once('keydown-SPACE', advance);
+      this.input.once('pointerdown', advance);
+      window.addEventListener(MOBILE_ACTION_EVENT, advance, { once: true });
+    };
     const next = () => {
       if (idx >= lines.length) {
+        if (returning) return;
+        returning = true;
+        removeAdvanceInput();
         const px = 24 * 32, py = 69 * 32;
         this.registry.set('capitalReturnX', px); this.registry.set('capitalReturnY', py);
         SaveManager.save(this.registry, px, py, 'CapitolCityScene');
@@ -770,8 +820,11 @@ export class GymLeaderBattleScene extends Phaser.Scene {
         return;
       }
       this.dialogText.setText(tr(lines[idx++]));
-      this.time.delayedCall(300, () => { this.input.keyboard!.once('keydown-SPACE', next); });
+      // Require a fresh press after the line appears; this also prevents the tap
+      // that closed the badge ceremony from consuming the first victory line.
+      this.time.delayedCall(300, armAdvanceInput);
     };
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, removeAdvanceInput);
     showRewardCeremony(this, { kind: 'badge', key: 'gymLeaderDefeated', onComplete: next });
   }
 

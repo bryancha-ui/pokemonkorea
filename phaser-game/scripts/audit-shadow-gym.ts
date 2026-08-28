@@ -18,6 +18,8 @@ const sceneKeys = new Set<string>();
 const trainerKeys = new Set<string>();
 const offlinePokemon = (offlineData as { pokemon: Record<string, unknown> }).pokemon;
 const arenaThemes = readFileSync('src/engine3d/BattleArenaThemes.ts', 'utf8');
+const leaderBattle = readFileSync('src/scenes/GymLeaderBattleScene.ts', 'utf8');
+const roomScene = readFileSync('src/scenes/CapitolGymScene.ts', 'utf8');
 SHADOW_GYM_ROOMS.forEach((room, roomIndex) => {
   expect(!sceneKeys.has(room.sceneKey), `duplicate room scene: ${room.sceneKey}`);
   expect(!trainerKeys.has(room.trainer.key), `duplicate trainer: ${room.trainer.key}`);
@@ -58,9 +60,29 @@ SHADOW_GYM_ROOMS.forEach((room, roomIndex) => {
     : `trainerDefeated_${room.trainer.key}`), `${room.sceneKey} does not honor existing victory saves`);
 });
 
+expect(leaderBattle.includes("import { MOBILE_ACTION_EVENT } from '../systems/TouchControls'"),
+  'Leader Jin victory dialog is not connected to the mobile A-button');
+expect(leaderBattle.includes('window.addEventListener(MOBILE_ACTION_EVENT, advance, { once: true })'),
+  'Leader Jin victory dialog does not arm a fresh mobile confirm for every line');
+expect(leaderBattle.includes('window.removeEventListener(MOBILE_ACTION_EVENT, advance)'),
+  'Leader Jin victory dialog leaks or double-fires its mobile confirm listener');
+expect(leaderBattle.includes("this.input.once('pointerdown', advance)"),
+  'Leader Jin victory dialog cannot be advanced by tapping the game screen');
+expect(leaderBattle.includes("this.typeDialog('Choose your next Pokémon!')"),
+  'Leader Jin still auto-selects a replacement after the player faints');
+expect(/openSwitchPanel\(this, this\.activeSlot, \(\) => \{\}, \(idx\) => this\.sendInChosen\(idx\), false\)/.test(leaderBattle),
+  'Leader Jin faint replacement is not a non-cancellable desktop/mobile party choice');
+expect(roomScene.includes("import { maybeLaunchEvolution } from '../systems/EvolutionSystem'"),
+  'Shadow Gym rooms cannot play a level evolution after battle');
+expect(roomScene.includes('if (returnedFromBattle) this.time.delayedCall(300, () => maybeLaunchEvolution(this))'),
+  'Shadow Gym postpones level evolution until an unrelated menu item is used');
+
 console.log(JSON.stringify({
   roomsChecked: SHADOW_GYM_ROOMS.length,
   candidatesChecked: SHADOW_GYM_ROOMS.reduce((sum, room) => sum + room.candidates.length, 0),
+  mobileVictoryReturnChecked: true,
+  postBattleEvolutionChecked: true,
+  forcedReplacementChoiceChecked: true,
   failures,
 }, null, 2));
 

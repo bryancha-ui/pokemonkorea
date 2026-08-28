@@ -109,7 +109,6 @@ const TRANSIENT = new Set<string>([
   'trainerName', 'trainerKey', 'trainerPokemon', 'trainerExpPool', 'trainerReturnScene',
   'trainerBadgeFlag', 'trainerBadgeName', 'trainerBadgeTM', 'trainerWinLine',
   'bagFocusItem',
-  '_teKey',
   PLAY_SESSION_STARTED_KEY,
 ]);
 

@@ -8,6 +8,7 @@ const CINEMATIC_3D_IMPACT_DELAY: Readonly<Record<string, number>> = {
   'soul ferry deluge': 515, 'royal kiln roar': 450,
   'ice beam': 365, 'hydro pump': 525, 'shadow ball': 640, 'air slash': 455,
   flamethrower: 290, ember: 290, 'flame burst': 290, 'fire blast': 290,
+  thunderbolt: 410,
   psychic: 290, psybeam: 290, psyshock: 290, confusion: 290,
   'dark pulse': 290, hex: 290, 'ominous wind': 290,
   'bug buzz': 290, 'hyper voice': 290, supersonic: 290,
@@ -48,6 +49,7 @@ export function playMoveFX(
   });
   const ax = attacker.x, ay = attacker.y;
   const tx = target.x, ty = target.y;
+  const moveKey = move.name.toLowerCase().replace(/-/g, ' ').trim();
 
   // Each element gets its own voice — fire crackles as it launches, fighting
   // cracks like a snapped board when it lands. The cast layer plays quieter so
@@ -63,7 +65,6 @@ export function playMoveFX(
   };
 
   if (move.category === 'physical') {
-    const moveKey = move.name.toLowerCase().replace(/-/g, ' ').trim();
     if (using3D && moveKey === 'fly') {
       // BattleMirror's airborne dive reaches the target at 0.58 of its 1.1 s
       // timeline. Keep damage/HP feedback on that contact instead of the old
@@ -81,8 +82,20 @@ export function playMoveFX(
       scene.time.delayedCall(cinematic3DImpactDelay(moveKey === 'stone edge' ? 500 : 620), impact);
       return;
     }
+    if (using3D && (moveKey === 'rock throw' || moveKey === 'rock tomb')) {
+      scene.time.delayedCall(cinematic3DImpactDelay(moveKey === 'rock tomb' ? 675 : 505), impact);
+      return;
+    }
     if (using3D) {
       scene.time.delayedCall(cinematic3DImpactDelay(300), impact);
+      return;
+    }
+    if (moveKey === 'rock throw') {
+      playRockThrow2D(scene, attacker, target, impact);
+      return;
+    }
+    if (moveKey === 'rock tomb') {
+      playRockTomb2D(scene, target, impact);
       return;
     }
     scene.tweens.add({
@@ -97,9 +110,12 @@ export function playMoveFX(
     if (using3D) {
       // Keep damage timing identical while the richer effect is drawn by the
       // 3D mirror. Drawing the generic 2D orb here would cover that effect.
-      const moveKey = move.name.toLowerCase().replace(/-/g, ' ').trim();
       const delay = CINEMATIC_3D_IMPACT_DELAY[moveKey] ?? 340;
       scene.time.delayedCall(cinematic3DImpactDelay(delay), impact);
+      return;
+    }
+    if (moveKey === 'thunderbolt') {
+      playThunderbolt2D(scene, attacker, target, impact);
       return;
     }
     const orb  = scene.add.circle(ax, ay, 11, color, 0.95).setDepth(9);
@@ -110,6 +126,154 @@ export function playMoveFX(
       onComplete: () => { orb.destroy(); glow.destroy(); impact(); },
     });
   }
+}
+
+/** Large, readable 2D fallback for Rock Throw. The 3D renderer owns the normal
+ * production path, but F3/debug mode and GLB-less devices must retain the same
+ * move identity instead of falling back to a generic body lunge. */
+function playRockThrow2D(
+  scene: Phaser.Scene,
+  attacker: Phaser.GameObjects.Image,
+  target: Phaser.GameObjects.Image,
+  impact: () => void,
+): void {
+  const dir = attacker.x < target.x ? -1 : 1;
+  const points = [-42,-12, -23,-38, 12,-46, 39,-21, 46,13, 20,41, -17,45, -45,19];
+  const shadow = scene.add.ellipse(target.x, target.y + 24, 104, 28, 0x17120d, 0.38)
+    .setDepth(8).setScale(0.35);
+  const rock = scene.add.polygon(target.x + dir * 105, target.y - 230, points, 0x6f5943, 1)
+    .setStrokeStyle(5, 0xb99a70, 0.9).setDepth(13).setScale(0.45).setAngle(-25 * dir);
+  scene.tweens.add({ targets: shadow, scaleX: 1, scaleY: 1, alpha: 0.62, duration: 500, ease: 'Quad.easeIn' });
+  scene.tweens.add({
+    targets: rock,
+    x: target.x, y: target.y - 8, scaleX: 1.18, scaleY: 1.18,
+    angle: 145 * dir, duration: 530, ease: 'Quad.easeIn',
+    onComplete: () => {
+      impact();
+      for (let i = 0; i < 9; i++) {
+        const chip = scene.add.polygon(target.x, target.y - 4,
+          [-7,-3, 0,-8, 8,-2, 4,7, -5,6], i % 2 ? 0x8a6d4d : 0xc09a68, 0.95)
+          .setDepth(14).setAngle(i * 39);
+        const a = i / 9 * Math.PI * 2;
+        scene.tweens.add({
+          targets: chip,
+          x: target.x + Math.cos(a) * (48 + (i % 3) * 17),
+          y: target.y + Math.sin(a) * (30 + (i % 2) * 18),
+          angle: chip.angle + 140, alpha: 0, duration: 360,
+          onComplete: () => chip.destroy(),
+        });
+      }
+      scene.tweens.add({
+        targets: [rock, shadow], alpha: 0, duration: 260, delay: 80,
+        onComplete: () => { rock.destroy(); shadow.destroy(); },
+      });
+    },
+  });
+}
+
+/** Rock Tomb surrounds and partially buries the target, then stamps the red X
+ * seal requested by the move's visual language. */
+function playRockTomb2D(
+  scene: Phaser.Scene,
+  target: Phaser.GameObjects.Image,
+  impact: () => void,
+): void {
+  const rocks: Phaser.GameObjects.Polygon[] = [];
+  const basePoints = [-25,-8, -13,-27, 12,-30, 29,-12, 24,17, 4,28, -22,20];
+  for (let i = 0; i < 11; i++) {
+    const front = i >= 6;
+    const angle = i / 11 * Math.PI * 2;
+    const radius = 26 + (i % 4) * 13;
+    const scale = front ? 1.05 + (i % 3) * 0.14 : 0.78 + (i % 3) * 0.12;
+    const landX = target.x + Math.cos(angle) * radius;
+    const landY = target.y + (front ? 24 : -2) + Math.sin(angle) * 18;
+    const rock = scene.add.polygon(landX + (i % 2 ? -35 : 35), landY - 210 - (i % 3) * 34,
+      basePoints, i % 3 ? 0x68513d : 0x8a6747, 1)
+      .setStrokeStyle(3, 0xb39468, 0.82).setDepth(front ? 14 : 9)
+      .setScale(scale * 0.52).setAngle(i * 47);
+    rocks.push(rock);
+    scene.tweens.add({
+      targets: rock, x: landX, y: landY, scaleX: scale, scaleY: scale,
+      angle: rock.angle + (i % 2 ? 130 : -145), delay: i * 32,
+      duration: 380 + (i % 3) * 35, ease: 'Quad.easeIn',
+    });
+  }
+
+  const seal = scene.add.text(target.x, target.y - 34, '✕', {
+    fontFamily: 'Arial Black, sans-serif', fontSize: '96px', color: '#ff3b2f',
+    stroke: '#fff1bb', strokeThickness: 8,
+  }).setOrigin(0.5).setDepth(18).setAlpha(0).setScale(0.25);
+  scene.time.delayedCall(565, () => {
+    impact();
+    scene.tweens.add({
+      targets: seal, alpha: 1, scaleX: 1, scaleY: 1, duration: 170, ease: 'Back.easeOut',
+      onComplete: () => scene.tweens.add({
+        targets: seal, alpha: 0, scaleX: 1.2, scaleY: 1.2, delay: 210, duration: 190,
+        onComplete: () => seal.destroy(),
+      }),
+    });
+    scene.tweens.add({
+      targets: rocks, alpha: 0, y: '+=18', delay: 360, duration: 300,
+      onComplete: () => rocks.forEach(rock => rock.destroy()),
+    });
+  });
+}
+
+/** Oversized Thunderbolt fallback: three jagged high-voltage channels bridge
+ * attacker and target while a wide electric cage wraps the target. */
+function playThunderbolt2D(
+  scene: Phaser.Scene,
+  attacker: Phaser.GameObjects.Image,
+  target: Phaser.GameObjects.Image,
+  impact: () => void,
+): void {
+  const graphics = scene.add.graphics().setDepth(17).setBlendMode(Phaser.BlendModes.ADD);
+  const glow = scene.add.circle(target.x, target.y, 54, 0xffe52e, 0.2)
+    .setDepth(16).setBlendMode(Phaser.BlendModes.ADD).setScale(0.3);
+  const draw = () => {
+    graphics.clear();
+    for (let lane = -1; lane <= 1; lane++) {
+      graphics.lineStyle(lane === 0 ? 10 : 5, lane === 0 ? 0xffffd0 : 0xffd400, lane === 0 ? 0.96 : 0.72);
+      graphics.beginPath();
+      graphics.moveTo(attacker.x, attacker.y - 18 + lane * 8);
+      for (let i = 1; i < 9; i++) {
+        const k = i / 9;
+        const x = Phaser.Math.Linear(attacker.x, target.x, k) + (Math.random() - 0.5) * (42 + Math.abs(lane) * 18);
+        const y = Phaser.Math.Linear(attacker.y - 18, target.y, k) + (Math.random() - 0.5) * 34 + lane * 12;
+        graphics.lineTo(x, y);
+      }
+      graphics.lineTo(target.x, target.y);
+      graphics.strokePath();
+    }
+    graphics.lineStyle(5, 0xffff7a, 0.82);
+    for (let i = 0; i < 12; i++) {
+      const a = i / 12 * Math.PI * 2;
+      graphics.beginPath();
+      graphics.moveTo(target.x + Math.cos(a) * 18, target.y + Math.sin(a) * 16);
+      graphics.lineTo(target.x + Math.cos(a + 0.18) * 58, target.y + Math.sin(a + 0.18) * 72);
+      graphics.lineTo(target.x + Math.cos(a) * 84, target.y + Math.sin(a) * 96);
+      graphics.strokePath();
+    }
+  };
+  draw();
+  scene.tweens.add({ targets: glow, scaleX: 1.55, scaleY: 1.55, alpha: 0.55, duration: 360, ease: 'Sine.easeOut' });
+  let flashes = 0;
+  const flicker = scene.time.addEvent({
+    delay: 52, repeat: 7,
+    callback: () => {
+      flashes++;
+      if (flashes % 2) draw();
+      graphics.setAlpha(flashes % 2 ? 1 : 0.42);
+    },
+  });
+  scene.time.delayedCall(410, impact);
+  scene.time.delayedCall(610, () => {
+    flicker.destroy();
+    scene.tweens.add({
+      targets: [graphics, glow], alpha: 0, duration: 160,
+      onComplete: () => { graphics.destroy(); glow.destroy(); },
+    });
+  });
 }
 
 function projectedPoint(scene: Phaser.Scene, target: Phaser.GameObjects.Image, heightRatio = 0.55) {
@@ -135,6 +299,11 @@ export function playStatusFX(
     attacker: affected, target: affected, color, category: 'status',
     moveType: move.type, moveName: move.name, power: 0, effectiveness: 1,
   });
+  // Status moves never pass through playMoveFX, so without this hook moves such
+  // as Sunny Day, Swords Dance and Thunder Wave were the last silent part of the
+  // battle move set. Damaging moves with a secondary status have already played
+  // their cast/impact voice and must not add a third copy here.
+  if (move.category === 'status') playMoveSfx(scene, move.type, 'cast');
   const symbol = kind === 'heal' ? '+' : kind === 'stat-down' ? '▼' : kind === 'guard' ? '◆' : '▲';
   for (let i = 0; i < 9; i++) {
     const a = (i / 9) * Math.PI * 2;
@@ -195,6 +364,9 @@ export function playChargeFX(
 ): void {
   const engine3D = (window as unknown as { __pk3d?: { isRendering(scene: Phaser.Scene): boolean } }).__pk3d;
   const using3D = !!engine3D?.isRendering(scene);
+  // Give the first turn of Fly, Dig, Solar Beam, etc. an audible wind-up. The
+  // release turn subsequently enters playMoveFX and supplies its own impact.
+  if (phase === 'charge') playMoveSfx(scene, move.type, 'cast');
   scene.events.emit('pk3d-chargefx', { target: user, phase, mode, moveName: move.name });
   if (using3D) {
     scene.time.delayedCall(phase === 'charge' ? 540 : 370, onComplete);

@@ -1337,7 +1337,11 @@ export class MenuScene extends Phaser.Scene {
         const res = useItemOnSlot(this.registry, itemKey, i);
         overlay.destroy(true);
         this.showToast(tr(res.message));
-        if (res.ok && hasPendingEvolution(this.registry)) {
+        // Launch here only when THIS item queued a stone evolution. Previously
+        // any successful item (including a Potion) launched an unrelated pending
+        // level evolution elsewhere in the party — most visibly Gawlhawk at
+        // Lv.14 inside the Shadow Gym.
+        if (res.ok && res.evolutionQueued && hasPendingEvolution(this.registry)) {
           this.time.delayedCall(280, () => {
             this.scene.launch('EvolutionScene', { parentKey: 'MenuScene' });
             this.scene.pause();

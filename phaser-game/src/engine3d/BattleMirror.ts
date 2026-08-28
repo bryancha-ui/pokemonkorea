@@ -6,7 +6,7 @@ import { buildGeographicBattleArena, resolveOutdoorBattleTheme } from './BattleG
 import { buildCharacterModel, ChoreoPose, PlayerModel } from './CharacterModel';
 import { CreatureAnimator, MoveCategory } from './CreatureAnimator';
 import { measureCommands } from './GraphicsRaster';
-import { getModel, hasModel, isBorrowedApiModel, isCompanionOnlyModel, isRenderableModel, manifestReady, modelLoadStatus, primeManifest } from './GlbModels';
+import { getModel, hasModel, isBorrowedApiModel, isCompanionOnlyModel, isRenderableModel, manifestReady, modelLoadStatus, normalizeKey, pinModel, primeManifest, unpinModel } from './GlbModels';
 import { MoveFX3D } from './MoveFX3D';
 import { RainFX, SandstormFX, SnowFX, SunFX, type WeatherFX3D } from './WeatherFX3D';
 import { makeBlobShadow, makePokeBallProp } from './Props';
@@ -15,6 +15,7 @@ import { spriteScale } from '../data/SpriteScale';
 import { battleFallbackSprite } from '../data/BattleFallbackSprites';
 import { EnvProfile, ThreeStage } from './ThreeStage';
 import { BATTLE_PACING } from '../systems/BattlePacing';
+import { battlePokemonModelKey } from '../systems/BattlePokemonSprite';
 
 // ── Battle mirror ────────────────────────────────────────────────────────────
 // Turns the existing 2D battle scenes into a cinematic 3D arena without
@@ -45,6 +46,8 @@ interface Combatant {
   /** Local production GLB support. */
   glbKey: string | null;
   glb: THREE.Group | null;
+  /** Cache key whose shared GPU resources back the currently attached clone. */
+  pinnedGlbKey: string | null;
   glbVerifyFrames: number;
   glbHealthTimer: number;
   rejectedGlbKey: string | null;
@@ -88,6 +91,7 @@ const TIMED_SPECIAL_MOVES = new Set([
   'bug buzz', 'hyper voice', 'supersonic', 'energy ball', 'mega drain', 'giga drain', 'absorb', 'grave bloom',
   'sludge bomb', 'venoshock', 'moonblast', 'dazzling gleam', 'fairy wind', 'draining kiss',
   'draco meteor', 'dragon pulse', 'dragon breath', 'blizzard', 'powder snow', 'aurora beam',
+  'thunderbolt',
 ]);
 
 // A few species are intentionally much larger than the normalised battle
@@ -110,6 +114,18 @@ const BATTLE_SIZE_OVERRIDES: Record<string, number> = {
   // Large armoured dragon/ship silhouette; keep its lightweight local GLB
   // imposing without letting the cannon overlap the opposing combatant.
   turtleship: 1.28,
+  // Liepard's long, low body occupies much less screen area than its normalized
+  // height suggests. Counter the borrowed-model 0.6 reduction so it reads at
+  // the same stage presence as other medium-sized evolved Pokémon.
+  '510': 1.65,
+};
+
+/** A few third-party GLBs use a different authored forward axis. Values rotate
+ * that raw axis onto the battle mirror's conventional +Z/front direction. */
+const BATTLE_YAW_OVERRIDES_DEG: Readonly<Record<string, number>> = {
+  // Onix's rig runs tail→head primarily along -X, so without this correction
+  // its head points screen-left when the enemy-facing camera yaw is applied.
+  '95': 90,
 };
 
 // Borrowed Pokémon-3D-API models are authored large and read oversized in the
@@ -119,12 +135,20 @@ const BORROWED_API_BATTLE_SCALE = 0.6;
 
 function battleSizeOverride(textureKey: string): number {
   const borrowed = isBorrowedApiModel(textureKey) ? BORROWED_API_BATTLE_SCALE : 1;
-  const explicit = BATTLE_SIZE_OVERRIDES[textureKey];
+  const explicit = BATTLE_SIZE_OVERRIDES[normalizeKey(textureKey)];
   if (explicit) return explicit * borrowed;
   // The GLB pipeline deliberately clamps raw display-height influence
   // to 1.15. Restore the remainder of the authored species multiplier so large
   // Pokémon such as Garchomp and Tyranitar stay imposing in 3D as well as 2D.
   return Math.max(1, spriteScale(textureKey) / 1.15) * borrowed;
+}
+
+function battleYawOffset(textureKey: string): number {
+  return THREE.MathUtils.degToRad(BATTLE_YAW_OVERRIDES_DEG[normalizeKey(textureKey)] ?? 0);
+}
+
+function combatantSignature(im: Phaser.GameObjects.Image): string {
+  return `${im.texture.key}:${im.frame?.name ?? 0}:${battlePokemonModelKey(im)}`;
 }
 
 // Battle trainers share their side's Pokémon anchor, then retire when the
@@ -172,6 +196,7 @@ interface TrainerWalker {
   glbHand: THREE.Object3D | null;
   wantsGlb: boolean;
   glbKey: string;
+  pinnedGlbKey: string | null;
   /** Rig bones by role, with the bind rotation each authored pose is applied
    *  relative to. */
   rig: Map<string, { node: THREE.Object3D; bind: THREE.Quaternion }> | null;
@@ -382,9 +407,15 @@ export class BattleMirror {
     this.scene.events.off('pk3d-weather', this.onWeather);
     this.clearWeatherFx();
     this.fx.clearPersistentStatuses();
-    for (const cb of this.combatants.values()) this.destroyFallbackSprite(cb);
+    for (const cb of this.combatants.values()) {
+      this.releaseCombatantGlb(cb);
+      this.destroyFallbackSprite(cb);
+    }
     this.combatants.clear();
-    for (const w of this.trainers) this.root.remove(w.group);
+    for (const w of this.trainers) {
+      this.releaseTrainerGlb(w);
+      this.root.remove(w.group);
+    }
     this.trainers.length = 0;
     this.pinned2DTrainers.clear();
     this.hiddenBackdrops.clear();
@@ -463,6 +494,22 @@ export class BattleMirror {
         this.rig.focusOn(tgt.holder.position, index === 3 ? 0.9 : 0.72);
         this.rig.addShake((index === 3 ? 0.72 : 0.32) * (d.effectiveness > 1 ? 1.25 : 1));
       });
+      return;
+    }
+
+    if (category === 'physical' && (moveKey === 'rock throw' || moveKey === 'rock tomb')) {
+      atk.anim?.attack('special', dir, powerScale);
+      this.rig.focusOn(tgt.holder.position, 0.86);
+      const onRockImpact = () => {
+        tgt.anim?.hit(d.effectiveness > 1 ? 1.38 : 1.08);
+        this.rig.focusOn(tgt.holder.position, 0.9);
+        this.rig.addShake((moveKey === 'rock tomb' ? 0.7 : 0.64) * (d.effectiveness > 1 ? 1.2 : 1));
+      };
+      if (moveKey === 'rock tomb') {
+        this.fx.rockTomb(to, d.color, d.power ?? 60, d.effectiveness, onRockImpact);
+      } else {
+        this.fx.rockThrow(to, d.color, d.power ?? 50, d.effectiveness, onRockImpact);
+      }
       return;
     }
 
@@ -689,13 +736,13 @@ export class BattleMirror {
     const trainerAtEnemy = !!(im as Phaser.GameObjects.Image).getData?.('battleTrainerEnemyAnchor');
     const trainerAtPlayer = !!(im as Phaser.GameObjects.Image).getData?.('battleTrainerPlayerAnchor');
     const pokemonSide = (im as Phaser.GameObjects.Image).getData?.('battlePokemonSide') as ('player' | 'enemy' | undefined);
-    const modelKey = (im as Phaser.GameObjects.Image).getData?.('characterModel3DKey') as string | undefined;
+    const trainerModelKey = (im as Phaser.GameObjects.Image).getData?.('characterModel3DKey') as string | undefined;
     if (trainerDesign || trainerAtEnemy || trainerAtPlayer) {
       const taggedGender = (im as Phaser.GameObjects.Image).getData?.('characterGender3D') as ('boy' | 'girl' | undefined);
       this.spawnTrainer(
         im,
-        trainerDesign ?? taggedGender ?? (modelKey?.includes('girl') ? 'girl' : 'boy'),
-        modelKey ?? im.texture.key,
+        trainerDesign ?? taggedGender ?? (trainerModelKey?.includes('girl') ? 'girl' : 'boy'),
+        trainerModelKey ?? im.texture.key,
         !!trainerDesign,
         trainerAtPlayer ? 'player' : 'enemy',
         !!(im as Phaser.GameObjects.Image).getData?.('battleChoreo'),
@@ -725,7 +772,8 @@ export class BattleMirror {
       : [...this.combatants.values()].filter(cb => cb.side === side).length % 2;
 
     const sizeBias = Math.min(1.15, Math.max(0.85, dh / 220));
-    const speciesSize = battleSizeOverride(im.texture.key);
+    const modelKey = battlePokemonModelKey(im);
+    const speciesSize = battleSizeOverride(modelKey);
     const holder = new THREE.Group();
     const shadow = makeBlobShadow(Math.min(1.5, Math.max(0.42, dw / 190)));
     shadow.visible = false;
@@ -745,8 +793,9 @@ export class BattleMirror {
       lastPos: { x: im.x ?? 0, y: im.y ?? 0 }, speed: 0,
       baseSX: null, baseSY: null,
       lastSX: Math.abs(im.scaleX ?? 1), scaleStill: 0,
-      glbKey: !trainerAtEnemy && hasModel(im.texture.key) && !isCompanionOnlyModel(im.texture.key) ? im.texture.key : null,
+      glbKey: !trainerAtEnemy && hasModel(modelKey) && !isCompanionOnlyModel(modelKey) ? modelKey : null,
       glb: null,
+      pinnedGlbKey: null,
       glbVerifyFrames: 0,
       glbHealthTimer: 0,
       rejectedGlbKey: null,
@@ -761,7 +810,7 @@ export class BattleMirror {
       flight: null,
       flightTilt: 0,
       flightScale: 1,
-      texSig: `${im.texture.key}:${im.frame?.name ?? 0}`,
+      texSig: combatantSignature(im),
       fallback2D: true,
       fallbackSprite: null,
       fallbackTextureKey: null,
@@ -774,18 +823,17 @@ export class BattleMirror {
   private refreshCombatant(cb: Combatant): boolean {
     const im = cb.obj;
     const dh = im.displayHeight ?? 0;
-    const speciesSize = battleSizeOverride(im.texture.key);
+    const modelKey = battlePokemonModelKey(im);
+    const speciesSize = battleSizeOverride(modelKey);
     cb.base = null;
     cb.settleTimer = 0;
     cb.baseSX = null; cb.baseSY = null; cb.scaleStill = 0;   // re-settle on the new art
     cb.targetH = (cb.side === 'enemy' ? 1.92 : 1.58) * Math.min(1.25, Math.max(0.95, dh / 220)) * speciesSize;
     // A different creature key means a different production GLB (or no GLB).
-    const nk = hasModel(im.texture.key) && !isCompanionOnlyModel(im.texture.key) ? im.texture.key : null;
-    if (cb.rejectedGlbKey !== im.texture.key) cb.rejectedGlbKey = null;
-    if (cb.glb && nk !== cb.glbKey) {
-      cb.holder.remove(cb.glb);
-      cb.glb = null;
-      cb.anim = null;
+    const nk = hasModel(modelKey) && !isCompanionOnlyModel(modelKey) ? modelKey : null;
+    if (cb.rejectedGlbKey !== modelKey) cb.rejectedGlbKey = null;
+    if (nk !== cb.glbKey && (cb.glb || cb.pinnedGlbKey)) {
+      this.releaseCombatantGlb(cb);
       cb.shadow.visible = false;
       cb.glbVerifyFrames = 0;
       cb.glbHealthTimer = 0;
@@ -819,7 +867,7 @@ export class BattleMirror {
   private ensureFallbackSprite(cb: Combatant): void {
     if (cb.fallbackSprite?.scene) return;
 
-    const speciesKey = cb.rejectedGlbKey ?? cb.obj.texture.key;
+    const speciesKey = cb.rejectedGlbKey ?? battlePokemonModelKey(cb.obj);
     const authored = battleFallbackSprite(speciesKey);
     const initialKey = authored && this.scene.textures.exists(authored.key)
       ? authored.key
@@ -923,9 +971,8 @@ export class BattleMirror {
   }
 
   private rejectGlbModel(cb: Combatant): void {
-    cb.rejectedGlbKey = cb.glbKey ?? cb.obj.texture.key;
-    if (cb.glb) cb.holder.remove(cb.glb);
-    cb.glb = null;
+    cb.rejectedGlbKey = cb.glbKey ?? battlePokemonModelKey(cb.obj);
+    this.releaseCombatantGlb(cb);
     cb.glbKey = null;
     cb.glbVerifyFrames = 0;
     cb.glbHealthTimer = 0;
@@ -934,6 +981,29 @@ export class BattleMirror {
     // A confirmed GLB failure keeps the original authored sprite. No generated,
     // extruded or procedural creature is allowed to replace it.
     this.use2DFallback(cb);
+  }
+
+  /** Detach a battle clone before releasing its shared cache entry. */
+  private releaseCombatantGlb(cb: Combatant): void {
+    cb.anim = null;
+    cb.glb?.removeFromParent();
+    cb.glb = null;
+    if (cb.pinnedGlbKey) {
+      unpinModel(cb.pinnedGlbKey);
+      cb.pinnedGlbKey = null;
+    }
+  }
+
+  /** Trainer GLBs use the same shared cache and need the same lifetime rule. */
+  private releaseTrainerGlb(w: TrainerWalker): void {
+    w.mixer?.stopAllAction();
+    w.mixer = null;
+    w.glb?.removeFromParent();
+    w.glb = null;
+    if (w.pinnedGlbKey) {
+      unpinModel(w.pinnedGlbKey);
+      w.pinnedGlbKey = null;
+    }
   }
 
   /** Local yaw that points a battler's +Z/front axis straight at the live
@@ -988,7 +1058,7 @@ export class BattleMirror {
       obj: im, model, group: holder, t: walkIn ? 0 : 1,
       phase: 0, seen: false, walkIn, side, start, end,
       choreo: choreo && !!model.setChoreo, choreoT: 0, threwBall: false, heldBall: null,
-      glb: null, mixer: null, glbHand: null, wantsGlb, glbKey: modelKey,
+      glb: null, mixer: null, glbHand: null, wantsGlb, glbKey: modelKey, pinnedGlbKey: null,
       rig: null, blendFrom: null, blendT: 0,
     });
     // The flat 2D portrait stays off the render layer while the 3D walker plays;
@@ -1007,6 +1077,7 @@ export class BattleMirror {
       // Once it has appeared, the portrait fading out (Pokémon send-out) or the
       // scene tearing it down retires the walker.
       if (w.seen && (!(o as GO).scene || alpha < 0.06)) {
+        this.releaseTrainerGlb(w);
         this.root.remove(w.group);
         this.trainers.splice(i, 1);
         continue;
@@ -1032,6 +1103,8 @@ export class BattleMirror {
           g.scale.setScalar(1.85);
           w.group.add(g);
           w.glb = g;
+          pinModel(w.glbKey);
+          w.pinnedGlbKey = w.glbKey;
           w.rig = collectRigBones(g);
           if (loaded.animations.length) {
             w.mixer = new THREE.AnimationMixer(g);
@@ -1348,7 +1421,7 @@ export class BattleMirror {
 
       // The game swaps sprite textures at runtime (async PokeAPI art arriving
       // and party switches). Rebind the production model/fallback when it does.
-      const sig = `${o.texture.key}:${o.frame?.name ?? 0}`;
+      const sig = combatantSignature(o);
       if (sig !== cb.texSig) {
         cb.texSig = sig;
         this.refreshCombatant(cb);
@@ -1357,9 +1430,10 @@ export class BattleMirror {
       // The manifest loads asynchronously, so a creature adopted before it
       // arrived still resolves to its local GLB once the list is in. Until that
       // moment, and for species without a local GLB, the 2D image remains live.
-      if (!cb.glbKey && !cb.glb && cb.rejectedGlbKey !== cb.obj.texture.key
-          && hasModel(cb.obj.texture.key) && !isCompanionOnlyModel(cb.obj.texture.key)) {
-        cb.glbKey = cb.obj.texture.key;
+      const modelKey = battlePokemonModelKey(cb.obj);
+      if (!cb.glbKey && !cb.glb && cb.rejectedGlbKey !== modelKey
+          && hasModel(modelKey) && !isCompanionOnlyModel(modelKey)) {
+        cb.glbKey = modelKey;
       }
 
       // Swap only after the local GLB has completely loaded and passed geometry
@@ -1374,12 +1448,14 @@ export class BattleMirror {
           // The player's own model faces the opponent across the field.
           if (cb.side === 'player') {
             const dir = this.facingVector.copy(ANCHORS.enemy[0]).sub(ANCHORS.player[cb.slot]);
-            model.rotation.y = Math.atan2(dir.x, dir.z) - cb.holder.rotation.y;
+            model.rotation.y = Math.atan2(dir.x, dir.z) - cb.holder.rotation.y + battleYawOffset(cb.glbKey);
           } else {
-            model.rotation.y = this.cameraFacingYaw(cb.holder);
+            model.rotation.y = this.cameraFacingYaw(cb.holder) + battleYawOffset(cb.glbKey);
           }
           cb.glb = model;
           cb.holder.add(model);
+          pinModel(cb.glbKey);
+          cb.pinnedGlbKey = cb.glbKey;
           this.stage.requestMeshPreparation();
           // Any clips inside the GLB drive the model; otherwise the animator
           // moves the whole mesh procedurally.
@@ -1446,7 +1522,9 @@ export class BattleMirror {
       const uniformRel = (relX + relY) / 2;
       // Track the subtle camera drift/punch-ins so every opposing 3D model
       // continues to face forward throughout the battle, not only on spawn.
-      if (cb.side === 'enemy') cb.anim?.setFacing(this.cameraFacingYaw(cb.holder));
+      if (cb.side === 'enemy') {
+        cb.anim?.setFacing(this.cameraFacingYaw(cb.holder) + battleYawOffset(cb.glbKey ?? battlePokemonModelKey(cb.obj)));
+      }
       // Fainting: the battle fades/drops the sprite — play the topple once.
       const down = (o.alpha ?? 1) < 0.5 || o.visible === false;
       if (down && !cb.fainted && cb.base) { cb.fainted = true; cb.anim?.faint(); }
@@ -1481,6 +1559,7 @@ export class BattleMirror {
       const cb = this.combatants.get(d);
       if (cb) {
         this.fx.removePersistentStatus(cb.holder);
+        this.releaseCombatantGlb(cb);
         this.destroyFallbackSprite(cb);
         this.root.remove(cb.holder);
         this.combatants.delete(d);

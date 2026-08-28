@@ -40,7 +40,7 @@ import { buildSurfMountModel, type SurfMountModel } from './SurfMountModel';
 import { buildFlatCard, buildRelief, reliefMaterials } from './Extruder';
 import { drawCommands, hashCommands, measureCommands, rasterizeGraphics } from './GraphicsRaster';
 import { generateNabihalmangAppearance, type GeneratedCreatureAnimation } from './GeneratedCreatureAnimation';
-import { getModel, hasModel, manifestReady, modelBaseYawRad, primeManifest } from './GlbModels';
+import { getModel, hasModel, manifestReady, modelBaseYawRad, pinModel, primeManifest, unpinModel } from './GlbModels';
 import { HatchEffect3D, type HatchEffectProfile3D } from './HatchEffect3D';
 import { makeBlobShadow } from './Props';
 import { OverworldCompanion } from './OverworldCompanion';
@@ -90,6 +90,7 @@ interface Tracked {
   /** Optional true-3D creature model for a tagged overworld Image. */
   creatureKey?: string;
   creature?: THREE.Group;
+  pinnedCreatureKey?: string;
   creatureBaseScale?: number;
   creatureAnimation?: GeneratedCreatureAnimation;
   /** Authored interactive checkpoint that mirrors its Phaser gate state. */
@@ -180,6 +181,7 @@ export class OverworldMirror {
   private heroWalkPhase = 0;
   private heroLast: { x: number; z: number } | null = null;
   private hatchEffect: HatchEffect3D | null = null;
+  private hatchModelKey = '';
   private pendingInteriorModel: {
     holder: THREE.Group;
     def: PropDef;
@@ -204,7 +206,7 @@ export class OverworldMirror {
     this.stopHatchEffect();
     this.companion?.destroy();
     this.companion = null;
-    for (const t of this.tracked.values()) t.creatureAnimation?.dispose();
+    for (const t of this.tracked.values()) this.releaseTrackedCreature(t);
     this.tracked.clear();
     this.mapGraphics.clear();
     this.mapImages.clear();
@@ -1453,6 +1455,8 @@ export class OverworldMirror {
         if (loaded) {
           t.creature = loaded.group;
           t.mesh.add(t.creature);
+          pinModel(t.creatureKey);
+          t.pinnedCreatureKey = t.creatureKey;
           this.stage.requestMeshPreparation();
           if (o.getData?.('creatureAnimation3D') === 'nabihalmang-appearance') {
             t.creatureAnimation = generateNabihalmangAppearance(t.creature);
@@ -1550,7 +1554,7 @@ export class OverworldMirror {
     for (const d of dead) {
       const t = this.tracked.get(d);
       if (t) {
-        t.creatureAnimation?.dispose();
+        this.releaseTrackedCreature(t);
         this.root.remove(t.mesh);
         this.tracked.delete(d);
       }
@@ -1699,12 +1703,30 @@ export class OverworldMirror {
     // is not ready, use that 2D path instead of inventing a generic 3D creature.
     if (!loaded) return false;
     this.hatchEffect = new HatchEffect3D(this.stage, loaded, profile.type1);
+    pinModel(profile.key);
+    this.hatchModelKey = profile.key;
     return true;
   }
 
   stopHatchEffect(): void {
     this.hatchEffect?.dispose();
     this.hatchEffect = null;
+    if (this.hatchModelKey) {
+      unpinModel(this.hatchModelKey);
+      this.hatchModelKey = '';
+    }
+  }
+
+  /** Release a tagged creature only after its shared model cache is protected. */
+  private releaseTrackedCreature(t: Tracked): void {
+    t.creatureAnimation?.dispose();
+    t.creatureAnimation = undefined;
+    t.creature?.removeFromParent();
+    t.creature = undefined;
+    if (t.pinnedCreatureKey) {
+      unpinModel(t.pinnedCreatureKey);
+      t.pinnedCreatureKey = undefined;
+    }
   }
 
   /** Restore all Phaser-side visibility (leaving 3D mode). */

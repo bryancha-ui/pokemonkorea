@@ -28,6 +28,12 @@ export const HWANGEUM_FRAMES = {
   throw3: 'hw2d_throw3',
   throw4: 'hw2d_throw4',
   throw5: 'hw2d_throw5',
+  // AI-generated in-betweens for the dance→throw handoff (see
+  // scripts/install-champion-inbetweens.mjs). OPTIONAL: absent files simply never
+  // load, and the routine below drops them from the beat list, so the animation
+  // still plays exactly as before.
+  toThrow1: 'hw2d_to_throw1',
+  toThrow2: 'hw2d_to_throw2',
 } as const;
 
 const FILES: Record<string, string> = {
@@ -43,12 +49,20 @@ const FILES: Record<string, string> = {
   [HWANGEUM_FRAMES.throw5]: DIR + 'hw_throw5.png',
 };
 
+/** Frames the routine can use but does not require. */
+const OPTIONAL_FILES: Record<string, string> = {
+  [HWANGEUM_FRAMES.toThrow1]: DIR + 'hw_dance_to_throw1.png',
+  [HWANGEUM_FRAMES.toThrow2]: DIR + 'hw_dance_to_throw2.png',
+};
+
 /** Queue every frame. Safe to call in any scene's preload; already-present
  *  textures are skipped, and a missing file simply leaves that key absent. */
 export function preloadHwangeumFrames(scene: Phaser.Scene): void {
-  for (const [key, url] of Object.entries(FILES)) {
+  for (const [key, url] of Object.entries({ ...FILES, ...OPTIONAL_FILES })) {
     if (!scene.textures.exists(key)) scene.load.image(key, url);
   }
+  // A missing optional frame must not fail the whole load queue.
+  scene.load.once(Phaser.Loader.Events.FILE_LOAD_ERROR, () => { /* optional */ });
 }
 
 /** True once every frame is resident, i.e. the 2D routine can actually play. */
@@ -93,6 +107,18 @@ const THROW: (Beat & { release?: boolean })[] = [
   { key: HWANGEUM_FRAMES.stand,  hold: 200 },
 ];
 
+/**
+ * The dance→throw handoff. Two very different drawings used to sit back to back
+ * here; these connective frames were generated from the two keyframes themselves
+ * (Higgsfield kling3_0, chroma-keyed and aligned by
+ * scripts/install-champion-inbetweens.mjs), so they match the authored art.
+ * Short holds: they carry the motion, they are not poses to read.
+ */
+const BRIDGE: Beat[] = [
+  { key: HWANGEUM_FRAMES.toThrow1, hold: 110, dy: -3, tilt: 0.01 },
+  { key: HWANGEUM_FRAMES.toThrow2, hold: 120, dx: -5, dy: -2, tilt: 0.04 },
+];
+
 export interface HwangeumIntroOptions {
   /** Fired on the frame the ball leaves his hand. */
   onRelease?: () => void;
@@ -103,11 +129,17 @@ export interface HwangeumIntroOptions {
 }
 
 /** Total wall-clock length of the routine, for callers that need to time around it. */
+/** Assumes the optional bridge frames are installed, which they are in this
+ *  build. The routine itself never relies on these constants — it fires
+ *  onRelease/onDone on the real beat — so a missing frame cannot desynchronise
+ *  the ball; it only makes these two numbers 230 ms long. */
 export const HWANGEUM_INTRO_MS =
-  DANCE.reduce((n, b) => n + b.hold, 0) + THROW.reduce((n, b) => n + b.hold, 0);
+  DANCE.reduce((n, b) => n + b.hold, 0)
+  + BRIDGE.reduce((n, b) => n + b.hold, 0)
+  + THROW.reduce((n, b) => n + b.hold, 0);
 /** When the ball leaves his hand, measured from the start of the routine. */
 export const HWANGEUM_RELEASE_MS = (() => {
-  let t = DANCE.reduce((n, b) => n + b.hold, 0);
+  let t = DANCE.reduce((n, b) => n + b.hold, 0) + BRIDGE.reduce((n, b) => n + b.hold, 0);
   for (const beat of THROW) {
     if (beat.release) return t;
     t += beat.hold;
@@ -124,7 +156,13 @@ export function playHwangeumIntro(
   portrait: Phaser.GameObjects.Image,
   options: HwangeumIntroOptions = {},
 ): () => void {
-  const beats = [...DANCE, ...THROW];
+  // The widest gap in the routine is the last dance beat handing over to the
+  // throw wind-up: two very different drawings, back to back. Where generated
+  // in-betweens are installed they are spliced in there, turning one jump into
+  // three smaller ones. Each is a short hold — they are connective tissue, not
+  // poses to read.
+  const bridge = BRIDGE.filter(b => scene.textures.exists(b.key));
+  const beats = [...DANCE, ...bridge, ...THROW];
   const homeX = portrait.x, homeY = portrait.y, homeAngle = portrait.angle;
   // The weight shift is published as an OFFSET, not as an absolute position. In
   // 3D the battle mirror pins this portrait to the arena anchor every frame, so

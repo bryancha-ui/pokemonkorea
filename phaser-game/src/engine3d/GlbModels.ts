@@ -365,8 +365,13 @@ export function modelNormalizedHeight(key: string): number {
   return Number.isFinite(scale) && scale > 0 ? scale : 1;
 }
 
-/** Keep shared GLB geometry resident while a long-lived overworld companion is
- * using one of its clones. Short battle/cutscene clones do not need to pin. */
+/** Keep shared GLB geometry resident while a visible clone is using it.
+ *
+ * `getModel()` clones the object hierarchy but deliberately shares the large
+ * geometry/material/texture allocations with the cached source. Every owner
+ * that keeps a clone on screen must therefore pin it until that clone is
+ * detached. This is especially important on mobile, where loading a third
+ * model trims the cache down to two entries. */
 export function pinModel(key: string): void {
   const normalized = normalizeKey(key);
   modelPins.set(normalized, (modelPins.get(normalized) ?? 0) + 1);
@@ -702,6 +707,10 @@ export function releaseModelGpuResources(): void {
   const evictDecoded = performanceProfile().constrained;
   for (const [key, entry] of models) {
     if (entry === 'loading' || entry === 'failed') continue;
+    // A visible clone shares these exact GPU objects with the cached source.
+    // Disposing a pinned entry makes that clone vanish even though it remains
+    // attached to its battle/overworld scene graph.
+    if ((modelPins.get(key) ?? 0) > 0) continue;
     disposeModelGpu(entry.group);
     if (evictDecoded) {
       models.delete(key);

@@ -945,9 +945,9 @@ export const KO_STRINGS: Record<string, string> = {
   'Leader Jin: Darkness is not weakness — it is depth.': '리더 진: 어둠은 나약함이 아니야 — 그건 깊이지.',
   'Super effective!': '효과가 굉장했다!',
   'Not very effective...': '효과가 별로인 듯하다...',
-  'Leader Jin: Now... my pride. Go, Corrpanda!': '리더 진: 이제... 내 자랑이야. 가랏, Corrpanda!',
+  'Leader Jin: Now... my pride. Go, Corrpanda!': '리더 진: 이제... 내 자랑이야. 가랏, 그림삵!',
   'Leader Jin: Rest and recover. Your spirit is strong.': '리더 진: 쉬면서 회복해. 네 정신은 강하구나.',
-  'Leader Jin: ...You defeated Corrpanda.': '리더 진: ...Corrpanda를 쓰러뜨렸구나.',
+  'Leader Jin: ...You defeated Corrpanda.': '리더 진: ...그림삵을 쓰러뜨렸구나.',
   'Leader Jin: Your light was stronger than my shadows.': '리더 진: 네 빛이 내 그림자보다 강했어.',
   'Leader Jin: You have earned the Shadow Badge.': '리더 진: 넌 그림자 배지를 손에 넣었어.',
   'Congratulations! Shadow Badge obtained! 🏅': '축하해! 그림자 배지를 획득했다! 🏅',
@@ -2141,7 +2141,7 @@ export const KO_STRINGS: Record<string, string> = {
   // Capitol — Leader Jin
   'A figure steps out from the shadows...': '그림자에서 한 인물이 걸어 나온다...',
   "I am Jin, Guardian of Capitol City's shadows.": '나는 진, 소올 시티의 그림자를 지키는 자다.',
-  'My Corrpanda and I will test your resolve.': '나의 콜판다와 내가 너의 각오를 시험하겠다.',
+  'My Corrpanda and I will test your resolve.': '나의 그림삵과 내가 너의 각오를 시험하겠다.',
   'Darkness is not evil — it is the truth behind light.': '어둠은 악이 아니야 — 빛 뒤에 숨은 진실이지.',
   'Come. Show me what you are made of.': '와라. 네가 어떤 자인지 보여봐.',
   // Baekdu — Byeoksan

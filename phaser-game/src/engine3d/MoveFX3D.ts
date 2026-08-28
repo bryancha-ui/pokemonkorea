@@ -25,6 +25,7 @@ interface PersistentStatusFX {
 }
 
 let glowTex: THREE.Texture | null = null;
+let rockTombSealTex: THREE.Texture | null = null;
 function getGlowTex(): THREE.Texture {
   if (glowTex) return glowTex;
   const c = document.createElement('canvas');
@@ -37,6 +38,26 @@ function getGlowTex(): THREE.Texture {
   ctx.fillStyle = g; ctx.fillRect(0, 0, 64, 64);
   glowTex = new THREE.CanvasTexture(c);
   return glowTex;
+}
+
+function getRockTombSealTex(): THREE.Texture {
+  if (rockTombSealTex) return rockTombSealTex;
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const ctx = c.getContext('2d')!;
+  ctx.lineCap = 'round';
+  ctx.shadowColor = 'rgba(20,0,0,0.72)';
+  ctx.shadowBlur = 12;
+  ctx.strokeStyle = '#fff0ad';
+  ctx.lineWidth = 25;
+  ctx.beginPath(); ctx.moveTo(30, 30); ctx.lineTo(98, 98); ctx.moveTo(98, 30); ctx.lineTo(30, 98); ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = '#ef2f24';
+  ctx.lineWidth = 13;
+  ctx.beginPath(); ctx.moveTo(30, 30); ctx.lineTo(98, 98); ctx.moveTo(98, 30); ctx.lineTo(30, 98); ctx.stroke();
+  rockTombSealTex = new THREE.CanvasTexture(c);
+  rockTombSealTex.colorSpace = THREE.SRGBColorSpace;
+  return rockTombSealTex;
 }
 
 /**
@@ -309,6 +330,8 @@ export class MoveFX3D {
       this.iceStorm(from, to, color, strong, eff, onImpact);
     } else if (name === 'thunder') {
       this.thunderStorm(to, color, strong, eff, onImpact);
+    } else if (name === 'thunderbolt') {
+      this.thunderbolt(from, to, color, strong, eff, onImpact);
     } else if (type === 'electric' || /thunder|shock|volt/.test(name)) {
       this.electricArc(from, to, color, strong, eff, onImpact);
     } else if (name === 'surf' || /deluge|tidal|wave/.test(name)) {
@@ -320,6 +343,144 @@ export class MoveFX3D {
     } else {
       this.typedProjectile(from, to, type, color, strong, eff, onImpact);
     }
+  }
+
+  /** Rock Throw / 돌떨구기: one genuinely heavy boulder drops through the
+   * target instead of reusing the generic pebble burst. */
+  rockThrow(
+    at: THREE.Vector3,
+    color: number,
+    power: number,
+    eff: number,
+    onImpact?: () => void,
+  ): void {
+    const group = new THREE.Group();
+    const scale = Math.max(0.95, Math.min(1.5, 0.9 + power / 150));
+    const ground = new THREE.Vector3(at.x, 0.12, at.z);
+    const radius = 0.64 * scale;
+    const start = ground.clone().add(new THREE.Vector3(-0.72 * scale, 4.35 * scale, 0.36 * scale));
+    const land = ground.clone().add(new THREE.Vector3(0, radius * 0.72, 0));
+    const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(radius, 1), rockMaterial(0x68513f));
+    rock.position.copy(start);
+    rock.rotation.set(0.35, 0.8, -0.22);
+    group.add(rock);
+
+    const shadow = new THREE.Mesh(
+      new THREE.CircleGeometry(radius * 1.12, 24),
+      new THREE.MeshBasicMaterial({ color: 0x160f0a, transparent: true, opacity: 0.08, depthWrite: false }),
+    );
+    shadow.position.copy(ground); shadow.position.y = 0.025; shadow.rotation.x = -Math.PI / 2;
+    shadow.scale.setScalar(0.25);
+    group.add(shadow);
+
+    const trail = segmentMesh(start.clone().add(new THREE.Vector3(0, 0.9, 0)), land.clone().add(new THREE.Vector3(0, 1.3, 0)),
+      0.045 * scale, mixWhite(color, 0.35), 0);
+    group.add(trail);
+
+    const chips: { mesh: THREE.Mesh; end: THREE.Vector3 }[] = [];
+    for (let i = 0; i < 12; i++) {
+      const a = i / 12 * Math.PI * 2;
+      const chip = new THREE.Mesh(new THREE.DodecahedronGeometry((0.07 + (i % 3) * 0.025) * scale, 0),
+        rockMaterial(i % 2 ? 0x856746 : 0xb18a5c));
+      chip.position.copy(land); chip.visible = false;
+      const end = land.clone().add(new THREE.Vector3(Math.cos(a) * (0.8 + (i % 4) * 0.16) * scale,
+        0.3 + (i % 3) * 0.28, Math.sin(a) * (0.8 + (i % 4) * 0.16) * scale));
+      group.add(chip); chips.push({ mesh: chip, end });
+    }
+
+    this.addTask(group, 0.92, (k, dt) => {
+      const fall = Math.min(1, k / 0.58);
+      const eased = fall * fall;
+      rock.position.copy(start).lerp(land, eased);
+      rock.rotation.x += dt * 5.2;
+      rock.rotation.z -= dt * 4.1;
+      shadow.scale.setScalar(0.25 + fall * 0.85);
+      opacity(shadow, 0.08 + fall * 0.46);
+      opacity(trail, fall > 0.08 && fall < 0.86 ? Math.sin(fall * Math.PI) * 0.42 : 0);
+      if (k >= 0.58) {
+        const blast = Math.min(1, (k - 0.58) / 0.26);
+        rock.scale.setScalar(1 + Math.sin(blast * Math.PI) * 0.12);
+        for (let i = 0; i < chips.length; i++) {
+          const chip = chips[i]; chip.mesh.visible = true;
+          chip.mesh.position.copy(land).lerp(chip.end, blast);
+          chip.mesh.rotation.set(blast * 5 + i, blast * 7, i * 0.3);
+          opacity(chip.mesh, blast < 0.72 ? 1 : (1 - blast) / 0.28);
+        }
+      }
+      if (k > 0.78) opacity(rock, Math.max(0, (1 - k) / 0.22));
+    }, 0.58, () => {
+      this.burst(land, color, eff, scale * 1.38);
+      onImpact?.();
+    });
+  }
+
+  /** Rock Tomb / 암석봉인: staggered boulders close around the target, cover
+   * its lower body, then an unmistakable X seal stamps the completed tomb. */
+  rockTomb(
+    at: THREE.Vector3,
+    color: number,
+    power: number,
+    eff: number,
+    onImpact?: () => void,
+  ): void {
+    const group = new THREE.Group();
+    const scale = Math.max(0.92, Math.min(1.48, 0.86 + power / 150));
+    const ground = new THREE.Vector3(at.x, 0.08, at.z);
+    const rocks: { mesh: THREE.Mesh; start: THREE.Vector3; land: THREE.Vector3; delay: number }[] = [];
+    for (let i = 0; i < 12; i++) {
+      const front = i >= 7;
+      const a = i / 12 * Math.PI * 2 + 0.18;
+      const radius = (0.42 + (i % 4) * 0.15) * scale;
+      const size = (front ? 0.33 : 0.25) * scale + (i % 3) * 0.045;
+      const land = ground.clone().add(new THREE.Vector3(Math.cos(a) * radius, size * 0.72, Math.sin(a) * radius));
+      const start = land.clone().add(new THREE.Vector3((i % 2 ? -0.38 : 0.32) * scale,
+        3.3 + (i % 4) * 0.48, (i % 3 - 1) * 0.14));
+      const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(size, 0),
+        rockMaterial(i % 3 ? 0x65503e : 0x896848));
+      rock.position.copy(start); rock.rotation.set(i * 0.57, i * 0.91, i * 0.38);
+      rock.renderOrder = front ? 4 : 1;
+      group.add(rock);
+      rocks.push({ mesh: rock, start, land, delay: (i % 6) * 0.035 + (front ? 0.08 : 0) });
+    }
+
+    const sealMat = new THREE.SpriteMaterial({
+      map: getRockTombSealTex(), transparent: true, opacity: 0,
+      depthWrite: false, depthTest: false,
+    });
+    const seal = new THREE.Sprite(sealMat);
+    seal.position.copy(ground).add(new THREE.Vector3(0, 1.15 * scale, 0));
+    seal.scale.setScalar(0.12);
+    seal.renderOrder = 50;
+    group.add(seal);
+
+    const dust = new THREE.Mesh(
+      new THREE.RingGeometry(0.42 * scale, 0.62 * scale, 18),
+      glowMaterial(mixWhite(color, 0.15), 0),
+    );
+    dust.position.copy(ground); dust.position.y = 0.03; dust.rotation.x = -Math.PI / 2;
+    group.add(dust);
+
+    this.addTask(group, 1.18, (k, dt) => {
+      rocks.forEach((rock) => {
+        const local = Math.max(0, Math.min(1, (k - rock.delay) / 0.48));
+        rock.mesh.position.copy(rock.start).lerp(rock.land, local * local);
+        rock.mesh.rotation.x += dt * 3.4;
+        rock.mesh.rotation.z += dt * 2.6;
+        const fade = k > 0.84 ? Math.max(0, (1 - k) / 0.16) : 1;
+        opacity(rock.mesh, fade);
+      });
+      const dustLife = Math.max(0, 1 - Math.abs(k - 0.59) / 0.2);
+      dust.scale.setScalar(0.5 + dustLife * 2.2);
+      opacity(dust, dustLife * 0.7);
+      if (k >= 0.61) {
+        const stamp = Math.min(1, (k - 0.61) / 0.14);
+        seal.scale.setScalar((0.12 + (1 - Math.pow(1 - stamp, 3)) * 1.75) * scale);
+        opacity(seal, k < 0.86 ? stamp : Math.max(0, (1 - k) / 0.14));
+      }
+    }, 0.6, () => {
+      this.burst(ground.clone().add(new THREE.Vector3(0, 0.42, 0)), color, eff, scale * 1.28);
+      onImpact?.();
+    });
   }
 
   /** Compatibility hook for any older caller; now uses the richer orb family. */
@@ -2057,6 +2218,84 @@ export class MoveFX3D {
         opacity(rings[i], Math.max(0, fade * 0.82));
       }
     }, 0.48, () => { this.burst(to, color, eff, scale * 1.08); onImpact?.(); });
+  }
+
+  /** Thunderbolt / 10만볼트: a thicker three-channel bolt crosses the arena,
+   * then a wide electric cage wraps the target. Deliberately larger than the
+   * generic electric arc while remaining below Thunder's storm-scale strike. */
+  private thunderbolt(
+    from: THREE.Vector3, to: THREE.Vector3, color: number,
+    scale: number, eff: number, onImpact?: () => void,
+  ): void {
+    const group = new THREE.Group();
+    const boosted = Math.min(1.95, scale * 1.3);
+    const dir = to.clone().sub(from);
+    const side = new THREE.Vector3(-dir.z, 0, dir.x).normalize();
+    const boltMeshes: THREE.Mesh[] = [];
+    const branchMeshes: THREE.Mesh[] = [];
+
+    for (let lane = -1; lane <= 1; lane++) {
+      const pts: THREE.Vector3[] = [from.clone().addScaledVector(side, lane * 0.08 * boosted)];
+      for (let i = 1; i < 11; i++) {
+        const p = from.clone().lerp(to, i / 11);
+        const taper = Math.sin(i / 11 * Math.PI);
+        p.addScaledVector(side, lane * 0.12 * boosted + (Math.random() - 0.5) * 0.42 * boosted * taper);
+        p.y += Math.sin(i * 2.4 + lane) * 0.16 * boosted + taper * 0.24;
+        pts.push(p);
+      }
+      pts.push(to.clone());
+      for (let i = 0; i < pts.length - 1; i++) {
+        const core = lane === 0;
+        const segment = segmentMesh(pts[i], pts[i + 1], (core ? 0.05 : 0.028) * boosted,
+          core && i % 2 === 0 ? 0xffffff : color, 0);
+        group.add(segment); boltMeshes.push(segment);
+        if (core && i > 1 && i < pts.length - 2 && i % 2 === 0) {
+          const end = pts[i].clone().addScaledVector(side, (i % 4 ? 0.42 : -0.42) * boosted)
+            .add(new THREE.Vector3(0, (i % 3 - 1) * 0.2, 0));
+          const branch = segmentMesh(pts[i], end, 0.019 * boosted, 0xffffbd, 0);
+          group.add(branch); branchMeshes.push(branch);
+        }
+      }
+    }
+
+    const charge = new THREE.Mesh(new THREE.SphereGeometry(0.22 * boosted, 12, 9),
+      glowMaterial(0xffffff, 0));
+    charge.position.copy(from); group.add(charge);
+    const halo = new THREE.Mesh(new THREE.SphereGeometry(0.7 * boosted, 14, 10),
+      glowMaterial(color, 0));
+    halo.position.copy(to); group.add(halo);
+
+    const cage: THREE.Mesh[] = [];
+    for (let i = 0; i < 14; i++) {
+      const a = i / 14 * Math.PI * 2;
+      const inner = to.clone().add(new THREE.Vector3(Math.cos(a) * 0.24 * boosted,
+        Math.sin(a) * 0.32 * boosted, Math.sin(a * 2) * 0.12 * boosted));
+      const kink = to.clone().add(new THREE.Vector3(Math.cos(a + 0.18) * 0.68 * boosted,
+        Math.sin(a + 0.18) * 0.82 * boosted, Math.cos(a * 1.7) * 0.3 * boosted));
+      const outer = to.clone().add(new THREE.Vector3(Math.cos(a) * 0.92 * boosted,
+        Math.sin(a) * 1.08 * boosted, Math.sin(a * 1.4) * 0.4 * boosted));
+      const s1 = segmentMesh(inner, kink, 0.022 * boosted, i % 2 ? color : 0xffffe2, 0);
+      const s2 = segmentMesh(kink, outer, 0.018 * boosted, 0xffff7a, 0);
+      group.add(s1, s2); cage.push(s1, s2);
+    }
+
+    this.addTask(group, 0.74, (k) => {
+      const chargeLife = Math.min(1, k / 0.2) * Math.max(0, 1 - Math.max(0, k - 0.2) / 0.18);
+      charge.scale.setScalar(0.55 + chargeLife * 1.4);
+      opacity(charge, chargeLife);
+      const strike = Math.max(0, Math.min(1, (k - 0.18) / 0.28));
+      const fade = k < 0.72 ? 1 : Math.max(0, (1 - k) / 0.28);
+      const flicker = 0.65 + Math.sin(k * Math.PI * 28) * 0.35;
+      for (const bolt of boltMeshes) opacity(bolt, strike * fade * flicker);
+      for (const branch of branchMeshes) opacity(branch, strike * fade * flicker * 0.78);
+      const wrap = Math.max(0, Math.min(1, (k - 0.38) / 0.2));
+      for (let i = 0; i < cage.length; i++) opacity(cage[i], wrap * fade * ((Math.floor(k * 25 + i) % 4) < 3 ? 0.94 : 0.18));
+      halo.scale.setScalar(0.5 + wrap * 1.15);
+      opacity(halo, wrap * fade * 0.42);
+    }, 0.55, () => {
+      this.burst(to, color, eff, boosted * 1.12);
+      onImpact?.();
+    });
   }
 
   private electricArc(

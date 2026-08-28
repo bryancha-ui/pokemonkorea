@@ -221,7 +221,14 @@ import { PartySystem, PartyEntry } from './PartySystem';
 import { buildFromEntry } from './PartyBattle';
 import { queueStoneEvolution } from './EvolutionSystem';
 
-export interface UseResult { ok: boolean; message: string; }
+export interface UseResult {
+  ok: boolean;
+  message: string;
+  /** True only when this exact item use queued a stone evolution. A pending
+   * level-up evolution elsewhere in the party must never make a Potion, held
+   * item, status cure, etc. open EvolutionScene. */
+  evolutionQueued?: boolean;
+}
 
 /** Whether a Pokémon is allowed to learn an HM/TM move (by type restriction). */
 export function canLearnMove(entry: PartyEntry, def: ItemDef): boolean {
@@ -268,7 +275,11 @@ export function useItemOnSlot(
       registry.remove('pendingStoneEvolution');
       return { ok: false, message: `You don't have that item.` };
     }
-    return { ok: true, message: `${mon.name} is reacting to ${itemName(def)}!` };
+    return {
+      ok: true,
+      message: `${mon.name} is reacting to ${itemName(def)}!`,
+      evolutionQueued: true,
+    };
   }
 
   if (def.category === 'held') {

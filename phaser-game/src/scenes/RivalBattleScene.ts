@@ -25,6 +25,7 @@ import { createBattleHud, modernButton, modernMoveButton, syncBattleHudTypes, ty
 import { animateBattleHp, BATTLE_PACING, snapBattleHp } from '../systems/BattlePacing';
 import { playBattleEndTurn } from '../systems/BattleEndTurn';
 import { chooseBattleMove } from '../systems/BattleAI';
+import { battlePokemonTextureKey, setBattlePokemonSprite } from '../systems/BattlePokemonSprite';
 
 type BattleState = 'intro' | 'playerAction' | 'playerMove' | 'busy' | 'levelUp' | 'over';
 const RIVAL_STAGE_X = 580;
@@ -67,8 +68,8 @@ export class RivalBattleScene extends Phaser.Scene {
   private HP_BAR_W = 200;   // widened on mobile to fill the enlarged name box
   private activeSlot = 0;
   private participants = new Set<number>([0]);
-  // Guards rivalSendNextOrLose against a duplicate trigger for the same KO, which
-  // would otherwise zero the freshly sent-in Pokémon and falsely report a wipe.
+  // Guards rivalSendNextOrLose against duplicate KO callbacks and keeps the
+  // forced replacement picker single-instance until the player chooses.
   private resolvingFaint = false;
 
   constructor() { super('RivalBattleScene'); }
@@ -239,10 +240,12 @@ export class RivalBattleScene extends Phaser.Scene {
                ?? (this.registry.get('starterKey') as string) ?? 'vipour';
 
     // Start off-screen: rival enters from top-right, player from bottom-left
-    this.rivalSprite  = this.add.image(960, 60,  rKey)
+    this.rivalSprite  = this.add.image(960, 60, battlePokemonTextureKey(this, rKey))
       .setDepth(5).setAlpha(0).setData('battlePokemonSide', 'enemy');
-    this.playerSprite = this.add.image(-80, 320,  pKey)
+    this.playerSprite = this.add.image(-80, 320, battlePokemonTextureKey(this, pKey))
       .setDepth(5).setFlipX(true).setAlpha(0).setData('battlePokemonSide', 'player');
+    setBattlePokemonSprite(this, this.rivalSprite, rKey);
+    setBattlePokemonSprite(this, this.playerSprite, pKey);
     this.fitSprite(this.rivalSprite, 168);   // enlarge the rival's Pokémon so it reads as a real threat
     this.fitSprite(this.playerSprite, 150);
 
@@ -604,8 +607,7 @@ export class RivalBattleScene extends Phaser.Scene {
     this.playerLvText.setText(`Lv.${this.player.level}`);
     snapBattleHp(this.playerHpBar, this.playerHpText, this.HP_BAR_W, this.player.hp, this.player.maxHp);
 
-    if (this.textures.exists(entry.spriteKey)) {
-      this.playerSprite.setTexture(entry.spriteKey);
+    if (setBattlePokemonSprite(this, this.playerSprite, entry.spriteKey)) {
       this.fitSprite(this.playerSprite, 150);
     }
     this.playerSprite.setAlpha(0);
@@ -624,12 +626,26 @@ export class RivalBattleScene extends Phaser.Scene {
     const party = PartySystem.get(this.registry);
     if (party[this.activeSlot]) { party[this.activeSlot].hp = 0; PartySystem.set(this.registry, party); }
 
-    const nextIdx = party.findIndex((e, i) => i !== this.activeSlot && e && e.hp > 0);
-    if (nextIdx === -1) { this.handleLoss(); return; }
+    const anyHealthy = party.some((e, i) => i !== this.activeSlot && e && e.hp > 0);
+    if (!anyHealthy) { this.handleLoss(); return; }
+
+    // Rival battles previously auto-selected the first healthy slot, unlike
+    // every other full battle. Keep replacement behavior consistent across
+    // desktop and the mobile control deck.
+    this.state = 'busy';
+    this.hideAllPanels();
+    this.typeDialog('Choose your next Pokémon!');
+    openSwitchPanel(this, this.activeSlot, () => {}, (idx) => this.sendInChosen(idx), false);
+  }
+
+  private sendInChosen(nextIdx: number) {
+    if (!this.resolvingFaint) return;
+    const party = PartySystem.get(this.registry);
+    const entry = party[nextIdx];
+    if (!entry || nextIdx === this.activeSlot || entry.hp <= 0) return;
 
     this.activeSlot = nextIdx;
     this.participants.add(nextIdx);
-    const entry = party[nextIdx];
     this.player = buildReplacement(this.player, entry);
     syncBattleHudTypes(this.playerBattleHud, [this.player.data.type1, this.player.data.type2]);
     this.refreshMovePanel();
@@ -638,8 +654,7 @@ export class RivalBattleScene extends Phaser.Scene {
     snapBattleHp(this.playerHpBar, this.playerHpText, this.HP_BAR_W, this.player.hp, this.player.maxHp);
 
     const key = entry.spriteKey;
-    if (this.textures.exists(key)) {
-      this.playerSprite.setTexture(key);
+    if (setBattlePokemonSprite(this, this.playerSprite, key)) {
       this.fitSprite(this.playerSprite, 150);
     }
     this.playerSprite.setAlpha(0);

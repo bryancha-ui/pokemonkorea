@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs';
 import { FIELD_ITEM_PLACEMENTS } from '../src/data/FieldItemData';
 import { STONE_EVOLUTIONS } from '../src/data/EvolutionStones';
 import { POKEDEX } from '../src/data/Pokedex';
+import { hasPendingEvolution } from '../src/systems/EvolutionSystem';
+import { useItemOnSlot } from '../src/systems/Items';
 
 const failures: string[] = [];
 const expect = (condition: unknown, message: string) => { if (!condition) failures.push(message); };
@@ -54,13 +56,40 @@ expect(mirrorSource.includes("kind: 'field-item'"), '3D overworld cannot track f
 expect(mirrorSource.includes('buildFieldItem3D'), '3D overworld cannot build field pickups');
 expect(modelSource.includes('field-item-pickup'), 'field pickup has no volumetric model');
 expect(menuSource.includes("this.scene.launch('EvolutionScene'"), 'Bag cannot launch stone evolution');
+expect(menuSource.includes('res.ok && res.evolutionQueued && hasPendingEvolution'),
+  'ordinary bag items can still launch an unrelated pending level evolution');
 expect(sfxSource.includes('export function sfxItemGet'), 'item pickup fanfare is missing');
+
+// Regression: Gawlhawk reaches its authored evolution level at 14. If it has a
+// pending level evolution, healing it must restore HP without claiming that the
+// Potion itself queued an evolution. This was the exact Shadow Gym failure.
+class FakeRegistry {
+  private values = new Map<string, unknown>();
+  get(key: string): unknown { return this.values.get(key); }
+  set(key: string, value: unknown): this { this.values.set(key, value); return this; }
+  remove(key: string): this { this.values.delete(key); return this; }
+}
+const registry = new FakeRegistry();
+const partyEntry = {
+  name: 'Gawlhawk', level: 14, hp: 12, maxHp: 40,
+  type1: 'rock', type2: 'flying', spriteKey: 'gawlhawk', spriteUrl: '',
+  isCustom: true, moves: [], exp: 0, evoReady: true,
+  baseStats: { hp: 45, atk: 60, def: 55, spAtk: 35, spDef: 40, spd: 65 },
+};
+registry.set('party', JSON.stringify([partyEntry]));
+registry.set('inventory', JSON.stringify({ potion: 1 }));
+const dataManager = registry as unknown as Parameters<typeof useItemOnSlot>[0];
+expect(hasPendingEvolution(dataManager), 'Lv.14 Gawlhawk regression fixture is not evolution-ready');
+const potionResult = useItemOnSlot(dataManager, 'potion', 0);
+expect(potionResult.ok, 'Potion regression fixture did not heal Gawlhawk');
+expect(potionResult.evolutionQueued !== true, 'Potion incorrectly reports that it queued an evolution');
 
 console.log(JSON.stringify({
   placements: FIELD_ITEM_PLACEMENTS.length,
   scenesCovered: scenes.size,
   evolutionStones: stones,
   stoneEvolutionRules: STONE_EVOLUTIONS.length,
+  potionEvolutionRegression: potionResult.evolutionQueued === true ? 'failed' : 'passed',
   failures,
 }, null, 2));
 

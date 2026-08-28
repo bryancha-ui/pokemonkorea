@@ -33,6 +33,7 @@ import { createBattleHud, hpColor, modernButton, modernMoveButton, syncBattleHud
 import { animateBattleHp, BATTLE_PACING } from '../systems/BattlePacing';
 import { playBattleEndTurn } from '../systems/BattleEndTurn';
 import { chooseBattleMove } from '../systems/BattleAI';
+import { battlePokemonTextureKey, setBattlePokemonSprite } from '../systems/BattlePokemonSprite';
 
 type WildState = 'loading' | 'intro' | 'playerAction' | 'playerMove' | 'bag' | 'busy' | 'catching' | 'over';
 
@@ -297,10 +298,12 @@ export class WildBattleScene extends Phaser.Scene {
     const pKey = PartySystem.get(this.registry)[this.activeSlot]?.spriteKey
                ?? (this.registry.get('starterKey') as string) ?? 'vipour';
 
-    this.wildSprite   = this.add.image(900, 60, this.textures.exists(wKey) ? wKey : 'disguijar')
+    this.wildSprite   = this.add.image(900, 60, battlePokemonTextureKey(this, wKey))
       .setDepth(5).setAlpha(0).setData('battlePokemonSide', 'enemy');
-    this.playerSprite = this.add.image(-80, 320, pKey)
+    this.playerSprite = this.add.image(-80, 320, battlePokemonTextureKey(this, pKey))
       .setDepth(5).setFlipX(true).setAlpha(0).setData('battlePokemonSide', 'player');
+    setBattlePokemonSprite(this, this.wildSprite, wKey);
+    setBattlePokemonSprite(this, this.playerSprite, pKey);
 
     const fitImg = (img: Phaser.GameObjects.Image, size: number) => {
       const tex = this.textures.get(img.texture.key).getSourceImage();
@@ -975,15 +978,15 @@ export class WildBattleScene extends Phaser.Scene {
     this.playerHpBar.width     = this.hpW * switchRatio;
     this.playerHpText.setText(`${this.player.hp}/${this.player.maxHp}`);
 
+    setBattlePokemonSprite(this, this.playerSprite, entry.spriteKey);
     if (this.textures.exists(entry.spriteKey)) {
-      this.playerSprite.setTexture(entry.spriteKey);
       const tex = this.textures.get(entry.spriteKey).getSourceImage();
       const dim = Math.max((tex.width as number) || 1, (tex.height as number) || 1);
       this.playerSprite.setScale((140 * battle2DSpriteScale(entry.spriteKey)) / dim);
     }
     if (!this.textures.exists(entry.spriteKey)) await ensurePartyTexture(this, entry);
     if (this.textures.exists(entry.spriteKey) && this.playerSprite.texture.key !== entry.spriteKey) {
-      this.playerSprite.setTexture(entry.spriteKey);
+      setBattlePokemonSprite(this, this.playerSprite, entry.spriteKey);
       const tex = this.textures.get(entry.spriteKey).getSourceImage();
       const dim = Math.max((tex.width as number) || 1, (tex.height as number) || 1);
       this.playerSprite.setScale((140 * battle2DSpriteScale(entry.spriteKey)) / dim);
@@ -1044,9 +1047,10 @@ export class WildBattleScene extends Phaser.Scene {
 
     // Swap sprite
     const key = nextEntry.spriteKey;
+    setBattlePokemonSprite(this, this.playerSprite, key);
     await ensurePartyTexture(this, nextEntry);
     if (this.textures.exists(key)) {
-      this.playerSprite.setTexture(key);
+      setBattlePokemonSprite(this, this.playerSprite, key);
       const tex2 = this.textures.get(key).getSourceImage();
       const dim2 = Math.max((tex2.width as number) || 1, (tex2.height as number) || 1);
       this.playerSprite.setScale((140 * battle2DSpriteScale(key)) / dim2);
