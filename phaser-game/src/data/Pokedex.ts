@@ -74,10 +74,14 @@ export const POKEDEX: DexEntry[] = [
     dexText: 'A sleek dark cat-fox. Gym Leader Jin\'s cunning ace, fast and merciless.',
     spriteUrl: A + 'corrpanda.png', evolvesTo: 'tokkigongju', evolvesAtLevel: 36, dist: 'Gym', where: 'Capitol Gym (Leader Jin)' },
 
-  // ── Gawlhawk line (Rock/Flying) ──────────────────────────────────────────
+  // ── Gawlhawk (standalone Rock/Flying species) ────────────────────────────
   { num: 10, key: 'gawlhawk', name: 'Gawlhawk', type1: 'rock', type2: 'flying', ability: 'Sturdy',
     dexText: 'A young raptor with stony plumage. It rides updrafts over the highland cliffs.',
-    spriteUrl: D + 'gawlhawk.png', evolvesTo: 'prowlrock', evolvesAtLevel: 14, dist: 'Wild', where: 'Seolbong Highland Pass' },
+    // Gawlhawk is not part of the Disguijar line. Giving it Prowlrock as an
+    // evolution made both species converge on the same form.
+    spriteUrl: D + 'gawlhawk.png', dist: 'Wild', where: 'Seolbong Highland Pass' },
+
+  // ── Disguijar line continuation (Rock/Flying) ────────────────────────────
   { num: 11, key: 'prowlrock', name: 'Prowlrock', type1: 'rock', type2: 'flying', ability: 'Sand Force',
     dexText: 'It dives from the peaks in a cloud of grit, talons hard as granite.',
     spriteUrl: D + 'prowlrock.png', evolvesTo: 'prowlnox', evolvesAtLevel: 38, dist: 'Wild', where: 'Seolbong Highland Pass' },

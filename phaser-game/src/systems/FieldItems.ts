@@ -166,18 +166,24 @@ class FieldItemController {
     const y = Math.max(78, this.scene.scale.height * .18);
     const panel = this.scene.add.container(cx, y).setScrollFactor(0).setDepth(500).setAlpha(0);
     const width = Math.min(500, this.scene.scale.width - 36);
+    // Every element is created via scene.add before being re-parented into the
+    // container, so each fires `addedtoscene` while still loose in the scene. In a
+    // 3D overworld the mirror would then ADOPT these rects/texts into the 3D world
+    // (scattering the toast off-screen) unless they are already flagged as screen-
+    // fixed UI. setScrollFactor(0) on each child trips the mirror's UI guard so the
+    // notice stays pinned on top and is actually visible when picking items up.
     panel.add(this.scene.add.rectangle(0, 0, width, rare ? 82 : 70, 0x07182b, .96)
-      .setStrokeStyle(rare ? 3 : 2, rare ? 0xc58aff : 0x6ad5ff, 1));
-    panel.add(this.scene.add.text(-width / 2 + 25, 0, icon, { fontSize: rare ? '34px' : '29px' }).setOrigin(0, .5));
+      .setScrollFactor(0).setStrokeStyle(rare ? 3 : 2, rare ? 0xc58aff : 0x6ad5ff, 1));
+    panel.add(this.scene.add.text(-width / 2 + 25, 0, icon, { fontSize: rare ? '34px' : '29px' }).setScrollFactor(0).setOrigin(0, .5));
     panel.add(this.scene.add.text(-width / 2 + 76, rare ? -12 : 0, `${name}${quantity > 1 ? ` ×${quantity}` : ''}`, {
       fontSize: rare ? '20px' : '18px', color: '#ffffff', fontStyle: 'bold',
-    }).setOrigin(0, .5));
+    }).setScrollFactor(0).setOrigin(0, .5));
     if (rare) panel.add(this.scene.add.text(-width / 2 + 76, 17, t('A rare Evolution Stone!', '희귀한 진화의 돌을 발견했다!', '珍しい 進化の石を 見つけた！'), {
       fontSize: '11px', color: '#e0bdff',
-    }).setOrigin(0, .5));
+    }).setScrollFactor(0).setOrigin(0, .5));
     panel.add(this.scene.add.text(width / 2 - 24, 0, t('Put in the Bag', '가방에 넣었다', 'バッグに しまった'), {
       fontSize: '10px', color: '#8fdcf2', align: 'right',
-    }).setOrigin(1, .5));
+    }).setScrollFactor(0).setOrigin(1, .5));
     this.scene.tweens.add({
       targets: panel, alpha: 1, y: y + 10, duration: 180, ease: 'Back.Out',
       onComplete: () => this.scene.time.delayedCall(1450, () => this.scene.tweens.add({

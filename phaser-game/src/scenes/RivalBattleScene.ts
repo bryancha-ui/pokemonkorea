@@ -150,6 +150,15 @@ export class RivalBattleScene extends Phaser.Scene {
     if (rivalKey === 'vipour') {
       const trimmed = rivalMoves.filter(m => m.name.toLowerCase() !== 'poison sting');
       if (trimmed.length) rivalMoves = trimmed;
+      // A rival Vipour only ever faces the Grass starter (Munkain). At level 5 its
+      // sole move is its Bite seed (60 power) while Munkain has just Tackle (40) and
+      // is also outsped (85 vs 60) — a lopsided opener. Soften that lone Bite to
+      // Tackle-equivalent power so the first fight is an even 40-vs-40 trade. Fire
+      // STAB still arrives normally at level 7+, keeping the rival's later edge.
+      rivalMoves = rivalMoves.map(m =>
+        m.name.toLowerCase() === 'bite'
+          ? { ...m, name: 'Tackle', type: 'normal', power: 40, accuracy: 100 }
+          : m);
     }
     this.rival = new Pokemon(rivalDef.data, starterLevel, rivalMoves);
     DexTracker.markSeen(this.registry, rivalKey);

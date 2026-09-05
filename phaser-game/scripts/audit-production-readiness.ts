@@ -20,7 +20,11 @@ const lazySource = await fs.readFile(lazyPath, 'utf8');
 const storyBlock = lazySource.match(/export const STORY_SCENE_KEYS\s*=\s*\[([\s\S]*?)\]\s*as const/);
 if (!storyBlock) throw new Error('Could not parse STORY_SCENE_KEYS');
 const storyKeys = [...storyBlock[1].matchAll(/['"]([A-Za-z0-9]+Scene)['"]/g)].map(match => match[1]);
-const registered = new Set(['TitleScene', ...storyKeys]);
+const mainSource = await fs.readFile(path.join(srcRoot, 'main.ts'), 'utf8');
+const sceneConfig = mainSource.match(/scene:\s*\[([^\]]+)\]/);
+if (!sceneConfig) throw new Error('Could not parse eager scene config');
+const eagerKeys = [...sceneConfig[1].matchAll(/\b([A-Z][A-Za-z0-9]+Scene)\b/g)].map(match => match[1]);
+const registered = new Set([...eagerKeys, ...storyKeys]);
 
 const overrideBlock = lazySource.match(/const MODULE_OVERRIDES[^=]*=\s*\{([\s\S]*?)\n\};/);
 if (!overrideBlock) throw new Error('Could not parse MODULE_OVERRIDES');
@@ -102,7 +106,7 @@ for (const [asset, source] of staticAssets) {
 for (const line of incompleteStoryLines) failures.push(`unfinished player-facing story marker: ${line}`);
 
 console.log(JSON.stringify({
-  registeredScenes: storyKeys.length,
+  registeredScenes: registered.size,
   literalTransitions: literalTransitions.size,
   saveDestinations: literalSaveDestinations.size,
   safeResumeScenes: safeResume.size,

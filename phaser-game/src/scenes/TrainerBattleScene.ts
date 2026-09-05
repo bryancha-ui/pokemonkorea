@@ -35,7 +35,7 @@ import { genderedName } from '../data/PokemonGender';
 import { actsBefore, battleWeather } from '../systems/AbilitySystem';
 import { enemyLearnset, mergeLearnset } from '../data/Learnsets';
 import { BattleStatusBadge } from '../systems/BattleStatusBadge';
-import { showRewardCeremony } from '../systems/RewardCeremony';
+import { queuePostBattleReward } from '../systems/PostBattleRewards';
 import { createBattleHud, hpColor, modernButton, modernMoveButton, syncBattleHudTypes, type BattleHud } from '../systems/ProductionUi';
 import { animateBattleHp, BATTLE_PACING, snapBattleHp } from '../systems/BattlePacing';
 import { BossPotionAI, type BossTrainerRank, type BossPotionUse } from '../systems/BossTrainerItems';
@@ -1133,12 +1133,18 @@ export class TrainerBattleScene extends Phaser.Scene {
       this.registry.set(this.badgeFlag, true);
 
       const lines = [winLine, `You got ${formatMoney(prize)} for winning!`];
-      lines.push(`Congratulations! ${badgeName} obtained! 🏅`);
       if (tmName) {
         const tm = tmForMove(tmName);
         if (tm) Inventory.add(this.registry, tm.key, 1);   // add the TM to the bag
-        lines.push(`Received: TM — ${tmName}!  (Check your Bag to teach it.)`);
       }
+      // Persist the reward now, but present it only after TrainerBattleScene has
+      // stopped and the authored gym/map return scene is visibly active.
+      queuePostBattleReward(this.registry, {
+        badgeFlag: this.badgeFlag,
+        badgeName,
+        tmName: tmName || undefined,
+        returnScene: this._returnScene,
+      });
 
       const playSeq = (i: number) => {
         if (i >= lines.length) {
@@ -1148,7 +1154,7 @@ export class TrainerBattleScene extends Phaser.Scene {
         }
         this.typeDialog(lines[i], () => playSeq(i + 1));
       };
-      showRewardCeremony(this, { kind: 'badge', key: this.badgeFlag, onComplete: () => playSeq(0) });
+      playSeq(0);
       return;
     }
 

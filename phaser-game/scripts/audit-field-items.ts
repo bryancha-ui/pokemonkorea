@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { FIELD_ITEM_PLACEMENTS } from '../src/data/FieldItemData';
 import { STONE_EVOLUTIONS } from '../src/data/EvolutionStones';
 import { POKEDEX } from '../src/data/Pokedex';
-import { hasPendingEvolution } from '../src/systems/EvolutionSystem';
+import { findPendingEvolution, hasPendingEvolution } from '../src/systems/EvolutionSystem';
 import { useItemOnSlot } from '../src/systems/Items';
 
 const failures: string[] = [];
@@ -60,9 +60,9 @@ expect(menuSource.includes('res.ok && res.evolutionQueued && hasPendingEvolution
   'ordinary bag items can still launch an unrelated pending level evolution');
 expect(sfxSource.includes('export function sfxItemGet'), 'item pickup fanfare is missing');
 
-// Regression: Gawlhawk reaches its authored evolution level at 14. If it has a
-// pending level evolution, healing it must restore HP without claiming that the
-// Potion itself queued an evolution. This was the exact Shadow Gym failure.
+// Regression: Gawlhawk and Disguijar previously both evolved into Prowlrock.
+// Gawlhawk is a standalone species at every level; only the authored
+// Disguijar line may continue into Prowlrock.
 class FakeRegistry {
   private values = new Map<string, unknown>();
   get(key: string): unknown { return this.values.get(key); }
@@ -79,16 +79,35 @@ const partyEntry = {
 registry.set('party', JSON.stringify([partyEntry]));
 registry.set('inventory', JSON.stringify({ potion: 1 }));
 const dataManager = registry as unknown as Parameters<typeof useItemOnSlot>[0];
-expect(hasPendingEvolution(dataManager), 'Lv.14 Gawlhawk regression fixture is not evolution-ready');
+expect(!hasPendingEvolution(dataManager), 'Lv.14 Gawlhawk can still evolve into Prowlrock');
 const potionResult = useItemOnSlot(dataManager, 'potion', 0);
 expect(potionResult.ok, 'Potion regression fixture did not heal Gawlhawk');
 expect(potionResult.evolutionQueued !== true, 'Potion incorrectly reports that it queued an evolution');
+expect(!hasPendingEvolution(dataManager), 'healing Gawlhawk still exposes an evolution');
+
+const maxLevelRegistry = new FakeRegistry();
+maxLevelRegistry.set('party', JSON.stringify([{ ...partyEntry, level: 100, hp: 40 }]));
+const maxLevelDataManager = maxLevelRegistry as unknown as Parameters<typeof findPendingEvolution>[0];
+expect(!findPendingEvolution(maxLevelDataManager),
+  'Gawlhawk can still evolve at a later level instead of remaining standalone');
+
+const disguijarRegistry = new FakeRegistry();
+disguijarRegistry.set('party', JSON.stringify([{
+  ...partyEntry, name: 'Disguijar', level: 37, hp: 40,
+  spriteKey: 'disguijar', evoReady: true,
+}]));
+const disguijarDataManager = disguijarRegistry as unknown as Parameters<typeof findPendingEvolution>[0];
+const disguijarEvolution = findPendingEvolution(disguijarDataManager);
+expect(disguijarEvolution?.fromKey === 'disguijar' && disguijarEvolution.toKey === 'prowlrock',
+  'Lv.37 Disguijar no longer evolves into Prowlrock');
 
 console.log(JSON.stringify({
   placements: FIELD_ITEM_PLACEMENTS.length,
   scenesCovered: scenes.size,
   evolutionStones: stones,
   stoneEvolutionRules: STONE_EVOLUTIONS.length,
+  gawlhawkStandaloneAtLevel100: findPendingEvolution(maxLevelDataManager) ? 'failed' : 'passed',
+  disguijarEvolutionTarget: disguijarEvolution?.toKey ?? 'missing',
   potionEvolutionRegression: potionResult.evolutionQueued === true ? 'failed' : 'passed',
   failures,
 }, null, 2));

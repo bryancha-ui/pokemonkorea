@@ -2952,7 +2952,7 @@ export const KO_STRINGS: Record<string, string> = {
   "Munkain Plush": "문카인 인형",
   "Vipour Plush": "바이포 인형",
   "Onnurian Plush": "온누리안 인형",
-  "Corrpanda Doll": "코르판다 인형",
+  "Corrpanda Doll": "그림삵 인형",
   "나비할망 Charm": "나비할망 부적",
   "대장승 Figurine": "대장승 피규어",
   "Restores 20 HP.": "HP를 20 회복한다.",

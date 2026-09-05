@@ -11,7 +11,7 @@ import { awardBenchExp } from '../systems/BattleExp';
 import { buildFromEntry, buildReplacement, persistMovePP, persistSwitchOut, transferReplacementState } from '../systems/PartyBattle';
 import { openSwitchPanel } from '../systems/SwitchPanel';
 import { DexTracker } from '../systems/DexTracker';
-import { ITEMS, Inventory, itemName, useItemOnSlot } from '../systems/Items';
+import { ITEMS, Inventory, formatMoney, itemName, useItemOnSlot } from '../systems/Items';
 import { SaveManager } from '../utils/SaveManager';
 import { portraitFor, fitPortrait } from '../data/BattlePortraits';
 import { pushBgm, popBgm, stopBgm } from '../systems/Music';
@@ -25,13 +25,12 @@ import { actsBefore, battleWeather } from '../systems/AbilitySystem';
 import { mergeLearnset } from '../data/Learnsets';
 import { BattleStatusBadge } from '../systems/BattleStatusBadge';
 import { blackoutMessage, blackoutToCenter } from '../systems/Blackout';
-import { showRewardCeremony } from '../systems/RewardCeremony';
+import { queuePostBattleReward } from '../systems/PostBattleRewards';
 import { createBattleHud, hpColor, modernButton, modernMoveButton, syncBattleHudTypes, type BattleHud } from '../systems/ProductionUi';
 import { animateBattleHp, BATTLE_PACING } from '../systems/BattlePacing';
 import { BossPotionAI, type BossPotionUse } from '../systems/BossTrainerItems';
 import { playBattleEndTurn } from '../systems/BattleEndTurn';
 import { chooseBattleMove } from '../systems/BattleAI';
-import { MOBILE_ACTION_EVENT } from '../systems/TouchControls';
 import { battlePokemonTextureKey, setBattlePokemonSprite } from '../systems/BattlePokemonSprite';
 
 type State = 'intro' | 'playerAction' | 'playerMove' | 'busy' | 'over';
@@ -772,60 +771,25 @@ export class GymLeaderBattleScene extends Phaser.Scene {
     const lines = [
       "Leader Jin: ...You defeated Corrpanda.",
       "Leader Jin: Your light was stronger than my shadows.",
-      "Leader Jin: You have earned the Shadow Badge.",
+      `You got ${formatMoney(3000)} for winning!`,
     ];
-    lines.push("Congratulations! Shadow Badge obtained! 🏅");
     Inventory.add(this.registry, 'tm_darkpulse', 1);   // first-gym TM reward
-    lines.push("Received: TM — Dark Pulse!  (Check your Bag to teach it.)");
-    lines.push("Capitol City's secrets are now open to you. Journey on, trainer.");
+    queuePostBattleReward(this.registry, {
+      badgeFlag: 'gymLeaderDefeated', badgeName: 'Shadow Badge',
+      tmName: 'Dark Pulse', returnScene: 'CapitolCityScene',
+    });
 
-    let idx = 0;
-    let advanceArmed = false;
-    let returning = false;
-
-    // The Shadow Gym originally armed only Phaser's physical SPACE key after
-    // each reward line. The on-screen A button emits a dedicated DOM action
-    // before its synthetic key event, and on some mobile browsers that key event
-    // never reaches Phaser after the badge overlay has held focus. Listen to all
-    // supported confirm paths and disarm them together so one tap cannot advance
-    // two lines or start the return transition twice.
-    const removeAdvanceInput = () => {
-      advanceArmed = false;
-      this.input.keyboard?.off('keydown-SPACE', advance);
-      this.input.off('pointerdown', advance);
-      window.removeEventListener(MOBILE_ACTION_EVENT, advance);
+    const finish = () => {
+      const px = 24 * 32, py = 69 * 32;
+      this.registry.set('capitalReturnX', px); this.registry.set('capitalReturnY', py);
+      SaveManager.save(this.registry, px, py, 'CapitolCityScene');
+      this.cameras.main.fadeOut(600, 0, 0, 0, () => this.scene.start('CapitolCityScene'));
     };
-    const advance = () => {
-      if (!advanceArmed || returning) return;
-      removeAdvanceInput();
-      next();
+    const playSeq = (index: number) => {
+      if (index >= lines.length) { finish(); return; }
+      this.typeDialog(lines[index], () => playSeq(index + 1));
     };
-    const armAdvanceInput = () => {
-      if (returning || !this.scene.isActive()) return;
-      removeAdvanceInput();
-      advanceArmed = true;
-      this.input.keyboard?.once('keydown-SPACE', advance);
-      this.input.once('pointerdown', advance);
-      window.addEventListener(MOBILE_ACTION_EVENT, advance, { once: true });
-    };
-    const next = () => {
-      if (idx >= lines.length) {
-        if (returning) return;
-        returning = true;
-        removeAdvanceInput();
-        const px = 24 * 32, py = 69 * 32;
-        this.registry.set('capitalReturnX', px); this.registry.set('capitalReturnY', py);
-        SaveManager.save(this.registry, px, py, 'CapitolCityScene');
-        this.cameras.main.fadeOut(600, 0, 0, 0, () => this.scene.start('CapitolCityScene'));
-        return;
-      }
-      this.dialogText.setText(tr(lines[idx++]));
-      // Require a fresh press after the line appears; this also prevents the tap
-      // that closed the badge ceremony from consuming the first victory line.
-      this.time.delayedCall(300, armAdvanceInput);
-    };
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, removeAdvanceInput);
-    showRewardCeremony(this, { kind: 'badge', key: 'gymLeaderDefeated', onComplete: next });
+    playSeq(0);
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────

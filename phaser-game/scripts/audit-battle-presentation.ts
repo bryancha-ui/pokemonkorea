@@ -16,6 +16,9 @@ const trainerBattle = readFileSync('src/scenes/TrainerBattleScene.ts', 'utf8');
 const wildBattle = readFileSync('src/scenes/WildBattleScene.ts', 'utf8');
 const battlePokemonSprite = readFileSync('src/systems/BattlePokemonSprite.ts', 'utf8');
 const pokemonLeague = readFileSync('src/scenes/PokemonLeagueScene.ts', 'utf8');
+const postBattleRewards = readFileSync('src/systems/PostBattleRewards.ts', 'utf8');
+const postBattleRewardScene = readFileSync('src/scenes/PostBattleRewardScene.ts', 'utf8');
+const main = readFileSync('src/main.ts', 'utf8');
 
 const types = [
   'normal', 'fire', 'water', 'electric', 'grass', 'ice', 'fighting', 'poison', 'ground',
@@ -144,6 +147,31 @@ expect(existsSync('public/assets/dex/kkaakdang.png'),
 expect(existsSync('public/assets/models3d/kkaakdang.glb'),
   "Champion Hwangeum's Kkaakdang 3D asset is missing");
 
+// Badges and TMs used to be presented while the battle UI was still active.
+// Both the bespoke Shadow Gym battle and the shared leader battle flow must
+// defer their ceremony until the authored return map is visible.
+for (const [name, source] of [
+  ['shadow gym', gymBattle], ['shared gym leader', trainerBattle],
+] as const) {
+  expect(source.includes('queuePostBattleReward(this.registry'),
+    `${name} does not queue its badge/TM for post-battle presentation`);
+  expect(!source.includes('showRewardCeremony'),
+    `${name} can still present a badge before its battle scene closes`);
+}
+expect(postBattleRewards.includes("scene.scene.key === pending.returnScene")
+  && postBattleRewards.includes("game.scene.run('PostBattleRewardScene'"),
+  'post-battle rewards can launch before the exact return map is active');
+expect(postBattleRewardScene.includes('this.scene.pause(this.parentKey)')
+  && postBattleRewardScene.includes('showRewardCeremony(this')
+  && postBattleRewardScene.includes('this.resumeParent()'),
+  'the return map is not safely paused for the complete badge/TM presentation');
+expect(postBattleRewardScene.includes('Received TM')
+  && postBattleRewardScene.includes('sfxItemGet(this)'),
+  'the post-battle TM delivery panel or its item fanfare is missing');
+expect(main.includes('PostBattleRewardScene, ...deferredSceneTypes')
+  && main.includes('installPostBattleRewards(game)'),
+  'the post-battle reward scene is not registered and globally installed');
+
 console.log(JSON.stringify({
   moveTypesChecked: types.length,
   signatureMoveEffectsChecked: 3,
@@ -153,6 +181,7 @@ console.log(JSON.stringify({
   forcedReplacementFlowsChecked: 4,
   speciesSafeBattleFlowsChecked: 4,
   championKkaakdangAssetsChecked: 2,
+  postBattleRewardFlowsChecked: 2,
   failures,
 }, null, 2));
 if (failures.length) process.exitCode = 1;

@@ -63,6 +63,8 @@ import { LeaderboardProgress } from './systems/LeaderboardProgress';
 import { LeaderboardApi, type LeaderboardEntry } from './systems/LeaderboardApi';
 import { showRewardCeremony } from './systems/RewardCeremony';
 import { installFieldItems } from './systems/FieldItems';
+import { installPostBattleRewards } from './systems/PostBattleRewards';
+import { PostBattleRewardScene } from './scenes/PostBattleRewardScene';
 
 
 // ── Build stamp (dev only) ───────────────────────────────────────────────────
@@ -625,7 +627,7 @@ const game = new Phaser.Game({
   height: 720,
   backgroundColor: '#000000',
   parent: shell.parent,
-  scene: [TitleScene, ...deferredSceneTypes],
+  scene: [TitleScene, PostBattleRewardScene, ...deferredSceneTypes],
   // CORS-enabled loads keep remote authored 2D fallback art readable while
   // approved local GLBs load. Visual pipeline only.
   loader: { crossOrigin: 'anonymous' },
@@ -654,6 +656,7 @@ const game = new Phaser.Game({
 });
 
 if (shell.mobile) installMobileMenuBridge(game);
+installPostBattleRewards(game);
 
 // visualViewport may resize after Safari's browser chrome moves without firing
 // a second ordinary resize after the emulator shell applies its new dimensions.
