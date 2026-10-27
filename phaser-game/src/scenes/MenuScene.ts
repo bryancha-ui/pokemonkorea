@@ -1431,7 +1431,7 @@ export class MenuScene extends Phaser.Scene {
     const overlay = this.add.container(0, 0).setDepth(60);
     overlay.add(this.add.rectangle(cx, cy, this.W, this.H, 0x000000, 0.6));
     overlay.add(this.add.rectangle(cx, cy, 480, 400, 0x10142a, 0.99).setStrokeStyle(2, 0x5577aa));
-    overlay.add(this.add.text(cx, cy - 168, `${this.partyName(entry)} wants to learn ${move}.`, { fontSize: '15px', color: '#ffe44e', fontStyle: 'bold' }).setOrigin(0.5));
+    overlay.add(this.add.text(cx, cy - 168, tr(`${this.partyName(entry)} wants to learn ${move}.`), { fontSize: '15px', color: '#ffe44e', fontStyle: 'bold' }).setOrigin(0.5));
     overlay.add(this.add.text(cx, cy - 144, tr('Which move should it forget?'), { fontSize: '12px', color: '#9ab' }).setOrigin(0.5));
 
     current.forEach((m, j) => {
@@ -1451,7 +1451,7 @@ export class MenuScene extends Phaser.Scene {
       });
     });
 
-    const cancel = this.add.text(cx, cy + 168, `✕ Don't learn ${move}`, { fontSize: '13px', color: '#c99' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    const cancel = this.add.text(cx, cy + 168, tr(`✕ Don't learn ${move}`), { fontSize: '13px', color: '#c99' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     cancel.on('pointerdown', () => { overlay.destroy(true); this.showToast(`${this.partyName(entry)} did not learn ${move}.`); });
     overlay.add(cancel);
   }

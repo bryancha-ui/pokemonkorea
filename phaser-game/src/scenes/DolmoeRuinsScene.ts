@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { tr } from '../systems/i18n';
+import { tr, speakerName } from '../systems/i18n';
 import { playBgm } from '../systems/Music';
 import { drawTrainerBody, playerDesign, drawNpcBody } from '../data/CharacterSprite';
 import { DialogBox } from '../ui/DialogBox';
@@ -177,7 +177,7 @@ export class DolmoeRuinsScene extends Phaser.Scene {
       g.setPosition(x, y);
       drawNpcBody(g, 0x161616, { hair: 0x0a0a0a });
       g.setName(gr.key);
-      this.add.text(x, y - 26, '노스단', { fontSize: '8px', color: '#c88', backgroundColor: '#00000088', padding: { x: 2, y: 1 } })
+      this.add.text(x, y - 26, speakerName('노스단'), { fontSize: '8px', color: '#c88', backgroundColor: '#00000088', padding: { x: 2, y: 1 } })
         .setOrigin(0.5).setDepth(11).setName(`${gr.key}__label`);
     }
   }

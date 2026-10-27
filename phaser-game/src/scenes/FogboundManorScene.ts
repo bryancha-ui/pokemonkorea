@@ -285,8 +285,8 @@ export class FogboundManorScene extends Phaser.Scene {
     // intended route (and gives the key line), but it is no longer required — so a
     // player who can't find/beat her isn't hard-blocked from the Fog-Wraith.
     this.enterPrompt.setText(this.hasVaultKey
-      ? 'SPACE — Unlock the door with the 보석함 key'
-      : 'SPACE — Force the séance-hall door').setVisible(true);
+      ? tr('SPACE — Unlock the door with the 보석함 key')
+      : tr('SPACE — Force the séance-hall door')).setVisible(true);
     if (!Phaser.Input.Keyboard.JustDown(this.spaceKey)) return true;
     this.enterPrompt.setVisible(false); this.cutsceneActive = true;
     this.registry.set('manorVaultOpen', true);

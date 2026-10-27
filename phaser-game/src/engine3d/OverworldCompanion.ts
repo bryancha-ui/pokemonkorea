@@ -20,9 +20,6 @@ interface CompanionVisual {
   baseYaw: number;
 }
 
-/** How long to wait for the GLB manifest before falling back to artwork. */
-const MANIFEST_GRACE_S = 2.5;
-
 /** Follower size for PokeAPI-sourced rigs, relative to the authored scale. */
 const API_COMPANION_SCALE = 0.5;
 
@@ -120,9 +117,6 @@ export class OverworldCompanion {
   private pollClock = 0;
   private requestToken = 0;
   private fallbackRequested = false;
-  /** Seconds spent waiting for the local GLB manifest before committing to artwork. */
-  private manifestWait = 0;
-  private lastDt = 0;
   private pinnedModelKey = '';
   private initialized = false;
   private wasMoving = false;
@@ -170,7 +164,6 @@ export class OverworldCompanion {
   }
 
   update(dt: number, player: THREE.Vector3, playerVisible: boolean, surfing: boolean): void {
-    this.lastDt = Math.min(0.1, Math.max(0, dt));
     this.pollClock -= dt;
     if (this.pollClock <= 0) {
       this.pollClock = 0.2;
@@ -240,7 +233,6 @@ export class OverworldCompanion {
     this.companionHeight = this.lead ? companionHeightFor(this.lead.spriteKey) : 0.72;
     this.requestToken++;
     this.fallbackRequested = false;
-    this.manifestWait = 0;
     this.clearVisual();
     this.appear = 0;
     this.initialized = false;
@@ -261,14 +253,10 @@ export class OverworldCompanion {
     // (those are companionOnly: battles show their 2D sprite instead). The 2D
     // card below remains the fallback when no model exists at all.
     if (!hasModel(key)) {
-      // Do not flash an artwork follower while the local manifest is still
-      // resolving — but do not wait on it forever either. If the manifest never
-      // becomes authoritative (offline, a failed fetch, a cold cache) the old
-      // code left the player with NO companion at all, which is worse than a
-      // slightly early fallback. Give it a grace period, then commit.
-      this.manifestWait += this.lastDt;
-      const settled = manifestReady() || this.manifestWait > MANIFEST_GRACE_S;
-      if (settled && !this.fallbackRequested && !this.visual.relief) {
+      // Never flash artwork while the local manifest is unresolved. The
+      // manifest loader has its own bounded retry/fallback path, so waiting for
+      // an authoritative answer cannot leave this state pending forever.
+      if (manifestReady() && !this.fallbackRequested && !this.visual.relief) {
         this.fallbackRequested = true;
         if (import.meta.env.DEV) {
           console.info(`[engine3d] follower "${key}" -> 2D artwork (no model registered)`);

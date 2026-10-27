@@ -3,6 +3,7 @@ import { Pokemon, Move } from '../battle/Pokemon';
 import {
   deckShowBattleActions, deckHideBattleActions, deckShowMoves, deckHideMoves, deckSetBattleMode,
 } from '../systems/TouchControls';
+import { MOBILE_ACTION_EVENT } from '../systems/TouchControls';
 import { STARTERS, findForm } from '../data/StarterData';
 import { fetchPokemon, fetchMove } from '../data/PokeAPI';
 import { CORRPANDA_DATA, CORRPANDA_MOVES } from '../data/CustomPokemon';
@@ -785,9 +786,32 @@ export class GymLeaderBattleScene extends Phaser.Scene {
       SaveManager.save(this.registry, px, py, 'CapitolCityScene');
       this.cameras.main.fadeOut(600, 0, 0, 0, () => this.scene.start('CapitolCityScene'));
     };
+    const showVictoryLine = (text: string, onAdvance: () => void) => {
+      this.typeDialog(text, () => {
+        let handled = false;
+        const cleanup = () => {
+          this.spaceKey.off('down', advance);
+          window.removeEventListener(MOBILE_ACTION_EVENT, advance);
+          this.input.off('pointerdown', advance);
+        };
+        const advance = () => {
+          if (handled) return;
+          handled = true;
+          cleanup();
+          onAdvance();
+        };
+
+        // Arm a fresh one-shot confirm for every line. This avoids the old
+        // mobile-only stall after defeating Jin while also preventing a tap
+        // from advancing two lines at once.
+        this.spaceKey.once('down', advance);
+        window.addEventListener(MOBILE_ACTION_EVENT, advance, { once: true });
+        this.input.once('pointerdown', advance);
+      });
+    };
     const playSeq = (index: number) => {
       if (index >= lines.length) { finish(); return; }
-      this.typeDialog(lines[index], () => playSeq(index + 1));
+      showVictoryLine(lines[index], () => playSeq(index + 1));
     };
     playSeq(0);
   }

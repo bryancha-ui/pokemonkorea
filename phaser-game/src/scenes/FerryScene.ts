@@ -176,7 +176,7 @@ export class FerryScene extends Phaser.Scene {
     g.generateTexture(key, COLS * TILE, ROWS * TILE); g.destroy();
     this.add.image(0, 0, key).setOrigin(0, 0).setDepth(0);
 
-    this.add.text(10 * TILE, 1 * TILE, this.riggingDone ? '↑ Disembark — Jeju City' : '↑ Bow', {
+    this.add.text(10 * TILE, 1 * TILE, this.riggingDone ? tr('↑ Disembark — Jeju City') : tr('↑ Bow'), {
       fontSize: '10px', color: '#fff', backgroundColor: '#1a4a6a99', padding: { x: 4, y: 2 },
     }).setOrigin(0.5).setDepth(5);
     this.add.text(10 * TILE, 33 * TILE, tr('↓ Disembark — Haean City'), {

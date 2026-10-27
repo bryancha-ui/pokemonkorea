@@ -448,7 +448,7 @@ export class RouteScene extends Phaser.Scene {
     this.pokeballText.setText(`🔴 ×${balls}`);
     const row = Math.floor(this.py / TILE);
     const inCave = row >= 37 && row < 56;
-    this.locationText.setText(inCave ? '🕳 Cave Passage' : '🗺 Route 1 — Mountain Pass');
+    this.locationText.setText(inCave ? tr('🕳 Cave Passage') : tr('🗺 Route 1 — Mountain Pass'));
     this.inCave = inCave;
   }
 

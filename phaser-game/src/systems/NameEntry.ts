@@ -54,7 +54,7 @@ export function promptName(opts: NameOpts, onDone: (name: string) => void): void
   panel.appendChild(input);
 
   const hint = document.createElement('div');
-  hint.textContent = t(`up to ${maxLength} letters`, `${maxLength}자 이내`);
+  hint.textContent = t(`up to ${maxLength} letters`, `${maxLength}자 이내`, `${maxLength}文字まで`);
   hint.style.cssText = 'color:#7a8db0;font-size:11px;margin-top:8px;';
   panel.appendChild(hint);
 
@@ -96,7 +96,7 @@ export function showMessage(text: string, onDone: () => void): void {
   msg.textContent = tr(text);
   msg.style.cssText = 'color:#eef4ff;font-size:clamp(15px,4vw,19px);line-height:1.55;margin-bottom:18px;';
   const btn = document.createElement('button');
-  btn.textContent = t("Let's go!", '시작!');
+  btn.textContent = t("Let's go!", '시작!', 'はじめる！');
   btn.style.cssText =
     'width:100%;font-size:clamp(16px,4.4vw,18px);font-weight:800;padding:12px;border-radius:10px;' +
     'border:none;background:#2e784a;color:#fff;cursor:pointer;-webkit-tap-highlight-color:transparent;';

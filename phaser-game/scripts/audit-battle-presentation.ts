@@ -19,6 +19,9 @@ const pokemonLeague = readFileSync('src/scenes/PokemonLeagueScene.ts', 'utf8');
 const postBattleRewards = readFileSync('src/systems/PostBattleRewards.ts', 'utf8');
 const postBattleRewardScene = readFileSync('src/scenes/PostBattleRewardScene.ts', 'utf8');
 const main = readFileSync('src/main.ts', 'utf8');
+const modelManifest = JSON.parse(readFileSync('public/assets/models3d/manifest.json', 'utf8')) as {
+  models?: Array<string | { key: string; rotY?: number }>;
+};
 
 const types = [
   'normal', 'fire', 'water', 'electric', 'grass', 'ice', 'fighting', 'poison', 'ground',
@@ -79,6 +82,11 @@ expect(battleMirror.includes("'95': 90"),
   'Onix lost its -X to +Z battle-facing correction');
 expect(/cameraFacingYaw\(cb\.holder\) \+ battleYawOffset/.test(battleMirror),
   'enemy camera tracking overwrites species-specific battle yaw corrections');
+const balchataek = modelManifest.models?.find(entry => typeof entry !== 'string' && entry.key === 'balchataek');
+expect(typeof balchataek !== 'string' && balchataek?.rotY === 270,
+  'Balchataek no longer faces the shared +Z/front axis');
+expect(glbModels.includes("const MANIFEST_VERSION = '2026-10-26a'"),
+  'the corrected Balchataek orientation can be hidden by a stale browser manifest');
 
 // getModel() clones scene nodes but shares the cached geometry, materials and
 // textures. Mobile keeps only two decoded models, so loading a switch-in used

@@ -1,5 +1,5 @@
 import { BaseInteriorScene, NPC } from './interior/BaseInteriorScene';
-import { tr } from '../systems/i18n';
+import { tr, speakerName } from '../systems/i18n';
 
 export class CapitolPalaceScene extends BaseInteriorScene {
   protected readonly COLS = 18; protected readonly ROWS = 14;
@@ -61,7 +61,7 @@ export class CapitolPalaceScene extends BaseInteriorScene {
     this.npcs.push(guard);
 
     const curator = this.createNPCGraphic(4, 9, 0x886622, 0x332200, true, 3);
-    this.add.text(this.tile(4, 9).x + 16, this.tile(4, 9).y - 6, 'Curator',
+    this.add.text(this.tile(4, 9).x + 16, this.tile(4, 9).y - 6, speakerName('Curator'),
       { fontSize: '9px', color: '#ffe44e', backgroundColor: '#00000088', padding: { x: 3, y: 1 } }
     ).setOrigin(0.5, 1).setDepth(16);
     this.npcs.push(curator);

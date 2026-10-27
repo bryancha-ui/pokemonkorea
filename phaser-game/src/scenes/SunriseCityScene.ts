@@ -459,7 +459,7 @@ export class SunriseCityScene extends Phaser.Scene {
         bg.lineStyle(1, 0x222222); bg.strokeCircle(cx, cy, 2.4);
       }
       const isGym = b.scene === 'SunriseGymScene';
-      this.add.text((b.x + b.w / 2) * TILE, (b.y - 1.2) * TILE, isGym ? '🏟️ Sunrise Gym — 8th Badge' : tr(b.label), {
+      this.add.text((b.x + b.w / 2) * TILE, (b.y - 1.2) * TILE, isGym ? tr('🏟️ Sunrise Gym — 8th Badge') : tr(b.label), {
         fontSize: isGym ? '10px' : '9px', color: isGym ? '#ffe44e' : '#fff', fontStyle: isGym ? 'bold' : 'normal',
         backgroundColor: '#00000099', padding: { x: 4, y: 2 },
       }).setOrigin(0.5, 1).setDepth(3);

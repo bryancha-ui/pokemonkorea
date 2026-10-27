@@ -1,4 +1,5 @@
 import { BaseInteriorScene, NPC } from './interior/BaseInteriorScene';
+import { speakerName } from '../systems/i18n';
 
 export class CapitolMarketScene extends BaseInteriorScene {
   protected readonly COLS = 14; protected readonly ROWS = 11;
@@ -33,7 +34,7 @@ export class CapitolMarketScene extends BaseInteriorScene {
 
   protected setupNPCs() {
     const merchant = this.createNPCGraphic(5, 4, 0xee8833, 0x3a2200, false, 0);
-    this.add.text(this.tile(5,4).x+16, this.tile(5,4).y-6, 'Merchant',
+    this.add.text(this.tile(5,4).x+16, this.tile(5,4).y-6, speakerName('Merchant'),
       { fontSize: '9px', color: '#ffe44e', backgroundColor: '#00000088', padding: { x:3,y:1 } }
     ).setOrigin(0.5,1).setDepth(16);
     this.npcs.push(merchant);

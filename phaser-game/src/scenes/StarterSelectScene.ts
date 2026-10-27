@@ -183,7 +183,7 @@ export class StarterSelectScene extends Phaser.Scene {
       fontSize: '14px', color: '#1a2a4a',
       wordWrap: { width: bw - 36, useAdvancedWrap: true }, lineSpacing: 6,
     }).setDepth(6);
-    this.profAdvance = this.add.text(bx + bw - 18, by + bh - 14, '▼  ENTER', {
+    this.profAdvance = this.add.text(bx + bw - 18, by + bh - 14, tr('▼  ENTER'), {
       fontSize: '11px', color: '#315886', fontStyle: 'bold',
     }).setOrigin(1, 1).setDepth(7).setVisible(false).setData('baseY', by + bh - 14);
   }
@@ -590,7 +590,7 @@ export class StarterSelectScene extends Phaser.Scene {
     this.confirmIdx = 0;
     const q = this.confirmPanel.getData('q') as Phaser.GameObjects.Text;
     const nm = pokeNameEn(s.data.name);
-    q.setText(t(`Choose ${nm}?`, `${nm}(으)로 정할까요?`));
+    q.setText(t(`Choose ${nm}?`, `${nm}(으)로 정할까요?`, `${nm}に しますか？`));
     this.confirmPanel.setVisible(true);
     this.refreshConfirm();
   }

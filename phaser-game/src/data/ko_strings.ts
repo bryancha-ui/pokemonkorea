@@ -15,6 +15,7 @@ export const KO_TYPES: Record<string, string> = {
 export const KO_SPEAKERS: Record<string, string> = {
   'Prof. Song': '송 박사', 'Professor Song': '송 박사', 'Prof. Kim': '김 박사',
   'Rival': '라이벌', 'Mom': '엄마', 'Nurse Joy': '조이 간호사', 'Mart Clerk': '마트 점원',
+  'Chief Inspector Jinnok': '어사대장 진옥',
   'Minhyuk': '민혁', 'Soohyun': '수현',
   "Trainer's PC": '트레이너 PC', 'Ranger': '레인저', 'Ranger Sooyeon': '레인저 수연', 'Ranger Hyunwoo': '레인저 현우',
   'Byeoksan': '벽산', 'Leader Byeoksan': '관장 벽산', 'Champion Hwangeum': '챔피언 황금',
@@ -1407,6 +1408,9 @@ export const KO_STRINGS: Record<string, string> = {
 
   // ── Battle: action menu ──
   'FIGHT': '싸운다', 'BAG': '가방', 'POKÉMON': '포켓몬', 'RUN': '도망',
+  // Desktop battle action-panel labels carry a decorative glyph as part of the tr key.
+  '⚔ FIGHT': '⚔ 싸운다', '◉ BAG': '◉ 가방', '◇ POKÉMON': '◇ 포켓몬', '↗ RUN': '↗ 도망',
+  '▼  ENTER': '▼  계속', '↑ Bow': '↑ 뱃머리', '★ CHAMPION HWANGEUM ★': '★ 챔피언 황금 ★',
   'No usable items in the bag.': '가방에 사용할 수 있는 아이템이 없습니다.',
   'Choose your next Pokémon!': '다음 포켓몬을 선택하세요!',
   '▶ SPACE to advance  |  A to throw Pokéball': '▶ SPACE 넘기기  |  A 몬스터볼 던지기',

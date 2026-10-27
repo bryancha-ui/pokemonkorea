@@ -178,7 +178,7 @@ export class BaekduCheckpointScene extends Phaser.Scene {
     g.generateTexture(key, COLS * TILE, ROWS * TILE); g.destroy();
     this.add.image(0, 0, key).setOrigin(0, 0).setDepth(0);
 
-    this.add.text(12 * TILE, 0.6 * TILE, this.gateOpen ? '↑ Baekdu Peak — the climb' : '⛓ The Iron Gate', {
+    this.add.text(12 * TILE, 0.6 * TILE, this.gateOpen ? tr('↑ Baekdu Peak — the climb') : tr('⛓ The Iron Gate'), {
       fontSize: '10px', color: '#ffd0d0', backgroundColor: '#00000088', padding: { x: 4, y: 2 },
     }).setOrigin(0.5).setDepth(5);
     this.add.text(12 * TILE, 45.4 * TILE, tr('↓ back south'), {

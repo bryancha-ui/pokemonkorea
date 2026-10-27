@@ -54,21 +54,26 @@ const floor = new THREE.Mesh(
 floor.rotation.x = -Math.PI / 2;
 floor.receiveShadow = true;
 scene.add(floor);
-for (let i = 0; i < 3; i++) {
+const params = new URLSearchParams(location.search);
+const qaModel = params.get('model')?.trim().toLowerCase() || undefined;
+const ringCount = qaModel ? 1 : 3;
+for (let i = 0; i < ringCount; i++) {
   const ring = new THREE.Mesh(
     new THREE.RingGeometry(0.76, 0.8, 64),
     new THREE.MeshBasicMaterial({ color: [0x5fd9ff, 0x79e06a, 0xff874f][i], transparent: true, opacity: 0.7, side: THREE.DoubleSide }),
   );
   ring.rotation.x = -Math.PI / 2;
-  ring.position.set((i - 1) * 2.65, 0.012, 0);
+  ring.position.set(qaModel ? 0 : (i - 1) * 2.65, 0.012, 0);
   scene.add(ring);
 }
 
 const mixers: THREE.AnimationMixer[] = [];
 const actors: THREE.Object3D[] = [];
 const animationSets: Array<{ mixer: THREE.AnimationMixer; clips: THREE.AnimationClip[]; current?: THREE.AnimationAction }> = [];
-const texturedQa = new URLSearchParams(location.search).has('textured');
-const specs = texturedQa
+const texturedQa = params.has('textured');
+const specs = qaModel
+  ? [{ key: qaModel, x: 0 }]
+  : texturedQa
   ? [
       { key: 'yeomtaeja', x: -2.65 },
       { key: 'camerghoost', x: 0 },
@@ -79,6 +84,7 @@ const specs = texturedQa
       { key: 'banderado', x: 0 },
       { key: 'pipetiger', x: 2.65 },
     ];
+if (qaModel) document.querySelector('#labels')?.remove();
 
 function normalize(model: THREE.Object3D, x: number): void {
   const box = new THREE.Box3().setFromObject(model);

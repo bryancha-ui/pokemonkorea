@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { t, tr } from '../systems/i18n';
+import { t, tr, speakerName, typeName } from '../systems/i18n';
 import { playBgm } from '../systems/Music';
 import { drawTrainerBody, drawNpcBody, playerDesign } from '../data/CharacterSprite';
 import { DialogBox } from '../ui/DialogBox';
@@ -319,7 +319,7 @@ export class PokemonLeagueScene extends Phaser.Scene {
     g.setPosition(MEMBER_COL * TILE + 16, MEMBER_ROW * TILE + 16);
     markTrainerPortrait(g, m.key);
     this.add.text(MEMBER_COL * TILE + 16, MEMBER_ROW * TILE - 16,
-      m.type === 'Champion' ? '★ CHAMPION HWANGEUM ★' : `${m.name} — ${m.type}`, {
+      m.type === 'Champion' ? tr('★ CHAMPION HWANGEUM ★') : `${speakerName(m.name)} — ${typeName(m.type)}`, {
       fontSize: m.type === 'Champion' ? '10px' : '8px', color: '#ffe88a',
       backgroundColor: '#000000bb', padding: { x: 4, y: 2 }, align: 'center',
     }).setOrigin(0.5).setDepth(9);

@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { BaseInteriorScene, NPC } from './BaseInteriorScene';
+import { speakerName } from '../../systems/i18n';
 import { PartySystem } from '../../systems/PartySystem';
 import { SaveManager } from '../../utils/SaveManager';
 
@@ -106,7 +107,7 @@ export class PlayerHomeScene extends BaseInteriorScene {
     this.add.text(
       this.tile(6, 7).x + 16,
       this.tile(6, 7).y - 6,
-      'Mom', { fontSize: '10px', color: '#fff', backgroundColor: '#00000088', padding: { x: 3, y: 1 } }
+      speakerName('Mom'), { fontSize: '10px', color: '#fff', backgroundColor: '#00000088', padding: { x: 3, y: 1 } }
     ).setOrigin(0.5, 1).setDepth(16);
     this.npcs.push(mom);
   }

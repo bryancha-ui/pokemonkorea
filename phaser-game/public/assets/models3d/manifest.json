@@ -958,7 +958,7 @@
     },
     {
       "key": "balchataek",
-      "rotY": 90,
+      "rotY": 270,
       "lightweight": true,
       "optimized": true
     },
@@ -1085,59 +1085,56 @@
     {
       "key": "aroryong",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "local-pokemon3dmodels"
     },
     {
       "key": "beardiedragon",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true,
-      "backView": "infer"
+      "backView": "infer",
+      "optimized": true,
+      "source": "local-pokemon3dmodels"
     },
     {
       "key": "bookkuddoong",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "0fc7b8e2-bfe0-43ea-bf40-6e61a035095a"
     },
     {
       "key": "booktoise",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "1fbe66cf-6ae2-474e-8780-2befedbc5081"
     },
     {
       "key": "burinao",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "069455dc-8888-4868-96db-a67ed81957e7"
     },
     {
       "key": "butlerawn",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "057b2770-e0a4-4996-bbfd-214160d2fd3a"
     },
     {
       "key": "capaludar",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "7665740e-d5a4-401e-ad87-27887366ffa0"
     },
     {
       "key": "chattyscream",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "local-pokemon3dmodels"
     },
     {
       "key": "cheonjisin",
@@ -1149,702 +1146,678 @@
     {
       "key": "corrpanda",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "18cb40a1-602e-4d88-8db8-4d32cdee41c6"
     },
     {
       "key": "crystbeetle",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "741a894f-4a91-4b37-b6ac-09092bad6819"
     },
     {
       "key": "danachungi",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "4d2835c6-3273-43c7-aff5-f19653935ce9"
     },
     {
       "key": "disguijar",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "local-pokemon3dmodels"
     },
     {
       "key": "doksalsa",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "3a15b6cc-7cab-4236-b0db-adb2da28c840"
     },
     {
       "key": "doribi",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "local-pokemon3dmodels"
     },
     {
       "key": "dracoelido",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "1a749ee3-dcc6-40b4-a7c0-086dbee431d2"
     },
     {
       "key": "dracopaia",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "ce9c804e-2a9d-4d70-8076-8c051e4d1e12"
     },
     {
       "key": "dundunguri",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "local-pokemon3dmodels"
     },
     {
       "key": "dynabeetle",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "local-pokemon3dmodels"
     },
     {
       "key": "falcrush",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "local-pokemon3dmodels"
     },
     {
       "key": "feldaconda",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "6513087f-8b8e-4b73-ba2d-809130bf6951"
     },
     {
       "key": "gatnannu",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "82da67b1-6c5e-479e-9081-a902be860edc"
     },
     {
       "key": "gawlhawk",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "e4bf59c3-4b67-4885-bc79-dad23d0538cf"
     },
     {
       "key": "ghograss",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "e6bc4b83-b856-43c7-878b-3878a7b8b83b"
     },
     {
       "key": "glacewing",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "local-pokemon3dmodels"
     },
     {
       "key": "gorcobat",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "00318852-642c-454a-85f8-315aa9f69744"
     },
     {
       "key": "groundzomber",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "c23ffc21-f1c7-44f8-9e00-fc713c3bf0d9"
     },
     {
       "key": "groundzoome",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "local-pokemon3dmodels"
     },
     {
       "key": "hallowknight",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "f9e58b5d-73e7-4676-850c-9eea09fb7761"
     },
     {
       "key": "halubang",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "bb76372c-d395-4c1b-8c4c-0732fc1657b1"
     },
     {
       "key": "honupup",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "local-pokemon3dmodels"
     },
     {
       "key": "honutomb",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "local-pokemon3dmodels"
     },
     {
       "key": "hwidoribi",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "local-pokemon3dmodels"
     },
     {
       "key": "idolena",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "local-pokemon3dmodels"
     },
     {
       "key": "jakdangchi",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "f22aaffc-d6d6-4702-8bad-17526f276be0"
     },
     {
       "key": "jakdangsae",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "946c7b5f-c5bb-4cb1-a89c-0c04db5d2063"
     },
     {
       "key": "kelpoxin",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "local-pokemon3dmodels"
     },
     {
       "key": "kingfisher",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "local-pokemon3dmodels"
     },
     {
       "key": "kkorisagwi",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "ab402f8f-c8b6-4c63-b2f8-8d4882797cc4"
     },
     {
       "key": "komodread",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "56338909-ecc4-477f-a56d-0b5d0796211d"
     },
     {
       "key": "kudzu",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "3f154e76-134c-46ff-af19-9b26aec6fb83"
     },
     {
       "key": "layone",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "11d29d88-d064-4c63-b958-57f1def1feb1"
     },
     {
       "key": "liondance",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "447536e4-dd20-4c0b-b50d-e7b60e65014a"
     },
     {
       "key": "longroffe",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "local-pokemon3dmodels"
     },
     {
       "key": "maewoyong",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "19aac292-0c2f-48ed-9844-877ed5ed648e"
     },
     {
       "key": "martbadger",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "ff92d1c3-cf7e-4526-b8fb-371d6adb78de"
     },
     {
       "key": "merrloween",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "f70a0a22-202e-4052-afc4-fdddeae4708d"
     },
     {
       "key": "metdoyaroe",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "67fdd4a2-411f-4f96-b0b1-e499cca32256"
     },
     {
       "key": "moktakgwi",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "cb666eaf-0099-4d1f-a58c-cc48afea325a"
     },
     {
       "key": "moranlovebird",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "3e1473f8-b3ea-4b01-8683-ec6f50e14df7"
     },
     {
       "key": "moransae",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "local-pokemon3dmodels"
     },
     {
       "key": "mperodactyl",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "73f630d8-c8bc-43c5-9b7f-baaa1c4f1c41"
     },
     {
       "key": "mugunga",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "5264c3ed-42b5-4390-b31b-40215c734a9d"
     },
     {
       "key": "mugungmama",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "1cc2add4-6e45-424d-970d-c91da45d6c89"
     },
     {
       "key": "munklift",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "34c4070d-aca0-4173-9927-e56b75dc731b"
     },
     {
       "key": "mushvenom",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "2fdf74ce-5126-49dc-9933-e8ac984de6a7"
     },
     {
       "key": "nabicocoon",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "34091d2d-9862-4851-ba1b-6cbf0412d47a"
     },
     {
       "key": "nabiguni",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "9f01fdf0-af9f-4c72-8c27-6b468ddfa063"
     },
     {
       "key": "neogulgamyeon",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "0eb09b6c-4932-44fd-b74f-453547059cf9"
     },
     {
       "key": "noeryong",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "local-pokemon3dmodels"
     },
     {
       "key": "nootillunar",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "cac17932-c041-4133-9e86-d62f115419bb"
     },
     {
       "key": "norigung",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "c47100d8-a3f6-467c-b32c-3ecb93280f28"
     },
     {
       "key": "nosepassx",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "880a2d61-00c6-4bd5-b88d-17255726fb45"
     },
     {
       "key": "odamryul",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "a9c1e083-b092-4522-8793-a65139c0216f"
     },
     {
       "key": "onnujang",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "local-pokemon3dmodels"
     },
     {
       "key": "onnuriarcanine",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "ee513a67-3e36-4cf0-84b1-ce4ff690a752"
     },
     {
       "key": "onnurigrowlithe",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "1f2f8169-57a7-473b-8580-647412b2b32d"
     },
     {
       "key": "onnurismoochum",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "331c2249-27d0-4a1c-92b0-7b204d7868d0"
     },
     {
       "key": "oribioass",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "c40d4afc-d1f3-4921-9daa-6af29bd60834"
     },
     {
       "key": "ottermudang",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "ed721f11-959c-43cd-ba84-09f255a8dc30"
     },
     {
       "key": "ottershaman",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "c94e2353-2029-4632-b87c-97f7151e5aff"
     },
     {
       "key": "palmcockatoo",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "a1cec3cc-2266-41c3-9f9c-5f94e88f2dc0"
     },
     {
       "key": "palossandx",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "c1705700-7dbc-492e-930f-c5005af40621"
     },
     {
       "key": "paratoxin",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "267f937c-8807-4997-b437-c32ac104da61"
     },
     {
       "key": "peacockrose",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "988d2841-9ba2-4e84-bc89-a315001d55bc"
     },
     {
       "key": "plumpypu",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "8685e3d3-2099-440b-b013-bce0320d6ca2"
     },
     {
       "key": "poongbaek",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "36729a72-301c-456e-828f-dbaaad6f0d52"
     },
     {
       "key": "prowlnox",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "local-pokemon3dmodels"
     },
     {
       "key": "prowlrock",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "f76d577f-e086-42ed-b0f3-da859cefd778"
     },
     {
       "key": "ratouille",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "d5ca022b-8853-4b6b-9385-99833fabce5c"
     },
     {
       "key": "redheadagama",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "73922871-acf4-411a-84fa-399337ba35f5"
     },
     {
       "key": "rideer",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "72f102a9-d6b3-4772-b896-f79892697487"
     },
     {
       "key": "roundtailor",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "d0d18fcf-fba6-471d-8877-5321b976e772"
     },
     {
       "key": "saekomaga",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "a2aee8d5-3b0c-412d-8d2a-664753a648a9"
     },
     {
       "key": "saekomassi",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "6b64285b-1478-4eaf-9f27-3c6eed29dbdd"
     },
     {
       "key": "salmua",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "e04b3508-fd04-4b87-8afa-f399ca89d3b1"
     },
     {
       "key": "sandfox",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "7d4258a0-eb6b-47e6-bd38-2f05df7d365d"
     },
     {
       "key": "sandygastx",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "6ce1d905-4cad-45cb-8045-a1e9f1649470"
     },
     {
       "key": "scorpent",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "cf832ac4-e791-4749-828d-cb5210acb43a"
     },
     {
       "key": "seuphaisin",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "local-pokemon3dmodels"
     },
     {
       "key": "sotori",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "033cbb0b-00af-4470-9b9c-2fbcff6b1599"
     },
     {
       "key": "squirrel1",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "local-pokemon3dmodels"
     },
     {
       "key": "squirrel2",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "local-pokemon3dmodels"
     },
     {
       "key": "ssaktrin",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "e24f1415-f333-44a0-a212-bd433896a1d4"
     },
     {
       "key": "ssangdungori",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "e8dbd068-e39d-44db-bd63-264fd5d8705e"
     },
     {
       "key": "strawtle",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "b4cd6876-410c-4777-85ba-cf5e03f906aa"
     },
     {
       "key": "thunderon",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "ea9d05e4-d6dd-4538-b78f-4153a5fa4a56"
     },
     {
       "key": "tigerbabe",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "24e214d0-59d4-4d79-b53b-7d79f23b6bab"
     },
     {
       "key": "tokkigongju",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "ea67cf24-a550-497d-88e7-54b68cb64605"
     },
     {
       "key": "trumpetcreeper",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "6841a55d-3eeb-4484-8f2b-42fe94271f50"
     },
     {
       "key": "twinkluppy",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "7be838e8-1c25-4700-a12c-684e95a8f18a"
     },
     {
       "key": "ureunggul",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "21508b18-ec80-4528-a00e-e10f3bfdb97b"
     },
     {
       "key": "venombee",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "8c7d26da-0fdb-4953-b891-6d60b17b9795"
     },
     {
       "key": "volthopper",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "7465cc6a-d28a-4ad3-9198-4f63c0589578"
     },
     {
       "key": "waterdeer",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "023af229-c017-4933-b676-b3236d4f3da7"
     },
     {
       "key": "wildcat",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "hyper3d-rodin",
+      "generationId": "a6165b65-2ebe-465e-84c6-3dd365caa26e"
     },
     {
       "key": "woonsa",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "local-pokemon3dmodels"
     },
     {
       "key": "woosa",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "local-pokemon3dmodels"
     },
     {
       "key": "zoltile",
       "lightweight": true,
-      "generated": true,
-      "proceduralVolumetric": true,
-      "companionOnly": true
+      "optimized": true,
+      "source": "local-pokemon3dmodels"
     }
   ]
 }

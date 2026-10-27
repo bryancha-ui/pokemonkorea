@@ -52,6 +52,12 @@ expect(mainSource.includes('installFieldItems(game)'), 'global field item instal
 expect(fieldSource.includes('SaveManager.save'), 'picked-up field items are not durably saved');
 expect(fieldSource.includes('sfxItemGet(this.scene)'), 'pickup does not play the item-get sound');
 expect(fieldSource.includes('this.scene.collides?.(x, y)'), 'placements are not corrected against map collision');
+expect(fieldSource.includes('mobileSafeInsets(designW, designH)')
+  && fieldSource.includes('fontScaleForScene(this.scene)'),
+  'field-item banner does not respect mobile safe bounds and scaled typography');
+expect(fieldSource.includes('.setScale(1 / cameraZoom)')
+  && fieldSource.includes('toCameraY(screenY'),
+  'field-item banner can still be clipped by an overworld camera zoom');
 expect(mirrorSource.includes("kind: 'field-item'"), '3D overworld cannot track field pickups');
 expect(mirrorSource.includes('buildFieldItem3D'), '3D overworld cannot build field pickups');
 expect(modelSource.includes('field-item-pickup'), 'field pickup has no volumetric model');

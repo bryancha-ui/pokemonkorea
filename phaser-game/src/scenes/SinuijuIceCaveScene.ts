@@ -140,7 +140,7 @@ export class SinuijuIceCaveScene extends Phaser.Scene {
     this.add.image(0, 0, key).setOrigin(0, 0).setDepth(0);
 
     this.add.text(SPAWN_COL * TILE + 16, 49 * TILE + 4, tr('↓ Binghagwan'), { fontSize: '9px', color: '#fff', backgroundColor: '#3a5a8a99', padding: { x: 3, y: 1 } }).setOrigin(0.5).setDepth(5);
-    STAGES.forEach((s, i) => this.add.text(s.entry === 1 ? 1.6 * TILE : 12.4 * TILE, (s.top + 2) * TILE, `STAGE ${i + 1}`, { fontSize: '8px', color: '#0a3a4a', fontStyle: 'bold', backgroundColor: '#cdeafacc', padding: { x: 2, y: 1 } }).setOrigin(0.5).setDepth(5));
+    STAGES.forEach((s, i) => this.add.text(s.entry === 1 ? 1.6 * TILE : 12.4 * TILE, (s.top + 2) * TILE, tr(`STAGE ${i + 1}`), { fontSize: '8px', color: '#0a3a4a', fontStyle: 'bold', backgroundColor: '#cdeafacc', padding: { x: 2, y: 1 } }).setOrigin(0.5).setDepth(5));
     this.add.text(7.5 * TILE, 47 * TILE, tr('얼음길 — 미끄러진다!\n(ice slides you until a rock stops you)'), { fontSize: '8px', color: '#0a3a4a', align: 'center', backgroundColor: '#cdeafaee', padding: { x: 3, y: 1 } }).setOrigin(0.5).setDepth(5);
     if (!this.beaten) this.add.text(BEAR_COL * TILE + 16, 0.5 * TILE, '❄ 얼음 동굴의 심장부 ❄', { fontSize: '9px', color: '#bfe8ff', fontStyle: 'bold', backgroundColor: '#00000088', padding: { x: 3, y: 1 } }).setOrigin(0.5).setDepth(6);
   }

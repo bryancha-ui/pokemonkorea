@@ -109,7 +109,7 @@ function askForget(scene: Phaser.Scene, mon: Pokemon, newMove: MoveData,
   const layer = scene.add.container(0, 0).setDepth(200);
   layer.add(scene.add.rectangle(cx, cy, W, H, 0x000000, 0.68));
   layer.add(scene.add.rectangle(cx, cy, 500, 420, 0x10142a, 0.99).setStrokeStyle(2, 0x5577aa));
-  layer.add(scene.add.text(cx, cy - 178, `Forget a move to learn ${newMove.name}?`,
+  layer.add(scene.add.text(cx, cy - 178, tr(`Forget a move to learn ${newMove.name}?`),
     { fontSize: '15px', color: '#ffe44e', fontStyle: 'bold' }).setOrigin(0.5));
 
   const row = (y: number, label: string, sub: string, color: number, onClick: () => void) => {
@@ -130,7 +130,7 @@ function askForget(scene: Phaser.Scene, mon: Pokemon, newMove: MoveData,
       () => { layer.destroy(true); cb(j); });
   });
 
-  const cancel = scene.add.text(cx, cy + 172, `✕ Don't learn ${newMove.name}`,
+  const cancel = scene.add.text(cx, cy + 172, tr(`✕ Don't learn ${newMove.name}`),
     { fontSize: '13px', color: '#c99' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
   cancel.on('pointerdown', () => { layer.destroy(true); cb(-1); });
   layer.add(cancel);

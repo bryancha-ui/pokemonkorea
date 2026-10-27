@@ -11,14 +11,20 @@ import { isSafeResumeScene } from '../data/ResumeScenes';
 const TITLE_BACKGROUNDS = {
   ko: { key: 'pokemon-string-opening-ko', url: 'assets/title/pokemon-string-opening-ko.png' },
   en: { key: 'pokemon-string-opening-en', url: 'assets/title/pokemon-string-opening-en.png' },
-  // Japanese currently shares the language-neutral English key art; all menu
-  // copy is still localized and this avoids requesting a non-existent asset.
-  ja: { key: 'pokemon-string-opening-ja', url: 'assets/title/pokemon-string-opening-en.png' },
+  // Japanese has dedicated key art with a clean sky. Its logo and menu are
+  // composed independently, so no English title can show through underneath.
+  // Use a new texture key as well as a new file: an already-open tab may still
+  // retain the old key whose pixels came from the English background.
+  ja: { key: 'pokemon-string-opening-ja-layout-v2', url: 'assets/title/pokemon-string-opening-ja.webp' },
+} as const;
+const JAPANESE_TITLE_LOGO = {
+  key: 'pokemon-string-logo-ja', url: 'assets/title/pokemon-string-logo-ja.webp',
 } as const;
 
 export class TitleScene extends Phaser.Scene {
   private selected = 0;
   private menuItems: Phaser.GameObjects.Text[] = [];
+  private menuPlates: Phaser.GameObjects.Rectangle[] = [];
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private confirmKey!: Phaser.Input.Keyboard.Key;
   private hasSave = false;
@@ -42,6 +48,9 @@ export class TitleScene extends Phaser.Scene {
     // fallback art already load on demand in the scenes that actually use them.
     const background = TITLE_BACKGROUNDS[getLang()];
     if (!this.textures.exists(background.key)) this.load.image(background.key, background.url);
+    if (getLang() === 'ja' && !this.textures.exists(JAPANESE_TITLE_LOGO.key)) {
+      this.load.image(JAPANESE_TITLE_LOGO.key, JAPANESE_TITLE_LOGO.url);
+    }
   }
 
   create() {
@@ -134,16 +143,67 @@ export class TitleScene extends Phaser.Scene {
       this.add.rectangle(this.W / 2, this.H / 2, this.W, this.H, 0x08000f).setDepth(-20);
     }
 
-    // Keep the authored title/logo untouched. Only shade the lower menu zone
-    // enough for readable controls over either localized illustration.
+    // The Japanese edition owns a separate footer layout; shade only that
+    // footer so the clean localized key art remains visible. Existing English
+    // and Korean layouts retain their original lower-menu treatment.
     const shade = this.add.graphics().setDepth(-19);
-    shade.fillGradientStyle(0x05000b, 0x05000b, 0x05000b, 0x05000b, 0, 0, 0.82, 0.82);
-    shade.fillRect(0, this.H * 0.54, this.W, this.H * 0.46);
+    if (getLang() === 'ja') {
+      shade.fillGradientStyle(0x05000b, 0x05000b, 0x05000b, 0x05000b, 0.02, 0.02, 0.9, 0.9);
+      shade.fillRect(0, this.H * 0.68, this.W, this.H * 0.32);
+    } else {
+      shade.fillGradientStyle(0x05000b, 0x05000b, 0x05000b, 0x05000b, 0, 0, 0.82, 0.82);
+      shade.fillRect(0, this.H * 0.54, this.W, this.H * 0.46);
+    }
 
     // Thin cinematic letterbox edges give the splash a finished console-game frame.
     shade.fillStyle(0x030006, 0.72);
     shade.fillRect(0, 0, this.W, 8);
     shade.fillRect(0, this.H - 8, this.W, 8);
+
+    if (getLang() === 'ja') this.drawJapaneseTitleLogo();
+  }
+
+  /** Japanese edition title treatment. The background is already title-free,
+   * so this uses light and motion only—never an opaque patch over another logo. */
+  private drawJapaneseTitleLogo(): void {
+    const cx = this.W / 2;
+    const glow = this.add.ellipse(cx, this.H * 0.215, this.W * 0.72, this.H * 0.27, 0x8f25dc, 0.11)
+      .setDepth(-17)
+      .setBlendMode(Phaser.BlendModes.ADD);
+    this.tweens.add({
+      targets: glow, alpha: { from: 0.1, to: 0.24 }, scaleX: 1.035, scaleY: 1.08,
+      duration: 1900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+    });
+
+    if (!this.textures.exists(JAPANESE_TITLE_LOGO.key)) return;
+    const logo = this.add.image(cx, this.H * 0.215, JAPANESE_TITLE_LOGO.key).setDepth(-15);
+    // Trim the generated asset's safety margin at render time so the glyphs
+    // stay large on phones without storing a second, lossy copy.
+    logo.setCrop(45, 118, 1733, 632);
+    // Crop does not alter a Phaser Image's intrinsic dimensions, so use one
+    // uniform scale derived from the visible crop to preserve the logo ratio.
+    const logoScale = Math.min((this.W * 0.82) / 1733, (this.H * 0.4) / 632);
+    logo.setScale(logoScale);
+    logo.setAlpha(0);
+    this.tweens.add({
+      targets: logo, alpha: 1, scaleX: logo.scaleX * 1.015, scaleY: logo.scaleY * 1.015,
+      duration: 760, ease: 'Cubic.Out',
+    });
+
+    // A restrained row of glints binds the logo to the celestial rings without
+    // reading as a separate rectangular overlay.
+    for (let i = 0; i < 5; i++) {
+      const x = Phaser.Math.Linear(this.W * 0.18, this.W * 0.82, i / 4);
+      const y = this.H * (0.105 + (i % 2) * 0.19);
+      const shard = this.add.star(x, y, 4, 2, 8, 0xe7bdff, 0.42)
+        .setDepth(-14)
+        .setBlendMode(Phaser.BlendModes.ADD)
+        .setAngle(22.5);
+      this.tweens.add({
+        targets: shard, alpha: { from: 0.12, to: 0.72 }, scaleX: 1.8, scaleY: 1.8,
+        duration: 900 + i * 170, delay: i * 110, yoyo: true, repeat: -1,
+      });
+    }
   }
 
   // ── Stars ─────────────────────────────────────────────────────────────────
@@ -307,6 +367,13 @@ export class TitleScene extends Phaser.Scene {
   // ── Menu ──────────────────────────────────────────────────────────────────
 
   private drawMenu() {
+    this.menuItems = [];
+    this.menuPlates = [];
+    if (getLang() === 'ja') {
+      this.drawJapaneseMenu();
+      return;
+    }
+
     const cx = this.W / 2;
     const options = [
       t('▶  NEW GAME', '▶  새 게임'),
@@ -340,6 +407,54 @@ export class TitleScene extends Phaser.Scene {
     });
   }
 
+  /** Dedicated Japanese command footer: three equal-width choices rather than
+   * the English/Korean vertical card. This keeps the key art unobstructed and
+   * makes the localized screen read as its own edition. */
+  private drawJapaneseMenu(): void {
+    const labels = ['はじめから', 'つづきから', 'ランキング'];
+    const bandW = Math.min(this.W * 0.88, 1080);
+    const gap = Math.max(10, bandW * 0.014);
+    const cellW = (bandW - gap * 2) / 3;
+    const cellH = Phaser.Math.Clamp(this.H * 0.085, 66, 90);
+    const y = this.H * 0.805;
+    const startX = this.W / 2 - bandW / 2 + cellW / 2;
+
+    const rail = this.add.graphics().setDepth(4);
+    rail.fillStyle(0x05000d, 0.72);
+    rail.fillRoundedRect(this.W / 2 - bandW / 2 - 18, y - cellH / 2 - 18, bandW + 36, cellH + 36, 18);
+    rail.lineStyle(1, 0xd8a8ff, 0.36);
+    rail.strokeRoundedRect(this.W / 2 - bandW / 2 - 18, y - cellH / 2 - 18, bandW + 36, cellH + 36, 18);
+
+    this.menuItems = labels.map((label, i) => {
+      const x = startX + i * (cellW + gap);
+      const disabled = i === 1 && !this.hasSave;
+      const plate = this.add.rectangle(x, y, cellW, cellH, 0x10051d, disabled ? 0.54 : 0.86)
+        .setStrokeStyle(2, disabled ? 0x493555 : 0x75439a, disabled ? 0.45 : 0.78)
+        .setDepth(5);
+      this.menuPlates.push(plate);
+      const labelText = this.add.text(x, y, label, {
+        fontSize: `${Phaser.Math.Clamp(Math.round(this.W / 58), 20, 27)}px`,
+        color: disabled ? '#665b70' : '#f8efff',
+        fontStyle: 'bold', fontFamily: '"Hiragino Sans", "Yu Gothic", sans-serif',
+        stroke: disabled ? undefined : '#230035', strokeThickness: disabled ? 0 : 3,
+      }).setOrigin(0.5).setDepth(6);
+      if (!disabled) {
+        plate.setInteractive({ useHandCursor: true })
+          .on('pointerdown', () => { this.selected = i; this.confirm(); })
+          .on('pointerover', () => { this.selected = i; this.refreshSelection(); });
+        labelText.setInteractive({ useHandCursor: true })
+          .on('pointerdown', () => { this.selected = i; this.confirm(); })
+          .on('pointerover', () => { this.selected = i; this.refreshSelection(); });
+      }
+      return labelText;
+    });
+
+    this.add.text(this.W / 2, y + cellH / 2 + 31, '◀ ▶  選択　　A / ENTER  決定', {
+      fontSize: '13px', color: '#bba8c9', letterSpacing: 1,
+      fontFamily: '"Hiragino Sans", "Yu Gothic", sans-serif',
+    }).setOrigin(0.5).setDepth(6);
+  }
+
   // ── Save info ─────────────────────────────────────────────────────────────
 
   private drawSaveInfo() {
@@ -361,7 +476,8 @@ export class TitleScene extends Phaser.Scene {
       ? `${localizedName}  Lv.${level}  ·  ${SaveManager.formatDate(save.timestamp)}`
       : SaveManager.formatDate(save.timestamp);
 
-    this.add.text(this.W / 2, this.H * 0.825, t(`Save data: ${info}`, `저장 데이터: ${info}`), {
+    const isJapanese = getLang() === 'ja';
+    this.add.text(this.W / 2, this.H * (isJapanese ? 0.925 : 0.825), t(`Save data: ${info}`, `저장 데이터: ${info}`, `セーブデータ：${info}`), {
       fontSize: '13px', color: '#d6b4eb', backgroundColor: '#08000baa', padding: { x: 10, y: 4 },
     }).setOrigin(0.5).setDepth(6);
   }
@@ -369,7 +485,7 @@ export class TitleScene extends Phaser.Scene {
   /** If a backup exists (from a previous delete / New Game), offer to restore it. */
   private drawRestoreOption() {
     if (!SaveManager.hasBackup()) return;
-    const t = this.add.text(this.W / 2, this.H * 0.875, tr('↩  Restore previous save'), {
+    const t = this.add.text(this.W / 2, this.H * (getLang() === 'ja' ? 0.962 : 0.875), tr('↩  Restore previous save'), {
       fontSize: '13px', color: '#88ccff', backgroundColor: '#00000055', padding: { x: 8, y: 4 },
     }).setOrigin(0.5).setDepth(6).setInteractive({ useHandCursor: true });
     t.on('pointerover', () => t.setColor('#ffffff'));
@@ -388,8 +504,14 @@ export class TitleScene extends Phaser.Scene {
 
     this.cursors.up.on('down',    () => { if (this.confirming) { this.confirmChoice = 0; this.refreshConfirm(); return; } this.selected = Math.max(0, this.selected - 1); this.refreshSelection(); });
     this.cursors.down.on('down',  () => { if (this.confirming) { this.confirmChoice = 1; this.refreshConfirm(); return; } this.selected = Math.min(2, this.selected + 1); this.refreshSelection(); });
-    this.cursors.left.on('down',  () => { if (this.confirming) { this.confirmChoice = 0; this.refreshConfirm(); } });
-    this.cursors.right.on('down', () => { if (this.confirming) { this.confirmChoice = 1; this.refreshConfirm(); } });
+    this.cursors.left.on('down',  () => {
+      if (this.confirming) { this.confirmChoice = 0; this.refreshConfirm(); return; }
+      if (getLang() === 'ja') { this.selected = Math.max(0, this.selected - 1); this.refreshSelection(); }
+    });
+    this.cursors.right.on('down', () => {
+      if (this.confirming) { this.confirmChoice = 1; this.refreshConfirm(); return; }
+      if (getLang() === 'ja') { this.selected = Math.min(2, this.selected + 1); this.refreshSelection(); }
+    });
     this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ESC).on('down', () => { if (this.confirming) this.resolveConfirm(false); });
     this.confirmKey.on('down', () => this.confirm());
   }
@@ -399,10 +521,15 @@ export class TitleScene extends Phaser.Scene {
       const disabled = i === 1 && !this.hasSave;
       if (disabled) return;
       const active = i === this.selected;
-      t.setColor(active ? '#ffddff' : '#ffffff')
-       .setScale(active ? 1.08 : 1);
+      t.setColor(active ? '#ffec91' : '#ffffff')
+       .setScale(active ? (getLang() === 'ja' ? 1.04 : 1.08) : 1);
       // Glow effect for selected
       t.setStroke(active ? '#aa44ff' : '#330055', active ? 5 : 3);
+      const plate = this.menuPlates[i];
+      if (plate) {
+        plate.setFillStyle(active ? 0x392052 : 0x10051d, active ? 0.96 : 0.86)
+          .setStrokeStyle(active ? 3 : 2, active ? 0xffdc72 : 0x75439a, active ? 1 : 0.78);
+      }
     });
   }
 

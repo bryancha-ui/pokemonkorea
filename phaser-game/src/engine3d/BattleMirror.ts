@@ -172,7 +172,7 @@ const TRAINER_START = {
 };
 
 interface TrainerWalker {
-  obj: GO;                 // the 2D intro portrait whose alpha drives the walk
+  obj: GO & Phaser.GameObjects.Image; // the 2D intro portrait whose alpha drives the walk
   model: PlayerModel;
   group: THREE.Group;
   t: number;               // walk-in progress 0..1
@@ -816,7 +816,11 @@ export class BattleMirror {
       fallbackTextureKey: null,
     };
     this.combatants.set(im, combatant);
-    this.use2DFallback(combatant);
+    // Before the asynchronous manifest resolves, reserve the stage mark without
+    // exposing 2D art. Only a manifest-confirmed absence may use the authored
+    // sprite; a registered Pokémon stays consistently 3D while its GLB loads.
+    if (manifestReady() && !combatant.glbKey) this.use2DFallback(combatant);
+    else this.reserve3DOnlySlot(combatant);
   }
 
   /** Rebind a battler when the battle scene swaps its species/texture. */
@@ -847,15 +851,31 @@ export class BattleMirror {
       cb.shadow.visible = true;
     } else {
       this.destroyFallbackSprite(cb);
-      this.use2DFallback(cb);
+      if (!manifestReady() || nk) this.reserve3DOnlySlot(cb);
+      else this.use2DFallback(cb);
     }
     return true;
+  }
+
+  /** Keep a registered battler's mark empty until its real GLB is ready. This
+   * prevents a one-frame 2D flash and preserves the project's 3D-only policy. */
+  private reserve3DOnlySlot(cb: Combatant): void {
+    cb.fallback2D = false;
+    cb.holder.visible = false;
+    cb.shadow.visible = false;
+    this.scene.cameras.main.ignore(cb.obj);
+    this.destroyFallbackSprite(cb);
   }
 
   /** Show a dedicated 2D copy at the projected battle anchor. Keeping the
    * battle-owned sprite hidden and untouched prevents its pre-intro/off-screen
    * coordinates from leaking into the 3D presentation. */
   private use2DFallback(cb: Combatant): void {
+    const speciesKey = cb.rejectedGlbKey ?? battlePokemonModelKey(cb.obj);
+    if (!manifestReady() || hasModel(speciesKey)) {
+      this.reserve3DOnlySlot(cb);
+      return;
+    }
     cb.fallback2D = true;
     cb.holder.visible = false;
     cb.shadow.visible = false;
@@ -978,9 +998,10 @@ export class BattleMirror {
     cb.glbHealthTimer = 0;
     cb.anim = null;
     cb.shadow.visible = false;
-    // A confirmed GLB failure keeps the original authored sprite. No generated,
-    // extruded or procedural creature is allowed to replace it.
-    this.use2DFallback(cb);
+    // Registered Pokémon remain 3D-only even after a malformed asset is
+    // rejected. Showing the authored sprite here would reintroduce mixed 2D/3D
+    // battles; the loader can recover on a later scene/session instead.
+    this.reserve3DOnlySlot(cb);
   }
 
   /** Detach a battle clone before releasing its shared cache entry. */
@@ -1066,6 +1087,24 @@ export class BattleMirror {
     this.scene.cameras.main.ignore(im);
   }
 
+  /** Trainers are not Pokémon: when no authored character GLB exists, retain
+   * their original 2D portrait instead of inventing a primitive replacement. */
+  private use2DTrainer(w: TrainerWalker): void {
+    w.wantsGlb = false;
+    w.model.group.visible = false;
+    w.group.visible = false;
+    if (!this.pinned2DTrainers.has(w.obj)) {
+      this.pinned2DTrainers.set(w.obj, {
+        side: w.side,
+        originalX: w.obj.x ?? 0,
+        originalY: w.obj.y ?? 0,
+      });
+    }
+    const cam = this.scene.cameras.main as Phaser.Cameras.Scene2D.Camera & { id: number };
+    const filterable = w.obj as unknown as { cameraFilter?: number };
+    if (typeof filterable.cameraFilter === 'number') filterable.cameraFilter &= ~cam.id;
+  }
+
   private updateTrainers(dt: number): void {
     for (let i = this.trainers.length - 1; i >= 0; i--) {
       const w = this.trainers[i];
@@ -1082,14 +1121,16 @@ export class BattleMirror {
         this.trainers.splice(i, 1);
         continue;
       }
+      if (!w.wantsGlb && !w.glb) {
+        this.use2DTrainer(w);
+        continue;
+      }
       // Adopt the rigged GLB the moment the loader has it. Until then (and
       // forever, if it never arrives) the procedural figure keeps performing,
       // so the intro never depends on an asset download succeeding.
       if (w.wantsGlb && !w.glb && manifestReady() && !hasModel(w.glbKey)) {
-        // No GLB is shipped for this character — the procedural figure is the
-        // real presentation, so reveal it.
-        w.wantsGlb = false;
-        w.model.group.visible = true;
+        this.use2DTrainer(w);
+        continue;
       }
       if (w.wantsGlb && !w.glb && hasModel(w.glbKey)) {
         const loaded = getModel(w.glbKey);
@@ -1115,8 +1156,8 @@ export class BattleMirror {
           // right hand so a differently-named rig still works.
           w.glbHand = w.rig?.get('handR')?.node ?? null;
         } else if (modelLoadStatus(w.glbKey) === 'failed') {
-          w.wantsGlb = false;
-          w.model.group.visible = true;      // fall back to the stand-in
+          this.use2DTrainer(w);
+          continue;
         }
       }
 
@@ -1481,7 +1522,13 @@ export class BattleMirror {
       this.updateCombatantStageMotion(cb, dt);
       if (!cb.glb) {
         this.fx.removePersistentStatus(cb.holder);
-        if (!cb.fallback2D) this.use2DFallback(cb);
+        // Wait until model intent is authoritative. Registered species never
+        // reveal 2D; only a manifest-confirmed absence takes the fallback path.
+        if (!manifestReady() || cb.glbKey || hasModel(modelKey)) {
+          if (cb.fallback2D) this.reserve3DOnlySlot(cb);
+        } else if (!cb.fallback2D) {
+          this.use2DFallback(cb);
+        }
         continue;
       }
 
@@ -1599,7 +1646,9 @@ export class BattleMirror {
       cam.ignore(cb.obj);
       if (cb.fallback2D) this.syncFallback2DCombatant(cb);
     }
-    for (const w of this.trainers) cam.ignore(w.obj);
+    for (const w of this.trainers) {
+      if (!this.pinned2DTrainers.has(w.obj)) cam.ignore(w.obj);
+    }
     for (const b of this.hiddenBackdrops) cam.ignore(b);
   }
 }

@@ -41,6 +41,8 @@ const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
     proceduralVolumetric?: boolean;
     optimized?: boolean;
     source?: string;
+    generationId?: string;
+    companionOnly?: boolean;
   }>;
 };
 const registered = new Map((manifest.models ?? []).map(entry => [
@@ -93,6 +95,46 @@ expect(generatedCount > 0, 'generated lightweight companion GLBs were not regist
 expect([...registered.values()].filter(entry => typeof entry !== 'string' && entry.generated)
   .every(entry => typeof entry !== 'string' && entry.lightweight === true && entry.proceduralVolumetric === true),
   'a generated GLB is not marked mobile-lightweight and volumetric');
+
+// Hyper3D conversions are production models, not the old procedural companion
+// shells. Keep their provenance, mobile compression and battle eligibility under
+// audit so a regenerated manifest cannot silently reintroduce 2D fallbacks or
+// multi-megabyte source files.
+const hyper3dEntries = [...registered.entries()].filter(([, entry]) =>
+  typeof entry !== 'string' && entry.source === 'hyper3d-rodin');
+expect(hyper3dEntries.length === 81,
+  `Hyper3D roster is incomplete: ${hyper3dEntries.length}/81`);
+for (const [key, entry] of hyper3dEntries) {
+  if (typeof entry === 'string') continue;
+  expect(entry.lightweight === true && entry.optimized === true,
+    `Hyper3D model is not marked mobile-optimized: ${key}.glb`);
+  expect(entry.generated !== true && entry.proceduralVolumetric !== true && entry.companionOnly !== true,
+    `Hyper3D model is still restricted to companion-only presentation: ${key}.glb`);
+  expect(/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(entry.generationId ?? ''),
+    `Hyper3D model has no generation provenance: ${key}.glb`);
+  try {
+    const glb = readFileSync(path.join(process.cwd(), `public/assets/models3d/${key}.glb`));
+    expect(glb.length < 4 * 1024 * 1024, `Hyper3D model exceeds the 4 MiB mobile budget: ${key}.glb`);
+    const jsonLength = glb.readUInt32LE(12);
+    const payload = JSON.parse(glb.toString('utf8', 20, 20 + jsonLength)) as {
+      extensionsRequired?: string[];
+      extensionsUsed?: string[];
+      images?: Array<{ mimeType?: string; uri?: string; bufferView?: number }>;
+      meshes?: unknown[];
+    };
+    const extensions = new Set([...(payload.extensionsUsed ?? []), ...(payload.extensionsRequired ?? [])]);
+    expect((payload.meshes?.length ?? 0) > 0, `Hyper3D model has no renderable mesh: ${key}.glb`);
+    expect(extensions.has('KHR_draco_mesh_compression'),
+      `Hyper3D model is not Draco compressed: ${key}.glb`);
+    expect(extensions.has('EXT_texture_webp'),
+      `Hyper3D model does not use WebP textures: ${key}.glb`);
+    expect((payload.images ?? []).every(image => image.mimeType === 'image/webp'
+      && image.bufferView !== undefined && !image.uri),
+    `Hyper3D model contains an external or non-WebP texture: ${key}.glb`);
+  } catch (error) {
+    failures.push(`Hyper3D model is invalid: ${key}.glb (${String(error)})`);
+  }
+}
 
 const officialIds = Object.keys(offline.pokemon);
 let highDetailOfficial = 0;
@@ -213,6 +255,7 @@ console.log(JSON.stringify({
   rulesChecked: 33,
   coveredPokemon: expectedModels.size,
   generatedGlbs: generatedCount,
+  hyper3dModels: hyper3dEntries.length,
   highDetailOfficial,
   failures,
 }, null, 2));

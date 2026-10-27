@@ -4,6 +4,8 @@ import { t } from './i18n';
 import { SaveManager } from '../utils/SaveManager';
 import { FIELD_ITEM_PLACEMENTS, type FieldItemPlacement } from '../data/FieldItemData';
 import { EVOLUTION_STONE_KEYS } from '../data/EvolutionStones';
+import { fontScaleForScene } from './UiScale';
+import { mobileSafeInsets } from './TouchControls';
 
 const COLLECTED_KEY = 'fieldItemsCollectedV1';
 const TILE = 32;
@@ -162,32 +164,56 @@ class FieldItemController {
   }
 
   private toast(icon: string, name: string, quantity: number, rare: boolean): void {
-    const cx = this.scene.scale.width / 2;
-    const y = Math.max(78, this.scene.scale.height * .18);
-    const panel = this.scene.add.container(cx, y).setScrollFactor(0).setDepth(500).setAlpha(0);
-    const width = Math.min(500, this.scene.scale.width - 36);
+    const designW = this.scene.scale.width;
+    const designH = this.scene.scale.height;
+    const safe = mobileSafeInsets(designW, designH);
+    const safeW = Math.max(1, safe.right - safe.left);
+    const uiScale = fontScaleForScene(this.scene);
+    const camera = this.scene.cameras.main;
+    const cameraZoom = Math.max(.01, camera.zoom || 1);
+    const screenCx = (safe.left + safe.right) / 2;
+    const height = (rare ? 82 : 70) * uiScale;
+    const screenY = Math.max(
+      safe.top + height / 2 + 14 * uiScale,
+      safe.top + (safe.bottom - safe.top) * .18,
+    );
+    // scrollFactor(0) prevents camera scrolling, but Phaser still applies camera
+    // zoom around the viewport centre. Convert the intended screen point back to
+    // the zoomed coordinate space and cancel the scale so a 1.4–2× overworld
+    // camera cannot push this top banner beyond the mobile canvas.
+    const cameraCx = camera.x + camera.width / 2;
+    const cameraCy = camera.y + camera.height / 2;
+    const toCameraX = (x: number) => cameraCx + (x - cameraCx) / cameraZoom;
+    const toCameraY = (y: number) => cameraCy + (y - cameraCy) / cameraZoom;
+    const panel = this.scene.add.container(toCameraX(screenCx), toCameraY(screenY))
+      .setScrollFactor(0).setDepth(500).setAlpha(0).setScale(1 / cameraZoom);
+    const availableW = Math.max(1, safeW - 28 * uiScale);
+    const width = Math.min(500 * uiScale, availableW);
+    const padLeft = 25 * uiScale;
+    const textLeft = 76 * uiScale;
+    const padRight = 24 * uiScale;
     // Every element is created via scene.add before being re-parented into the
     // container, so each fires `addedtoscene` while still loose in the scene. In a
     // 3D overworld the mirror would then ADOPT these rects/texts into the 3D world
     // (scattering the toast off-screen) unless they are already flagged as screen-
     // fixed UI. setScrollFactor(0) on each child trips the mirror's UI guard so the
     // notice stays pinned on top and is actually visible when picking items up.
-    panel.add(this.scene.add.rectangle(0, 0, width, rare ? 82 : 70, 0x07182b, .96)
+    panel.add(this.scene.add.rectangle(0, 0, width, height, 0x07182b, .96)
       .setScrollFactor(0).setStrokeStyle(rare ? 3 : 2, rare ? 0xc58aff : 0x6ad5ff, 1));
-    panel.add(this.scene.add.text(-width / 2 + 25, 0, icon, { fontSize: rare ? '34px' : '29px' }).setScrollFactor(0).setOrigin(0, .5));
-    panel.add(this.scene.add.text(-width / 2 + 76, rare ? -12 : 0, `${name}${quantity > 1 ? ` ×${quantity}` : ''}`, {
+    panel.add(this.scene.add.text(-width / 2 + padLeft, 0, icon, { fontSize: rare ? '34px' : '29px' }).setScrollFactor(0).setOrigin(0, .5));
+    panel.add(this.scene.add.text(-width / 2 + textLeft, rare ? -12 * uiScale : 0, `${name}${quantity > 1 ? ` ×${quantity}` : ''}`, {
       fontSize: rare ? '20px' : '18px', color: '#ffffff', fontStyle: 'bold',
     }).setScrollFactor(0).setOrigin(0, .5));
-    if (rare) panel.add(this.scene.add.text(-width / 2 + 76, 17, t('A rare Evolution Stone!', '희귀한 진화의 돌을 발견했다!', '珍しい 進化の石を 見つけた！'), {
+    if (rare) panel.add(this.scene.add.text(-width / 2 + textLeft, 17 * uiScale, t('A rare Evolution Stone!', '희귀한 진화의 돌을 발견했다!', '珍しい 進化の石を 見つけた！'), {
       fontSize: '11px', color: '#e0bdff',
     }).setScrollFactor(0).setOrigin(0, .5));
-    panel.add(this.scene.add.text(width / 2 - 24, 0, t('Put in the Bag', '가방에 넣었다', 'バッグに しまった'), {
+    panel.add(this.scene.add.text(width / 2 - padRight, 0, t('Put in the Bag', '가방에 넣었다', 'バッグに しまった'), {
       fontSize: '10px', color: '#8fdcf2', align: 'right',
     }).setScrollFactor(0).setOrigin(1, .5));
     this.scene.tweens.add({
-      targets: panel, alpha: 1, y: y + 10, duration: 180, ease: 'Back.Out',
+      targets: panel, alpha: 1, y: toCameraY(screenY + 10 * uiScale), duration: 180, ease: 'Back.Out',
       onComplete: () => this.scene.time.delayedCall(1450, () => this.scene.tweens.add({
-        targets: panel, alpha: 0, y: y - 8, duration: 230, onComplete: () => panel.destroy(true),
+        targets: panel, alpha: 0, y: toCameraY(screenY - 8 * uiScale), duration: 230, onComplete: () => panel.destroy(true),
       })),
     });
   }

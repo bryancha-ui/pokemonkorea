@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { tr } from '../systems/i18n';
+import { tr, speakerName } from '../systems/i18n';
 import { vanishesAfterDefeat } from '../data/Villains';
 import { playBgm } from '../systems/Music';
 import { drawTrainerBody, drawRiderBody, playerDesign } from '../data/CharacterSprite';
@@ -182,7 +182,7 @@ export class SamjiyonAjitRoadScene extends Phaser.Scene {
       g.fillStyle(0xffcc99); g.fillRect(-6, -22, 12, 12);
       g.fillStyle(0x141420); g.fillRect(-6, -22, 12, 5);
       g.fillStyle(0x000000); g.fillRect(-3, -16, 2, 2); g.fillRect(1, -16, 2, 2);
-      this.add.text(s.col * TILE + 16, s.row * TILE - 14, '노스단', { fontSize: '8px', color: '#fff', backgroundColor: '#00000088', padding: { x: 2, y: 1 } }).setOrigin(0.5).setDepth(9);
+      this.add.text(s.col * TILE + 16, s.row * TILE - 14, speakerName('노스단'), { fontSize: '8px', color: '#fff', backgroundColor: '#00000088', padding: { x: 2, y: 1 } }).setOrigin(0.5).setDepth(9);
     }
   }
 

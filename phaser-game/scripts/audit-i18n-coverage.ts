@@ -1,3 +1,4 @@
+import { existsSync, readFileSync } from 'node:fs';
 import { KO_STRINGS, KO_SPEAKERS } from '../src/data/ko_strings';
 import { JA_STRINGS, JA_SPEAKERS, JA_OFFICIAL_POKEMON } from '../src/data/ja_strings';
 
@@ -36,6 +37,17 @@ const requiredJapanese = [
   'Hwangeum (extending his hand): Welcome to the Hall of Fame. You earned every step of it.',
 ];
 const failures = requiredJapanese.filter(key => !JA_STRINGS[key]?.trim());
+const titleSource = readFileSync('src/scenes/TitleScene.ts', 'utf8');
+if (!existsSync('public/assets/title/pokemon-string-logo-ja.webp')
+  || !existsSync('public/assets/title/pokemon-string-opening-ja.webp')) {
+  failures.push('Japanese title artwork is missing');
+}
+if (!titleSource.includes("getLang() === 'ja'")
+  || !titleSource.includes('drawJapaneseTitleLogo()')
+  || !titleSource.includes('drawJapaneseMenu()')
+  || !titleSource.includes("url: 'assets/title/pokemon-string-opening-ja.webp'")) {
+  failures.push('Japanese language selection does not activate its localized title design');
+}
 if (Object.keys(JA_OFFICIAL_POKEMON).length < 150) {
   failures.push(`official Pokémon dictionary too small: ${Object.keys(JA_OFFICIAL_POKEMON).length}`);
 }
@@ -59,6 +71,7 @@ console.log(JSON.stringify({
     percent: Number((translatedSpeakers.length / Object.keys(KO_SPEAKERS).length * 100).toFixed(1)),
   },
   officialPokemon: Object.keys(JA_OFFICIAL_POKEMON).length,
+  japaneseTitleDesign: failures.some(message => message.includes('Japanese title')) ? 'failed' : 'passed',
   quality: {
     hangulStringValues,
     hangulSpeakerValues,

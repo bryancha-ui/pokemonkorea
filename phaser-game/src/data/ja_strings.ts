@@ -186,6 +186,9 @@ export const JA_STRINGS: Record<string, string> = {
   'WHAT WILL YOU DO?': 'どうする？',
   'CHOOSE A MOVE': 'わざを選んでください',
   'FIGHT': 'たたかう', 'BAG': 'バッグ', 'POKÉMON': 'ポケモン', 'RUN': 'にげる',
+  // Desktop battle action-panel labels carry a decorative glyph as part of the tr key.
+  '⚔ FIGHT': '⚔ たたかう', '◉ BAG': '◉ バッグ', '◇ POKÉMON': '◇ ポケモン', '↗ RUN': '↗ にげる',
+  '▼  ENTER': '▼  つづける', '↑ Bow': '↑ 船首', '★ CHAMPION HWANGEUM ★': '★ チャンピオン・ファングム ★',
   'A critical hit!': '急所に当たった！',
   'Super effective!': '効果はバツグンだ！',
   'Not very effective...': '効果はいまひとつのようだ……',
@@ -809,6 +812,7 @@ export const JA_SPEAKERS: Record<string, string> = {
   ...JA_REMAINING_SPEAKERS,
   'Prof. Song': 'ソン博士', 'Professor Song': 'ソン博士', 'Prof. Kim': 'キム博士',
   'Rival': 'ライバル', 'Minhyuk': 'ミンヒョク', 'Soohyun': 'スヒョン', 'Mom': 'ママ',
+  'Chief Inspector Jinnok': '王室監察官 ジノク',
   "Trainer's PC": 'トレーナーのパソコン', 'Nurse': '看護師', 'Nurse Joy': 'ジョーイ',
   'Shopkeeper': '店員', 'Mart Clerk': 'フレンドリィショップ店員', 'Store Clerk': '売店員',
   'Champion Hwangeum': 'チャンピオン・ファングム', 'Hwangeum': 'ファングム',

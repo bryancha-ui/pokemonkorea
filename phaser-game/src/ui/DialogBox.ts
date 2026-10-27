@@ -49,7 +49,7 @@ export class DialogBox {
       wordWrap: { width: boxW - textInset * 2, useAdvancedWrap: true }, lineSpacing: 8,
     }).setVisible(false);
 
-    this.arrow = scene.add.text(boxX + boxW - Math.round(18 + 4 * (S - 1)), H - 38, '▼  ENTER', {
+    this.arrow = scene.add.text(boxX + boxW - Math.round(18 + 4 * (S - 1)), H - 38, tr('▼  ENTER'), {
       fontSize: '15px', color: '#ffe44e', fontStyle: 'bold',
     }).setOrigin(1, 0).setVisible(false);
 

@@ -690,7 +690,7 @@ export class WildBattleScene extends Phaser.Scene {
     layer.add(this.add.rectangle(cx, cy, this.W, this.H, 0x000000, 0.62));
     layer.add(this.add.rectangle(cx, cy, 500, 200, 0x10142a, 0.99).setStrokeStyle(2, 0x5577aa));
     layer.add(this.add.text(cx, cy - 58, tr('Your party is full!'), { fontSize: '18px', color: '#ffe44e', fontStyle: 'bold' }).setOrigin(0.5));
-    layer.add(this.add.text(cx, cy - 26, `Swap a Pokémon for ${pokeNameEn(entry.name).toUpperCase()}, or send it to the PC?`, { fontSize: '13px', color: '#cde' }).setOrigin(0.5));
+    layer.add(this.add.text(cx, cy - 26, tr(`Swap a Pokémon for ${pokeNameEn(entry.name).toUpperCase()}, or send it to the PC?`), { fontSize: '13px', color: '#cde' }).setOrigin(0.5));
 
     const btn = (x: number, label: string, bg: string, onClick: () => void) => {
       const b = this.add.text(x, cy + 42, label, { fontSize: '15px', color: '#fff', backgroundColor: bg, padding: { x: 14, y: 9 } })

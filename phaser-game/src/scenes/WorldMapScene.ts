@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { tr, t } from '../systems/i18n';
+import { tr, t, speakerName } from '../systems/i18n';
 import { playBgm } from '../systems/Music';
 import { drawNpcBody, drawTrainerBody, drawRiderBody, playerDesign, rivalDesign, rivalTrainerName, playerTrainerName } from '../data/CharacterSprite';
 import { hasBike, BIKE_SPEED, isBikeRiding, setBikeRiding } from '../data/Bike';
@@ -701,7 +701,7 @@ export class WorldMapScene extends Phaser.Scene {
     drawNpcBody(actor, guest.outfit, { hair: guest.hair });
     if (guest.trainerKey) markTrainerPortrait(actor, guest.trainerKey);
     actor.setData('characterLookAt3D', lookAt);
-    this.addFinalePartyLabel(actor, t(guest.labelEn, guest.labelKo));
+    this.addFinalePartyLabel(actor, speakerName(guest.labelEn));
     return actor;
   }
 

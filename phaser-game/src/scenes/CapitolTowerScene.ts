@@ -1,5 +1,5 @@
 import { BaseInteriorScene, NPC } from './interior/BaseInteriorScene';
-import { tr } from '../systems/i18n';
+import { tr, speakerName } from '../systems/i18n';
 
 export class CapitolTowerScene extends BaseInteriorScene {
   protected readonly COLS = 16;
@@ -82,7 +82,7 @@ export class CapitolTowerScene extends BaseInteriorScene {
     this.add.text(
       this.tile(8, 3).x + 16,
       this.tile(8, 3).y - 6,
-      'Observer Park', {
+      speakerName('Observer Park'), {
         fontSize: '9px', color: '#88ccff', backgroundColor: '#00000088', padding: { x: 3, y: 1 },
       }
     ).setOrigin(0.5, 1).setDepth(16);
@@ -93,7 +93,7 @@ export class CapitolTowerScene extends BaseInteriorScene {
     this.add.text(
       this.tile(3, 10).x + 16,
       this.tile(3, 10).y - 6,
-      'Historian', {
+      speakerName('Historian'), {
         fontSize: '9px', color: '#ffe44e', backgroundColor: '#00000088', padding: { x: 3, y: 1 },
       }
     ).setOrigin(0.5, 1).setDepth(16);

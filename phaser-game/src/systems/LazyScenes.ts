@@ -13,6 +13,9 @@ type SceneModule = Record<string, unknown>;
 const SCENE_MODULES = import.meta.glob<SceneModule>([
   '../scenes/**/*.ts',
   '!../scenes/TitleScene.ts',
+  // This overlay must be immediately available when the return map becomes
+  // active; it is registered eagerly beside TitleScene in main.ts.
+  '!../scenes/PostBattleRewardScene.ts',
   '!../scenes/CliffClimbScene.ts',
   '!../scenes/EosaCityScene.ts',
   '!../scenes/RyeoBattleTestScene.ts',
