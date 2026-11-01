@@ -1,6 +1,6 @@
 import type Phaser from 'phaser';
 import * as THREE from 'three';
-import { battle2DSpriteScale } from '../data/SpriteScale';
+import { battle2DSpriteScale, companion3DTargetHeight, companion3DYawOffset } from '../data/SpriteScale';
 import { PartySystem, type PartyEntry } from '../systems/PartySystem';
 import { buildFlatCard, reliefMaterials } from './Extruder';
 import { appendFollowerPoint, followerPointBehind, type FollowPoint } from './FollowerPath';
@@ -86,12 +86,13 @@ export function companionHeightFor(key: string): number {
   // Roughly 0.5–1.3 world units: first forms stay near the trainer's ankles,
   // ordinary partners sit around knee/waist height, and giants retain their
   // presence without covering streets, doors, or the player camera.
-  const height = Math.max(0.46, Math.min(1.28, 0.68 * authored));
+  const height = Math.max(0.46, 0.68 * authored);
   // Borrowed 3D-API rigs are modelled at true creature proportions rather than
   // to this game's partner scale, so beside the trainer they walk far larger
   // than the authored roster. Halve them for the FOLLOWER only — battle sizing
   // goes through targetH in BattleMirror and is untouched by this.
-  return isBorrowedApiModel(canonical) ? height * API_COMPANION_SCALE : height;
+  const proposed = isBorrowedApiModel(canonical) ? height * API_COMPANION_SCALE : height;
+  return companion3DTargetHeight(canonical, proposed);
 }
 
 /** A single scene-local lead Pokémon. Phaser remains authoritative for player
@@ -297,7 +298,9 @@ export class OverworldCompanion {
     const idle = mixer && idleClip ? mixer.clipAction(idleClip) : undefined;
     const walk = mixer && walkClip ? mixer.clipAction(walkClip) : undefined;
     idle?.play();
-    const baseYaw = modelBaseYawRad(key);
+    // Fold presentation yaw into the authored front axis. The existing yaw
+    // hand-off then stays seamless even when the lead changes while idle.
+    const baseYaw = modelBaseYawRad(key) - companion3DYawOffset(key);
     this.visual = { model, mixer, idle, walk, current: idle, baseYaw };
     this.shadow.visible = true;
     // The relief may have been facing the correct travel direction while the

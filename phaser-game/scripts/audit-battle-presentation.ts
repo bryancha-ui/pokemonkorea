@@ -1,4 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs';
+import {
+  battle3DSizeScale, companion3DTargetHeight,
+  MAX_BATTLE_3D_SIZE_SCALE, MAX_COMPANION_3D_HEIGHT,
+} from '../src/data/SpriteScale';
 
 const failures: string[] = [];
 const expect = (condition: unknown, message: string) => { if (!condition) failures.push(message); };
@@ -85,8 +89,34 @@ expect(/cameraFacingYaw\(cb\.holder\) \+ battleYawOffset/.test(battleMirror),
 const balchataek = modelManifest.models?.find(entry => typeof entry !== 'string' && entry.key === 'balchataek');
 expect(typeof balchataek !== 'string' && balchataek?.rotY === 270,
   'Balchataek no longer faces the shared +Z/front axis');
-expect(glbModels.includes("const MANIFEST_VERSION = '2026-10-26a'"),
-  'the corrected Balchataek orientation can be hidden by a stale browser manifest');
+const doribi = modelManifest.models?.find(entry => typeof entry !== 'string' && entry.key === 'doribi');
+expect(typeof doribi !== 'string' && doribi?.rotY === 180,
+  'Doribi no longer faces the shared +Z/front axis');
+expect(glbModels.includes("const MANIFEST_VERSION = '2026-11-01a'"),
+  'the corrected creature orientations can be hidden by a stale browser manifest');
+
+// Production GLBs must not inherit obsolete enlargement values from old 2D
+// artwork. Disguijar is a small stone swift; other intentional giants retain
+// relative presence but are capped before they can cover the arena or trainer.
+expect(battle3DSizeScale('enemy-disguijar', 1.4) === 0.72,
+  'Disguijar is still oversized in 3D battles');
+expect(companion3DTargetHeight('owned-disguijar', 1.2) === 0.56,
+  'Disguijar is still oversized as the lead companion');
+expect(battle3DSizeScale('enemy-kingfisher', 1) === 0.68,
+  'Kingfisher is still oversized in 3D battles');
+expect(companion3DTargetHeight('owned-kingfisher', 0.9) === 0.52,
+  'Kingfisher is still oversized as the lead companion');
+expect(battleMirror.includes('kingfisher: 24')
+  && glbModels.includes("key !== 'kingfisher'")
+  && glbModels.includes('__kingfisherEyeRepair'),
+  'Kingfisher is missing its three-quarter yaw or paired-eye reconstruction repair');
+expect(battle3DSizeScale('hwanwoong', 2) === MAX_BATTLE_3D_SIZE_SCALE,
+  'oversized 3D battlers are not capped');
+expect(companion3DTargetHeight('hwanwoong', 2) === MAX_COMPANION_3D_HEIGHT,
+  'oversized 3D companions are not capped');
+expect(battle3DSizeScale('ordinary-species', 1) === 1
+  && companion3DTargetHeight('ordinary-species', 0.7) === 0.7,
+  'ordinary Pokémon sizes are changed by the oversize guard');
 
 // getModel() clones scene nodes but shares the cached geometry, materials and
 // textures. Mobile keeps only two decoded models, so loading a switch-in used
@@ -184,7 +214,8 @@ console.log(JSON.stringify({
   moveTypesChecked: types.length,
   signatureMoveEffectsChecked: 3,
   anchoredSpeciesChecked: 3,
-  speciesPresentationFixesChecked: 2,
+  speciesPresentationFixesChecked: 4,
+  modelSizePoliciesChecked: 7,
   sharedModelOwnersChecked: 5,
   forcedReplacementFlowsChecked: 4,
   speciesSafeBattleFlowsChecked: 4,

@@ -94,6 +94,7 @@ export class Route3Scene extends Phaser.Scene {
   private steps = 0; private nextEnc = 5;
   private ryeoCutsceneRival?: { g: Phaser.GameObjects.Graphics; label: Phaser.GameObjects.Text };
   private hwangeumActor?: HwangeumActor;
+  private hwangeumTarget?: { x: number; y: number };
   private readonly SPEED = 120; private readonly RUN = 250;
 
   private readonly TRAINERS = [
@@ -143,8 +144,11 @@ export class Route3Scene extends Phaser.Scene {
       // beside the player instead of looking at an off-screen actor.
       const hx = Phaser.Math.Clamp(this.px + TILE, 10 * TILE, 14 * TILE);
       const hy = Phaser.Math.Clamp(this.py - 2 * TILE, 3 * TILE, 56 * TILE);
-      this.hwangeumActor = spawnHwangeum(this, hx, hy, {
-        lookAt: { x: this.px, y: this.py },
+      this.hwangeumTarget = { x: hx, y: hy };
+      const entranceY = Phaser.Math.Clamp(hy - TILE * 3.4, TILE, 58 * TILE);
+      this.hwangeumActor = spawnHwangeum(this, hx, entranceY, {
+        lookAt: { x: hx, y: hy },
+        entering: true,
       });
     }
     installSurfing(this, {
@@ -167,12 +171,14 @@ export class Route3Scene extends Phaser.Scene {
   private runGorgeRescueMeeting() {
     if (!this.hwangeumActor || this.registry.get(HWANGEUM_STORY.gorgeRescue)) return;
     this.cutsceneActive = true;
-    this.facing = this.hwangeumActor.graphic.y < this.py ? 1 : 0;
+    const actor = this.hwangeumActor;
+    const target = this.hwangeumTarget ?? { x: actor.graphic.x, y: actor.graphic.y };
+    this.facing = target.y < this.py ? 1 : 0;
     this.drawChar();
     this.playerG.setData('characterLookAt3D', {
-      x: this.hwangeumActor.graphic.x, y: this.hwangeumActor.graphic.y,
+      x: target.x, y: target.y,
     });
-    this.dialog.show([
+    actor.walkTo(target.x, target.y, { x: this.px, y: this.py }, () => this.dialog.show([
       t('Above the broken checkpoint, a gold-white electric field braces the fractured cliff while rangers lead the last trapped hikers to safety.',
         '무너진 검문소 위에서 금빛과 흰빛의 전기장이 갈라진 절벽을 지탱하고, 레인저들이 고립된 마지막 등산객들을 안전한 곳으로 이끈다.'),
       t('Hwangeum: Bonejoillion can hold the rock face for six more minutes. That is enough — everyone below is clear.',
@@ -189,13 +195,13 @@ export class Route3Scene extends Phaser.Scene {
       recordHwangeumBeat(this.registry, HWANGEUM_STORY.gorgeRescue);
       SaveManager.save(this.registry, this.px, this.py, 'Route3Scene');
       this.playerG.setData('characterLookAt3D', null);
-      const actor = this.hwangeumActor!;
       this.hwangeumActor = undefined;
+      this.hwangeumTarget = undefined;
       this.tweens.add({ targets: [actor.graphic, actor.label], alpha: 0, duration: 320,
         onComplete: () => actor.destroy() });
       this.cutsceneActive = false;
       this.time.delayedCall(250, () => maybeLaunchEvolution(this));
-    });
+    }));
   }
 
   // ── Map ─────────────────────────────────────────────────────────────────

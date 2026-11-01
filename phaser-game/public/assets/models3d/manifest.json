@@ -1181,7 +1181,8 @@
       "key": "doribi",
       "lightweight": true,
       "optimized": true,
-      "source": "local-pokemon3dmodels"
+      "source": "local-pokemon3dmodels",
+      "rotY": 180
     },
     {
       "key": "dracoelido",

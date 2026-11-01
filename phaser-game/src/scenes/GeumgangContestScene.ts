@@ -23,6 +23,16 @@ interface AppealOption {
   accent: number;
 }
 
+interface ContestEntrant {
+  key: string;
+  nameEn: string;
+  nameKo: string;
+  nameJa: string;
+  pokemonKey: string;
+  accent: number;
+  roundScores: readonly [number, number, number];
+}
+
 const APPEALS: AppealOption[] = [
   {
     key: 'elegance', icon: '✦', labelEn: 'ELEGANCE', labelKo: '우아함',
@@ -45,13 +55,27 @@ const ROUND_TITLES = [
 ] as const;
 
 const CHAMPION_ROUND_SCORES = [28, 29, 29] as const;
-const CHAMPION_TOTAL = CHAMPION_ROUND_SCORES.reduce((sum, value) => sum + value, 0);
+const CONTEST_ENTRANTS: readonly ContestEntrant[] = [
+  {
+    key: 'jaemin', nameEn: 'Jaemin', nameKo: '재민', nameJa: 'ジェミン',
+    pokemonKey: 'kingfisher', accent: 0x58c8ff, roundScores: [24, 27, 25],
+  },
+  {
+    key: 'yuna', nameEn: 'Yuna', nameKo: '유나', nameJa: 'ユナ',
+    pokemonKey: 'peacockrose', accent: 0xff79bd, roundScores: [26, 25, 27],
+  },
+  {
+    key: 'sora', nameEn: 'Sora', nameKo: '소라', nameJa: 'ソラ',
+    pokemonKey: 'liondance', accent: 0xff9b55, roundScores: [23, 26, 24],
+  },
+];
+const CONTESTANT_COUNT = CONTEST_ENTRANTS.length + 2; // player + Hwangeum + local entrants
 
 /**
  * A complete, replayable story contest rather than the old "coming soon"
  * message.  The player's real party supplies the entrant; three presentation
- * decisions, type synergy and variety determine whether they can edge out the
- * Champion's exhibition score.
+ * decisions, type synergy and variety determine their rank in a five-team
+ * field rather than the old two-person exhibition.
  */
 export class GeumgangContestScene extends Phaser.Scene {
   public disable3D = true;
@@ -70,12 +94,14 @@ export class GeumgangContestScene extends Phaser.Scene {
   private championMon?: Phaser.GameObjects.Image;
   private playerScoreText!: Phaser.GameObjects.Text;
   private championScoreText!: Phaser.GameObjects.Text;
+  private entrantScoreTexts: Phaser.GameObjects.Text[] = [];
   private selectedPartner = 0;
   private selectedOption = 0;
   private optionCards: Array<{ bg: Phaser.GameObjects.Rectangle; stripe: Phaser.GameObjects.Rectangle; accent: number }> = [];
   private round = 0;
   private playerScore = 0;
   private championScore = 0;
+  private entrantScores = CONTEST_ENTRANTS.map(() => 0);
   private usedStyles: AppealStyle[] = [];
   private exiting = false;
 
@@ -90,6 +116,12 @@ export class GeumgangContestScene extends Phaser.Scene {
     }
     if (!this.textures.exists('contest-bonejoillion')) {
       this.load.image('contest-bonejoillion', 'assets/dex/bonejoillion.png');
+    }
+    for (const entrant of CONTEST_ENTRANTS) {
+      const textureKey = `contest-entrant-${entrant.key}`;
+      if (!this.textures.exists(textureKey)) {
+        this.load.image(textureKey, `assets/dex/${entrant.pokemonKey}.png`);
+      }
     }
     this.partnerTextureKeys = this.party.map((entry, index) => {
       const safe = entry.spriteKey.replace(/[^a-zA-Z0-9_-]/g, '-');
@@ -241,18 +273,42 @@ export class GeumgangContestScene extends Phaser.Scene {
       padding: { x: 9, y: 5 },
     }).setOrigin(0.5).setDepth(7);
 
-    const scorePanel = roundedPanel(this, W / 2 - 205, 76, 410, 100, {
+    // The complete five-team field stays visible throughout the event. The
+    // three local coordinators occupy compact broadcast cards while the player
+    // and Champion retain the two featured performance marks.
+    CONTEST_ENTRANTS.forEach((entrant, index) => {
+      const x = W / 2 + (index - 1) * 175;
+      const card = this.add.rectangle(x, 218, 158, 54, 0x0a1628, 0.94)
+        .setStrokeStyle(2, entrant.accent, 0.68).setDepth(7);
+      const image = this.add.image(x - 55, 218, `contest-entrant-${entrant.key}`).setDepth(8);
+      this.fitImage(image, 42, 42);
+      this.add.text(x - 27, 204, t(entrant.nameEn, entrant.nameKo, entrant.nameJa), {
+        fontSize: '12px', color: '#ffffff', fontStyle: 'bold', fixedWidth: 98,
+      }).setDepth(8);
+      this.add.text(x - 27, 223, pokeName(entrant.pokemonKey, entrant.pokemonKey), {
+        fontSize: '10px', color: '#b9cad9', fixedWidth: 98,
+      }).setDepth(8);
+      card.setName(`contest-entrant-card-${entrant.key}`);
+    });
+
+    const scorePanel = roundedPanel(this, W / 2 - 330, 76, 660, 112, {
       fill: PROD_UI.ink, alpha: 0.94, stroke: PROD_UI.yellow, radius: 16,
     }).setDepth(8);
-    this.add.text(W / 2, 92, t('LIVE SCORE', '실시간 스코어'), {
+    this.add.text(W / 2, 90, t(`LIVE SCORE · ${CONTESTANT_COUNT} ENTRANTS`, `실시간 스코어 · ${CONTESTANT_COUNT}팀 출전`, `ライブスコア・${CONTESTANT_COUNT}組`), {
       fontSize: '13px', color: '#a9bfd5', fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(9);
-    this.playerScoreText = this.add.text(W / 2 - 100, 132, `${playerTrainerName(this.registry)}  000`, {
-      fontSize: '22px', color: '#72d9ff', fontStyle: 'bold',
+    this.playerScoreText = this.add.text(W / 2 - 165, 124, `${playerTrainerName(this.registry)}  000`, {
+      fontSize: '20px', color: '#72d9ff', fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(9);
-    this.championScoreText = this.add.text(W / 2 + 100, 132, `${t('HWANGEUM', '황금')}  000`, {
-      fontSize: '22px', color: '#ffe783', fontStyle: 'bold',
+    this.championScoreText = this.add.text(W / 2 + 165, 124, `${t('HWANGEUM', '황금', 'ファングム')}  000`, {
+      fontSize: '20px', color: '#ffe783', fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(9);
+    this.entrantScoreTexts = CONTEST_ENTRANTS.map((entrant, index) => this.add.text(
+      W / 2 + (index - 1) * 180,
+      162,
+      `${t(entrant.nameEn, entrant.nameKo, entrant.nameJa)}  000`,
+      { fontSize: '12px', color: `#${entrant.accent.toString(16).padStart(6, '0')}`, fontStyle: 'bold' },
+    ).setOrigin(0.5).setDepth(9));
     scorePanel.setName('__contestScorePanel__');
   }
 
@@ -282,13 +338,17 @@ export class GeumgangContestScene extends Phaser.Scene {
     this.showDialog([
       t('The Geumgang Contest Hall is overflowing. Reporters from every corner of Onnuri crowd the press rail as live cameras sweep the stage.',
         '금강 콘테스트 홀은 발 디딜 틈이 없다. 온누리 각지에서 몰려온 기자들이 취재선을 가득 메우고 생중계 카메라가 무대를 훑는다.'),
+      t(`Five coordinator teams take their marks: Champion Hwangeum, Jaemin, Yuna, Sora, and ${playerTrainerName(this.registry)}. Every round counts toward one shared ranking.`,
+        `다섯 코디네이터 팀이 무대에 선다. 챔피언 황금, 재민, 유나, 소라, 그리고 ${playerTrainerName(this.registry)}. 모든 라운드 점수가 하나의 순위표에 합산된다.`,
+        `5組のコーディネーターが舞台に立つ。チャンピオン・ファングム、ジェミン、ユナ、ソラ、そして${playerTrainerName(this.registry)}。全ラウンドの得点で順位が決まる。`),
       t('MC Mirae: Champion Hwangeum has entered the Grand Contest! Every regional network is carrying this live!',
         'MC 미래: 챔피언 황금이 그랜드 콘테스트에 출전합니다! 온누리 전 방송사가 생중계 중입니다!'),
       introduction,
       t('Hwangeum: A Champion should remind people that Pokémon are more than battles. Stand on this stage with me and show them your partnership.',
         '황금: 챔피언이라면 포켓몬이 배틀만을 위한 존재가 아니라는 것도 보여 줘야 해. 나와 같은 무대에 서서 너희의 유대를 보여 줘.'),
-      t('Usher: Choose one Pokémon from your party. Three appeal rounds will decide the Grand Ribbon!',
-        '안내원: 파티에서 포켓몬 한 마리를 골라 주세요. 세 번의 어필로 그랜드리본의 주인이 결정됩니다!'),
+      t('Usher: Choose one Pokémon from your party. Three appeal rounds across all five teams will decide the Grand Ribbon!',
+        '안내원: 파티에서 포켓몬 한 마리를 골라 주세요. 다섯 팀의 세 번의 어필로 그랜드리본의 주인이 결정됩니다!',
+        '案内係：手持ちから1匹を選んでください。5組による3ラウンドのアピールでグランドリボンが決まります！'),
     ], () => this.showPartnerSelection());
   }
 
@@ -365,11 +425,16 @@ export class GeumgangContestScene extends Phaser.Scene {
     if (!partner) return;
     sfxConfirm(this);
     this.showPartnerOnStage();
-    this.round = 0; this.playerScore = 0; this.championScore = 0; this.usedStyles = [];
+    this.round = 0; this.playerScore = 0; this.championScore = 0;
+    this.entrantScores = CONTEST_ENTRANTS.map(() => 0);
+    this.usedStyles = [];
     this.updateScoreboard();
     this.showDialog([
       t(`MC Mirae: ${playerTrainerName(this.registry)} and ${pokeName(partner.spriteKey, partner.name)} take the blue stage!`,
         `MC 미래: ${playerTrainerName(this.registry)} 선수와 ${pokeName(partner.spriteKey, partner.name)}이(가) 블루 스테이지에 오릅니다!`),
+      t('MC Mirae: Jaemin, Yuna and Sora are ready on the satellite stages. Five teams, one live board — let round one begin!',
+        'MC 미래: 재민, 유나, 소라도 위성 무대에서 준비를 마쳤습니다. 다섯 팀, 하나의 실시간 순위표 — 1라운드 시작합니다!',
+        'MCミレ：ジェミン、ユナ、ソラもサブステージで準備完了。5組、ひとつのライブ順位表――第1ラウンド開始！'),
       t('Hwangeum: Do not perform for the cameras. Perform for the partner standing beside you — the cameras will follow.',
         '황금: 카메라를 위해 연기하지 마. 네 곁의 파트너를 위해 보여 줘 — 그러면 카메라는 저절로 따라올 테니까.'),
     ], () => this.showRoundChoices());
@@ -438,13 +503,16 @@ export class GeumgangContestScene extends Phaser.Scene {
     this.usedStyles.push(option.key);
     this.clearUiLayer();
     this.playAppeal(this.partnerImage, option.key, 365);
-    this.playerScoreText.setText(`${playerTrainerName(this.registry)}  ${String(this.playerScore).padStart(3, '0')}`);
+    this.updateScoreboard();
 
     this.time.delayedCall(620, () => {
       const championGain = CHAMPION_ROUND_SCORES[this.round];
       this.championScore += championGain;
+      CONTEST_ENTRANTS.forEach((entrant, entrantIndex) => {
+        this.entrantScores[entrantIndex] += entrant.roundScores[this.round];
+      });
       this.playAppeal(this.championMon, (['elegance', 'impact', 'bond'] as AppealStyle[])[this.round], 895);
-      this.championScoreText.setText(`${t('HWANGEUM', '황금')}  ${String(this.championScore).padStart(3, '0')}`);
+      this.updateScoreboard();
     });
     this.time.delayedCall(1250, () => this.showRoundReaction(option, gained));
   }
@@ -535,23 +603,43 @@ export class GeumgangContestScene extends Phaser.Scene {
   private finishContest() {
     this.phase = 'transition';
     const partner = this.party[this.selectedPartner];
-    const won = this.playerScore >= CHAMPION_TOTAL;
+    const standings = [
+      { key: 'player', name: playerTrainerName(this.registry), score: this.playerScore },
+      { key: 'hwangeum', name: t('Hwangeum', '황금', 'ファングム'), score: this.championScore },
+      ...CONTEST_ENTRANTS.map((entrant, index) => ({
+        key: entrant.key,
+        name: t(entrant.nameEn, entrant.nameKo, entrant.nameJa),
+        score: this.entrantScores[index],
+      })),
+    ].sort((a, b) => b.score - a.score || (a.key === 'player' ? -1 : b.key === 'player' ? 1 : a.name.localeCompare(b.name)));
+    const rank = standings.findIndex(entry => entry.key === 'player') + 1;
+    const winner = standings[0];
+    const won = rank === 1;
     const resultFlag = won ? 'hasGeumgangGrandRibbon' : 'hasGeumgangRisingRibbon';
     const previousBest = Number(this.registry.get('geumgangContestScore')) || 0;
+    const previousBestRank = Number(this.registry.get('geumgangContestRank')) || CONTESTANT_COUNT;
     const everWon = won || !!this.registry.get('hasGeumgangGrandRibbon');
     recordHwangeumBeat(this.registry, HWANGEUM_STORY.contest);
     this.registry.set(resultFlag, true);
     this.registry.set('geumgangContestScore', Math.max(previousBest, this.playerScore));
-    this.registry.set('geumgangContestChampionScore', CHAMPION_TOTAL);
+    this.registry.set('geumgangContestChampionScore', this.championScore);
+    this.registry.set('geumgangContestRank', Math.min(previousBestRank, rank));
+    this.registry.set('geumgangContestEntrantCount', CONTESTANT_COUNT);
+    this.registry.set('geumgangContestStandings', JSON.stringify(standings));
     this.registry.set('geumgangContestPartner', partner.spriteKey);
     this.registry.set('geumgangContestResult', everWon ? 'grand-ribbon' : 'rising-star');
     SaveManager.save(this.registry, 14 * 32 + 16, 9 * 32 + 16, 'GeumgangCityScene');
 
     const resultLine = won
-      ? t(`MC Mirae: ${this.playerScore} to ${CHAMPION_TOTAL} — the Grand Ribbon goes to ${playerTrainerName(this.registry)} and ${pokeName(partner.spriteKey, partner.name)}!`,
-          `MC 미래: ${this.playerScore} 대 ${CHAMPION_TOTAL}! 그랜드리본의 주인은 ${playerTrainerName(this.registry)} 선수와 ${pokeName(partner.spriteKey, partner.name)}입니다!`)
-      : t(`MC Mirae: ${CHAMPION_TOTAL} to ${this.playerScore} — Hwangeum takes the Grand Ribbon, and our rookie pair receives the Rising Star Ribbon!`,
-          `MC 미래: ${CHAMPION_TOTAL} 대 ${this.playerScore}! 황금이 그랜드리본을, 신예 콤비는 라이징스타리본을 받습니다!`);
+      ? t(`MC Mirae: First place with ${this.playerScore} points — the Grand Ribbon goes to ${playerTrainerName(this.registry)} and ${pokeName(partner.spriteKey, partner.name)}!`,
+          `MC 미래: ${this.playerScore}점으로 1위! 그랜드리본의 주인은 ${playerTrainerName(this.registry)} 선수와 ${pokeName(partner.spriteKey, partner.name)}입니다!`)
+      : t(`MC Mirae: ${winner.name} wins with ${winner.score} points. ${playerTrainerName(this.registry)} places #${rank} with ${this.playerScore} and receives the Rising Star Ribbon!`,
+          `MC 미래: ${winner.name} 선수가 ${winner.score}점으로 우승합니다. ${playerTrainerName(this.registry)} 선수는 ${this.playerScore}점으로 ${rank}위, 라이징스타리본을 받습니다!`);
+    const rankingLine = t(
+      `FINAL RANKING · ${standings.map((entry, index) => `${index + 1}. ${entry.name} ${entry.score}`).join('  ·  ')}`,
+      `최종 순위 · ${standings.map((entry, index) => `${index + 1}위 ${entry.name} ${entry.score}점`).join('  ·  ')}`,
+      `最終順位・${standings.map((entry, index) => `${index + 1}位 ${entry.name} ${entry.score}点`).join('・')}`,
+    );
     const ribbon = won ? t('🏅 Received the GEUMGANG GRAND RIBBON!', '🏅 금강 그랜드리본을 받았다!')
       : t('🎗 Received the GEUMGANG RISING STAR RIBBON!', '🎗 금강 라이징스타리본을 받았다!');
 
@@ -559,9 +647,11 @@ export class GeumgangContestScene extends Phaser.Scene {
       this.cameras.main.flash(480, 255, 238, 160);
       this.showDialog([
         resultLine,
+        rankingLine,
         ribbon,
-        t('The press rail erupts. Reporters from across Onnuri call both competitors toward a wall of cameras.',
-          '취재석이 들끓는다. 온누리 전역에서 온 기자들이 두 참가자를 카메라 벽 앞으로 불러 세운다.'),
+        t('The press rail erupts. Reporters from across Onnuri call all five coordinator teams toward a wall of cameras.',
+          '취재석이 들끓는다. 온누리 전역에서 온 기자들이 다섯 코디네이터 팀 모두를 카메라 벽 앞으로 불러 세운다.',
+          '取材席が沸き立ち、全国の記者が5組すべてをカメラの壁へ呼び集める。'),
         t('Reporter: Champion, why enter a city contest in the middle of the League season?',
           '기자: 챔피언님, 리그 시즌 한가운데에 왜 도시 콘테스트에 출전하셨습니까?'),
         t('Hwangeum: Because a Champion does not live in the final room of the League. I keep roads open, towns safe, and stages like this worth gathering around.',
@@ -574,11 +664,15 @@ export class GeumgangContestScene extends Phaser.Scene {
 
   private showCompletedLobby() {
     const score = Number(this.registry.get('geumgangContestScore')) || 0;
+    const rank = Number(this.registry.get('geumgangContestRank')) || 1;
+    const entrantCount = Number(this.registry.get('geumgangContestEntrantCount')) || CONTESTANT_COUNT;
     const result = this.registry.get('geumgangContestResult') === 'grand-ribbon'
-      ? t('Grand Ribbon winner', '그랜드리본 우승') : t('Rising Star honoree', '라이징스타리본 수상');
+      ? t('Grand Ribbon winner', '그랜드리본 우승', 'グランドリボン優勝')
+      : t('Rising Star honoree', '라이징스타리본 수상', 'ライジングスターリボン受賞');
     this.showDialog([
-      t(`The hall's main display preserves your ${score}-point performance — ${result}.`,
-        `홀의 메인 전광판에는 ${score}점의 공연 기록이 남아 있다 — ${result}.`),
+      t(`The hall's main display preserves your ${score}-point performance — rank ${rank} of ${entrantCount}, ${result}.`,
+        `홀의 메인 전광판에는 ${score}점의 공연 기록이 남아 있다 — ${entrantCount}팀 중 ${rank}위, ${result}.`,
+        `ホールのメインボードには${score}点の記録が残っている――${entrantCount}組中${rank}位、${result}。`),
       t('A recorded message from Hwangeum waits beside the ribbon case: “A stage only lives when someone steps onto it again.”',
         '리본 진열장 옆에는 황금의 녹화 메시지가 남아 있다. “무대는 누군가 다시 오를 때 살아나는 법이야.”'),
     ], () => this.showLobbyActions());
@@ -665,7 +759,11 @@ export class GeumgangContestScene extends Phaser.Scene {
 
   private updateScoreboard() {
     this.playerScoreText.setText(`${playerTrainerName(this.registry)}  ${String(this.playerScore).padStart(3, '0')}`);
-    this.championScoreText.setText(`${t('HWANGEUM', '황금')}  ${String(this.championScore).padStart(3, '0')}`);
+    this.championScoreText.setText(`${t('HWANGEUM', '황금', 'ファングム')}  ${String(this.championScore).padStart(3, '0')}`);
+    this.entrantScoreTexts.forEach((text, index) => {
+      const entrant = CONTEST_ENTRANTS[index];
+      text.setText(`${t(entrant.nameEn, entrant.nameKo, entrant.nameJa)}  ${String(this.entrantScores[index]).padStart(3, '0')}`);
+    });
   }
 
   private clearUiLayer() {

@@ -21,7 +21,9 @@ export const SPRITE_SCALE: Record<string, number> = {
   woosa:        1.35,
   woonsa:       1.35,
   // ── Tuned-down designs ──
-  disguijar:    1.4,   // enlarged authored sprite
+  // Stone swift: the former 1.4 value compensated for its old tiny 2D art,
+  // but made the production GLB tower over both battlers and the trainer.
+  disguijar:    0.72,
   vipour:       0.6,   // shrink the starter to 60%
   bosongnun:    0.72,  // small snow spirit; keep both GLB and 2D fallback compact
   // ── Big final-stage designs ──
@@ -147,7 +149,56 @@ const BATTLE_2D_OVERRIDES: Readonly<Record<string, number>> = {
 };
 
 function canonicalSpriteKey(key: string): string {
-  return key.toLowerCase().replace(/^(wild|enemy|foe|ally|player|te)-/, '');
+  return key.toLowerCase().replace(/^(wild|enemy|foe|ally|player|te|api|gym|owned)-/, '');
+}
+
+/**
+ * Final 3D size policy shared by battle and overworld followers.
+ *
+ * 2D art used to be the only size reference, so a handful of deliberately
+ * enlarged sprites could turn their newer volumetric models into screen-sized
+ * creatures. Keep ordinary authored differences, trim only known exceptions,
+ * and cap the remaining extremes without changing their 2D UI presentation.
+ */
+const BATTLE_3D_SIZE_OVERRIDES: Readonly<Record<string, number>> = {
+  disguijar: 0.72,
+  // The long beak and swept-back wings occupy far more screen width than the
+  // model's normalized height suggests. Keep this small first form compact.
+  kingfisher: 0.68,
+};
+const COMPANION_3D_HEIGHT_OVERRIDES: Readonly<Record<string, number>> = {
+  disguijar: 0.56,
+  kingfisher: 0.52,
+};
+const COMPANION_3D_YAW_OVERRIDES_DEG: Readonly<Record<string, number>> = {
+  // Readable three-quarter presentation instead of a flat side silhouette.
+  kingfisher: 24,
+  // This local GLB's authored head points down -Z. Match the +Z convention in
+  // follower mode as well as the manifest-corrected battle presentation.
+  doribi: 180,
+};
+export const MAX_BATTLE_3D_SIZE_SCALE = 1.25;
+export const MAX_COMPANION_3D_HEIGHT = 1.08;
+
+export function battle3DSizeScale(key: string | undefined, proposed: number): number {
+  const canonical = canonicalSpriteKey(key ?? '');
+  const override = BATTLE_3D_SIZE_OVERRIDES[canonical];
+  if (override !== undefined) return override;
+  const safe = Number.isFinite(proposed) ? proposed : 1;
+  return Math.max(0.5, Math.min(MAX_BATTLE_3D_SIZE_SCALE, safe));
+}
+
+export function companion3DTargetHeight(key: string | undefined, proposed: number): number {
+  const canonical = canonicalSpriteKey(key ?? '');
+  const override = COMPANION_3D_HEIGHT_OVERRIDES[canonical];
+  if (override !== undefined) return override;
+  const safe = Number.isFinite(proposed) ? proposed : 0.68;
+  return Math.max(0.4, Math.min(MAX_COMPANION_3D_HEIGHT, safe));
+}
+
+export function companion3DYawOffset(key: string | undefined): number {
+  const canonical = canonicalSpriteKey(key ?? '');
+  return (COMPANION_3D_YAW_OVERRIDES_DEG[canonical] ?? 0) * Math.PI / 180;
 }
 
 export function battle2DSpriteScale(key: string | undefined): number {

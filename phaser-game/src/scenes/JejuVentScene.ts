@@ -302,11 +302,13 @@ export class JejuVentScene extends Phaser.Scene {
     // Normally this is the summit. An older save can resume lower on the vent
     // trail, so keep the actor beside the player rather than off camera.
     const hy = Phaser.Math.Clamp(this.py - 2 * TILE, 3 * TILE, 66 * TILE);
-    const actor = spawnHwangeum(this, hx, hy, {
-      lookAt: { x: this.px, y: this.py },
+    const entranceY = Phaser.Math.Clamp(hy - TILE * 3.8, TILE, 68 * TILE);
+    const actor = spawnHwangeum(this, hx, entranceY, {
+      lookAt: { x: hx, y: hy },
+      entering: true,
     });
     this.playerG.setData('characterLookAt3D', { x: hx, y: hy });
-    this.dialog.show([
+    actor.walkTo(hx, hy, { x: this.px, y: this.py }, () => this.dialog.show([
       t('League rescue sirens rise through the ash. Hwangeum reaches the summit with rangers, engineers and Gym Leader Harang\'s coastal crews moving below.',
         '화산재 사이로 리그 구조대의 사이렌이 울린다. 황금이 레인저와 기술진을 이끌고 정상에 도착하고, 아래에서는 하랑 관장의 해안 구조대가 움직인다.'),
       t('Hwangeum: Bonejoillion has grounded the ruptured restraint grid. Harang\'s boats are clearing the shore, and Namsun turned the Contest Hall into an evacuation shelter.',
@@ -326,7 +328,7 @@ export class JejuVentScene extends Phaser.Scene {
         onComplete: () => actor.destroy() });
       this.cutsceneActive = false;
       this.time.delayedCall(250, () => maybeLaunchEvolution(this));
-    });
+    }));
   }
 
   // ── Map ─────────────────────────────────────────────────────────────────

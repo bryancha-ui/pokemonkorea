@@ -109,7 +109,6 @@ export class GeumgangCityScene extends Phaser.Scene {
     if (!this.registry.get('geumgangVisited')) {
       this.registry.set('geumgangVisited', true);
       this.time.delayedCall(700, () => {
-        this.cutsceneActive = true;
         const cityIntro = [
           'You arrive in Geumgang City (금강 시티).',
           'An elegant river city famous for its Contest Hall and thousand-lantern stage.',
@@ -119,7 +118,7 @@ export class GeumgangCityScene extends Phaser.Scene {
         if (!this.registry.get(HWANGEUM_STORY.contest)) cityIntro.splice(2, 0,
           t('Broadcast vans and reporters from all across Onnuri surround the Contest Hall. Champion Hwangeum is entering today.',
             '온누리 전역에서 온 중계차와 기자들이 콘테스트 홀을 에워싸고 있다. 오늘 챔피언 황금이 출전한다.'));
-        this.dialog.show(cityIntro, () => { this.cutsceneActive = false; });
+        this.playFirstVisitRivalEntrance(cityIntro);
       });
     } else {
       this.time.delayedCall(300, () => maybeLaunchEvolution(this));
@@ -230,6 +229,53 @@ export class GeumgangCityScene extends Phaser.Scene {
     this.add.text(this.scale.width / 2, this.scale.height - 8, tr('WASD: move  SPACE: enter/talk  M: menu'), {
       fontSize: '10px', color: '#ccc', backgroundColor: '#00000088', padding: { x: 5, y: 2 },
     }).setOrigin(0.5, 1).setScrollFactor(0).setDepth(51);
+  }
+
+  /** The first-arrival dialogue belongs to the rival, so the speaker must be
+   * physically present. They now walk in from the boulevard edge before the
+   * first line instead of speaking invisibly from an unspawned actor. */
+  private playFirstVisitRivalEntrance(lines: string[]) {
+    this.cutsceneActive = true;
+    const targetX = this.px + TILE * 1.15;
+    const targetY = this.py - TILE * 0.15;
+    const startX = targetX + TILE * 3.2;
+    const rival = this.add.graphics().setDepth(21).setPosition(startX, targetY);
+    let frame = 0;
+    const redraw = () => {
+      drawTrainerBody(rival, 2, frame, rivalDesign(this.registry));
+      rival.setPosition(rival.x, targetY);
+    };
+    redraw();
+    markRivalPortrait(rival, this.registry);
+    rival.setData('characterLookAt3D', { x: this.px, y: this.py });
+    this.playerG.setData('characterLookAt3D', { x: targetX, y: targetY });
+    const stepper = this.time.addEvent({
+      delay: 155,
+      loop: true,
+      callback: () => { frame ^= 1; redraw(); },
+    });
+    this.tweens.add({
+      targets: rival,
+      x: targetX,
+      duration: 1050,
+      ease: 'Linear',
+      onComplete: () => {
+        stepper.remove();
+        frame = 0;
+        redraw();
+        this.dialog.show(lines, () => {
+          this.playerG.setData('characterLookAt3D', null);
+          this.tweens.add({
+            targets: rival,
+            alpha: 0,
+            x: targetX + TILE * 1.2,
+            duration: 360,
+            onComplete: () => rival.destroy(),
+          });
+          this.cutsceneActive = false;
+        });
+      },
+    });
   }
 
   // ── Update ───────────────────────────────────────────────────────────────

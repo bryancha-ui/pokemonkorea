@@ -198,6 +198,46 @@ function stripRootMotion(scene: THREE.Object3D, clips: THREE.AnimationClip[], ke
   }
 }
 
+/** Repair small, known reconstruction defects without replacing the authored
+ * model. Kingfisher's atlas contains two eyes, but one side is recessed deeply
+ * enough that it disappears at normal mobile resolution. Two tiny curved eye
+ * caps restore the intended paired gaze in both battle and companion views. */
+function repairSpeciesModel(scene: THREE.Object3D, key: string): void {
+  if (key !== 'kingfisher' || scene.getObjectByName('__kingfisherEyeRepair')) return;
+
+  const root = new THREE.Group();
+  root.name = '__kingfisherEyeRepair';
+  const eyeGeometry = new THREE.SphereGeometry(0.052, 14, 10);
+  const pupilGeometry = new THREE.SphereGeometry(0.031, 12, 8);
+  const shineGeometry = new THREE.SphereGeometry(0.009, 8, 6);
+  const eyeMaterial = new THREE.MeshStandardMaterial({ color: 0xf3dc65, roughness: 0.55 });
+  const pupilMaterial = new THREE.MeshStandardMaterial({ color: 0x111923, roughness: 0.4 });
+  const shineMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  const eyes = [
+    { position: [-0.0822, 0.4839, 0.4217], normal: [-0.3452, 0.1925, 0.6322] },
+    { position: [0.1883, 0.5147, 0.3239], normal: [0.8287, 0.0887, 0.4220] },
+  ] as const;
+
+  for (const spec of eyes) {
+    const normal = new THREE.Vector3(...spec.normal).normalize();
+    const socket = new THREE.Group();
+    socket.position.fromArray(spec.position);
+    socket.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
+
+    const eye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+    eye.scale.set(1, 0.82, 0.48);
+    eye.position.z = 0.012;
+    const pupil = new THREE.Mesh(pupilGeometry, pupilMaterial);
+    pupil.scale.set(1, 0.88, 0.42);
+    pupil.position.z = 0.043;
+    const shine = new THREE.Mesh(shineGeometry, shineMaterial);
+    shine.position.set(-0.009, 0.010, 0.061);
+    socket.add(eye, pupil, shine);
+    root.add(socket);
+  }
+  scene.add(root);
+}
+
 export type ModelLoadStatus = 'unavailable' | 'idle' | 'loading' | 'ready' | 'failed';
 
 /** Distinguish an in-flight load from a confirmed failure. A registered model
@@ -254,7 +294,7 @@ export function normalizeKey(key: string): string {
 
 /** Bumped whenever per-species manifest corrections change, so no browser can
  *  keep serving a stale copy of the registry. */
-const MANIFEST_VERSION = '2026-10-26a';
+const MANIFEST_VERSION = '2026-11-01a';
 
 /** Fetch attempts before settling for the bundled core registry. */
 const MANIFEST_ATTEMPTS = 3;
@@ -423,6 +463,7 @@ export function getModel(key: string): LoadedModel | null {
         const inner = new THREE.Group();
         inner.add(gltf.scene);
         applyProductionMaterials(gltf.scene);
+        repairSpeciesModel(gltf.scene, k);
         // Per-model orientation fix (manifest rotX/Y/Z degrees) — for models the
         // generator reconstructed lying down or facing the wrong way, applied
         // BEFORE normalize so the height/centering measure the upright pose.

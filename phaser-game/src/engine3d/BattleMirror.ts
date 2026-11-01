@@ -11,7 +11,7 @@ import { MoveFX3D } from './MoveFX3D';
 import { RainFX, SandstormFX, SnowFX, SunFX, type WeatherFX3D } from './WeatherFX3D';
 import { makeBlobShadow, makePokeBallProp } from './Props';
 import { BALL_APPEARS, ROUTINE_LENGTH, sampleChampionIntro } from './ChampionChoreo';
-import { spriteScale } from '../data/SpriteScale';
+import { battle3DSizeScale, spriteScale } from '../data/SpriteScale';
 import { battleFallbackSprite } from '../data/BattleFallbackSprites';
 import { EnvProfile, ThreeStage } from './ThreeStage';
 import { BATTLE_PACING } from '../systems/BattlePacing';
@@ -126,6 +126,8 @@ const BATTLE_YAW_OVERRIDES_DEG: Readonly<Record<string, number>> = {
   // Onix's rig runs tail→head primarily along -X, so without this correction
   // its head points screen-left when the enemy-facing camera yaw is applied.
   '95': 90,
+  // Keep both eyes and the long diving silhouette readable to the camera.
+  kingfisher: 24,
 };
 
 // Borrowed Pokémon-3D-API models are authored large and read oversized in the
@@ -136,11 +138,14 @@ const BORROWED_API_BATTLE_SCALE = 0.6;
 function battleSizeOverride(textureKey: string): number {
   const borrowed = isBorrowedApiModel(textureKey) ? BORROWED_API_BATTLE_SCALE : 1;
   const explicit = BATTLE_SIZE_OVERRIDES[normalizeKey(textureKey)];
-  if (explicit) return explicit * borrowed;
+  if (explicit) return battle3DSizeScale(textureKey, explicit * borrowed);
   // The GLB pipeline deliberately clamps raw display-height influence
   // to 1.15. Restore the remainder of the authored species multiplier so large
   // Pokémon such as Garchomp and Tyranitar stay imposing in 3D as well as 2D.
-  return Math.max(1, spriteScale(textureKey) / 1.15) * borrowed;
+  // The shared finalizer then trims species whose old 2D compensation would
+  // otherwise turn a new GLB into a screen-filling model.
+  const proposed = Math.max(1, spriteScale(textureKey) / 1.15) * borrowed;
+  return battle3DSizeScale(textureKey, proposed);
 }
 
 function battleYawOffset(textureKey: string): number {

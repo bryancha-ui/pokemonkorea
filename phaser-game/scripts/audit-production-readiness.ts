@@ -105,6 +105,32 @@ for (const [asset, source] of staticAssets) {
 }
 for (const line of incompleteStoryLines) failures.push(`unfinished player-facing story marker: ${line}`);
 
+// Story actors must exist before they speak, and recurring arrivals should
+// visibly enter the frame instead of popping into existence at the dialogue
+// target. The Geumgang contest must also remain a real multi-entrant ranking.
+const geumgangCity = await fs.readFile(path.join(srcRoot, 'scenes', 'GeumgangCityScene.ts'), 'utf8');
+const geumgangContest = await fs.readFile(path.join(srcRoot, 'scenes', 'GeumgangContestScene.ts'), 'utf8');
+const hwangeumStory = await fs.readFile(path.join(srcRoot, 'systems', 'HwangeumStory.ts'), 'utf8');
+if (!geumgangCity.includes('playFirstVisitRivalEntrance(cityIntro)')
+  || !geumgangCity.includes('markRivalPortrait(rival, this.registry)')) {
+  failures.push('Geumgang first-arrival rival can still speak without a visible actor');
+}
+if (!hwangeumStory.includes('walkTo: (targetX, targetY, lookAt, onComplete')) {
+  failures.push('recurring Champion actors have no shared walk-in presentation');
+}
+for (const scene of ['Route3Scene', 'Route5Scene', 'JejuVentScene', 'SunriseCityScene']) {
+  const source = await fs.readFile(path.join(srcRoot, 'scenes', `${scene}.ts`), 'utf8');
+  if (!source.includes('.walkTo(')) failures.push(`${scene} still pops Hwangeum directly onto the dialogue mark`);
+}
+const entrantDefinitions = [...geumgangContest.matchAll(/key: '(?:jaemin|yuna|sora)'/g)].length;
+if (entrantDefinitions !== 3 || !geumgangContest.includes('const CONTESTANT_COUNT = CONTEST_ENTRANTS.length + 2')) {
+  failures.push('Geumgang Contest no longer has five functional entrants');
+}
+if (!geumgangContest.includes("this.registry.set('geumgangContestStandings'")
+  || !geumgangContest.includes('entrant.roundScores[this.round]')) {
+  failures.push('Geumgang Contest entrants are decorative and do not receive ranked round scores');
+}
+
 console.log(JSON.stringify({
   registeredScenes: registered.size,
   literalTransitions: literalTransitions.size,
@@ -112,6 +138,8 @@ console.log(JSON.stringify({
   safeResumeScenes: safeResume.size,
   staticAssets: staticAssets.size,
   incompleteStoryLines,
+  storyEntrancesChecked: 5,
+  contestEntrantsChecked: entrantDefinitions + 2,
   failures,
 }, null, 2));
 if (failures.length) process.exitCode = 1;

@@ -22,6 +22,13 @@ export type HwangeumStoryBeat = typeof HWANGEUM_STORY[keyof typeof HWANGEUM_STOR
 export interface HwangeumActor {
   graphic: Phaser.GameObjects.Graphics;
   label: Phaser.GameObjects.Text;
+  walkTo(
+    x: number,
+    y: number,
+    lookAt: { x: number; y: number } | undefined,
+    onComplete: () => void,
+    duration?: number,
+  ): void;
   destroy(): void;
 }
 
@@ -58,6 +65,7 @@ export function spawnHwangeum(
     depth?: number;
     lookAt?: { x: number; y: number };
     label?: boolean;
+    entering?: boolean;
   } = {},
 ): HwangeumActor {
   const depth = options.depth ?? 19;
@@ -75,10 +83,33 @@ export function spawnHwangeum(
     fontSize: '8px', color: '#ffe47a', backgroundColor: '#000000aa',
     padding: { x: 3, y: 1 }, align: 'center',
   }).setOrigin(0.5).setDepth(depth + 1).setVisible(options.label !== false);
+  if (options.entering) {
+    graphic.setAlpha(0);
+    label.setAlpha(0);
+  }
 
   return {
     graphic,
     label,
+    walkTo: (targetX, targetY, lookAt, onComplete, duration = 950) => {
+      // Keep the 3D mirror pointed along the approach path while the 2D marker,
+      // its 3D replacement and the nameplate all move as one actor.
+      graphic.setData('characterLookAt3D', { x: targetX, y: targetY });
+      scene.tweens.add({
+        targets: graphic,
+        x: targetX,
+        y: targetY,
+        alpha: 1,
+        duration,
+        ease: 'Linear',
+        onUpdate: () => label.setPosition(graphic.x, graphic.y - 27).setAlpha(graphic.alpha),
+        onComplete: () => {
+          label.setPosition(targetX, targetY - 27);
+          if (lookAt) graphic.setData('characterLookAt3D', lookAt);
+          onComplete();
+        },
+      });
+    },
     destroy: () => { graphic.destroy(); label.destroy(); },
   };
 }
