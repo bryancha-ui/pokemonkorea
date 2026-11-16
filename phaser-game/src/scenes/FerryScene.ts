@@ -8,6 +8,7 @@ import { SaveManager } from '../utils/SaveManager';
 import { maybeLaunchEvolution } from '../systems/EvolutionSystem';
 import { playBgm } from '../systems/Music';
 import { EncounterEntry, pickEncounter, randomLevel } from '../data/CustomPokemon';
+import { StoryActor, spawnStoryActor } from '../systems/StoryActor';
 
 // ── Tiles ───────────────────────────────────────────────────────────────────
 const T = { SEA: 0, DECK: 1, RAIL: 2, CABIN: 3, CARGO: 4, STORMGRASS: 5, GANGWAY: 6, HATCH: 7 } as const;
@@ -77,6 +78,7 @@ export class FerryScene extends Phaser.Scene {
   private spawnGuard = false;
   private spawnPx = 0; private spawnPy = 0;   // exits lock until the player moves inward
   private steps = 0; private nextEnc = 6;
+  private storyRival?: StoryActor;
   private readonly SPEED = 120; private readonly RUN = 250;
 
   private readonly TRAINERS = [
@@ -101,6 +103,7 @@ export class FerryScene extends Phaser.Scene {
 
   create() {
     this.cutsceneActive = false; this.walkFrame = 0; this.walkTimer = 0; this.steps = 0;
+    this.storyRival = undefined;
     this.input.keyboard?.resetKeys();
     const rx = this.registry.get('ferryReturnX') as number | undefined;
     const ry = this.registry.get('ferryReturnY') as number | undefined;
@@ -137,12 +140,16 @@ export class FerryScene extends Phaser.Scene {
       this.registry.set('ferryBoarded', true);
       this.time.delayedCall(650, () => {
         this.cutsceneActive = true;
-        this.dialog.show([
+        this.bringRivalBeside(() => this.dialog.show([
           "🌊 Haean is a dark line on the water behind you now; the sun sinks into the western sea.",
+          "Your Rival walks up from the stern and joins you at the rail.",
           "Rival: Old Dosik said to tell the Grandmother an old man from Haean still leaves rice cakes out for her.",
           "Rival: I've never actually left the mainland before. Now we're sailing through the dark to stop a doomsday weapon.",
           "Rival: I wouldn't trade it. For the record. (Explore the deck — and the hatch leads below to the cabins. Spar the trainers, then talk to the deckhand at the cargo.)",
-        ], () => { this.cutsceneActive = false; playBgm(this, 'ferrynight'); });   // dusk departure → calm night
+        ], () => this.dismissRival(() => {
+          this.cutsceneActive = false;
+          playBgm(this, 'ferrynight');
+        })));   // dusk departure → calm night
       });
     } else {
       this.time.delayedCall(300, () => maybeLaunchEvolution(this));
@@ -346,13 +353,13 @@ export class FerryScene extends Phaser.Scene {
       this.cutsceneActive = true;
       this.registry.set('ferryStorm', true);
       playBgm(this, 'ferrystorm');   // The Strait's Fury
-      this.dialog.show([
+      this.bringRivalBeside(() => this.dialog.show([
         "Deckhand Mira: We need trainers! A squall hit early — the cargo nets snapped!",
         "Deckhand Mira: Wild Pokémon got blown aboard and they're thrashing across the foredeck!",
         "Deckhand Mira: If they damage the hull lines we're in real trouble. Drive them back!",
         "Rival: You had me at 'real trouble.' The forward deck's crawling — let's go.",
         "(Storm-blown Pokémon now appear on the misty foredeck. Push through to the bow.)",
-      ], () => { this.cutsceneActive = false; });
+      ], () => this.dismissRival(() => { this.cutsceneActive = false; })));
     }
   }
 
@@ -362,22 +369,47 @@ export class FerryScene extends Phaser.Scene {
     this.cutsceneActive = true;
     this.registry.set('ferryRiggingDone', true);
     playBgm(this, 'ferrynight');   // squall passes → calm night again
-    this.dialog.show([
+    this.bringRivalBeside(() => this.dialog.show([
       "⛈️ A critical hull line whips loose in the wind!",
-      "Together, you send out your lead and the Rival sends his starter — you HAUL the snapped line back into its cleat.",
+      "Your Rival reaches the bow beside you. Together, you send out your lead and the Rival sends their starter — you HAUL the snapped line back into its cleat.",
       "Secured. The boat steadies and rides out the squall.",
       "Deckhand Mira: Three years on this route and I've never seen passengers do THAT.",
       "Deckhand Mira: Here — found it wedged in the cargo. You earned it more than the shipping company did.",
       "💧 Received Mystic Water and ⭐ Big Pearl ×2!",
       "Rival: Get some sleep. For real this time. We land at dawn.",
       "(The bow is clear — disembark to the north when you're ready.)",
-    ], () => {
+    ], () => this.dismissRival(() => {
       this.cutsceneActive = false;
       // refresh signpost
       this.add.text(10 * TILE, 1 * TILE, tr('↑ Disembark — Jeju Vents'), {
         fontSize: '10px', color: '#fff', backgroundColor: '#1a4a6a99', padding: { x: 4, y: 2 },
       }).setOrigin(0.5).setDepth(5);
+    })));
+  }
+
+  /** Bring the Rival in from the aft deck for a conversation, then hold eye contact. */
+  private bringRivalBeside(onArrive: () => void): void {
+    this.storyRival?.destroy();
+    const targetX = Phaser.Math.Clamp(this.px + TILE, 5.5 * TILE, 14.5 * TILE);
+    const targetY = Phaser.Math.Clamp(this.py, 3.5 * TILE, 30 * TILE);
+    const startY = Phaser.Math.Clamp(targetY + TILE * 2.6, 4 * TILE, 30.5 * TILE);
+    this.storyRival = spawnStoryActor(this, this.registry, {
+      kind: 'rival', x: targetX, y: startY, facing: 1,
+      lookAt: { x: this.px, y: this.py },
     });
+    this.playerG.setData('characterLookAt3D', { x: targetX, y: targetY });
+    this.storyRival.walkTo(targetX, targetY, {
+      lookAt: { x: this.px, y: this.py },
+      onComplete: onArrive,
+    });
+  }
+
+  private dismissRival(onDone: () => void): void {
+    const rival = this.storyRival;
+    this.storyRival = undefined;
+    this.playerG.setData('characterLookAt3D', null);
+    if (!rival?.active) { onDone(); return; }
+    rival.walkAway(rival.x, Phaser.Math.Clamp(rival.y + TILE * 2.5, 4 * TILE, 30.5 * TILE), onDone);
   }
 
   private checkExits() {

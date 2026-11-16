@@ -4,6 +4,7 @@ import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { clone as skeletonClone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { applyProductionMaterials } from './ModelMaterials';
 import { performanceProfile } from './PerformanceProfile';
+import type { ModelExtent } from '../data/SpriteScale';
 
 // The starter remasters are shipped with the game and remain discoverable even
 // if the manifest itself is unavailable. This lets their local GLB attempt reach
@@ -50,6 +51,9 @@ type Entry = string | {
 export interface LoadedModel {
   group: THREE.Group;
   animations: THREE.AnimationClip[];
+  /** Posed bounding size of the normalized model (height ≈ 1). Presentation
+   *  layers use it to keep long or sprawling bodies from reading oversized. */
+  extent: ModelExtent;
 }
 
 /** Registry value: where to load the GLB and optional orientation/size fixes. */
@@ -72,6 +76,8 @@ interface ModelSpec {
 }
 
 let manifest: Map<string, ModelSpec> | null = null;   // key → spec
+/** Preload requests that arrived before the manifest resolved. */
+const pendingPreloads = new Set<string>();
 let manifestLoading = false;
 const models = new Map<string, LoadedModel | 'loading' | 'failed'>();
 const modelUse = new Map<string, number>();
@@ -340,6 +346,7 @@ export function primeManifest(): void {
         }
       }
       manifest = m;
+      flushPendingPreloads();
       // GLBs remain lazy: only a Pokémon entering a scene is decoded. Its 2D
       // sprite stays hidden during that request to preserve visual consistency.
     })
@@ -358,6 +365,7 @@ export function primeManifest(): void {
       }
       console.warn('[engine3d] model manifest unavailable; using the bundled core 3D registry:', error);
       manifest = new Map(CORE_LOCAL_MODELS.map(key => [key, {}]));
+      flushPendingPreloads();
     })
     .finally(() => { manifestLoading = false; });
 }
@@ -422,6 +430,35 @@ export function unpinModel(key: string): void {
   const count = modelPins.get(normalized) ?? 0;
   if (count <= 1) modelPins.delete(normalized);
   else modelPins.set(normalized, count - 1);
+}
+
+function flushPendingPreloads(): void {
+  const keys = [...pendingPreloads];
+  pendingPreloads.clear();
+  for (const key of keys) preloadModel(key);
+}
+
+/**
+ * Start downloading/decoding a model before anything needs to draw it.
+ *
+ * Registered Pokémon keep their battle mark EMPTY until the GLB is decoded, so
+ * a model first requested at send-out appears visibly late. Callers that know
+ * who is about to enter (the party, a trainer's roster, the route's wild
+ * species) warm the cache here; it never clones and is safe to call repeatedly.
+ */
+export function preloadModel(key: string | undefined | null): void {
+  if (!key) return;
+  const k = normalizeKey(key);
+  if (!manifest) {
+    pendingPreloads.add(k);
+    primeManifest();
+    return;
+  }
+  if (!manifest.has(k)) return;
+  const entry = models.get(k);
+  if (entry === 'loading') return;
+  if (entry && entry !== 'failed') { modelUse.set(k, ++useClock); return; }
+  getModel(k);   // first call only starts the load and returns null
 }
 
 /**
@@ -492,7 +529,7 @@ export function getModel(key: string): LoadedModel | null {
         const root = new THREE.Group();
         root.add(inner);
         stripRootMotion(gltf.scene, clips, k);
-        models.set(k, { group: root, animations: clips });
+        models.set(k, { group: root, animations: clips, extent: measureExtent(root, spec.scale ?? 1) });
         modelFailures.delete(k);
         modelUse.set(k, ++useClock);
         trimModelCache(k);
@@ -704,6 +741,18 @@ function normalize(root: THREE.Group, sizeScale = 1, bindPosed = false, spec: Mo
   return isRenderableModel(root);
 }
 
+/** Posed size of a normalized model, measured from the vertices the GPU draws. */
+function measureExtent(root: THREE.Group, sizeScale: number): ModelExtent {
+  const pts = sampleVertices(root);
+  const box = pts.length >= 3 ? new THREE.Box3().setFromPoints(pts) : new THREE.Box3().setFromObject(root);
+  const size = box.getSize(new THREE.Vector3());
+  // Report proportions, not the manifest's authored height: a model shipped at
+  // scale 0.4 is a small creature, not a thin one.
+  const unit = Number.isFinite(sizeScale) && sizeScale > 0 ? sizeScale : 1;
+  const safe = (v: number) => (Number.isFinite(v) && v > 0 ? v / unit : 1);
+  return { x: safe(size.x), y: safe(size.y), z: safe(size.z) };
+}
+
 /** Apply the manifest's per-species nudge. Expressed in model heights so the
  *  same number means the same visual shift whatever the creature's real size. */
 function applyAuthoredOffset(root: THREE.Group, sizeScale: number, spec: ModelSpec): void {
@@ -761,7 +810,11 @@ export function releaseModelGpuResources(): void {
 }
 
 function trimModelCache(except: string): void {
-  const max = allowsHeavy3DAssets() ? 6 : 2;
+  // Sized for a full trainer battle: both rosters stay decoded so a switch or
+  // the next send-out never waits on a re-decode. Creature meshes are capped
+  // near 40–60k triangles, so twelve entries cost less than two of the old
+  // 500k-triangle models did.
+  const max = allowsHeavy3DAssets() ? 12 : 4;
   const loaded = [...models.entries()].filter(([, v]) => v !== 'loading' && v !== 'failed') as [string, LoadedModel][];
   while (loaded.length > max) {
     loaded.sort(([a], [b]) => (modelUse.get(a) ?? 0) - (modelUse.get(b) ?? 0));
@@ -810,5 +863,5 @@ function cloneNormalized(src: LoadedModel): LoadedModel {
   src.group.traverse(o => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) skinned = true; });
   const c = (skinned || src.animations.length ? skeletonClone(src.group) : src.group.clone(true)) as THREE.Group;
   c.traverse(o => { o.userData.sharedGeo = true; o.userData.sharedMat = true; });
-  return { group: c, animations: src.animations };
+  return { group: c, animations: src.animations, extent: src.extent };
 }

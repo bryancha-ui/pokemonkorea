@@ -37,6 +37,13 @@ export class BattleStatusBadge {
   }
 
   sync(status?: string): void {
+    // Battle scenes are reused and their create() is async. Until the new HUD
+    // is built, update() still holds the PREVIOUS battle's badge, whose Text
+    // objects were destroyed at shutdown. Touching one throws inside Phaser's
+    // step ("Cannot read properties of null (reading 'drawImage')") on every
+    // frame, which also starves the 3D layer and leaves the screen black —
+    // triggered whenever the last battle ended with a status condition.
+    if (!this.text.scene || !this.nameText.scene) return;
     const style = badgeStyle(status);
     if (!style) {
       this.text.setVisible(false);

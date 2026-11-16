@@ -7,6 +7,7 @@ import { SaveManager } from '../utils/SaveManager';
 import { maybeLaunchEvolution } from '../systems/EvolutionSystem';
 import { PartySystem } from '../systems/PartySystem';
 import { playBgm } from '../systems/Music';
+import { spawnStoryActor } from '../systems/StoryActor';
 
 // ── Tiles ───────────────────────────────────────────────────────────────────
 const T = { SAND: 0, PATH: 1, BUILDING: 2, SEA: 3, DOCK: 4, ROCK: 5, PALM: 6, VENT: 7 } as const;
@@ -102,13 +103,25 @@ export class JejuPortScene extends Phaser.Scene {
       this.registry.set('jejuPortVisited', true);
       this.time.delayedCall(700, () => {
         this.cutsceneActive = true;
-        this.dialog.show([
-          '🌅 You step off the ferry onto the black-sand dock. Sulfur hangs on the dawn wind.',
-          'The volcanic coast of Jeju rises ahead — and far above, the vents glow at the summit.',
-          "Prof. Song (comms): You made it across! 노스단's barge hit the same storm, so their head start is gone.",
-          "Prof. Song: 나비할망 sleeps at the summit. Rest and stock up here, then climb. Run — they're already on the mountain.",
-          "Rival: Heal up, grab supplies, and let's go. The trail north leads straight up the vents.",
-        ], () => { this.cutsceneActive = false; });
+        const targetX = this.px + TILE, targetY = this.py;
+        const rival = spawnStoryActor(this, this.registry, {
+          kind: 'rival', x: targetX, y: this.py + TILE * 3, facing: 1,
+          lookAt: { x: this.px, y: this.py },
+        });
+        this.playerG.setData('characterLookAt3D', { x: targetX, y: targetY });
+        rival.walkTo(targetX, targetY, {
+          lookAt: { x: this.px, y: this.py },
+          onComplete: () => this.dialog.show([
+            '🌅 You step off the ferry onto the black-sand dock. Sulfur hangs on the dawn wind.',
+            'Your Rival follows you down the gangway as the volcanic coast rises ahead — and far above, the vents glow at the summit.',
+            "Prof. Song (comms): You made it across! 노스단's barge hit the same storm, so their head start is gone.",
+            "Prof. Song (comms): 나비할망 sleeps at the summit. Rest and stock up here, then climb. Run — they're already on the mountain.",
+            "Rival: Heal up, grab supplies, and let's go. The trail north leads straight up the vents.",
+          ], () => {
+            this.playerG.setData('characterLookAt3D', null);
+            rival.walkAway(targetX, targetY - TILE * 3, () => { this.cutsceneActive = false; });
+          }),
+        });
       });
     } else {
       this.time.delayedCall(300, () => maybeLaunchEvolution(this));

@@ -9,6 +9,7 @@ import { PartySystem } from '../systems/PartySystem';
 import { maybeLaunchEvolution } from '../systems/EvolutionSystem';
 import { EncounterEntry, pickEncounter, randomLevel } from '../data/CustomPokemon';
 import { markTrainerPortrait } from '../data/BattlePortraits';
+import { spawnStoryActor } from '../systems/StoryActor';
 
 // ── Tiles ─────────────────────────────────────────────────────────────────────
 // A militarized mountain checkpoint: snow paths threaded between iron walls,
@@ -138,6 +139,7 @@ export class BaekduCheckpointScene extends Phaser.Scene {
     this.drawMap();
     this.drawSoldiers();
     if (!this.gateOpen) this.drawCaptain();
+    else if (!this.registry.get('baekduGatePassed')) this.drawDefeatedCaptain();
     this.createPlayer();
     this.setupCamera();
     this.setupInput();
@@ -149,11 +151,25 @@ export class BaekduCheckpointScene extends Phaser.Scene {
       this.registry.set('baekduCheckpointSeen', true);
       this.time.delayedCall(600, () => {
         this.cutsceneActive = true;
-        this.dialog.show([
-          'The plane sets down on a wind-scoured snowfield at the foot of Baekdu. The highland pass ahead has been sealed — a fortified 노스단 checkpoint blocks the trail, with an iron gate, watchtowers, and searchlights sweeping the snow.',
-          '노스단 Garrison Officer: This pass is closed by order of the Commander. The southern road ends here. There is nothing past this gate but the future of the north.',
-          'Chaeyeon: This is a full garrison — they\'ve dug in. We push through one position at a time, take the watchtowers, and force the gate. Stay close. I\'ll keep your team standing.',
-        ], () => { this.cutsceneActive = false; });
+        const targetX = this.px - TILE, targetY = this.py - TILE * 0.2;
+        const chaeyeon = spawnStoryActor(this, this.registry, {
+          kind: 'trainer', trainerKey: 'suri-chaeyeon-2', label: 'Chaeyeon',
+          outfit: 0x3a6670, hair: 0x2b1712, labelColor: '#bfe9e0',
+          x: targetX, y: this.py + TILE * 1.4, facing: 1,
+          lookAt: { x: this.px, y: this.py },
+        });
+        this.playerG.setData('characterLookAt3D', { x: targetX, y: targetY });
+        chaeyeon.walkTo(targetX, targetY, {
+          lookAt: { x: this.px, y: this.py },
+          onComplete: () => this.dialog.show([
+            'The plane sets down on a wind-scoured snowfield at the foot of Baekdu. The highland pass ahead has been sealed — a fortified 노스단 checkpoint blocks the trail, with an iron gate, watchtowers, and searchlights sweeping the snow.',
+            '노스단 Garrison Loudspeaker: This pass is closed by order of the Commander. The southern road ends here. There is nothing past this gate but the future of the north.',
+            'Chaeyeon: This is a full garrison — they\'ve dug in. We push through one position at a time and force the gate. I\'ll move ahead and keep your team standing over comms.',
+          ], () => {
+            this.playerG.setData('characterLookAt3D', null);
+            chaeyeon.walkAway(targetX, targetY - TILE * 3, () => { this.cutsceneActive = false; });
+          }),
+        });
       });
     } else {
       this.time.delayedCall(300, () => maybeLaunchEvolution(this));
@@ -196,6 +212,13 @@ export class BaekduCheckpointScene extends Phaser.Scene {
     if (this.registry.get('trainerDefeated_baekdu-seollan')) return;
     const captain = this.drawFigure(12, 8, 0x0e0e16, 0x88ccff, 'Gate Captain\nSeollan', '#aee0ff');
     markTrainerPortrait(captain, 'baekdu-seollan');
+  }
+  /** Keep the defeated captain visibly at the side of the open gate until the
+   *  player passes her; her farewell must not come from an empty snowfield. */
+  private drawDefeatedCaptain() {
+    const captain = this.drawFigure(9, 6, 0x0e0e16, 0x88ccff, 'Captain Seollan', '#aee0ff');
+    markTrainerPortrait(captain, 'baekdu-seollan');
+    captain.setData('characterLookAt3D', { x: 12 * TILE + 16, y: 2 * TILE + 16 });
   }
   private drawFigure(col: number, row: number, coat: number, trim: number, label: string, labelColor: string) {
     const g = this.add.graphics().setDepth(8);
@@ -394,11 +417,21 @@ export class BaekduCheckpointScene extends Phaser.Scene {
       this.cutsceneActive = true;
       if (!this.registry.get('baekduGatePassed')) {
         this.registry.set('baekduGatePassed', true);
-        this.dialog.show([
-          'Seollan steps aside from the gate. "The gate is yours. But the mountain will not forgive you the way I have."',
-          'The iron gate grinds open. Beyond it, the snow-swept switchbacks of Baekdu Peak rise into a bruised red sky — and far above, six towers pulse.',
-          "Rival: That was just the front door. Whatever's waiting up there is worse. ...Let's finish it.",
-        ], () => this.toSummit());
+        const targetX = Phaser.Math.Clamp(this.px + TILE, 10 * TILE, 14 * TILE);
+        const targetY = this.py + TILE * 1.2;
+        const rival = spawnStoryActor(this, this.registry, {
+          kind: 'rival', x: targetX, y: targetY + TILE * 3, facing: 1,
+          lookAt: { x: this.px, y: this.py },
+        });
+        this.playerG.setData('characterLookAt3D', { x: targetX, y: targetY });
+        rival.walkTo(targetX, targetY, {
+          lookAt: { x: this.px, y: this.py },
+          onComplete: () => this.dialog.show([
+            'Seollan stands aside from the open gate. "The gate is yours. But the mountain will not forgive you the way I have."',
+            'The iron gate grinds open. Beyond it, the snow-swept switchbacks of Baekdu Peak rise into a bruised red sky — and far above, six towers pulse.',
+            "Your Rival catches up through the snow. Rival: That was just the front door. Whatever's waiting up there is worse. ...Let's finish it.",
+          ], () => this.toSummit()),
+        });
       } else {
         this.toSummit();
       }

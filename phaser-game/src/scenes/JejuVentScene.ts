@@ -14,6 +14,7 @@ import { EncounterEntry, pickEncounter, randomLevel } from '../data/CustomPokemo
 import { customForm } from '../data/CustomBattle';
 import { playNabihalmangEntranceVideo } from '../systems/NabihalmangEntranceVideo';
 import { HWANGEUM_STORY, recordHwangeumBeat, spawnHwangeum } from '../systems/HwangeumStory';
+import { spawnStoryActor } from '../systems/StoryActor';
 
 // ── Tiles ───────────────────────────────────────────────────────────────────
 const T = { ROCK: 0, ASH: 1, TALLGRASS: 2, LAVA: 3, VENT: 4, SUMMIT: 5 } as const;
@@ -214,7 +215,7 @@ export class JejuVentScene extends Phaser.Scene {
         const visual = this.postCaptureRyeoVisual ?? (this.postCaptureRyeoVisual = this.buildRyeoConfrontation());
         this.dialog.show([
           "나비할망 folds her glowing, dancheong-patterned wings and settles beside you at last.",
-          "Prof. Song: She's chosen you as her guardian — and the south's. You truly earned her.",
+          "Prof. Song (comms): She's chosen you as her guardian — and the south's. You truly earned her.",
           "A sound like metal grinding. Commander Ryeo emerges from the shadows of the rig — bloodied, furious, movements sharp with desperation.",
           "Commander Ryeo: That moth was supposed to be OUR key to reshaping this peninsula! And you—",
           `${rivalTrainerName(this.registry)}: You lose. We took it. 나비할망 chose our friend. Maybe she knows something about what you'd actually do with her.`,
@@ -253,9 +254,9 @@ export class JejuVentScene extends Phaser.Scene {
             "Commander Ryeo: ...She looks at you like you're not a tool to be used. Like you matter. That's what I never understood about this region. That's what we tried to control.",
             `${rivalTrainerName(this.registry)}: The 노스단 southern operations are done. Your rig is scrap. Your orders don't reach here anymore.`,
             "Commander Ryeo: No. They don't. (She turns and walks down the mountain, alone.)",
-            "Prof. Song: She's leaving. Let her. 노스단's reach here is broken.",
+            "Prof. Song (comms): She's leaving. Let her. 노스단's reach here is broken.",
             "나비할망's wings catch the dawn light. You've earned something rare — the choice of a legendary.",
-            "Prof. Song: Reach the Onnuri League, prove yourself champion. Then the world opens up. The north has lessons too.",
+            "Prof. Song (comms): Reach the Onnuri League, prove yourself champion. Then the world opens up. The north has lessons too.",
             `${rivalTrainerName(this.registry)}: To the League, then. 나비할망 will make sure we get there in one piece.`,
           ], () => {
             visual.destroy();
@@ -280,10 +281,23 @@ export class JejuVentScene extends Phaser.Scene {
       this.registry.set('jejuClimbStarted', true);
       this.time.delayedCall(500, () => {
         this.cutsceneActive = true;
-        this.dialog.show([
-          'The vent trail rises sharply from the port — a long, switchbacked climb through lava and ash.',
-          `${rivalTrainerName(this.registry)}: Eerie up here. Watch the lava and keep your footing — no telling what roosts at the top.`,
-        ], () => { this.cutsceneActive = false; });
+        const targetX = Phaser.Math.Clamp(this.px - TILE, 10 * TILE, 14 * TILE);
+        const targetY = this.py - TILE * 0.2;
+        const rival = spawnStoryActor(this, this.registry, {
+          kind: 'rival', x: targetX, y: this.py + TILE * 2.8, facing: 1,
+          lookAt: { x: this.px, y: this.py },
+        });
+        this.playerG.setData('characterLookAt3D', { x: targetX, y: targetY });
+        rival.walkTo(targetX, targetY, {
+          lookAt: { x: this.px, y: this.py },
+          onComplete: () => this.dialog.show([
+            'The vent trail rises sharply from the port — a long, switchbacked climb through lava and ash. Your Rival catches up from the dock.',
+            `${rivalTrainerName(this.registry)}: Eerie up here. Watch the lava and keep your footing — no telling what roosts at the top.`,
+          ], () => {
+            this.playerG.setData('characterLookAt3D', null);
+            rival.walkAway(targetX, targetY - TILE * 3, () => { this.cutsceneActive = false; });
+          }),
+        });
       });
     } else {
       this.time.delayedCall(300, () => maybeLaunchEvolution(this));
@@ -616,7 +630,7 @@ export class JejuVentScene extends Phaser.Scene {
           "나비할망's metallic wings flare — and the restraint field SHATTERS. The 노스단 equipment overloads in a cascade of sparks; operatives are thrown back.",
           "Commander Ryeo: ...Impossible. She was never going to be a battery. She's not a tool. We were wrong about what she was. (She orders a retreat.)",
           "Prof. Song (comms): She's frightened, and testing you. The old texts say she binds only to a guardian she deems worthy of protecting the south.",
-          "Prof. Song: Your Master Ball — this is the moment Dosik meant. Weaken her first, then throw it.",
+          "Prof. Song (comms): Your Master Ball — this is the moment Dosik meant. Weaken her first, then throw it.",
           `${rivalTrainerName(this.registry)}: Go on. She's been waiting longer than either of us has been alive.`,
         ], () => { summitVisual.destroy(); launchBattle(); });
       }));
@@ -895,23 +909,11 @@ export class JejuVentScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(20);
 
     // Prof. Song stands to your east — a 2D overworld sprite in his lab coat.
-    const songG = this.add.graphics().setPosition(this.px + TILE, this.py);
-    drawNpcBody(songG, 0xe6e6ea, { hair: 0x4a4038 });                // white lab coat, greying hair
-    songG.fillStyle(0x222222, 1); songG.fillRect(-6, -16, 12, 1);    // glasses bar
-    songG.fillStyle(0x8a1a1a, 1); songG.fillRect(-1, -7, 2, 4);      // tie
-    markTrainerPortrait(songG, 'prof-song');
-    songG.setData('characterGender3D', 'boy');
-    songG.setData('characterLookAt3D', { x: rx, y: ry });
-    songG.setDepth(19);
-    const gLabel = this.add.text(this.px + TILE, this.py - 24, speakerName('Prof. Song'), {
-      fontSize: '8px', color: '#aef0c0', backgroundColor: '#000000aa', padding: { x: 2, y: 1 }, align: 'center',
-    }).setOrigin(0.5).setDepth(20);
-
     // 나비할망 settles beside the player as her generated GLB, not a flat
     // hand-drawn container.
     const nabi = this.buildNabihalmangModel(this.px + TILE * 0.55, this.py - TILE * 0.2, 1.8);
 
-    const objects: Phaser.GameObjects.GameObject[] = [ryeo, rLabel, rivalG, vLabel, songG, gLabel, nabi];
+    const objects: Phaser.GameObjects.GameObject[] = [ryeo, rLabel, rivalG, vLabel, nabi];
     return { destroy: () => {
       this.playerG.setData('characterLookAt3D', null);
       for (const object of objects) object.destroy();

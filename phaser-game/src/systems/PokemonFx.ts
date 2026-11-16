@@ -33,7 +33,11 @@ export class PokemonFxPlugin extends Phaser.Plugins.ScenePlugin {
   boot(): void {
     this.systems!.events.on('create', this.apply, this);
     this.systems!.events.on('addedtoscene', this.styleObject, this);
-    this.systems!.events.once('shutdown', this.cleanup, this);
+    // boot() runs once per scene INSTANCE, and Phaser reuses that instance on
+    // every later start. Detaching on 'shutdown' therefore removed the grade,
+    // the vignette and the remastered UI font from every scene after its first
+    // visit — the second battle onward fell back to blocky 1× Courier text.
+    // Only a destroyed scene may drop these listeners.
     this.systems!.events.once('destroy', this.cleanup, this);
   }
 

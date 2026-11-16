@@ -21,9 +21,9 @@ export const SPRITE_SCALE: Record<string, number> = {
   woosa:        1.35,
   woonsa:       1.35,
   // ── Tuned-down designs ──
-  // Stone swift: the former 1.4 value compensated for its old tiny 2D art,
-  // but made the production GLB tower over both battlers and the trainer.
-  disguijar:    0.72,
+  // Stone swift: a small first-form bird. 0.18 over-corrected the old 0.72 and
+  // left a 35px speck in battle; this keeps it clearly small but readable.
+  disguijar:    0.6,
   vipour:       0.6,   // shrink the starter to 60%
   bosongnun:    0.72,  // small snow spirit; keep both GLB and 2D fallback compact
   // ── Big final-stage designs ──
@@ -73,6 +73,10 @@ const NUMERIC_SPECIES_SCALE: Record<number, number> = {
   646: 1.55,  // Kyurem
   699: 1.50,  // Aurorus (아마루르가)
 };
+
+/** Battle-only enlargement requested for Garchomp. Companion sizing continues
+ * to use its Pokédex height and is intentionally unaffected. */
+export const GARCHOMP_BATTLE_MULTIPLIER = 1.5;
 
 /** Real-species height (decimetres), seeded offline and extended when PokéAPI
  *  species are fetched. This keeps official Pokémon at a recognisable relative
@@ -128,6 +132,8 @@ const CUSTOM_STAGE_2D_SCALE: Readonly<Record<number, number>> = {
 };
 
 const BATTLE_2D_OVERRIDES: Readonly<Record<string, number>> = {
+  // Preserve the requested 1.5× enlargement in the non-3D battle fallback.
+  '445': NUMERIC_SPECIES_SCALE[445] * GARCHOMP_BATTLE_MULTIPLIER,
   // The high-resolution fallback has a tall, narrow silhouette and read too
   // small beside the final-stage starter models.
   banderado: 1.44,
@@ -161,14 +167,48 @@ function canonicalSpriteKey(key: string): string {
  * and cap the remaining extremes without changing their 2D UI presentation.
  */
 const BATTLE_3D_SIZE_OVERRIDES: Readonly<Record<string, number>> = {
-  disguijar: 0.72,
+  // Its GLB is 2.3× longer than it is tall, so at the old 0.72 it measured three
+  // world units nose-to-tail; the later 0.18 shrank it to a 35px speck. 0.45
+  // gives the body mass of an ordinary small first-form bird.
+  disguijar: 0.45,
   // The long beak and swept-back wings occupy far more screen width than the
   // model's normalized height suggests. Keep this small first form compact.
   kingfisher: 0.68,
 };
 const COMPANION_3D_HEIGHT_OVERRIDES: Readonly<Record<string, number>> = {
-  disguijar: 0.56,
+  // 돌제비: reduce the current 0.30 follower to exactly one third.
+  // Shape correction is bypassed for explicit overrides, so the final model
+  // really is 0.10 world units tall regardless of its long body proportions.
+  disguijar: 0.1,
   kingfisher: 0.52,
+  // Starter families live in StarterData rather than CustomBattle's stage
+  // table, so state their follower ladder here explicitly.
+  munkain: 0.44,
+  munklift: 0.58,
+  banderado: 0.74,
+  vipour: 0.44,
+  scorpent: 0.58,
+  onnurian: 0.44,
+  onnujang: 0.58,
+  // Exceptional custom silhouettes. These remain imposing while respecting
+  // the street/camera-safe companion ceiling.
+  arctorodon: 1.02,
+  daejangseung: 0.98,
+  hwanwoong: 1.08,
+  nabihalmang: 1.00,
+  cheonjisin: 1.00,
+  poongbaek: 0.92,
+  woosa: 0.92,
+  woonsa: 0.92,
+};
+
+/** Complete baseline for original Pokémon, whose Pokédex entries do not have
+ * canonical real-world heights. Every custom species has one of these stages. */
+const COMPANION_CUSTOM_STAGE_HEIGHT: Readonly<Record<number, number>> = {
+  1: 0.44,
+  2: 0.58,
+  3: 0.74,
+  4: 0.92,
 };
 const COMPANION_3D_YAW_OVERRIDES_DEG: Readonly<Record<string, number>> = {
   // Readable three-quarter presentation instead of a flat side silhouette.
@@ -179,6 +219,72 @@ const COMPANION_3D_YAW_OVERRIDES_DEG: Readonly<Record<string, number>> = {
 };
 export const MAX_BATTLE_3D_SIZE_SCALE = 1.25;
 export const MAX_COMPANION_3D_HEIGHT = 1.08;
+
+/** Official species have Pokédex heights. Compress those measurements so
+ * Caterpie and Wailord remain recognisably different without either vanishing
+ * or blocking a city street. */
+function officialCompanionHeight(heightDm: number): number {
+  const heightM = Math.max(0.1, heightDm / 10);
+  const target = 0.38 + 0.26 * Math.sqrt(heightM);
+  return Math.max(0.38, Math.min(MAX_COMPANION_3D_HEIGHT, target));
+}
+
+/** Posed bounding size of a height-normalized GLB (y ≈ 1). */
+export interface ModelExtent { x: number; y: number; z: number }
+
+// Every GLB is normalized to the same HEIGHT, which is only a fair size
+// reference for upright, compact bodies. A long quadruped, a serpent or a bird
+// with a trailing tail is 2–4× longer than it is tall, so at equal height it
+// filled several times the screen area of its neighbours (a stage-one puppy
+// measured 3.8 world units nose-to-tail beside a 1.8-unit legendary), while
+// pencil-thin upright designs looked undersized. Compare silhouette area
+// instead and pull each model toward the roster's typical footprint.
+const TYPICAL_SILHOUETTE = 0.95;
+const MIN_SHAPE_SCALE = 0.55;
+const MAX_SHAPE_SCALE = 1.12;
+
+/** Size correction for a normalized model's proportions (1 = typical body). */
+export function silhouetteScale(extent: ModelExtent | undefined): number {
+  if (!extent) return 1;
+  const { x, y, z } = extent;
+  if (![x, y, z].every(v => Number.isFinite(v) && v > 0)) return 1;
+  const long = Math.max(x, z);
+  const short = Math.min(x, z);
+  const silhouette = Math.sqrt(y * (0.7 * long + 0.3 * short));
+  if (!(silhouette > 0)) return 1;
+  const scale = TYPICAL_SILHOUETTE / silhouette;
+  return Math.max(MIN_SHAPE_SCALE, Math.min(MAX_SHAPE_SCALE, scale));
+}
+
+// Evolution stage → 3D battle size. Height normalization made a first-form
+// hatchling exactly as tall as a final evolution; these restore the ladder
+// (1 = base, 2 = middle, 3 = final, 4 = legendary).
+const CUSTOM_STAGE_3D_SCALE: Readonly<Record<number, number>> = {
+  1: 0.8,
+  2: 0.93,
+  3: 1.06,
+  4: 1.18,
+};
+
+/** Stage-based 3D size for an original species with no hand-tuned size, or
+ *  undefined when the species is unknown or already individually authored. */
+export function customStage3DScale(key: string | undefined): number | undefined {
+  const canonical = canonicalSpriteKey(key ?? '');
+  if (!canonical || SPRITE_SCALE[canonical] || BATTLE_3D_SIZE_OVERRIDES[canonical] !== undefined) return undefined;
+  const stage = customPokemonStage(canonical);
+  return stage ? CUSTOM_STAGE_3D_SCALE[stage] : undefined;
+}
+
+/** Hand-tuned species keep their authored size; everything else is corrected
+ *  for its proportions once the model's real extent is known. */
+export function battle3DShapeScale(key: string | undefined, extent: ModelExtent | undefined): number {
+  const canonical = canonicalSpriteKey(key ?? '');
+  if (BATTLE_3D_SIZE_OVERRIDES[canonical] !== undefined) return 1;
+  const scale = silhouetteScale(extent);
+  // Species with an authored size multiplier are already as large as intended;
+  // slim ones among them must not be enlarged a second time.
+  return SPRITE_SCALE[canonical] ? Math.min(1, scale) : scale;
+}
 
 export function battle3DSizeScale(key: string | undefined, proposed: number): number {
   const canonical = canonicalSpriteKey(key ?? '');
@@ -192,8 +298,38 @@ export function companion3DTargetHeight(key: string | undefined, proposed: numbe
   const canonical = canonicalSpriteKey(key ?? '');
   const override = COMPANION_3D_HEIGHT_OVERRIDES[canonical];
   if (override !== undefined) return override;
+
+  // All official species bundled for offline play carry a Pokédex height.
+  // Numeric party keys therefore resolve to an explicit species-specific size.
+  if (/^\d+$/.test(canonical)) {
+    const heightDm = SPECIES_HEIGHT_DM.get(Number(canonical));
+    if (heightDm !== undefined) return officialCompanionHeight(heightDm);
+  }
+
+  // Every original species carries an authored body/evolution tier. Unusual
+  // legendary or elongated bodies are handled by the override/shape policies.
+  const stage = customPokemonStage(canonical);
+  if (stage !== undefined) return COMPANION_CUSTOM_STAGE_HEIGHT[stage] ?? 0.58;
+
   const safe = Number.isFinite(proposed) ? proposed : 0.68;
   return Math.max(0.4, Math.min(MAX_COMPANION_3D_HEIGHT, safe));
+}
+
+/** Production audit hook: registered Pokémon must never silently inherit the
+ * generic fallback height. */
+export function hasCompanionSizePolicy(key: string | undefined): boolean {
+  const canonical = canonicalSpriteKey(key ?? '');
+  if (COMPANION_3D_HEIGHT_OVERRIDES[canonical] !== undefined) return true;
+  if (/^\d+$/.test(canonical) && SPECIES_HEIGHT_DM.has(Number(canonical))) return true;
+  return customPokemonStage(canonical) !== undefined;
+}
+
+/** Follower counterpart of battle3DShapeScale: a long-bodied partner walking
+ *  at "knee height" was otherwise longer than the trainer is tall. */
+export function companion3DShapeScale(key: string | undefined, extent: ModelExtent | undefined): number {
+  const canonical = canonicalSpriteKey(key ?? '');
+  if (COMPANION_3D_HEIGHT_OVERRIDES[canonical] !== undefined) return 1;
+  return silhouetteScale(extent);
 }
 
 export function companion3DYawOffset(key: string | undefined): number {

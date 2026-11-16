@@ -553,7 +553,11 @@ export class HallOfFameScene extends Phaser.Scene {
       this.scene.start('NorthernPlazaScene');
       return;
     }
-    this.registry.set('sudoPartyPending', true);
+    // The celebration is staged in Capitol City's plaza, where the returning
+    // cast and lantern party actually exist.  The old sudoPartyPending route
+    // described a city-wide festival over Professor Song's laboratory.
+    this.registry.remove('sudoPartyPending');
+    this.registry.set('northReunionPending', true);
     const capitalX = 24 * 32 + 16, capitalY = 31 * 32 + 16;
     this.registry.set('capitalReturnX', capitalX);
     this.registry.set('capitalReturnY', capitalY);

@@ -25,7 +25,12 @@ export class BreedingTrackerPlugin extends Phaser.Plugins.ScenePlugin {
 
   boot(): void {
     this.systems!.events.on('update', this.track, this);
-    this.systems!.events.once('shutdown', this.cleanup, this);
+    // boot() runs once per scene instance and Phaser reuses the instance on
+    // every later start, so the step listener must survive a shutdown. Removing
+    // it there stopped egg/pedometer steps (and hid the step widget) on every
+    // map the player entered a second time. A shutdown only forgets the
+    // widget objects the scene has just destroyed.
+    this.systems!.events.on('shutdown', this.resetState, this);
     this.systems!.events.once('destroy', this.cleanup, this);
   }
 
@@ -180,6 +185,11 @@ export class BreedingTrackerPlugin extends Phaser.Plugins.ScenePlugin {
 
   private cleanup(): void {
     this.systems!.events.off('update', this.track, this);
+    this.systems!.events.off('shutdown', this.resetState, this);
+    this.resetState();
+  }
+
+  private resetState(): void {
     this.lastX = this.lastY = undefined;
     this.distance = 0;
     this.widgetBg = undefined;

@@ -111,6 +111,7 @@ for (const line of incompleteStoryLines) failures.push(`unfinished player-facing
 const geumgangCity = await fs.readFile(path.join(srcRoot, 'scenes', 'GeumgangCityScene.ts'), 'utf8');
 const geumgangContest = await fs.readFile(path.join(srcRoot, 'scenes', 'GeumgangContestScene.ts'), 'utf8');
 const hwangeumStory = await fs.readFile(path.join(srcRoot, 'systems', 'HwangeumStory.ts'), 'utf8');
+const storyActor = await fs.readFile(path.join(srcRoot, 'systems', 'StoryActor.ts'), 'utf8');
 if (!geumgangCity.includes('playFirstVisitRivalEntrance(cityIntro)')
   || !geumgangCity.includes('markRivalPortrait(rival, this.registry)')) {
   failures.push('Geumgang first-arrival rival can still speak without a visible actor');
@@ -121,6 +122,32 @@ if (!hwangeumStory.includes('walkTo: (targetX, targetY, lookAt, onComplete')) {
 for (const scene of ['Route3Scene', 'Route5Scene', 'JejuVentScene', 'SunriseCityScene']) {
   const source = await fs.readFile(path.join(srcRoot, 'scenes', `${scene}.ts`), 'utf8');
   if (!source.includes('.walkTo(')) failures.push(`${scene} still pops Hwangeum directly onto the dialogue mark`);
+}
+if (!storyActor.includes("kind: 'rival' | 'trainer'")
+  || !storyActor.includes("setData('characterLabelTarget3D', this.graphic)")
+  || !storyActor.includes('walkAway(')) {
+  failures.push('shared story actors no longer synchronize walk-ins, labels and exits across 2D/3D');
+}
+const continuityChecks: Array<[string, string[], string]> = [
+  ['FerryScene', ['bringRivalBeside(', 'dismissRival('], 'ferry Rival speaks without boarding the visible scene'],
+  ['FerryDepartScene', ['spawnStoryActor(', 'this.rivalActor.walkTo('], 'departure Rival speaks over an empty ferry shot'],
+  ['JejuPortScene', ['Your Rival follows you down the gangway', 'rival.walkTo('], 'Jeju arrival omits the Rival from the gangway'],
+  ['BaekduPassScene', ['Rival runs up beside you', 'rival.walkTo('], 'Baekdu pass Rival still pops into the blockade scene'],
+  ['BaekduCheckpointScene', ['drawDefeatedCaptain()', 'Garrison Loudspeaker', 'rival.walkTo('], 'checkpoint speakers are not spatially accounted for'],
+  ['BaekduSummitScene', ['Director Suri stumbles down the path into view', 'suri.walkTo(', 'Prof. Song (comms): You have to SURVIVE', 'nabi.setData(\'creatureModel3DKey\', \'nabihalmang\')'], 'Baekdu summit still has disembodied or teleporting finale speakers'],
+  ['SacredPeakScene', ['sacredPeakRivalArrived', 'rival.walkTo(', 'Jinnok (over comms)'], 'Sacred Peak speakers no longer match their on-screen arrival or location'],
+  ['ScholarsRoadScene', ["!this.registry.get('leagueDoorsOpened')", 'this.rivalActor.walkTo('], 'final Rival disappears before the League send-off'],
+  ['CapitolCityScene', ['playNewsRivalReaction()', 'Professor Song walks across the plaza to meet you'], 'capital story speakers still talk before entering the plaza'],
+];
+for (const [scene, needles, message] of continuityChecks) {
+  const source = await fs.readFile(path.join(srcRoot, 'scenes', `${scene}.ts`), 'utf8');
+  if (!needles.every(needle => source.includes(needle))) failures.push(message);
+}
+const hallOfFame = await fs.readFile(path.join(srcRoot, 'scenes', 'HallOfFameScene.ts'), 'utf8');
+const sudoLab = await fs.readFile(path.join(srcRoot, 'scenes', 'SudoLabScene.ts'), 'utf8');
+if (!hallOfFame.includes("this.registry.set('northReunionPending', true)")
+  || !sudoLab.includes('the Northern League celebration belongs in the')) {
+  failures.push('Northern League victory can still describe the Capitol street party inside the laboratory');
 }
 const entrantDefinitions = [...geumgangContest.matchAll(/key: '(?:jaemin|yuna|sora)'/g)].length;
 if (entrantDefinitions !== 3 || !geumgangContest.includes('const CONTESTANT_COUNT = CONTEST_ENTRANTS.length + 2')) {
@@ -138,7 +165,7 @@ console.log(JSON.stringify({
   safeResumeScenes: safeResume.size,
   staticAssets: staticAssets.size,
   incompleteStoryLines,
-  storyEntrancesChecked: 5,
+  storyEntrancesChecked: 15,
   contestEntrantsChecked: entrantDefinitions + 2,
   failures,
 }, null, 2));

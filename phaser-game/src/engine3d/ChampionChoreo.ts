@@ -2,7 +2,9 @@ import type { ChoreoPose } from './CharacterModel';
 
 // ── Champion Hwangeum's stage routine ────────────────────────────────────────
 // The Golden One is an idol before he is a battler, so he opens a Championship
-// match the way he opens a show: a short dance, then the ball.
+// match with two restrained stage gestures, then the ball. Keeping his feet,
+// torso and facing planted prevents the old full-body dance from vibrating as
+// different animation systems competed for the same rig.
 //
 // The track is TIME-keyed rather than beat-indexed, because a throw is not
 // evenly spaced. Real throwing motion is slow to gather, explosively fast
@@ -28,20 +30,14 @@ type Ease = 'smooth' | 'snap' | 'settle';
 interface Key { t: number; ease?: Ease; pose: ChoreoPose }
 
 const KEYS: Key[] = [
-  // ── dance: eight beats at 150bpm ──
+  // ── simple stage gestures: fixed feet, no hops or spins ──
   { t: 0.00, pose: { armLX: 0.05, armRX: -0.05, elbowL: -0.12, elbowR: -0.12 } },
-  // right arm punches up on the diagonal, hop off the floor
-  { t: 0.40, pose: { armRX: -2.5, armRZ: -0.55, elbowR: -0.2, armLX: 0.5, armLZ: 0.3, elbowL: -0.5, hop: 0.09, torsoTwist: -0.22, headTurn: -0.3 } },
-  // both arms cut down and across, body twists open
-  { t: 0.80, pose: { armLX: -0.9, armLZ: 0.85, elbowL: -0.7, armRX: -0.6, armRZ: -0.95, elbowR: -0.7, torsoTwist: 0.3, torsoTilt: 0.12, headTurn: 0.25 } },
-  // crossed-chest hold
-  { t: 1.20, pose: { armLX: -1.5, armLZ: -0.7, elbowL: -1.5, armRX: -1.35, armRZ: 0.62, elbowR: -1.5, torsoTilt: -0.1, headTilt: 0.22, legLX: 0.18 } },
-  // body roll, arms sweep wide
-  { t: 1.60, pose: { armLX: 0.4, armLZ: 1.25, elbowL: -0.35, armRX: 0.4, armRZ: -1.25, elbowR: -0.35, hop: 0.04 } },
-  // step-touch left
-  { t: 2.00, pose: { armLX: -0.35, armLZ: 0.5, elbowL: -0.9, armRX: -1.1, armRZ: -0.35, elbowR: -1.1, legLX: 0.42, legRX: -0.2, torsoTwist: -0.28, spin: -0.18 } },
-  // mirror, sharper
-  { t: 2.40, pose: { armLX: -1.1, armLZ: 0.35, elbowL: -1.1, armRX: -0.35, armRZ: -0.5, elbowR: -0.9, legLX: -0.2, legRX: 0.42, torsoTwist: 0.28, spin: 0.18 } },
+  // A measured one-arm salute, then back to neutral.
+  { t: 0.60, pose: { armRX: -1.35, armRZ: -0.28, elbowR: -0.45, armLX: 0.12, elbowL: -0.18, headTurn: -0.08 } },
+  { t: 1.05, pose: { armLX: 0.05, armRX: -0.05, elbowL: -0.12, elbowR: -0.12 } },
+  // Open both arms to the audience, then settle before the throw.
+  { t: 1.65, pose: { armLX: -0.38, armLZ: 0.72, elbowL: -0.28, armRX: -0.38, armRZ: -0.72, elbowR: -0.28 } },
+  { t: 2.15, pose: { armLX: 0.05, armRX: -0.05, elbowL: -0.12, elbowR: -0.12 } },
 
   // ── the throw ──
   // The battle camera sits almost on the line he throws along, so a throw aimed
@@ -112,12 +108,6 @@ export function sampleChampionIntro(t: number, prevT: number): {
     const av = a.pose[f] ?? 0, bv = b.pose[f] ?? 0;
     if (av !== 0 || bv !== 0) pose[f] = av + (bv - av) * k;
   }
-  // A continuous micro-bounce keeps him breathing between the hard poses, but
-  // it is suppressed through the throw so the whip stays clean.
-  if (t < BALL_APPEARS) {
-    pose.hop = (pose.hop ?? 0) + Math.abs(Math.sin((t / 0.4) * Math.PI)) * 0.012;
-  }
-
   return {
     pose,
     release: prevT < RELEASE_T && t >= RELEASE_T,

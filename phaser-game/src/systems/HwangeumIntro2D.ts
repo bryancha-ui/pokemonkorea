@@ -6,7 +6,7 @@ import Phaser from 'phaser';
 // different drawing from the champion the rest of the game shows you.
 //
 // So the entrance is now hand-posed 2D artwork of the same character — a standing
-// pose, four idol-dance beats, and five throwing frames — swapped through on the
+// pose, two restrained stage gestures, and five throwing frames — swapped through on the
 // battle portrait itself, the way a sprite-sheet character has always worked.
 //
 // Every frame is generated from the same reference portrait, so the face, the
@@ -28,12 +28,6 @@ export const HWANGEUM_FRAMES = {
   throw3: 'hw2d_throw3',
   throw4: 'hw2d_throw4',
   throw5: 'hw2d_throw5',
-  // AI-generated in-betweens for the dance→throw handoff (see
-  // scripts/install-champion-inbetweens.mjs). OPTIONAL: absent files simply never
-  // load, and the routine below drops them from the beat list, so the animation
-  // still plays exactly as before.
-  toThrow1: 'hw2d_to_throw1',
-  toThrow2: 'hw2d_to_throw2',
 } as const;
 
 const FILES: Record<string, string> = {
@@ -49,20 +43,12 @@ const FILES: Record<string, string> = {
   [HWANGEUM_FRAMES.throw5]: DIR + 'hw_throw5.png',
 };
 
-/** Frames the routine can use but does not require. */
-const OPTIONAL_FILES: Record<string, string> = {
-  [HWANGEUM_FRAMES.toThrow1]: DIR + 'hw_dance_to_throw1.png',
-  [HWANGEUM_FRAMES.toThrow2]: DIR + 'hw_dance_to_throw2.png',
-};
-
 /** Queue every frame. Safe to call in any scene's preload; already-present
- *  textures are skipped, and a missing file simply leaves that key absent. */
+ *  textures are skipped. */
 export function preloadHwangeumFrames(scene: Phaser.Scene): void {
-  for (const [key, url] of Object.entries({ ...FILES, ...OPTIONAL_FILES })) {
+  for (const [key, url] of Object.entries(FILES)) {
     if (!scene.textures.exists(key)) scene.load.image(key, url);
   }
-  // A missing optional frame must not fail the whole load queue.
-  scene.load.once(Phaser.Loader.Events.FILE_LOAD_ERROR, () => { /* optional */ });
 }
 
 /** True once every frame is resident, i.e. the 2D routine can actually play. */
@@ -75,21 +61,18 @@ interface Beat { key: string; hold: number; dx?: number; dy?: number; tilt?: num
 /**
  * The routine, as (frame, hold-in-ms) pairs.
  *
- * The dance is deliberately built out of HOLDS rather than an even frame rate:
- * idol choreography hits a shape and stops on it, and reading a pose is what
- * makes four drawings look like dancing. `dx/dy/tilt` add the weight shift the
- * still frames cannot show — a few pixels of travel per beat, no more.
+ * Keep the Champion planted on one stage mark. The former routine combined
+ * rapid texture swaps, per-frame sway, translation and rotation; the 3D anchor
+ * then re-seated that moving portrait every frame, which read as violent jitter.
+ * Two long, readable gestures retain his performer character without moving the
+ * portrait's feet or centre point.
  */
 const DANCE: Beat[] = [
+  { key: HWANGEUM_FRAMES.stand,  hold: 300 },
+  { key: HWANGEUM_FRAMES.dance1, hold: 600 },
   { key: HWANGEUM_FRAMES.stand,  hold: 260 },
-  { key: HWANGEUM_FRAMES.dance1, hold: 240, dy: -6, tilt: -0.03 },
-  { key: HWANGEUM_FRAMES.dance2, hold: 200, dy: 4, tilt: 0.02 },
-  { key: HWANGEUM_FRAMES.dance3, hold: 240, dx: 7, tilt: 0.04 },
-  { key: HWANGEUM_FRAMES.dance1, hold: 190, dy: -5, tilt: -0.03 },
-  { key: HWANGEUM_FRAMES.dance4, hold: 280, dx: -6, tilt: -0.02 },
-  { key: HWANGEUM_FRAMES.dance2, hold: 200, dy: 4, tilt: 0.02 },
-  { key: HWANGEUM_FRAMES.dance3, hold: 220, dx: 7, tilt: 0.04 },
-  { key: HWANGEUM_FRAMES.stand,  hold: 220 },
+  { key: HWANGEUM_FRAMES.dance4, hold: 600 },
+  { key: HWANGEUM_FRAMES.stand,  hold: 520 },
 ];
 
 /**
@@ -107,18 +90,6 @@ const THROW: (Beat & { release?: boolean })[] = [
   { key: HWANGEUM_FRAMES.stand,  hold: 200 },
 ];
 
-/**
- * The dance→throw handoff. Two very different drawings used to sit back to back
- * here; these connective frames were generated from the two keyframes themselves
- * (Higgsfield kling3_0, chroma-keyed and aligned by
- * scripts/install-champion-inbetweens.mjs), so they match the authored art.
- * Short holds: they carry the motion, they are not poses to read.
- */
-const BRIDGE: Beat[] = [
-  { key: HWANGEUM_FRAMES.toThrow1, hold: 110, dy: -3, tilt: 0.01 },
-  { key: HWANGEUM_FRAMES.toThrow2, hold: 120, dx: -5, dy: -2, tilt: 0.04 },
-];
-
 export interface HwangeumIntroOptions {
   /** Fired on the frame the ball leaves his hand. */
   onRelease?: () => void;
@@ -129,17 +100,12 @@ export interface HwangeumIntroOptions {
 }
 
 /** Total wall-clock length of the routine, for callers that need to time around it. */
-/** Assumes the optional bridge frames are installed, which they are in this
- *  build. The routine itself never relies on these constants — it fires
- *  onRelease/onDone on the real beat — so a missing frame cannot desynchronise
- *  the ball; it only makes these two numbers 230 ms long. */
 export const HWANGEUM_INTRO_MS =
   DANCE.reduce((n, b) => n + b.hold, 0)
-  + BRIDGE.reduce((n, b) => n + b.hold, 0)
   + THROW.reduce((n, b) => n + b.hold, 0);
 /** When the ball leaves his hand, measured from the start of the routine. */
 export const HWANGEUM_RELEASE_MS = (() => {
-  let t = DANCE.reduce((n, b) => n + b.hold, 0) + BRIDGE.reduce((n, b) => n + b.hold, 0);
+  let t = DANCE.reduce((n, b) => n + b.hold, 0);
   for (const beat of THROW) {
     if (beat.release) return t;
     t += beat.hold;
@@ -156,128 +122,55 @@ export function playHwangeumIntro(
   portrait: Phaser.GameObjects.Image,
   options: HwangeumIntroOptions = {},
 ): () => void {
-  // The widest gap in the routine is the last dance beat handing over to the
-  // throw wind-up: two very different drawings, back to back. Where generated
-  // in-betweens are installed they are spliced in there, turning one jump into
-  // three smaller ones. Each is a short hold — they are connective tissue, not
-  // poses to read.
-  const bridge = BRIDGE.filter(b => scene.textures.exists(b.key));
-  const beats = [...DANCE, ...bridge, ...THROW];
+  const beats = [...DANCE, ...THROW];
   const homeX = portrait.x, homeY = portrait.y, homeAngle = portrait.angle;
-  // The weight shift is published as an OFFSET, not as an absolute position. In
-  // 3D the battle mirror pins this portrait to the arena anchor every frame, so
-  // anything written straight to x/y is overwritten before it is drawn; the pin
-  // reads these two data keys and adds them. With 3D off nothing is pinned, so
-  // the same numbers are applied here directly.
   const off = { dx: 0, dy: 0 };
-  let ghost: Phaser.GameObjects.Image | undefined;
-  // A slow figure-of-eight added on top of the pose offsets. Ten drawings cannot
-  // fill a 420 ms hold on their own, and a body that is perfectly still between
-  // beats is what reads as "stuck" — this keeps him alive through every hold
-  // without competing with the beat's own accent.
-  const sway = { t: 0 };
   const publish = () => {
-    const sx = Math.sin(sway.t * 1.9) * 1.8;
-    const sy = Math.sin(sway.t * 2.7 + 1.1) * 1.2;
-    portrait.setData('pin2DOffsetX', off.dx + sx);
-    portrait.setData('pin2DOffsetY', off.dy + sy);
-    portrait.setPosition(homeX + off.dx + sx, homeY + off.dy + sy);
-    // The blend layer is pinned by the same mirror pass, so it must publish the
-    // same offset — otherwise the mirror re-seats it on the bare anchor and the
-    // two drawings drift apart by the sway amount mid-dissolve.
-    if (ghost?.scene) {
-      ghost.setData('pin2DOffsetX', off.dx + sx);
-      ghost.setData('pin2DOffsetY', off.dy + sy);
-      ghost.setPosition(portrait.x, portrait.y);
-    }
-  };
-
-  // ── Cross-dissolve layer ──────────────────────────────────────────────────
-  // The outgoing drawing is held on a ghost image ABOVE the portrait and faded
-  // out while the portrait already shows the incoming one. Blending on the ghost
-  // rather than the portrait means the portrait's own alpha is never touched, so
-  // a scene-level fade of the champion still behaves normally.
-  //
-  // The ghost carries the same pin tags, so the 3D mirror seats it on the exact
-  // same anchor as the portrait instead of leaving it behind at a stale spot.
-  const anchorSide = portrait.getData?.('battleTrainer2DAnchor');
-  try {
-    ghost = scene.add.image(portrait.x, portrait.y, portrait.texture.key)
-      .setOrigin(portrait.originX, portrait.originY)
-      .setDisplaySize(portrait.displayWidth, portrait.displayHeight)
-      .setDepth((portrait.depth ?? 0) + 0.01)
-      .setScrollFactor(portrait.scrollFactorX, portrait.scrollFactorY)
-      .setAlpha(0);
-    ghost.setData('no3d', true);
-    if (anchorSide) ghost.setData('battleTrainer2DAnchor', anchorSide);
-  } catch { ghost = undefined; }
-
-  /** Fade the previous pose out over the incoming one. */
-  const dissolve = (fromKey: string, fromW: number, fromH: number, fromAngle: number, ms: number) => {
-    if (!ghost || !ghost.scene) return;
-    ghost.setTexture(fromKey);
-    ghost.setDisplaySize(fromW, fromH);
-    ghost.setAngle(fromAngle);
-    ghost.setAlpha(portrait.alpha);
-    scene.tweens.add({
-      targets: ghost, alpha: 0, duration: ms, ease: 'Sine.InOut',
-      onUpdate: () => {
-        if (!ghost?.scene) return;
-        // Follow the portrait so the two stay registered while blending, and
-        // never exceed the portrait's own opacity.
-        ghost.setPosition(portrait.x, portrait.y);
-        ghost.setAlpha(Math.min(ghost.alpha, portrait.alpha));
-      },
-    });
+    portrait.setData('pin2DOffsetX', off.dx);
+    portrait.setData('pin2DOffsetY', off.dy);
+    portrait.setPosition(homeX + off.dx, homeY + off.dy);
   };
 
   let cancelled = false;
   let timer: Phaser.Time.TimerEvent | undefined;
+  let offsetTween: Phaser.Tweens.Tween | undefined;
+  let angleTween: Phaser.Tweens.Tween | undefined;
   let index = 0;
-  const swayTick = (_t: number, delta: number) => {
-    if (cancelled) return;
-    sway.t += delta / 1000;
-    publish();
-  };
-  scene.events.on(Phaser.Scenes.Events.UPDATE, swayTick);
 
-  /** Detach the per-frame sway and drop the blend layer. Safe to call twice. */
+  /** Stop only motion created by this routine; portrait alpha fades belong to
+   *  the battle scene and must remain untouched. */
   const cleanup = () => {
-    scene.events.off(Phaser.Scenes.Events.UPDATE, swayTick);
-    if (ghost) {
-      scene.tweens.killTweensOf(ghost);
-      if (ghost.scene) ghost.destroy();
-      ghost = undefined;
-    }
+    offsetTween?.stop();
+    angleTween?.stop();
+    offsetTween = undefined;
+    angleTween = undefined;
   };
 
   const step = () => {
     if (cancelled || !portrait.scene) return;
     const beat = beats[index] as Beat & { release?: boolean };
-    // Capture the outgoing pose before switching, so it can be dissolved out.
-    const prevKey = portrait.texture.key;
-    const prevW = portrait.displayWidth, prevH = portrait.displayHeight;
-    const prevAngle = portrait.angle;
+    cleanup();
     portrait.setTexture(beat.key);
     options.onFrame?.(beat.key);
-    // Blend proportionally to the beat, capped: long holds get a soft dissolve,
-    // while the 90 ms elbow-lead and release frames keep their snap.
-    if (index > 0) dissolve(prevKey, prevW, prevH, prevAngle, Math.min(150, Math.max(40, beat.hold * 0.5)));
-    // Snap most of the way to the pose, then ease the rest across the hold.
-    // Snapping is what gives the dance its attack; easing is what stops four
-    // drawings from reading as a slideshow.
-    off.dx = (beat.dx ?? 0) * 0.4;
-    off.dy = (beat.dy ?? 0) * 0.4;
-    publish();
-    portrait.setAngle(homeAngle + Phaser.Math.RadToDeg(beat.tilt ?? 0) * 0.4);
-    scene.tweens.add({
-      targets: off, dx: beat.dx ?? 0, dy: beat.dy ?? 0,
-      duration: Math.max(60, beat.hold * 0.8), ease: 'Sine.Out', onUpdate: publish,
-    });
-    scene.tweens.add({
-      targets: portrait, angle: homeAngle + Phaser.Math.RadToDeg(beat.tilt ?? 0),
-      duration: Math.max(60, beat.hold * 0.8), ease: 'Sine.Out',
-    });
+    // Dance beats have no dx/dy/tilt, so they stay perfectly fixed. Only the
+    // deliberate throw follows through by a few pixels.
+    const targetDx = beat.dx ?? 0;
+    const targetDy = beat.dy ?? 0;
+    const targetAngle = homeAngle + Phaser.Math.RadToDeg(beat.tilt ?? 0);
+    if (targetDx === 0 && targetDy === 0 && targetAngle === homeAngle) {
+      off.dx = 0; off.dy = 0;
+      publish();
+      portrait.setAngle(homeAngle);
+    } else {
+      offsetTween = scene.tweens.add({
+        targets: off, dx: targetDx, dy: targetDy,
+        duration: Math.max(60, beat.hold * 0.8), ease: 'Sine.Out', onUpdate: publish,
+      });
+      angleTween = scene.tweens.add({
+        targets: portrait, angle: targetAngle,
+        duration: Math.max(60, beat.hold * 0.8), ease: 'Sine.Out',
+      });
+    }
     if (beat.release) options.onRelease?.();
 
     index++;

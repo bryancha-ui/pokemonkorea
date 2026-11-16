@@ -152,10 +152,10 @@ export class ForestCityScene extends Phaser.Scene {
         this.cutsceneActive = true;
         this.dialog.show([
           "Your Pokédex buzzes — it's Professor Song.",
-          "Prof. Song: The Ancient Keeper Badge — your fifth. Well done. But drop everything and come back to 소올 (So-ol).",
-          "Prof. Song: I've pieced together what Team Suri and 노스단 are really after. You need to hear this in person.",
-          "Prof. Song: Heal your team at the Pokémon Center first, then come to my lab — you'll want to be at full strength.",
-          "Rival: I'll meet you at the lab. Let's move.",
+          "Prof. Song (over the Pokédex): The Ancient Keeper Badge — your fifth. Well done. But drop everything and come back to 소올 (So-ol).",
+          "Prof. Song (over the Pokédex): I've pieced together what Team Suri and 노스단 are really after. You need to hear this in person.",
+          "Prof. Song (over the Pokédex): Heal your team at the Pokémon Center first, then come to my lab — you'll want to be at full strength.",
+          "Rival (joining the Pokédex call): I'll meet you at the lab. Let's move.",
         ], () => {
           // Arrive in 소올 just south of Professor Song's lab door (col 56 / row 13).
           this.registry.set('capitalReturnX', 56 * 32 + 16);
@@ -170,7 +170,7 @@ export class ForestCityScene extends Phaser.Scene {
         this.cutsceneActive = true;
         this.dialog.show([
           "Your Pokédex chirps — Professor Song checking in.",
-          "Prof. Song: The Ancient Keeper Badge is yours — well done. The road climbs north from Forest City, up Route 6 to Dolmoe City. Keep pressing on.",
+          "Prof. Song (over the Pokédex): The Ancient Keeper Badge is yours — well done. The road climbs north from Forest City, up Route 6 to Dolmoe City. Keep pressing on.",
         ], () => { this.cutsceneActive = false; });
       });
     } else if (!this.registry.get('forestVisited')) {

@@ -4,6 +4,7 @@ import { makeFerry, makeWater } from '../engine3d/Props';
 import { DialogBox } from '../ui/DialogBox';
 import { playBgm } from '../systems/Music';
 import { tr } from '../systems/i18n';
+import { StoryActor, spawnStoryActor } from '../systems/StoryActor';
 
 // ── Ferry departure cinematic ────────────────────────────────────────────────
 // A short, non-interactive 3D cutscene: the overnight 남해 연락선 casts off from
@@ -26,11 +27,12 @@ export class FerryDepartScene extends Phaser.Scene {
   private spaceKey!: Phaser.Input.Keyboard.Key;
   private elapsed = 0;
   private leaving = false;
+  private rivalActor?: StoryActor;
 
   constructor() { super('FerryDepartScene'); }
 
   create() {
-    this.elapsed = 0; this.leaving = false;
+    this.elapsed = 0; this.leaving = false; this.rivalActor = undefined;
     this.input.keyboard?.resetKeys();
     (this.cameras.main as unknown as { transparent: boolean }).transparent = true;
     this.cameras.main.setBackgroundColor('rgba(0,0,0,0)');
@@ -49,11 +51,22 @@ export class FerryDepartScene extends Phaser.Scene {
     playBgm(this, 'ferrydusk');
 
     this.spaceKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
-    this.dialog.show([
-      tr('🌅 The overnight ferry casts off from Haean Harbour, bound across the dark strait for Jeju.'),
-      tr("Rival: A whole ocean between us and the mainland now. No turning back from here."),
-      tr("Rival: The old Grandmother's shrine, the vents, all of it — out there in the dark. Let's go meet it."),
-    ], () => this.finish());
+    // The speaking Rival crosses into frame before their first line.  This is a
+    // Phaser overlay because the cinematic camera views the ferry from offshore.
+    const targetX = this.scale.width * 0.80, targetY = this.scale.height * 0.52;
+    this.rivalActor = spawnStoryActor(this, this.registry, {
+      kind: 'rival', x: this.scale.width + 50, y: targetY, facing: 2, depth: 45,
+      lookAt: { x: this.scale.width * 0.62, y: targetY },
+    });
+    this.rivalActor.walkTo(targetX, targetY, {
+      lookAt: { x: this.scale.width * 0.62, y: targetY },
+      duration: 850,
+      onComplete: () => this.dialog.show([
+        tr('🌅 The overnight ferry casts off from Haean Harbour, bound across the dark strait for Jeju.'),
+        tr("Rival: A whole ocean between us and the mainland now. No turning back from here."),
+        tr("Rival: The old Grandmother's shrine, the vents, all of it — out there in the dark. Let's go meet it."),
+      ], () => this.finish()),
+    });
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.cleanup());
     this.events.once(Phaser.Scenes.Events.DESTROY, () => this.cleanup());
@@ -254,6 +267,7 @@ export class FerryDepartScene extends Phaser.Scene {
     });
     this.gl?.dispose();
     this.canvas?.parentElement?.removeChild(this.canvas);
+    this.rivalActor?.destroy();
     this.gl = undefined; this.canvas = undefined; this.tscene = undefined;
     this.cam = undefined; this.ferry = undefined; this.water = undefined; this.wake = undefined;
   }

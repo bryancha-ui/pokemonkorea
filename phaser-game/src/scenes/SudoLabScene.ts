@@ -97,29 +97,18 @@ export class SudoLabScene extends Phaser.Scene {
     const rivalDone = !!this.registry.get('trainerDefeated_rival-3');
     const partyPending = !!this.registry.get('sudoPartyPending');
     if (partyPending) {
-      // Northern League victory celebration party
+      // Legacy-save recovery: the Northern League celebration belongs in the
+      // Capitol plaza, not inside this laboratory. Hand control back without
+      // playing the old off-screen city-party dialogue here.
       this.busy = true;
       this.registry.remove('sudoPartyPending');
-      this.registry.set('sudoPartyDone', true);
-      // This IS the post-league celebration — skip the alternate Capitol reunion party
-      // so the player heads straight for the Ancient Altar shortcut to the Sacred Peak.
-      this.registry.set('northReunionSeen', true);
-      SaveManager.save(this.registry, 0, 0, 'SudoLabScene');
-      this.dialog.show([
-        'The Northern League throws a party in your honour — the whole city out in the streets, cheering the Champion who united north and south.',
-        'Rival: I never thought anyone would beat Taewang. But it\'s you — so of course you did.',
-        '📟 Then, mid-celebration, your Pokédex screams an alarm. Prof. Song\'s face drains of colour.',
-        'Prof. Song: It\'s 노스단. They\'re moving on the Onseong Mountains — RIGHT NOW — racing to reach 환웅 (Hwanung), the Sovereign Who Descended, before anyone can stop them.',
-        'Prof. Song: They\'ve sealed the whole range behind their lines. But there is another way in — the 고대 제단 (Ancient Altar) opens a hidden stair straight to the Sacred Peak.',
-        'Rival: The party can wait. Go — we\'ll hold things here. Beat them to the top, Champion!',
-        '🎉 The music fades behind you as you race for the Onseong Mountains...',
-      ], () => {
-        this.busy = false;
-        this.cameras.main.fadeOut(500, 0, 0, 0, () => {
-          this.registry.set('capitalReturnX', 24 * 32 + 16);
-          this.registry.set('capitalReturnY', 31 * 32 + 16);
-          this.scene.start('CapitolCityScene');
-        });
+      this.registry.set('northReunionPending', true);
+      const capitalX = 24 * 32 + 16, capitalY = 31 * 32 + 16;
+      this.registry.set('capitalReturnX', capitalX);
+      this.registry.set('capitalReturnY', capitalY);
+      SaveManager.save(this.registry, capitalX, capitalY, 'CapitolCityScene');
+      this.cameras.main.fadeOut(450, 0, 0, 0, () => {
+        this.scene.start('CapitolCityScene');
       });
       return;
     }

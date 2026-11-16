@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import {
-  battle3DSizeScale, companion3DTargetHeight,
+  battle2DSpriteScale, battle3DSizeScale, companion3DTargetHeight, GARCHOMP_BATTLE_MULTIPLIER,
   MAX_BATTLE_3D_SIZE_SCALE, MAX_COMPANION_3D_HEIGHT,
 } from '../src/data/SpriteScale';
 
@@ -22,6 +22,8 @@ const battlePokemonSprite = readFileSync('src/systems/BattlePokemonSprite.ts', '
 const pokemonLeague = readFileSync('src/scenes/PokemonLeagueScene.ts', 'utf8');
 const postBattleRewards = readFileSync('src/systems/PostBattleRewards.ts', 'utf8');
 const postBattleRewardScene = readFileSync('src/scenes/PostBattleRewardScene.ts', 'utf8');
+const hwangeumIntro2D = readFileSync('src/systems/HwangeumIntro2D.ts', 'utf8');
+const championChoreo = readFileSync('src/engine3d/ChampionChoreo.ts', 'utf8');
 const main = readFileSync('src/main.ts', 'utf8');
 const modelManifest = JSON.parse(readFileSync('public/assets/models3d/manifest.json', 'utf8')) as {
   models?: Array<string | { key: string; rotY?: number }>;
@@ -82,8 +84,16 @@ expect(/skinned\s*\|\|\s*src\.animations\.length\s*\?\s*skeletonClone\(src\.grou
   'skinned battle models can still share cached skeletons and ignore their battle anchor');
 expect(battleMirror.includes("'510': 1.65"),
   'Liepard lost its low-silhouette battle size correction');
+expect(battleMirror.includes("'445': (spriteScale('445') / 1.15) * GARCHOMP_BATTLE_MULTIPLIER"),
+  'Garchomp lost its 1.5× 3D battle enlargement');
+expect(Math.abs(battle2DSpriteScale('enemy-445') - 1.45 * GARCHOMP_BATTLE_MULTIPLIER * 1.1) < 0.0001,
+  'Garchomp lost its 1.5× 2D battle enlargement');
 expect(battleMirror.includes("'95': 90"),
   'Onix lost its -X to +Z battle-facing correction');
+expect(battleMirror.includes("'730': 35"),
+  'Primarina lost its three-quarter battle presentation');
+expect(battleMirror.includes('chattyscream: 30'),
+  'Chatty Scream lost its three-quarter battle presentation');
 expect(/cameraFacingYaw\(cb\.holder\) \+ battleYawOffset/.test(battleMirror),
   'enemy camera tracking overwrites species-specific battle yaw corrections');
 const balchataek = modelManifest.models?.find(entry => typeof entry !== 'string' && entry.key === 'balchataek');
@@ -98,10 +108,10 @@ expect(glbModels.includes("const MANIFEST_VERSION = '2026-11-01a'"),
 // Production GLBs must not inherit obsolete enlargement values from old 2D
 // artwork. Disguijar is a small stone swift; other intentional giants retain
 // relative presence but are capped before they can cover the arena or trainer.
-expect(battle3DSizeScale('enemy-disguijar', 1.4) === 0.72,
-  'Disguijar is still oversized in 3D battles');
-expect(companion3DTargetHeight('owned-disguijar', 1.2) === 0.56,
-  'Disguijar is still oversized as the lead companion');
+expect(battle3DSizeScale('enemy-disguijar', 1.4) === 0.45,
+  'Disguijar lost its small but readable 3D battle presentation');
+expect(companion3DTargetHeight('owned-disguijar', 1.2) === 0.1,
+  'Disguijar companion is not one third of its former 0.30 height');
 expect(battle3DSizeScale('enemy-kingfisher', 1) === 0.68,
   'Kingfisher is still oversized in 3D battles');
 expect(companion3DTargetHeight('owned-kingfisher', 0.9) === 0.52,
@@ -184,6 +194,20 @@ expect(existsSync('public/assets/dex/kkaakdang.png'),
   "Champion Hwangeum's Kkaakdang 2D asset is missing");
 expect(existsSync('public/assets/models3d/kkaakdang.glb'),
   "Champion Hwangeum's Kkaakdang 3D asset is missing");
+expect(!hwangeumIntro2D.includes('swayTick')
+  && !hwangeumIntro2D.includes('Phaser.Scenes.Events.UPDATE')
+  && !hwangeumIntro2D.includes('dissolve('),
+  "Champion Hwangeum's 2D intro reintroduced per-frame sway or overlapping dissolves");
+expect(hwangeumIntro2D.includes('{ key: HWANGEUM_FRAMES.dance1, hold: 600 }')
+  && hwangeumIntro2D.includes('{ key: HWANGEUM_FRAMES.dance4, hold: 600 }')
+  && hwangeumIntro2D.includes('const beats = [...DANCE, ...THROW]'),
+  "Champion Hwangeum's fixed-foot two-gesture intro was replaced by rapid dance cuts");
+expect(championChoreo.includes('fixed feet, no hops or spins')
+  && !championChoreo.includes('pose.hop = (pose.hop ?? 0)'),
+  "Champion Hwangeum's 3D fallback reintroduced continuous hopping");
+expect(!battleMirror.includes('w.mixer?.update(dt)')
+  && !battleMirror.includes('this.rig.addShake(0.35)'),
+  "Champion Hwangeum's intro reintroduced GLB root motion or camera shake");
 
 // Badges and TMs used to be presented while the battle UI was still active.
 // Both the bespoke Shadow Gym battle and the shared leader battle flow must
@@ -215,11 +239,13 @@ console.log(JSON.stringify({
   signatureMoveEffectsChecked: 3,
   anchoredSpeciesChecked: 3,
   speciesPresentationFixesChecked: 4,
+  garchompBattleScaleChecks: 2,
   modelSizePoliciesChecked: 7,
   sharedModelOwnersChecked: 5,
   forcedReplacementFlowsChecked: 4,
   speciesSafeBattleFlowsChecked: 4,
   championKkaakdangAssetsChecked: 2,
+  championIntroStabilityChecks: 4,
   postBattleRewardFlowsChecked: 2,
   failures,
 }, null, 2));

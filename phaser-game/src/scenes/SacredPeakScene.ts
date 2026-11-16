@@ -10,6 +10,7 @@ import { drawTrainerBody, drawNpcBody, playerDesign, rivalDesign, rivalTrainerNa
 import { markRivalPortrait, markTrainerPortrait } from '../data/BattlePortraits';
 import { playHwanungEntranceVideo, preloadHwanungEntranceVideo } from '../systems/HwanungEntranceVideo';
 import { migrateLegacyCheonjiCapture } from '../systems/StoryMigrations';
+import { spawnStoryActor } from '../systems/StoryActor';
 
 // ── POST-GAME II — The Sacred Northern Peak (finale) ─────────────────────────────
 // The climb to Hwanung's descent-point. Three sealed shrines each hold one of the
@@ -147,7 +148,7 @@ export class SacredPeakScene extends Phaser.Scene {
         this.cutsceneActive = true;
         this.dialog.show([
           'The Ancient Altar\'s hidden stair delivers you to a realm above the clouds. Three sealed shrines rise along the ridge to the Sacred Peak, where the oldest myth says the heavens once touched the earth.',
-          '어사대장 Jinnok: 노스단 is already climbing. Reach the Wind, the Rain and the Clouds before they do. I\'ll hold the lower wards and heal you as you pass. Go, Champion.',
+          '어사대장 Jinnok: 노스단 is already climbing. Reach the Wind, the Rain and the Clouds before they do. I\'ll coordinate the lower wards from the altar and heal you over comms as you pass. Go, Champion.',
         ], () => { this.cutsceneActive = false; });
       });
     }
@@ -238,17 +239,22 @@ export class SacredPeakScene extends Phaser.Scene {
     // her model existed but was clipped by the left edge in the 3D view.
     npc(8, 9, 0xf0f0f0, 0x553311, 'Prof. Song', '#cfe3ff', 'prof-song');
 
-    const rivalX = 12.5 * TILE + 16;
-    const rivalY = 8.5 * TILE + 16;
-    const rival = this.add.graphics().setPosition(rivalX, rivalY).setDepth(8);
-    drawTrainerBody(rival, 1, 0, rivalDesign(this.registry));
-    markRivalPortrait(rival, this.registry);
-    rival.setData('characterLookAt3D', { x: altarX, y: altarY });
-    this.add.text(rivalX, rivalY - TILE, rivalTrainerName(this.registry), {
-      fontSize: '8px', color: '#9ad0ff', backgroundColor: '#00000099', padding: { x: 2, y: 1 }, align: 'center',
-    }).setOrigin(0.5).setDepth(9)
-      .setData('characterLabel3D', true)
-      .setData('characterLabelTarget3D', rival);
+    // On the first climb the Rival is still pursuing 노스단 and physically
+    // runs into the confrontation below.  After the sovereign battle, scene
+    // re-entry restores them here beside the altar for the capture and ending.
+    if (this.registry.get('sacredPeakRivalArrived') || this.defeated(SOVEREIGN.key)) {
+      const rivalX = 12.5 * TILE + 16;
+      const rivalY = 8.5 * TILE + 16;
+      const rival = this.add.graphics().setPosition(rivalX, rivalY).setDepth(8);
+      drawTrainerBody(rival, 1, 0, rivalDesign(this.registry));
+      markRivalPortrait(rival, this.registry);
+      rival.setData('characterLookAt3D', { x: altarX, y: altarY });
+      this.add.text(rivalX, rivalY - TILE, rivalTrainerName(this.registry), {
+        fontSize: '8px', color: '#9ad0ff', backgroundColor: '#00000099', padding: { x: 2, y: 1 }, align: 'center',
+      }).setOrigin(0.5).setDepth(9)
+        .setData('characterLabel3D', true)
+        .setData('characterLabelTarget3D', rival);
+    }
 
     // Once the three attendants have been gathered, keep their world-space
     // forms around the altar as the living chorus that calls Hwanung down.
@@ -370,7 +376,7 @@ export class SacredPeakScene extends Phaser.Scene {
         this.cutsceneActive = true;
         this.dialog.show([
           `A 노스단 squad has forced the ward, nets and cables trained on the thrashing spirit of ${s.name.split(' — ')[0]}.`,
-          '어사대장 Jinnok: They\'re here. I\'ll scatter them — you reach the spirit! Prove yourself its worthy keeper!',
+          '어사대장 Jinnok (over comms): They\'re here. My ward team will scatter them — you reach the spirit! Prove yourself its worthy keeper!',
           `The 어사대 sweep the 노스단 aside. ${s.kr} stills, turns, and regards you. It will let you try.`,
         ], () => this.launchCatch(s.key, s.level, 3));
         return;
@@ -386,7 +392,7 @@ export class SacredPeakScene extends Phaser.Scene {
     if (!this.defeated('nosdan-sovereign')) {
       this.cutsceneActive = true;
       PartySystem.healAll(this.registry);
-      this.dialog.show([
+      const confront = () => this.dialog.show([
         'Sovereign Clemont: You gathered the three so we wouldn\'t have to. How thoughtful. Hand them over, and Hwanung descends for US — and this broken peninsula finally answers to one throne.',
         'Rival (arriving at your side, breathless): Yeah, that\'s a no. They chased you all the way up here, and I chased THEM. Go — I\'ve got your back like always.',
         '어사대장 Jinnok: The 어사대 hold the peak. Summon the Sovereign, Champion.',
@@ -400,6 +406,24 @@ export class SacredPeakScene extends Phaser.Scene {
         this.registry.set('sacredPeakReturnY', (this.ALTAR.row + 2) * TILE + 16);
         this.cameras.main.fadeOut(500, 0, 0, 0, () => this.scene.start('TrainerBattleScene'));
       });
+
+      if (!this.registry.get('sacredPeakRivalArrived')) {
+        this.registry.set('sacredPeakRivalArrived', true);
+        const rival = spawnStoryActor(this, this.registry, {
+          kind: 'rival',
+          x: altar.x + TILE * 5,
+          y: altar.y + TILE * 4,
+          facing: 2,
+          depth: 24,
+        });
+        rival.walkTo(this.px + TILE * 1.35, this.py, {
+          duration: 1150,
+          lookAt: { x: this.px, y: this.py },
+          onComplete: confront,
+        });
+      } else {
+        confront();
+      }
       return;
     }
 
@@ -531,7 +555,9 @@ export class SacredPeakScene extends Phaser.Scene {
 
     const W = this.scale.width, H = this.scale.height;
     const kids: Phaser.GameObjects.GameObject[] = [];
-    kids.push(this.add.rectangle(W / 2, H / 2, W, H, 0x0a1230, 1).setScrollFactor(0).setDepth(150));
+    // Dim the summit without covering the assembled cast.  The old opaque
+    // plate hid the Rival, Jinnok and Professor while all three were speaking.
+    kids.push(this.add.rectangle(W / 2, H / 2, W, H, 0x0a1230, 0.72).setScrollFactor(0).setDepth(150));
     const stars = this.add.graphics().setScrollFactor(0).setDepth(151);
     for (let i = 0; i < 80; i++) { stars.fillStyle(0xffffff, Math.random() * 0.7 + 0.2); stars.fillCircle(Math.random() * W, Math.random() * H, Math.random() < 0.2 ? 2 : 1); }
     kids.push(stars);

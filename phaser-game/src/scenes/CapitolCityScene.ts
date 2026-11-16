@@ -447,14 +447,11 @@ export class CapitolCityScene extends Phaser.Scene {
     } else if (this.registry.get('capitolRivalNewsPending')) {
       // Fallback: the Rival's northern-news beat if the Professor cutscene already ran.
       this.time.delayedCall(700, () => this.playCapitolRivalNews());
-    } else if (this.registry.get('sudoPartyPending')) {
-      // POST-GAME finale — the Northern League victory is celebrated back in Sudo City,
-      // which then unlocks the Ancient Altar shortcut to the Sacred Peak (환웅). Plays once.
-      this.time.delayedCall(700, () => {
-        this.cameras.main.fadeOut(500, 0, 0, 0, () => this.scene.start('SudoLabScene'));
-      });
-    } else if (this.registry.get('northLeagueDone') && !this.registry.get('northReunionSeen')) {
+    } else if ((this.registry.get('northLeagueDone') || this.registry.get('sudoPartyPending'))
+      && !this.registry.get('northReunionSeen')) {
       // POST-GAME I aftermath — Hwangeum meets you at the station. Plays once.
+      // sudoPartyPending is a legacy save marker from the removed lab-party route.
+      this.registry.remove('sudoPartyPending');
       this.time.delayedCall(700, () => this.playNorthernReunion());
     } else if (this.registry.get('partyDayDone') && !this.registry.get('partIIDone') && !this.registry.get('partIIStarted')) {
       // POST-GAME II hook — Professor Song's briefing + the road to the northern reaches.
@@ -494,14 +491,28 @@ export class CapitolCityScene extends Phaser.Scene {
 
   private playEpilogue() {
     this.cutsceneActive = true;
-    this.dialog.show([
-      'In the weeks after Baekdu Peak, the region steadies. Director Suri turns herself in with full documentation; her late repentance is noted in her case.',
+    this.facing = 1; this.drawChar();
+    const startY = this.py - TILE * 5.5, stopY = this.py - TILE * 1.6;
+    const prof = this.add.graphics().setDepth(21);
+    markTrainerPortrait(prof, 'prof-song');
+    const tag = this.add.text(this.px, startY - 30, tr('Professor Song'), {
+      fontSize: '10px', color: '#bfe4ff', fontStyle: 'bold', stroke: '#000', strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(22)
+      .setData('characterLabel3D', true).setData('characterLabelTarget3D', prof);
+    this.drawProfessor(prof, this.px, startY, 0);
+    this.playerG.setData('characterLookAt3D', { x: this.px, y: stopY });
+    this.walkProfessor(prof, tag, startY, stopY, () => this.dialog.show([
+      'Professor Song walks across the plaza to meet you. In the weeks after Baekdu Peak, the region steadies. Director Suri turns herself in with full documentation; her late repentance is noted in her case.',
       'Chaeyeon leads the regional restoration — real, patient work. Commander Ryeo and Executive Mubaek are taken into custody. Ryeo says only: "The cause was just. The method was wrong. I know the difference now."',
       'Freed from the matrix, 풍백, 우사, and 운사 return to roaming the wild peaks — Wind on the high ridges, Rain in the storm valleys, Clouds at the cloud-wreathed summits.',
       'Professor Song: The Spirit\'s return stabilized the region. The three old spirits are free. And 나비할망 found her guardian. Remarkable. Both of you.',
       'Professor Song: There\'s one road left to walk. The Onnuri Pokémon League sits beyond the mountains — and Scholars\' Road begins right here, behind the palace where your journey started.',
       'A grand stone gate has opened behind the palace. ⛩ Scholars\' Road is now open.',
-    ], () => { this.cutsceneActive = false; });
+    ], () => this.walkProfessor(prof, tag, stopY, startY, () => {
+      prof.destroy(); tag.destroy();
+      this.playerG.setData('characterLookAt3D', null);
+      this.cutsceneActive = false;
+    })));
   }
 
   /** Champion homecoming — Professor Song walks up to you and hands over HM Fly (one-time). */
@@ -581,7 +592,8 @@ export class CapitolCityScene extends Phaser.Scene {
     markRivalPortrait(rival, this.registry);   // promotes the sprite to the Rival's 3D model
     const tag = this.add.text(this.px, startY - 30, rivalName, {
       fontSize: '10px', color: '#a9dcff', fontStyle: 'bold', stroke: '#000', strokeThickness: 3,
-    }).setOrigin(0.5).setDepth(22);
+    }).setOrigin(0.5).setDepth(22)
+      .setData('characterLabel3D', true).setData('characterLabelTarget3D', rival);
     this.drawRival(rival, this.px, startY, 0);
 
     this.walkRival(rival, tag, startY, stopY, () => {
@@ -715,7 +727,8 @@ export class CapitolCityScene extends Phaser.Scene {
       if (trainerKey) markTrainerPortrait(g, trainerKey);
       const t = this.add.text(x, y - 26, name, {
         fontSize: '8px', color: '#fff', backgroundColor: '#00000099', padding: { x: 2, y: 1 },
-      }).setOrigin(0.5).setDepth(23);
+      }).setOrigin(0.5).setDepth(23)
+        .setData('characterLabel3D', true).setData('characterLabelTarget3D', g);
       objs.push(g, t);
     };
     guest(0,   -76, 'Champion Hwangeum', 0xffd54a, undefined, 'champion-hwangeum');
@@ -761,9 +774,9 @@ export class CapitolCityScene extends Phaser.Scene {
           '— The next morning —',
           '📟 Your Pokédex buzzes before you\'re even fully awake — an incoming call from Professor Song.',
           'Prof. Song (over the Pokédex, quietly): Champion. I let you have your night — you deserved a hundred of them. But those reports I mentioned...',
-          'Prof. Song: Something is stirring in the sealed northern reaches. 노스단 is moving again — and this time they reach for something far older than the Spirit of Cheonji.',
-          'Prof. Song: Rest today. At first light, come to the lab. We will open the northern road together.',
-        ], () => { this.cutsceneActive = false; });
+          'Prof. Song (over the Pokédex): Something is stirring in the sealed northern reaches. 노스단 is moving again — and this time they reach for something far older than the Spirit of Cheonji.',
+          'Prof. Song (over the Pokédex): Stay where you are. I\'m sending the full briefing to your Pokédex now.',
+        ], () => this.playPartIIBriefing());
       });
     });
   }
@@ -777,11 +790,11 @@ export class CapitolCityScene extends Phaser.Scene {
     const intro = full ? [
       '📟 Your Pokédex buzzes — an incoming call from Professor Song, back at the lab in Sudo City.',
       'Prof. Song (over the Pokédex, grim): 노스단. Again — but bigger. With Commander Ryeo imprisoned, someone new has taken the banner, and they\'ve abandoned the old plan entirely.',
-      'Prof. Song: I\'m sending an image to your Pokédex now — an old scroll. A radiant figure descending, three spirits at its side. They reach for the one power above all others. 환웅 — Hwanung, the Sovereign Who Descended.',
-      'Prof. Song: If 노스단 captures Hwanung, they command the very force that shaped the region — north and south, in a single stroke.',
-      'Prof. Song: But the Sovereign only descends for one who has gathered his three attendants — 풍백 the Wind, 우사 the Rain, 운사 the Clouds. Find and catch them before 노스단 does.',
-      'Prof. Song: One more thing. The northern reaches are guarded by the 어사대 — the Royal Inspectorate. They trust outsiders even less than 노스단 does. You\'ll have to earn them, city by city.',
-      'Prof. Song: Ready the strongest team you have ever fielded, then take the road north. I\'ll stay on the Pokédex the whole way. Shall we go?',
+      'Prof. Song (over the Pokédex): I\'m sending an image now — an old scroll. A radiant figure descending, three spirits at its side. They reach for the one power above all others. 환웅 — Hwanung, the Sovereign Who Descended.',
+      'Prof. Song (over the Pokédex): If 노스단 captures Hwanung, they command the very force that shaped the region — north and south, in a single stroke.',
+      'Prof. Song (over the Pokédex): But the Sovereign only descends for one who has gathered his three attendants — 풍백 the Wind, 우사 the Rain, 운사 the Clouds. Find and catch them before 노스단 does.',
+      'Prof. Song (over the Pokédex): One more thing. The northern reaches are guarded by the 어사대 — the Royal Inspectorate. They trust outsiders even less than 노스단 does. You\'ll have to earn them, city by city.',
+      'Prof. Song (over the Pokédex): Ready the strongest team you have ever fielded, then take the road north. I\'ll stay on the Pokédex the whole way. Shall we go?',
     ] : [
       '📟 Your Pokédex buzzes — Professor Song.',
       'Prof. Song (over the Pokédex): The northern reaches are waiting, Champion — and 노스단 is already climbing toward the shrines. Ready to head north?',
@@ -852,17 +865,37 @@ export class CapitolCityScene extends Phaser.Scene {
       'NEWS: Unusual seismic activity reported near the Seolbong Highland area...',
       'NEWS: Researchers from the Onnuri Pokémon Institute are investigating a pattern linked to rare Pokémon migrations near the Jeju vent...',
     ], () => {
-      // Rival appears
-      this.dialog.show([
-        "Rival: That's the direction of Route 2. Seolbong Highland — that's where Professor Song said the trail leads.",
-        "Rival: Let's see who gets there first. Again.",
-        'Route 2 is now open to the NORTH of the city.',
-      ], () => {
-        screen.destroy(true);
-        this.registry.set('route2Unlocked', true);
-        this.cutsceneActive = false;
-      });
+      // Clear the broadcast before the Rival enters the actual plaza; keeping
+      // the full-screen TV up made their formerly disembodied lines even harder
+      // to place spatially.
+      screen.destroy(true);
+      this.playNewsRivalReaction();
     });
+  }
+
+  /** The Rival physically arrives after the broadcast and races back out. */
+  private playNewsRivalReaction() {
+    this.facing = 1; this.drawChar();
+    const startY = this.py - TILE * 5.5, stopY = this.py - TILE * 1.6;
+    const rival = this.add.graphics().setDepth(21);
+    markRivalPortrait(rival, this.registry);
+    const tag = this.add.text(this.px, startY - 30, rivalTrainerName(this.registry), {
+      fontSize: '10px', color: '#a9dcff', fontStyle: 'bold', stroke: '#000', strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(22)
+      .setData('characterLabel3D', true).setData('characterLabelTarget3D', rival);
+    this.drawRival(rival, this.px, startY, 0);
+    this.playerG.setData('characterLookAt3D', { x: this.px, y: stopY });
+    this.walkRival(rival, tag, startY, stopY, () => this.dialog.show([
+      'Your Rival runs across the plaza as the news screen goes dark.',
+      "Rival: That's the direction of Route 2. Seolbong Highland — that's where Professor Song said the trail leads.",
+      "Rival: Let's see who gets there first. Again.",
+      'Route 2 is now open to the NORTH of the city.',
+    ], () => this.walkRival(rival, tag, stopY, startY, () => {
+      rival.destroy(); tag.destroy();
+      this.playerG.setData('characterLookAt3D', null);
+      this.registry.set('route2Unlocked', true);
+      this.cutsceneActive = false;
+    })));
   }
 
   // ── Map drawing ───────────────────────────────────────────────────────────

@@ -10,7 +10,7 @@ import { SaveManager } from '../utils/SaveManager';
 import { PartySystem } from '../systems/PartySystem';
 import { maybeLaunchEvolution } from '../systems/EvolutionSystem';
 import { EncounterEntry, pickEncounter, randomLevel } from '../data/CustomPokemon';
-import { markRivalPortrait } from '../data/BattlePortraits';
+import { StoryActor, spawnStoryActor } from '../systems/StoryActor';
 
 // ── Tiles ─────────────────────────────────────────────────────────────────────
 // Scholars' Road (선비로) — the region's Victory Road: a winding stone mountain
@@ -118,6 +118,7 @@ export class ScholarsRoadScene extends Phaser.Scene {
   private dialog!: DialogBox;
   private enterPrompt!: Phaser.GameObjects.Text;
   private gateGfx!: Phaser.GameObjects.Graphics;
+  private rivalActor?: StoryActor;
   private px = 12 * TILE + 16;
   private py = 56 * TILE + 16;
   private facing = 1; private walkFrame = 0; private walkTimer = 0;
@@ -160,6 +161,7 @@ export class ScholarsRoadScene extends Phaser.Scene {
 
     playBgm(this, 'scholarsroad');
     this.cutsceneActive = false; this.walkFrame = 0; this.walkTimer = 0; this.steps = 0;
+    this.rivalActor = undefined;
     this.input.keyboard?.resetKeys();
     const rx = this.registry.get('scholarsRoadReturnX') as number | undefined;
     const ry = this.registry.get('scholarsRoadReturnY') as number | undefined;
@@ -175,9 +177,13 @@ export class ScholarsRoadScene extends Phaser.Scene {
     this.drawMap();
     this.drawBadgeGate();
     this.drawTrainers();
-    if (!this.gateOpen) {
-      const rival = this.drawFigure(12, 4, 0x2255cc, 0xffcc99, 'Rival', '#88ccff');
-      markRivalPortrait(rival, this.registry);
+    // Keep the Rival at the gate after the battle as well. Their send-off used
+    // to play after the defeated actor had already disappeared from the map.
+    if (!this.registry.get('leagueDoorsOpened')) {
+      this.rivalActor = spawnStoryActor(this, this.registry, {
+        kind: 'rival', x: 12 * TILE + 16, y: 4 * TILE + 16, facing: 0,
+        lookAt: { x: this.px, y: this.py }, depth: 8,
+      });
     }
     this.createPlayer();
     installSurfing(this, {
@@ -516,12 +522,18 @@ export class ScholarsRoadScene extends Phaser.Scene {
       this.cutsceneActive = true;
       if (!this.registry.get('leagueDoorsOpened')) {
         this.registry.set('leagueDoorsOpened', true);
-        this.dialog.show([
-          "Rival (stepping aside): ...Yeah. That's the trainer I've been chasing this whole time.",
+        const showSendoff = () => this.dialog.show([
+          "Rival: ...Yeah. That's the trainer I've been chasing this whole time.",
           "Rival: Go on. The Four are waiting — and so is HE, at the very top.",
           "Rival: Whatever happens in there... you already proved everything you needed to prove. To me, anyway. Now go win it.",
           'The great doors of the Pokémon League swing open. You step through.',
         ], () => this.toLeague());
+        if (this.rivalActor?.active) {
+          this.rivalActor.walkTo(15 * TILE + 16, 4 * TILE + 16, {
+            lookAt: { x: this.px, y: this.py },
+            onComplete: showSendoff,
+          });
+        } else showSendoff();
       } else {
         this.toLeague();
       }

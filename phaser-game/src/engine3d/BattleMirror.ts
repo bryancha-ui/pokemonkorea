@@ -6,12 +6,16 @@ import { buildGeographicBattleArena, resolveOutdoorBattleTheme } from './BattleG
 import { buildCharacterModel, ChoreoPose, PlayerModel } from './CharacterModel';
 import { CreatureAnimator, MoveCategory } from './CreatureAnimator';
 import { measureCommands } from './GraphicsRaster';
-import { getModel, hasModel, isBorrowedApiModel, isCompanionOnlyModel, isRenderableModel, manifestReady, modelLoadStatus, normalizeKey, pinModel, primeManifest, unpinModel } from './GlbModels';
+import { getModel, hasModel, isBorrowedApiModel, isCompanionOnlyModel, isRenderableModel, manifestReady, modelLoadStatus, modelNormalizedHeight, normalizeKey, pinModel, preloadModel, primeManifest, unpinModel } from './GlbModels';
 import { MoveFX3D } from './MoveFX3D';
 import { RainFX, SandstormFX, SnowFX, SunFX, type WeatherFX3D } from './WeatherFX3D';
 import { makeBlobShadow, makePokeBallProp } from './Props';
-import { BALL_APPEARS, ROUTINE_LENGTH, sampleChampionIntro } from './ChampionChoreo';
-import { battle3DSizeScale, spriteScale } from '../data/SpriteScale';
+import { ROUTINE_LENGTH, sampleChampionIntro } from './ChampionChoreo';
+import {
+  battle3DShapeScale, battle3DSizeScale, customStage3DScale,
+  GARCHOMP_BATTLE_MULTIPLIER, spriteScale, type ModelExtent,
+} from '../data/SpriteScale';
+import { PartySystem } from '../systems/PartySystem';
 import { battleFallbackSprite } from '../data/BattleFallbackSprites';
 import { EnvProfile, ThreeStage } from './ThreeStage';
 import { BATTLE_PACING } from '../systems/BattlePacing';
@@ -52,6 +56,8 @@ interface Combatant {
   glbHealthTimer: number;
   rejectedGlbKey: string | null;
   targetH: number;
+  /** targetH before the attached GLB's proportion correction. */
+  baseTargetH: number;
   /** battle motion driver (clip playback or procedural) */
   anim: CreatureAnimator | null;
   fainted: boolean;
@@ -118,6 +124,10 @@ const BATTLE_SIZE_OVERRIDES: Record<string, number> = {
   // height suggests. Counter the borrowed-model 0.6 reduction so it reads at
   // the same stage presence as other medium-sized evolved Pokémon.
   '510': 1.65,
+  // Keep the official-model reduction, then enlarge the resulting Garchomp by
+  // exactly 1.5×. This raises its final target from ~0.7565 to ~1.1348 without
+  // changing the size of any other borrowed Pokémon model.
+  '445': (spriteScale('445') / 1.15) * GARCHOMP_BATTLE_MULTIPLIER,
 };
 
 /** A few third-party GLBs use a different authored forward axis. Values rotate
@@ -126,6 +136,12 @@ const BATTLE_YAW_OVERRIDES_DEG: Readonly<Record<string, number>> = {
   // Onix's rig runs tail→head primarily along -X, so without this correction
   // its head points screen-left when the enemy-facing camera yaw is applied.
   '95': 90,
+  // Primarina's broad mane and seal-like silhouette read flat head-on. Turn it
+  // toward a three-quarter profile while retaining eye contact with the arena.
+  '730': 35,
+  // Reveal the side planes of Chatty Scream's mask and body instead of showing
+  // the local model as a completely flat, front-facing silhouette.
+  chattyscream: 30,
   // Keep both eyes and the long diving silhouette readable to the camera.
   kingfisher: 24,
 };
@@ -144,8 +160,29 @@ function battleSizeOverride(textureKey: string): number {
   // Pokémon such as Garchomp and Tyranitar stay imposing in 3D as well as 2D.
   // The shared finalizer then trims species whose old 2D compensation would
   // otherwise turn a new GLB into a screen-filling model.
-  const proposed = Math.max(1, spriteScale(textureKey) / 1.15) * borrowed;
+  // Original species without an individually authored size follow their
+  // evolution stage, so a first form no longer stands as tall as a legendary.
+  // A manifest `scale` is itself a hand-authored height and is left alone.
+  const staged = borrowed === 1 && modelNormalizedHeight(textureKey) === 1
+    ? customStage3DScale(textureKey)
+    : undefined;
+  const proposed = staged ?? Math.max(1, spriteScale(textureKey) / 1.15) * borrowed;
   return battle3DSizeScale(textureKey, proposed);
+}
+
+/** Proportion correction for a loaded GLB. Species tuned by hand in either
+ *  size table, and borrowed API rigs (already span-limited and trimmed), keep
+ *  exactly their authored presentation. */
+function battleShapeScale(textureKey: string, extent: ModelExtent | undefined): number {
+  if (BATTLE_SIZE_OVERRIDES[normalizeKey(textureKey)] || isBorrowedApiModel(textureKey)) return 1;
+  return battle3DShapeScale(textureKey, extent);
+}
+
+/** Stage height before the per-model proportion correction. */
+function battleBaseHeight(side: 'player' | 'enemy', displayHeight: number, textureKey: string): number {
+  return (side === 'enemy' ? 1.92 : 1.58)
+    * Math.min(1.25, Math.max(0.95, displayHeight / 220))
+    * battleSizeOverride(textureKey);
 }
 
 function battleYawOffset(textureKey: string): number {
@@ -194,10 +231,8 @@ interface TrainerWalker {
   /** The ball rides his hand through the windup, then detaches at release. */
   heldBall: THREE.Group | null;
   /** A rigged GLB replaces the primitive figure when one is vendored for this
-   *  character. Its baked clip carries the dance; the throw still comes from
-   *  the authored track. */
+   *  character. The same restrained authored poses drive both versions. */
   glb: THREE.Group | null;
-  mixer: THREE.AnimationMixer | null;
   glbHand: THREE.Object3D | null;
   wantsGlb: boolean;
   glbKey: string;
@@ -205,10 +240,6 @@ interface TrainerWalker {
   /** Rig bones by role, with the bind rotation each authored pose is applied
    *  relative to. */
   rig: Map<string, { node: THREE.Object3D; bind: THREE.Quaternion }> | null;
-  /** Snapshot of the clip's final pose, blended out of when the throw takes
-   *  over so the hand-off is not a visible pop. */
-  blendFrom: Map<string, THREE.Quaternion> | null;
-  blendT: number;
 }
 
 interface Pinned2DTrainer {
@@ -328,6 +359,7 @@ export class BattleMirror {
     this.rig = rig;
     this.root = stage.resetWorld();
     primeManifest();                 // local production GLB models, if the game ships any
+    this.preloadBattleModels();
     stage.setEnvironment(this.buildArena());
     rig.setMode('battle');
     this.fx = new MoveFX3D(this.root);
@@ -776,9 +808,8 @@ export class BattleMirror {
     const slot = pokemonSide || trainerAtEnemy ? 0
       : [...this.combatants.values()].filter(cb => cb.side === side).length % 2;
 
-    const sizeBias = Math.min(1.15, Math.max(0.85, dh / 220));
     const modelKey = battlePokemonModelKey(im);
-    const speciesSize = battleSizeOverride(modelKey);
+    const baseTargetH = battleBaseHeight(side, dh, modelKey);
     const holder = new THREE.Group();
     const shadow = makeBlobShadow(Math.min(1.5, Math.max(0.42, dw / 190)));
     shadow.visible = false;
@@ -806,7 +837,8 @@ export class BattleMirror {
       rejectedGlbKey: null,
       // Volumetric GLB models read smaller than flat art at equal height (they have
       // real depth), so give them extra presence — SwSh-scale battlers.
-      targetH: (side === 'enemy' ? 1.92 : 1.58) * Math.min(1.25, Math.max(0.95, dh / 220)) * speciesSize,
+      targetH: baseTargetH,
+      baseTargetH,
       anim: null,
       fainted: false,
       chargeLift: 0,
@@ -833,11 +865,14 @@ export class BattleMirror {
     const im = cb.obj;
     const dh = im.displayHeight ?? 0;
     const modelKey = battlePokemonModelKey(im);
-    const speciesSize = battleSizeOverride(modelKey);
     cb.base = null;
     cb.settleTimer = 0;
     cb.baseSX = null; cb.baseSY = null; cb.scaleStill = 0;   // re-settle on the new art
-    cb.targetH = (cb.side === 'enemy' ? 1.92 : 1.58) * Math.min(1.25, Math.max(0.95, dh / 220)) * speciesSize;
+    // Keep the attached model's proportion correction when only the 2D art
+    // behind the same species changed (async sprite arrival, form refresh).
+    const shape = cb.baseTargetH > 0 ? cb.targetH / cb.baseTargetH : 1;
+    cb.baseTargetH = battleBaseHeight(cb.side, dh, modelKey);
+    cb.targetH = cb.baseTargetH * shape;
     // A different creature key means a different production GLB (or no GLB).
     const nk = hasModel(modelKey) && !isCompanionOnlyModel(modelKey) ? modelKey : null;
     if (cb.rejectedGlbKey !== modelKey) cb.rejectedGlbKey = null;
@@ -847,6 +882,7 @@ export class BattleMirror {
       cb.glbVerifyFrames = 0;
       cb.glbHealthTimer = 0;
     }
+    if (!cb.glb) cb.targetH = cb.baseTargetH;   // correction belongs to the departed model
     cb.glbKey = nk;
     cb.fainted = false;
     cb.anim?.standUp();
@@ -1009,6 +1045,46 @@ export class BattleMirror {
     this.reserve3DOnlySlot(cb);
   }
 
+  /**
+   * Start decoding every model this battle can show before it is needed.
+   *
+   * A registered Pokémon's mark stays empty until its GLB is ready, and a model
+   * was only requested when its sprite first appeared — so the opponent's next
+   * Pokémon, and every party switch, arrived visibly after its send-out line.
+   * The party and a trainer's queued roster are known up front; warm them now,
+   * active battlers first so they still win the decode queue.
+   */
+  private preloadBattleModels(): void {
+    try {
+      const scene = this.scene as Phaser.Scene & {
+        enemyQueue?: Array<{ id?: number; custom?: string }>;
+      };
+      const keys: string[] = [];
+      const queue = Array.isArray(scene.enemyQueue) ? scene.enemyQueue : [];
+      const party = PartySystem.get(scene.registry).filter(entry => entry && entry.hp > 0);
+      const enemyKey = (spec: { id?: number; custom?: string } | undefined) =>
+        spec?.custom ?? (spec?.id ? `te-${spec.id}` : undefined);
+      // A wild encounter's species is already in the registry while the scene
+      // is still awaiting its battle data — begin decoding it immediately.
+      if (scene.scene.key === 'WildBattleScene') {
+        const wildId = scene.registry.get('wildId') as string | number | undefined;
+        if (typeof wildId === 'number') keys.push(`wild-${wildId}`);
+        else if (wildId) keys.push(wildId);
+      }
+      // Interleave: lead + first opponent, then the benches.
+      const rounds = Math.max(party.length, queue.length);
+      for (let i = 0; i < rounds && keys.length < 12; i++) {
+        const mine = party[i]?.spriteKey;
+        if (mine) keys.push(mine);
+        const theirs = enemyKey(queue[i]);
+        if (theirs) keys.push(theirs);
+      }
+      for (const key of keys) preloadModel(key);
+    } catch (error) {
+      console.warn('[engine3d] battle model preload skipped:', error);
+    }
+  }
+
   /** Detach a battle clone before releasing its shared cache entry. */
   private releaseCombatantGlb(cb: Combatant): void {
     cb.anim = null;
@@ -1022,8 +1098,6 @@ export class BattleMirror {
 
   /** Trainer GLBs use the same shared cache and need the same lifetime rule. */
   private releaseTrainerGlb(w: TrainerWalker): void {
-    w.mixer?.stopAllAction();
-    w.mixer = null;
     w.glb?.removeFromParent();
     w.glb = null;
     if (w.pinnedGlbKey) {
@@ -1084,8 +1158,8 @@ export class BattleMirror {
       obj: im, model, group: holder, t: walkIn ? 0 : 1,
       phase: 0, seen: false, walkIn, side, start, end,
       choreo: choreo && !!model.setChoreo, choreoT: 0, threwBall: false, heldBall: null,
-      glb: null, mixer: null, glbHand: null, wantsGlb, glbKey: modelKey, pinnedGlbKey: null,
-      rig: null, blendFrom: null, blendT: 0,
+      glb: null, glbHand: null, wantsGlb, glbKey: modelKey, pinnedGlbKey: null,
+      rig: null,
     });
     // The flat 2D portrait stays off the render layer while the 3D walker plays;
     // its alpha tween still drives the walk-in / retirement.
@@ -1152,10 +1226,6 @@ export class BattleMirror {
           pinModel(w.glbKey);
           w.pinnedGlbKey = w.glbKey;
           w.rig = collectRigBones(g);
-          if (loaded.animations.length) {
-            w.mixer = new THREE.AnimationMixer(g);
-            w.mixer.clipAction(loaded.animations[0]).play();
-          }
           // The hand bone carries the ball through the windup. Meshy rigs use
           // mixamo-style names; fall back to any node whose name mentions a
           // right hand so a differently-named rig still works.
@@ -1177,21 +1247,12 @@ export class BattleMirror {
         w.model.face(toFoe.x, toFoe.z, dt);
         if (w.glb) {
           w.glb.rotation.y = w.model.group.rotation.y;
-          if (w.choreoT < BALL_APPEARS) {
-            // The baked clip owns the body for the dance.
-            w.mixer?.update(dt);
-          } else {
-            // The throw is authored, so it drives the bones directly. Capture
-            // the clip's last pose once and blend out of it — cutting straight
-            // to the authored pose reads as a one-frame pop.
-            if (!w.blendFrom && w.rig) {
-              w.blendFrom = new Map();
-              for (const [role, b] of w.rig) w.blendFrom.set(role, b.node.quaternion.clone());
-            }
-            w.blendT = Math.min(1, w.blendT + dt / 0.22);
-            this.applyPoseToRig(w, pose);
-            w.glb.position.y = pose.hop ?? 0;
-          }
+          // Do not play the GLB's full-body dance clip here. Its root motion and
+          // the battle anchor used to move the same character at once, causing
+          // the visible vibration. Fixed-foot authored gestures now drive the
+          // complete intro and throw.
+          this.applyPoseToRig(w, pose);
+          w.glb.position.y = 0;
         } else {
           w.model.setChoreo?.(pose);
         }
@@ -1210,7 +1271,6 @@ export class BattleMirror {
         if (release && !w.threwBall) {
           w.threwBall = true;
           this.launchBall3D(w);
-          this.rig.addShake(0.35);      // the effort lands in the frame
         }
         if (done) w.choreo = false;      // hand back to the idle/walk rig
         continue;
@@ -1257,8 +1317,6 @@ export class BattleMirror {
       }
       this.rigDelta.setFromAxisAngle(axisParent.normalize(), angle);
       this.rigTarget.copy(b.bind).premultiply(this.rigDelta);
-      const from = w.blendFrom?.get(role);
-      if (from && w.blendT < 1) this.rigTarget.slerpQuaternions(from, this.rigTarget, w.blendT);
       b.node.quaternion.copy(this.rigTarget);
     };
     // Roles with no authored angle still need resetting off the clip pose.
@@ -1266,8 +1324,6 @@ export class BattleMirror {
       const b = rig.get(role);
       if (!b) return;
       this.rigTarget.copy(b.bind);
-      const from = w.blendFrom?.get(role);
-      if (from && w.blendT < 1) this.rigTarget.slerpQuaternions(from, this.rigTarget, w.blendT);
       b.node.quaternion.copy(this.rigTarget);
     };
 
@@ -1499,6 +1555,11 @@ export class BattleMirror {
             model.rotation.y = this.cameraFacingYaw(cb.holder) + battleYawOffset(cb.glbKey);
           }
           cb.glb = model;
+          // The manifest is authoritative by now (getModel resolved through it),
+          // so re-derive the base size: a combatant adopted before it arrived
+          // could not yet know its borrowed/authored-height status.
+          cb.baseTargetH = battleBaseHeight(cb.side, cb.obj.displayHeight ?? 0, cb.glbKey);
+          cb.targetH = cb.baseTargetH * battleShapeScale(cb.glbKey, loaded.extent);
           cb.holder.add(model);
           pinModel(cb.glbKey);
           cb.pinnedGlbKey = cb.glbKey;

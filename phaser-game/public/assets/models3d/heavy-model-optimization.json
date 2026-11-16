@@ -11,444 +11,490 @@
   "models": {
     "ampere": {
       "beforeBytes": 42207620,
-      "afterBytes": 1724740,
-      "reductionPercent": 95.91,
+      "afterBytes": 271716,
+      "reductionPercent": 99.36,
       "beforeVertices": 758313,
       "afterVertices": 279036,
       "beforeSha256": "a75a4275e638b95ac6435fdce8fc86c169ff4deaf10e2eb44dab908af91c81b3",
-      "afterSha256": "42b9fcea068974277e725f509adc315ef2f7891a9f34365dcf9cdc08f58dda1f"
+      "afterSha256": "ebfe426945e9da12333a31ca5205a04fa0aac613034e96f2fd214ef22a1c6c02",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "arctorodon": {
       "beforeBytes": 41829240,
-      "afterBytes": 1539556,
-      "reductionPercent": 96.32,
+      "afterBytes": 220192,
+      "reductionPercent": 99.47,
       "beforeVertices": 750711,
       "afterVertices": 272737,
       "beforeSha256": "f6e14be75b929c31253e55b6c759f50dfd45c7c8c0fc64b6eee570d1e486da71",
-      "afterSha256": "234cbecd03c7f3987bc57fb5aa2b2faf192def03092de319171b7a9b6109edcf"
+      "afterSha256": "01e8d1e235b72bc458d8b8026d860a18a7ee123a7aac13b9a2f5f26d3f70661f",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "babymammoth": {
       "beforeBytes": 41860456,
-      "afterBytes": 1621992,
-      "reductionPercent": 96.13,
+      "afterBytes": 203272,
+      "reductionPercent": 99.51,
       "beforeVertices": 752613,
       "afterVertices": 274332,
       "beforeSha256": "a4ccf9eb98714d6e74ecc624b6cba24f6ece26b95d165980b02e2d93ac620190",
-      "afterSha256": "045702759055cb09688614782df2050f2a29179cf8a5ceec4f3ce780cc77a0be"
+      "afterSha256": "06d41276d08ae454f541c437fed6d045d1aa426e0269ecf79cfa79e423e11eb9",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "balchataek": {
       "beforeBytes": 41599292,
-      "afterBytes": 1597780,
-      "reductionPercent": 96.16,
+      "afterBytes": 207240,
+      "reductionPercent": 99.5,
       "beforeVertices": 748453,
       "afterVertices": 273211,
       "beforeSha256": "8201c380cdd94d7a3be09a9b66de015e21a4b3cd3622d227a8fa44366015621f",
-      "afterSha256": "dd2703e1fc09c0c7bf3e5c56d6f502010fca751b3b628029ea7e8904175a81e4"
+      "afterSha256": "6fb7017be8b3883628ae335f1838ff01706d5a8e712f1b43aa56d5caa59a946f",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "banderado": {
       "beforeBytes": 55536112,
-      "afterBytes": 1121824,
-      "reductionPercent": 97.98,
+      "afterBytes": 420648,
+      "reductionPercent": 99.24,
       "beforeVertices": 447864,
       "afterVertices": 184652,
       "beforeSha256": "2eba391a36cbed458c309badd535848f83601b0a2c57016680a0fa2519522b54",
-      "afterSha256": "1dc370ea7d1f00a74cf34a7d08dd6a1317d98ca94d0e5c78401cffac52866a3d"
+      "afterSha256": "a8dcefc17ee43c248b4863b236520c64909d773ff015fe3bde7881f33e8af89c",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "blazekunk": {
       "beforeBytes": 40329240,
-      "afterBytes": 1624896,
-      "reductionPercent": 95.97,
+      "afterBytes": 248440,
+      "reductionPercent": 99.38,
       "beforeVertices": 729381,
       "afterVertices": 271796,
       "beforeSha256": "5418d10985940ee9a3ce9731f5beb2f56a28d5291c33f886ae082453eb77c710",
-      "afterSha256": "8007b500c0be0cab57be8077472bc7199e77abd90ee890357b194a9a32836275"
+      "afterSha256": "46ac3a4411558d9c1df82cbefac16954852f6f9ea1e65ff02aa5532033cc1b4b",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "bonejoillion": {
       "beforeBytes": 40564628,
-      "afterBytes": 1623016,
-      "reductionPercent": 96,
+      "afterBytes": 231300,
+      "reductionPercent": 99.43,
       "beforeVertices": 727972,
       "afterVertices": 264582,
       "beforeSha256": "b74ace35738d2bc53fea1a681390216de7ea71fc9968c09e6f30126c5d83241d",
-      "afterSha256": "11d14b1977bf294061961400ac70ed6a8b22dd0ca4cf6e209ba5c64d8efedec0"
+      "afterSha256": "1104aabd447e9199a2f72899b3c43e29fc53e4c25a94c131b480b34460b2a22f",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "bookbug": {
       "beforeBytes": 41336556,
-      "afterBytes": 1613132,
-      "reductionPercent": 96.1,
+      "afterBytes": 246452,
+      "reductionPercent": 99.4,
       "beforeVertices": 742811,
       "afterVertices": 271973,
       "beforeSha256": "1fcf117863c3cc767532936559ba1d7f20a721fd380a1f176507d69038774173",
-      "afterSha256": "c6bd5fe2e5b35d460bef720876597e79382e7eacf1f5bb975ec57c34ec6275d0"
+      "afterSha256": "160576a759e6ae7be731d914402be74c3402d82b3476578c911136de68c0bd7b",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "bookmoth": {
       "beforeBytes": 40944116,
-      "afterBytes": 1680812,
-      "reductionPercent": 95.89,
+      "afterBytes": 256080,
+      "reductionPercent": 99.37,
       "beforeVertices": 735231,
       "afterVertices": 269505,
       "beforeSha256": "5ab29ebc87ef4a65bb3995d35dd0b70047c108c0c9000e37f9126a629f23aa3f",
-      "afterSha256": "b778653243b80c661ff454dc5f30c04dd6847c42cf3a7057bbcd32df78cb1452"
+      "afterSha256": "3639b5f35e6a6e0a84f2d3ee0fcbb9f842a9de4824438e2f44f5ec49c59f4c3e",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "cerrapin": {
       "beforeBytes": 40656064,
-      "afterBytes": 1531816,
-      "reductionPercent": 96.23,
+      "afterBytes": 202812,
+      "reductionPercent": 99.5,
       "beforeVertices": 730953,
       "afterVertices": 265964,
       "beforeSha256": "5af7dfdf09daac29c8c632bcd477e12b31ffb312861681372e3261f64dba3442",
-      "afterSha256": "fb9e7111b0e7e446251230233adc55ad76a2089b200cc3df2af7b6567cbd23ce"
+      "afterSha256": "91c88c325bd3a6443ee8c1be0084a1116d829b345483934535deffa74d937b3d",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "daejangseung": {
       "beforeBytes": 41343536,
-      "afterBytes": 1496664,
-      "reductionPercent": 96.38,
+      "afterBytes": 210816,
+      "reductionPercent": 99.49,
       "beforeVertices": 742995,
       "afterVertices": 270528,
       "beforeSha256": "4f6a5c8a34e7e3136e3d4ff4a48601118f163f43f49e136b31b3b559f8d3370f",
-      "afterSha256": "6e31824ce0912875dfdcd67327199d245de7cb8af3beac23a8e574088ed6324a"
+      "afterSha256": "96ec3a4034d9db13e39cef5d833ad3fdcfb61cea48abf6296ca5d8c1a267c050",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "foxgeist": {
       "beforeBytes": 40828068,
-      "afterBytes": 1524928,
-      "reductionPercent": 96.27,
+      "afterBytes": 209368,
+      "reductionPercent": 99.49,
       "beforeVertices": 733757,
       "afterVertices": 266825,
       "beforeSha256": "f765831e67d11978d11cd19679af63957e325155b61b51c51b599a4817fa8469",
-      "afterSha256": "4edfd401ed1107649834720c7c5c9d256e346fb629a774efe0a4d8a3e6c2e40a"
+      "afterSha256": "6d42820f2a5ffcd0fcbc9e29a239266ba27b79c3bd89faf769e9ca97dc2a160f",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "frysm": {
       "beforeBytes": 42193856,
-      "afterBytes": 1664392,
-      "reductionPercent": 96.06,
+      "afterBytes": 261912,
+      "reductionPercent": 99.38,
       "beforeVertices": 760219,
       "afterVertices": 280252,
       "beforeSha256": "822e19968c876d6c9b86ef91a2249040a2bc03c031de99e076dddfc5d820fcaf",
-      "afterSha256": "b5aa63c6ea01e860e4179115811759e2233d6e448180c6fe315ecbdf5fd9ee0c"
+      "afterSha256": "3f35907fcc3c8cf80f813d23713e62fbca69969056a5e0546b2542c8d70dfcc1",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "hwanwoong": {
       "beforeBytes": 42330888,
-      "afterBytes": 1634044,
-      "reductionPercent": 96.14,
+      "afterBytes": 258884,
+      "reductionPercent": 99.39,
       "beforeVertices": 759828,
       "afterVertices": 277008,
       "beforeSha256": "dcd7c48366b15383c840d5a365d5a8e8491fa6d2f488868c6126556c86849e95",
-      "afterSha256": "97954286441325d983c14115f503004e417069289b7000c2607aac801b8a87c8"
+      "afterSha256": "bba3ed22713f0bd3b144a738783529a32d8f40c7919b65d5cb78017c1b245608",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "ivelon": {
       "beforeBytes": 41743452,
-      "afterBytes": 1534756,
-      "reductionPercent": 96.32,
+      "afterBytes": 192820,
+      "reductionPercent": 99.54,
       "beforeVertices": 749410,
       "afterVertices": 270741,
       "beforeSha256": "3eef70b60c5648da311e8f4bf20884e9d7b21ca4e1fde69f731872044356139e",
-      "afterSha256": "6fec6af7203341a001711c6cb9015f584574ce85f449aa9a528b79198bbb4b90"
+      "afterSha256": "d8332047b997cf8c9020bb633ab281e9b116525d79247317fc83c854a60d6ad7",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "kidstrel": {
       "beforeBytes": 42501536,
-      "afterBytes": 1576464,
-      "reductionPercent": 96.29,
+      "afterBytes": 213128,
+      "reductionPercent": 99.5,
       "beforeVertices": 764196,
       "afterVertices": 278233,
       "beforeSha256": "9be63f08fcca861b3119c957bd08f78882c16ebd14de48e264b8afbc8867538b",
-      "afterSha256": "d0c83fa1e063e43111e42dad65fc05f06aab92b463d2e233a95622492ac61d9e"
+      "afterSha256": "70a405635a85349c8a836eabd8e9b9231e91a02a78ddf7a93a8f2d9a428cb870",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "nabihalmang": {
       "beforeBytes": 41102132,
-      "afterBytes": 1673064,
-      "reductionPercent": 95.93,
+      "afterBytes": 294128,
+      "reductionPercent": 99.28,
       "beforeVertices": 736344,
       "afterVertices": 268844,
       "beforeSha256": "dc755362243bd74c3cb420890bd4442cd9c2cc4eec60482cbf232a4281a6b6db",
-      "afterSha256": "bbc4802e0973de86f6a6b27c43d92b2490fdb8a54eec26c2b17fdc634baaf7ae"
+      "afterSha256": "7651654d0589f26ea05cb05b1cb39b5eefae1ab57f85820ca7461efb1e98007d",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "pipetiger": {
       "beforeBytes": 59393440,
-      "afterBytes": 1199276,
-      "reductionPercent": 97.98,
+      "afterBytes": 527564,
+      "reductionPercent": 99.11,
       "beforeVertices": 452052,
       "afterVertices": 186478,
       "beforeSha256": "e35572b2e8eaabce4824eb597b092a5952f1cb7e6259d90f380a2b8ff021f410",
-      "afterSha256": "f605206a13257afe97020f3b3886e1f0fcc355081e7614e27490d4c9551e814c"
+      "afterSha256": "69d8322f4f18c2ff2e7ac3822118ec8056942407c377df6332da7e1f2c00e980",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "thanatoat": {
       "beforeBytes": 49097236,
-      "afterBytes": 1176044,
-      "reductionPercent": 97.6,
+      "afterBytes": 452996,
+      "reductionPercent": 99.08,
       "beforeVertices": 480584,
       "afterVertices": 210751,
       "beforeSha256": "0056ff435b49fbb81cf3304e3da73f64017cdedb837db353a49eb38b34314632",
-      "afterSha256": "9805870f6434a5b3e6d6c8ffd9672eb13d9a6583afc2f5a438a431fa352b7679"
+      "afterSha256": "72c7858f14f7db08f1d8290375d5c968792042e1040cdfae1fd3adc89fa674f6",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "aroryong": {
       "sourceFile": "aroryong/aroryong.glb",
       "beforeBytes": 23562012,
-      "afterBytes": 788704,
-      "reductionPercent": 96.65,
+      "afterBytes": 336484,
+      "reductionPercent": 98.57,
       "beforeVertices": 313118,
       "afterVertices": 143400,
       "beforeSha256": "5b4b43451e8b18445b53d2f812ac3accaf69e2660a43224802a64cf54d377ccc",
-      "afterSha256": "506e8e1d3062af7b1658452aef9ac58f76904fb8953f2146b1f3beafd4217ab9"
+      "afterSha256": "3dea1655fe891b086b2e2728b9079f7f8a68d74185f5aaae28d850d32bac8c86",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "beardiedragon": {
       "sourceFile": "beardiedragon/beardiedragon.glb",
       "beforeBytes": 23608432,
-      "afterBytes": 802228,
-      "reductionPercent": 96.6,
+      "afterBytes": 358584,
+      "reductionPercent": 98.48,
       "beforeVertices": 324530,
       "afterVertices": 154729,
       "beforeSha256": "aa8122c613575f10f9f8d9c5377a1b7793713b3c2cee9f5bc822bad4d250368a",
-      "afterSha256": "3097e75bb0c0bc3b47467996ac8c335f9c491c6aadae09326b9acaed40fd6ba2"
+      "afterSha256": "dbff2dd79155ea023e2d582bb15545fb5d5734bfbec7681fecf2be86af840ca4",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "disguijar": {
       "sourceFile": "disguijar/disguijar.glb",
       "beforeBytes": 22805248,
-      "afterBytes": 743248,
-      "reductionPercent": 96.74,
+      "afterBytes": 303380,
+      "reductionPercent": 98.67,
       "beforeVertices": 303507,
       "afterVertices": 135652,
       "beforeSha256": "31c9e76e822faa2d1b999a4691c5a747c060ecbbdbc7c4daf4637af05134a61f",
-      "afterSha256": "6811c0d468e7761a76ba45aab5f8034328830d5128dded03e773ead7b56cec77"
+      "afterSha256": "a13f830f7c00e71a8fe40ca0a573c1c199746c039e57053fe7717fd02f715fca",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "chattyscream": {
       "sourceFile": "chattyscream/chattyscream.glb",
       "beforeBytes": 24665036,
-      "afterBytes": 838056,
-      "reductionPercent": 96.6,
+      "afterBytes": 371664,
+      "reductionPercent": 98.49,
       "beforeVertices": 319332,
       "afterVertices": 148951,
       "beforeSha256": "b0b8f459df253446ee7b4570ddfa9ea6d89d7b0496d9a805f2849ef70fbb9575",
-      "afterSha256": "c9b2d04a93e788a776ed362cbb3a8ff0be95f55bcdde7cff60e3d74e4c581f8d"
+      "afterSha256": "a54f84c82239145c8e31db4ef31f394b0b3122d1cba46af8e5c30d5909b58f8d",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "doribi": {
       "sourceFile": "doribi/doribi.glb",
       "beforeBytes": 20823292,
-      "afterBytes": 676608,
-      "reductionPercent": 96.75,
+      "afterBytes": 249264,
+      "reductionPercent": 98.8,
       "beforeVertices": 277203,
       "afterVertices": 112969,
       "beforeSha256": "e41ae82bca8dbaa3825ee8632f43676b5b6f72c77f6c516e256f900fbd873c34",
-      "afterSha256": "8e3a1805231135046544afb960ef1df5ef4148a834259ec9664f800989956f53"
+      "afterSha256": "04df73b04ac70e967bb4d59b49b191525012ad9dc4d26cf570b27141b2056b6d",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "dundunguri": {
       "sourceFile": "dundunguri/dundunguri.glb",
       "beforeBytes": 17635928,
-      "afterBytes": 658412,
-      "reductionPercent": 96.27,
+      "afterBytes": 224260,
+      "reductionPercent": 98.73,
       "beforeVertices": 286737,
       "afterVertices": 120482,
       "beforeSha256": "132062ea0fa24de96ba3ed4db1c03bdf00db4997a93a450585f94fc2efb7c486",
-      "afterSha256": "33190e2224bce4d527cb57578742d623a9123fc8af156277e1a1b09af73b5dc1"
+      "afterSha256": "815733294b049774700e5f35641d6f0c26e4fd33f127323805a56e6f1a409df6",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "dynabeetle": {
       "sourceFile": "dynabeetle/dynabeetle.glb",
       "beforeBytes": 23315944,
-      "afterBytes": 798564,
-      "reductionPercent": 96.58,
+      "afterBytes": 352536,
+      "reductionPercent": 98.49,
       "beforeVertices": 316149,
       "afterVertices": 147371,
       "beforeSha256": "36fd0da27c92572ee4ccfb9bf6dcf7c4a4a91c7d892f315b3a8eb24b8347d0e3",
-      "afterSha256": "35dad46ccb802046b5d9ceeb345385af36989cf80c5a23bcf64365bf93d47224"
+      "afterSha256": "9aa3247b7b8f87abca5b81c98d1bdb8a06d766c12c1e7edbdec2ef2b0688021b",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "falcrush": {
       "sourceFile": "falcrush/falcrush.glb",
       "beforeBytes": 24964624,
-      "afterBytes": 845120,
-      "reductionPercent": 96.61,
+      "afterBytes": 397320,
+      "reductionPercent": 98.41,
       "beforeVertices": 329735,
       "afterVertices": 157727,
       "beforeSha256": "9d72e2f0b230699d285be0d4416d3503ab169eb9bc4d9bad7f439d3ee674a498",
-      "afterSha256": "8b0d958690bed0ec2e02471a2e28fd0156837261191dfe140165353bb0c4f094"
+      "afterSha256": "a833049b6277a8041720541bbca95124fae088929171598e0432e4eee49a586c",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "groundzoome": {
       "sourceFile": "groundzoome/groundzoome.glb",
       "beforeBytes": 23215352,
-      "afterBytes": 746792,
-      "reductionPercent": 96.78,
+      "afterBytes": 312160,
+      "reductionPercent": 98.66,
       "beforeVertices": 290825,
       "afterVertices": 124880,
       "beforeSha256": "a01368c11acee622cd8e92ab234554ce23f14cc0c76bd8f3f1fb76991eb43b30",
-      "afterSha256": "39593bf7834962efc89b353a9af197f572a0e1aa271b61ecbee80a47c93a35e3"
+      "afterSha256": "5583e0c2f779d2930ceaff4d9ba5ed0085aedd3dc594ed54e30307f8051f23d7",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "glacewing": {
       "sourceFile": "glacewing/glacewing.glb",
       "beforeBytes": 27472684,
-      "afterBytes": 966576,
-      "reductionPercent": 96.48,
+      "afterBytes": 553472,
+      "reductionPercent": 97.99,
       "beforeVertices": 339815,
       "afterVertices": 167380,
       "beforeSha256": "0557071dbf0ad8cab61d6a987763fcbb96d346c0cf4ebb1e8133cfc3d2a622b6",
-      "afterSha256": "c81a9cb78af3d5a711d07a886991507185f1d188cece6dea73f23a6eabcd5fac"
+      "afterSha256": "31cff93aa69437ae2340e53a970408fd9d9f32a6003cf91591efb2e5ae9e41b8",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "honupup": {
       "sourceFile": "honupup/honupup.glb",
       "beforeBytes": 26223948,
-      "afterBytes": 888700,
-      "reductionPercent": 96.61,
+      "afterBytes": 446304,
+      "reductionPercent": 98.3,
       "beforeVertices": 320772,
       "afterVertices": 152643,
       "beforeSha256": "2e4533ccbcf16e761168fb80b6120e0a3b6c2d803f97d90a26ffc1422412c95e",
-      "afterSha256": "ae4e6f10e0da19824fcc624e68a35838dab46c2ef54363bba8104d6c2b0302c0"
+      "afterSha256": "4421fdabf0303051b421a6a602c4872c7a5156addbd00982b88b323622e592ce",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "honutomb": {
       "sourceFile": "honutomb/honutomb.glb",
       "beforeBytes": 25056824,
-      "afterBytes": 826332,
-      "reductionPercent": 96.7,
+      "afterBytes": 403684,
+      "reductionPercent": 98.39,
       "beforeVertices": 328937,
       "afterVertices": 159034,
       "beforeSha256": "4248e0d61e260e1fe88b85715f92c58f817cecac9345aa2b16d31a5a4129721e",
-      "afterSha256": "e3ac3005fd4a96306987a39794322051dab7abf8bcbbdccc2e8b659d8a843df1"
+      "afterSha256": "f366df3488a883f8abbdcd1c1212b72a65ce3b1c688916a4d64f42c2da2c994e",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "idolena": {
       "sourceFile": "idolena/idolena.glb",
       "beforeBytes": 23788200,
-      "afterBytes": 740888,
-      "reductionPercent": 96.89,
+      "afterBytes": 308752,
+      "reductionPercent": 98.7,
       "beforeVertices": 288251,
       "afterVertices": 122012,
       "beforeSha256": "856b48edbb5a0654dad3560d94256790ead1863f65c851644c8c53b281dcaf18",
-      "afterSha256": "a914b00f3340a06335f815b9eb9aa863cd9b07e6cd02f359d982b2b02a8149e1"
+      "afterSha256": "4dab2d43df9e2f9f847a22906b4c9c78eecd0efd56293a727a079a8738423690",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "hwidoribi": {
       "sourceFile": "hwidoribi/hwidoribi.glb",
       "beforeBytes": 22920828,
-      "afterBytes": 747056,
-      "reductionPercent": 96.74,
+      "afterBytes": 302784,
+      "reductionPercent": 98.68,
       "beforeVertices": 290430,
       "afterVertices": 124707,
       "beforeSha256": "2757d18b3a74f3107dd4dde8870c7b87dec825681400ede93b14d2e625dabbfb",
-      "afterSha256": "68445e010bcc07b889e6b9e8c3b27948b0320cfc5069bfbe1d80207950ecbce4"
+      "afterSha256": "f2134dedca11bf146c1c67bee2f8328e032c8b5fc4a6b49f631c1979fe0e80d0",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "kelpoxin": {
       "sourceFile": "kelpoxin/kelpoxin.glb",
       "beforeBytes": 20099432,
-      "afterBytes": 732272,
-      "reductionPercent": 96.36,
+      "afterBytes": 278668,
+      "reductionPercent": 98.61,
       "beforeVertices": 286577,
       "afterVertices": 119806,
       "beforeSha256": "c12be56d57b34592c8b2a9f7650f7a036023e0757cb7573dcaf2c1db1030277a",
-      "afterSha256": "4cda14af29b463a52507a3f27ab29718ee3493d19dd84ca76e57f39843d245ce"
+      "afterSha256": "2ccd864c71d6b35c66ef933b9973fbb11f9f6eb944683d1599ed4d464dc1114d",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "kingfisher": {
       "sourceFile": "kingfisher/kingfisher.glb",
       "beforeBytes": 23470748,
-      "afterBytes": 745448,
-      "reductionPercent": 96.82,
+      "afterBytes": 304724,
+      "reductionPercent": 98.7,
       "beforeVertices": 302316,
       "afterVertices": 135236,
       "beforeSha256": "35da6738b6a96c42cd7a612ab3845dc6c7a7d12a885c302b9c99be2066aaa344",
-      "afterSha256": "6808bfe117829bc43895d0bb538679cbe438a7a4c62441e710fc7c6b3c7bc1ec"
+      "afterSha256": "1aa956c198a3017b7aa8d80c65cd1cde2cb97fd0828c067c34eaddb55c7a7ef9",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "longroffe": {
       "sourceFile": "longroffe/longroffe.glb",
       "beforeBytes": 26307620,
-      "afterBytes": 872536,
-      "reductionPercent": 96.68,
+      "afterBytes": 471272,
+      "reductionPercent": 98.21,
       "beforeVertices": 356016,
       "afterVertices": 179991,
       "beforeSha256": "37b841d88de366007cd31b3da7460d46fb02683fa5361491f12212857a718d7b",
-      "afterSha256": "174c559b381d82d1ff46a2fdcadbaa1b303ed336c44464658f6e8b1e1a0ae7cb"
+      "afterSha256": "2b2e8aa7848b69d5f269980eaa8f0ff0c9f1c1af4a0097c9b3302e99cbcd5c70",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "moransae": {
       "sourceFile": "moransae/moransae.glb",
       "beforeBytes": 28829696,
-      "afterBytes": 1040392,
-      "reductionPercent": 96.39,
+      "afterBytes": 722912,
+      "reductionPercent": 97.49,
       "beforeVertices": 400847,
       "afterVertices": 216359,
       "beforeSha256": "b9dfe9790c80d80af5f8bb5432e21b33ed89da6c93637a442e4e0d0a7b999b08",
-      "afterSha256": "7e830699dcaebb37740c789d00410bc92ff9d30337a79fb4a297043f0f3bd1dd"
+      "afterSha256": "750ad8a3f12c087d6a0029856ce42c06866bb3e8315b3dd6afba5f9d15f351e6",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "noeryong": {
       "sourceFile": "noeryong/noeryong.glb",
       "beforeBytes": 26466884,
-      "afterBytes": 912656,
-      "reductionPercent": 96.55,
+      "afterBytes": 509784,
+      "reductionPercent": 98.07,
       "beforeVertices": 345660,
       "afterVertices": 171772,
       "beforeSha256": "cb22b81de48b6b46fa1593f00a1f90899807c439767cfd3ffebf6d29e890b5e3",
-      "afterSha256": "ddb5bea50e373dcd7824ecce738e3381504a16fe857c44138fefcd69e6fd0627"
+      "afterSha256": "5869aee112a6e2708552c1cecaa9af13ca2ee07e888e703a89a5cc7cafe6d1c2",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "onnujang": {
       "sourceFile": "onnujjang/Onnujjang.glb",
       "beforeBytes": 22432076,
-      "afterBytes": 740288,
-      "reductionPercent": 96.7,
+      "afterBytes": 308148,
+      "reductionPercent": 98.63,
       "beforeVertices": 299964,
       "afterVertices": 132938,
       "beforeSha256": "3ef9f0b417c56dd3e22195ade1e7ba45e7411c5bf85c579ddfbf4f9e37b9f0d0",
-      "afterSha256": "a80cbf665601008bd4fb2872b617fede4f1b921142256fac3c53b7c7ef22e939"
+      "afterSha256": "49df155785a79f4d8f776272bc3842e5518297c07a94fef3367b5c4ef113bbf3",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "squirrel1": {
       "sourceFile": "squirrel1/squirrel1.glb",
       "beforeBytes": 22471824,
-      "afterBytes": 756180,
-      "reductionPercent": 96.63,
+      "afterBytes": 307704,
+      "reductionPercent": 98.63,
       "beforeVertices": 298813,
       "afterVertices": 132370,
       "beforeSha256": "de827bfb6c3b608e4325dae4545c319ff4613b3b2f376a6a04c7f890b1bb1747",
-      "afterSha256": "b54218b0f70e51b64ee5de841cc34182d4d0fe559ead622a5548777fa4eee526"
+      "afterSha256": "56bb291e7739f7a1cc9e4548ee05a2fc067a0f3c4858e1b623dc62ea49e2164b",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "seuphaisin": {
       "sourceFile": "seuphaisin/seuphaisin.glb",
       "beforeBytes": 22150496,
-      "afterBytes": 756636,
-      "reductionPercent": 96.58,
+      "afterBytes": 305052,
+      "reductionPercent": 98.62,
       "beforeVertices": 307410,
       "afterVertices": 139326,
       "beforeSha256": "fad0fb8f62276dca415a1e43e2c6287f1e3c4e5ccc6bbd4269c1726899c77c3d",
-      "afterSha256": "c8394bc83ca5b9fd644faf99070be9b11de7a6a463cbaa9616f8ec3609637a8c"
+      "afterSha256": "6350c7f22acb1bb3c2b7f373811aaae7355da2f9a89997e0ac8ae767ccd1d735",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "woonsa": {
       "sourceFile": "woonsa/woonsa.glb",
       "beforeBytes": 21397952,
-      "afterBytes": 685804,
-      "reductionPercent": 96.8,
+      "afterBytes": 252832,
+      "reductionPercent": 98.82,
       "beforeVertices": 273001,
       "afterVertices": 108847,
       "beforeSha256": "a3138428f96afe1e5d32cff20a4092f6e8daf4e8c1e7a125607c95ef1028d852",
-      "afterSha256": "b7644a23c2c5075a9965d30340fa9a853c84906ca8a20caba42f6d61712cf6e0"
+      "afterSha256": "174c4f2f523aee3adfabab9b5aea733541af1ae094333ba0f61194c9a58d89b4",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "squirrel2": {
       "sourceFile": "squirrel2/squirrel2.glb",
       "beforeBytes": 24484588,
-      "afterBytes": 821428,
-      "reductionPercent": 96.65,
+      "afterBytes": 372672,
+      "reductionPercent": 98.48,
       "beforeVertices": 321633,
       "afterVertices": 152456,
       "beforeSha256": "5f361480446a4141c37cace1a8c0699ff14693a6727cd316a077e54a66e5972b",
-      "afterSha256": "718e1fd5c09f9a2f87498a9a9abd2f9616dc30645cea15a7923fa4d2b3e42bc5"
+      "afterSha256": "3c737be359652574c090f654fffcd8d86136745efbcf3434482ff29992f966ef",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "woosa": {
       "sourceFile": "woosa/woosa.glb",
       "beforeBytes": 22552468,
-      "afterBytes": 675344,
-      "reductionPercent": 97.01,
+      "afterBytes": 250072,
+      "reductionPercent": 98.89,
       "beforeVertices": 275369,
       "afterVertices": 110417,
       "beforeSha256": "ea593582d530d551966df1f95765a34a95922d4d75f1187cdbc07ee9a0c11c6a",
-      "afterSha256": "bfa2d4b5023c91f6937de9456cf25df6d409ff60c3c492ed092501889bee090b"
+      "afterSha256": "10636574f7d06aea9c2de969c7ba8285f2266fbb4474ba0a2ed43f2d1914021a",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "zoltile": {
       "sourceFile": "zoltile/zoltile.glb",
       "beforeBytes": 25216776,
-      "afterBytes": 871744,
-      "reductionPercent": 96.54,
+      "afterBytes": 457672,
+      "reductionPercent": 98.19,
       "beforeVertices": 335840,
       "afterVertices": 165742,
       "beforeSha256": "ac955c55d221084d7693a63d130d966e29984f05879629532a7083918c82efa0",
-      "afterSha256": "a9f39f37d52a8288e365c0ee672449f890dd5b6349c6e650662d4b2093303580"
+      "afterSha256": "55baa98cb01b77b07a0b2fce652e0a1bfffffd4dec1b3d7cf8a18dd02ee534f5",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     },
     "prowlnox": {
       "sourceFile": "월식매/월식매.glb",
       "beforeBytes": 23328456,
-      "afterBytes": 797320,
-      "reductionPercent": 96.58,
+      "afterBytes": 357172,
+      "reductionPercent": 98.47,
       "beforeVertices": 320950,
       "afterVertices": 153040,
       "beforeSha256": "7a2f2e4bc0a44980242e2d2ea41112471e4cab1b8fd036dcf9d9e6788132a744",
-      "afterSha256": "ae974841cbc243ada0ac7ab4cddf06d38f5260bd305dcce4b5ddbae3c04a6e5c"
+      "afterSha256": "88d2f626f31a05e97d59b09f9d343027501a90c5aaf33ef1e4f859eae5d1e964",
+      "decimatedTriangles": "2026-11-16 mesh simplification to ~40-60k triangles (originals in tmp/models3d-backup-20261116)"
     }
   }
 }

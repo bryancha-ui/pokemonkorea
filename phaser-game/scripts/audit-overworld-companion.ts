@@ -2,6 +2,9 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { POKEDEX } from '../src/data/Pokedex';
 import offlineBundleJson from '../src/data/pokemon-offline.json';
+import {
+  companion3DTargetHeight, hasCompanionSizePolicy, MAX_COMPANION_3D_HEIGHT,
+} from '../src/data/SpriteScale';
 import { appendFollowerPoint, followerPointBehind, type FollowPoint } from '../src/engine3d/FollowerPath';
 
 const failures: string[] = [];
@@ -32,6 +35,21 @@ const expectedModels = new Set([
   ...POKEDEX.map(entry => canonical(entry.key)),
   ...Object.values(offline.pokemon).map(entry => String(entry.id)),
 ]);
+
+// Every current Pokémon must resolve through authored follower sizing rather
+// than the generic fallback. Official species use Pokédex height; originals use
+// their body/evolution stage and exceptional-species overrides.
+for (const key of expectedModels) {
+  expect(hasCompanionSizePolicy(key), `Pokémon has no companion size policy: ${key}`);
+  const height = companion3DTargetHeight(key, Number.NaN);
+  expect(Number.isFinite(height) && height > 0 && height <= MAX_COMPANION_3D_HEIGHT,
+    `Pokémon has an invalid companion height: ${key} (${height})`);
+}
+expect(close(companion3DTargetHeight('owned-disguijar', 1), 0.1),
+  '돌제비 companion is not exactly one third of its former 0.30 height');
+expect(companion3DTargetHeight('api-10', Number.NaN)
+  < companion3DTargetHeight('api-321', Number.NaN),
+  'official Pokémon companion heights no longer reflect Pokédex size');
 const manifestPath = path.join(process.cwd(), 'public/assets/models3d/manifest.json');
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
   models?: Array<string | {
@@ -252,8 +270,9 @@ try {
 }
 
 console.log(JSON.stringify({
-  rulesChecked: 33,
+  rulesChecked: 36,
   coveredPokemon: expectedModels.size,
+  companionSizesChecked: expectedModels.size,
   generatedGlbs: generatedCount,
   hyper3dModels: hyper3dEntries.length,
   highDetailOfficial,

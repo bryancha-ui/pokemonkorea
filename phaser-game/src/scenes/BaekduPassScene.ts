@@ -1,13 +1,13 @@
 import Phaser from 'phaser';
 import { tr } from '../systems/i18n';
 import { playBgm } from '../systems/Music';
-import { drawTrainerBody, drawRiderBody, playerDesign, rivalDesign, rivalTrainerName } from '../data/CharacterSprite';
-import { markRivalPortrait } from '../data/BattlePortraits';
+import { drawTrainerBody, drawRiderBody, playerDesign } from '../data/CharacterSprite';
 import { hasBike, BIKE_SPEED, isBikeRiding, setBikeRiding } from '../data/Bike';
 import { DialogBox } from '../ui/DialogBox';
 import { SaveManager } from '../utils/SaveManager';
 import { maybeLaunchEvolution } from '../systems/EvolutionSystem';
 import { EncounterEntry, pickEncounter, randomLevel } from '../data/CustomPokemon';
+import { spawnStoryActor } from '../systems/StoryActor';
 
 // ── Tiles ───────────────────────────────────────────────────────────────────
 const T = {
@@ -376,23 +376,25 @@ export class BaekduPassScene extends Phaser.Scene {
     this.cutsceneActive = true;
     if (!this.registry.get('suriEventSeen')) {
       this.registry.set('suriEventSeen', true);
-      // The rival runs in at your side — draw their 2D sprite next to you for the standoff.
-      const rival = this.add.graphics().setDepth(20);
-      drawTrainerBody(rival, 1, 0, rivalDesign(this.registry));
-      rival.setPosition(this.px + 30, this.py);
-      markRivalPortrait(rival, this.registry);
-      this.add.text(this.px + 30, this.py - 22, rivalTrainerName(this.registry), {
-        fontSize: '9px', color: '#88ccff', backgroundColor: '#00000099', padding: { x: 3, y: 1 },
-      }).setOrigin(0.5).setDepth(21);
-      this.dialog.show([
-        "Ranger Sooyeon: You can't restrict this area — it's public land! The wild Pokémon habitat here is protected!",
-        "Team Suri Grunt A: Team Suri operates under provisional research authority. Stand aside.",
-        "Ranger Sooyeon: Provisional — issued by whom?! You've never shown me a single permit!",
-        "You step between the ranger and the grunts.",
-        "Rival: Oh, perfect timing. I was getting bored.",
-        "Rival: Two of them, two of us. Let's clear this road.",
-        "Team Suri Grunt A: ...Hmph. Locals AND tourists now. Fine. Don't say we didn't warn you.",
-      ], launchBattle);
+      // Enter from behind the player instead of popping into existence at their side.
+      const sideX = Phaser.Math.Clamp(this.px + TILE, 8 * TILE, 16 * TILE);
+      const rival = spawnStoryActor(this, this.registry, {
+        kind: 'rival', x: sideX, y: this.py + TILE * 3, facing: 1,
+        lookAt: { x: 12 * TILE + 16, y: 27 * TILE + 16 },
+      });
+      this.playerG.setData('characterLookAt3D', { x: 12 * TILE + 16, y: 27 * TILE + 16 });
+      rival.walkTo(sideX, this.py, {
+        lookAt: { x: 12 * TILE + 16, y: 27 * TILE + 16 },
+        onComplete: () => this.dialog.show([
+          "Ranger Sooyeon: You can't restrict this area — it's public land! The wild Pokémon habitat here is protected!",
+          "Team Suri Grunt A: Team Suri operates under provisional research authority. Stand aside.",
+          "Ranger Sooyeon: Provisional — issued by whom?! You've never shown me a single permit!",
+          "You step between the ranger and the grunts as your Rival runs up beside you.",
+          "Rival: Oh, perfect timing. I was getting bored.",
+          "Rival: Two of them, two of us. Let's clear this road.",
+          "Team Suri Grunt A: ...Hmph. Locals AND tourists now. Fine. Don't say we didn't warn you.",
+        ], launchBattle),
+      });
     } else {
       this.dialog.show([
         "Team Suri Grunt A: Back again? The road stays closed.",

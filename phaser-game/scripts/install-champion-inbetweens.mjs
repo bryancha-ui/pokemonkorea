@@ -102,4 +102,4 @@ for (const pick of PICKS) {
 
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log('\ndone. Frames written to public/assets/npc/hwangeum/');
-console.log('Next: they are already registered in HwangeumIntro2D.ts and will play once present.');
+console.log('Note: the current jitter-free Hwangeum intro intentionally does not use these in-betweens.');

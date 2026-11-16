@@ -14,6 +14,7 @@ import { EncounterEntry, pickEncounter, randomLevel } from '../data/CustomPokemo
 import { markTrainerPortrait } from '../data/BattlePortraits';
 import { customForm } from '../data/CustomBattle';
 import { migrateLegacyCheonjiCapture } from '../systems/StoryMigrations';
+import { spawnStoryActor } from '../systems/StoryActor';
 
 // Sprites depicted on-screen during the capture finale (the Spirit of Cheonji's advent +
 // 나비할망's Dancheong shield with the freed trio).
@@ -182,10 +183,24 @@ export class BaekduSummitScene extends Phaser.Scene {
       this.registry.set('baekduSummitSeen', true);
       this.time.delayedCall(500, () => {
         this.cutsceneActive = true;
-        this.dialog.show([
-          'Past the broken gate, the snow-swept switchbacks of Baekdu Peak rise into a bruised red-and-violet sky, crackling with siphoned energy bleeding off the six towers.',
-          "Chaeyeon: Keep moving. I'll patch your Pokémon between their patrols. You'll need every one of them at full strength up top.",
-        ], () => { this.cutsceneActive = false; });
+        const targetX = this.px - TILE, targetY = this.py - TILE * 0.2;
+        const chaeyeon = spawnStoryActor(this, this.registry, {
+          kind: 'trainer', trainerKey: 'suri-chaeyeon-2', label: 'Chaeyeon',
+          outfit: 0x3a6670, hair: 0x2b1712, labelColor: '#bfe9e0',
+          x: targetX, y: this.py + TILE * 1.6, facing: 1,
+          lookAt: { x: this.px, y: this.py },
+        });
+        this.playerG.setData('characterLookAt3D', { x: targetX, y: targetY });
+        chaeyeon.walkTo(targetX, targetY, {
+          lookAt: { x: this.px, y: this.py },
+          onComplete: () => this.dialog.show([
+            'Past the broken gate, the snow-swept switchbacks of Baekdu Peak rise into a bruised red-and-violet sky, crackling with siphoned energy bleeding off the six towers.',
+            "Chaeyeon: Keep moving. I'll scout the next switchback and patch your Pokémon between patrols. Keep your comms open — you'll need every one of them at full strength up top.",
+          ], () => {
+            this.playerG.setData('characterLookAt3D', null);
+            chaeyeon.walkAway(targetX, targetY - TILE * 3, () => { this.cutsceneActive = false; });
+          }),
+        });
       });
     } else {
       this.time.delayedCall(300, () => maybeLaunchEvolution(this));
@@ -349,12 +364,27 @@ export class BaekduSummitScene extends Phaser.Scene {
     if (this.py > 40 * TILE) return;
     this.registry.set('baekduSuriSeen', true);
     this.cutsceneActive = true;
-    this.dialog.show([
-      'Director Suri stumbles down the path to meet you — pale, shaken, the seventh tablet\'s rubbing clutched in her notes.',
-      "Director Suri: I ran the numbers on 노스단's matrix. They didn't. The trio's siphoned energy isn't stabilizing anything — it's CONCENTRATING heat into the magma chamber beneath this peak.",
-      "Director Suri: If that machine runs to completion, it won't just wake the Spirit of Cheonji. It will trigger an eruption that takes the entire northern range with it.",
-      "Director Suri: I spent thirty years chasing a way to heal this region. I won't let my work be the thing that ends it. You carry the seventh tablet — and 나비할망. Stop them. Please.",
-    ], () => { this.cutsceneActive = false; });
+    const targetX = Phaser.Math.Clamp(this.px + TILE, 4 * TILE, 20 * TILE);
+    const targetY = this.py - TILE * 1.1;
+    const suri = spawnStoryActor(this, this.registry, {
+      kind: 'trainer', trainerKey: 'suri-director', label: 'Director Suri',
+      outfit: 0x6a2030, hair: 0x202028, labelColor: '#ffc0c8',
+      x: targetX, y: targetY - TILE * 3, facing: 0,
+      lookAt: { x: this.px, y: this.py },
+    });
+    this.playerG.setData('characterLookAt3D', { x: targetX, y: targetY });
+    suri.walkTo(targetX, targetY, {
+      lookAt: { x: this.px, y: this.py },
+      onComplete: () => this.dialog.show([
+        'Director Suri stumbles down the path into view — pale, shaken, the seventh tablet\'s rubbing clutched in her notes.',
+        "Director Suri: I ran the numbers on 노스단's matrix. They didn't. The trio's siphoned energy isn't stabilizing anything — it's CONCENTRATING heat into the magma chamber beneath this peak.",
+        "Director Suri: If that machine runs to completion, it won't just wake the Spirit of Cheonji. It will trigger an eruption that takes the entire northern range with it.",
+        "Director Suri: I spent thirty years chasing a way to heal this region. I won't let my work be the thing that ends it. You carry the seventh tablet — and 나비할망. Stop them. Please.",
+      ], () => {
+        this.playerG.setData('characterLookAt3D', null);
+        suri.walkAway(targetX, targetY + TILE * 3, () => { this.cutsceneActive = false; });
+      }),
+    });
   }
 
   private checkFoes() {
@@ -363,7 +393,7 @@ export class BaekduSummitScene extends Phaser.Scene {
       const wx = f.col * TILE + 16, wy = f.row * TILE + 16;
       if (Math.hypot(this.px - wx, this.py - wy) < TILE * 1.5) {
         this.cutsceneActive = true;
-        this.dialog.show([f.line, "Chaeyeon: I've got your team — go!"], () => {
+        this.dialog.show([f.line, "Chaeyeon (over comms): I've got your team — go!"], () => {
           PartySystem.healAll(this.registry);   // Chaeyeon heals between gauntlet fights
           this.registry.set('trainerName', f.name);
           this.registry.set('trainerKey', f.key);
@@ -404,12 +434,22 @@ export class BaekduSummitScene extends Phaser.Scene {
     };
     if (!this.registry.get('mubaekSeen')) {
       this.registry.set('mubaekSeen', true);
-      this.dialog.show([
-        'At the summit gate, a towering, severe figure blocks the way — an Executive answering only to Ryeo herself.',
-        "Executive Mubaek: Commander Ryeo retreated. I did not. The matrix completes in minutes, and you will not reach the altar before it does.",
-        "Rival: I didn't take the title of Magistrate just for show. Go! I'll break their line — you fix the sky!",
-        "Rival: Six of them and he still won't move? Fine by me. We hold this gate together!",
-      ], launch);
+      const targetX = Phaser.Math.Clamp(this.px - TILE, 10 * TILE, 14 * TILE);
+      const targetY = this.py + TILE * 0.4;
+      const rival = spawnStoryActor(this, this.registry, {
+        kind: 'rival', x: targetX, y: targetY + TILE * 3, facing: 1,
+        lookAt: { x: wx, y: wy },
+      });
+      this.playerG.setData('characterLookAt3D', { x: wx, y: wy });
+      rival.walkTo(targetX, targetY, {
+        lookAt: { x: wx, y: wy },
+        onComplete: () => this.dialog.show([
+          'At the summit gate, a towering, severe figure blocks the way — an Executive answering only to Ryeo herself. Your Rival catches up and takes position at your side.',
+          "Executive Mubaek: Commander Ryeo retreated. I did not. The matrix completes in minutes, and you will not reach the altar before it does.",
+          "Rival: I didn't take the title of Magistrate just for show. Go! I'll break their line — you fix the sky!",
+          "Rival: Six of them and he still won't move? Fine by me. We hold this gate together!",
+        ], launch),
+      });
     } else {
       this.dialog.show(["Executive Mubaek: The gate holds while I stand. Come, then."], launch);
     }
@@ -455,7 +495,7 @@ export class BaekduSummitScene extends Phaser.Scene {
     };
     const releasePrompt = () => {
       this.dialog.show([
-        "Prof. Song: You have to SURVIVE. Hold out — keep your team alive — until the moment is right. Then release her.",
+        "Prof. Song (comms): You have to SURVIVE. Hold out — keep your team alive — until the moment is right. Then release her.",
         "The aura grows more violent each round as the towers strain... until the moment comes.",
         "▶ RELEASE 나비할망?  (Yes — release her / No — hold on)",
       ], () => {
@@ -648,19 +688,43 @@ export class BaekduSummitScene extends Phaser.Scene {
     this.registry.set('phase2Complete', true);
     this.registry.set('phase2Legendary', 'cheonjisin');
     this.cutsceneActive = true;
-    this.dialog.show([
-      "The Spirit of Cheonji is yours — its corona gone, the lake mirror-still beneath a clearing sky.",
-      "Rival climbs to the summit, Executive Mubaek defeated behind them, and joins you at the central altar.",
-      "Rival: ...We actually did it. Together, then. Like always.",
-      "Together, you place the final seventh tablet into the central pedestal. The six towers don't shut down — they HARMONIZE.",
-      "The bruised red sky clears. Gentle lines of golden light spread outward from the peak, flowing back down across the entire peninsula, settling the disturbed land and restoring its natural balance.",
-      "Prof. Song (comms, quiet with relief): The geothermal readings are stabilizing. The eruption threat is gone. The trio are free. And the whole region is breathing again.",
-      "Prof. Song: You've done something no one has in a thousand years. The south has its guardian in 나비할망, and the Spirit of Cheonji has restored balance to the northern range. You carry the trust of both now.",
-      "나비할망 folds her glowing wings and settles beside you. The first clean stars appear over Baekdu Peak.",
-      "You and the Rival make the long descent together, off the sacred mountain.",
-      "▶ Chapter 11 complete — the Cheonji crisis is over. ✓",
-      "The Onnuri League now awaits beyond Scholars' Road.",
-    ], () => {
+    // Return the player to the altar approach, then let the Rival visibly finish
+    // the climb.  나비할망 also remains in world space for the line about her
+    // settling beside the player instead of vanishing with the battle scene.
+    this.px = 12 * TILE + 16; this.py = 6 * TILE + 16;
+    this.facing = 1; this.drawChar();
+    const rivalX = this.px - TILE, rivalY = this.py;
+    const rival = spawnStoryActor(this, this.registry, {
+      kind: 'rival', x: rivalX, y: this.py + TILE * 5, facing: 1,
+      lookAt: { x: this.px, y: this.py },
+    });
+    const nabi = this.add.image(this.px + TILE * 1.25, this.py - TILE * 0.25, 'nabihalmang').setDepth(23);
+    const nabiSrc = this.textures.get('nabihalmang').getSourceImage() as { width?: number; height?: number };
+    nabi.setScale(76 / Math.max(1, nabiSrc.height ?? 1));
+    nabi.setData('creatureModel3DKey', 'nabihalmang');
+    nabi.setData('creatureHeight3D', 1.9);
+    nabi.setData('facePlayer3D', true);
+    const nabiLabel = this.add.text(nabi.x, nabi.y - 48, '나비할망', {
+      fontSize: '9px', color: '#aee9ff', backgroundColor: '#00000099', padding: { x: 3, y: 1 },
+    }).setOrigin(0.5).setDepth(24)
+      .setData('characterLabel3D', true).setData('characterLabelTarget3D', nabi);
+    void nabiLabel;
+    this.playerG.setData('characterLookAt3D', { x: rivalX, y: rivalY });
+    rival.walkTo(rivalX, rivalY, {
+      lookAt: { x: this.px, y: this.py },
+      onComplete: () => this.dialog.show([
+        "The Spirit of Cheonji is yours — its corona gone, the lake mirror-still beneath a clearing sky.",
+        "Your Rival finishes the climb, Executive Mubaek defeated behind them, and joins you and 나비할망 at the central altar.",
+        "Rival: ...We actually did it. Together, then. Like always.",
+        "Together, you place the final seventh tablet into the central pedestal. The six towers don't shut down — they HARMONIZE.",
+        "The bruised red sky clears. Gentle lines of golden light spread outward from the peak, flowing back down across the entire peninsula, settling the disturbed land and restoring its natural balance.",
+        "Prof. Song (comms, quiet with relief): The geothermal readings are stabilizing. The eruption threat is gone. The trio are free. And the whole region is breathing again.",
+        "Prof. Song (comms): You've done something no one has in a thousand years. The south has its guardian in 나비할망, and the Spirit of Cheonji has restored balance to the northern range. You carry the trust of both now.",
+        "나비할망 folds her glowing wings and settles beside you. The first clean stars appear over Baekdu Peak.",
+        "You and the Rival make the long descent together, off the sacred mountain.",
+        "▶ Chapter 11 complete — the Cheonji crisis is over. ✓",
+        "The Onnuri League now awaits beyond Scholars' Road.",
+      ], () => {
       // Descend off the summit and head home to the Capitol, where the post-game
       // reunion / epilogue beats pick up.
       this.cameras.main.fadeOut(700, 0, 0, 0, () => {
@@ -668,6 +732,7 @@ export class BaekduSummitScene extends Phaser.Scene {
         this.registry.set('capitalReturnY', 31 * 32 + 16);
         this.scene.start('CapitolCityScene');
       });
+      }),
     });
   }
 
