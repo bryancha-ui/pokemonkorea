@@ -52,6 +52,9 @@ function buildMap(): Tile[][] {
 interface Trainer { key: string; name: string; col: number; row: number; color: number; label: string; line: string; pokemon: string; expPool: number; }
 
 export class NampoBeachScene extends Phaser.Scene {
+  // Solid rock/cliff tiles become real 3D rock (masses → mountain range, lone
+  // tiles → a boulder) and their flat painted icons are wiped from the ground.
+  public mountainTileIds3D = [T.ROCK];
   private map!: Tile[][];
   // Disable random building generation in the wild beach area
   public onlyNamedBuildings = true;

@@ -69,6 +69,11 @@ function buildMap(): Tile[][] {
 interface Trainer { key: string; name: string; col: number; row: number; color: number; label: string; line: string; pokemon: string; expPool: number; }
 
 export class AhobiryongPassScene extends Phaser.Scene {
+  // Painted tree tiles grow real 3D trees and their flat 2D art is wiped.
+  public treeTileIds3D = [T.PINE];
+  // Solid rock/cliff tiles become real 3D rock (masses → mountain range, lone
+  // tiles → a boulder) and their flat painted icons are wiped from the ground.
+  public mountainTileIds3D = [T.CLIFF, T.ROCK];
   // A mountain pass has no buildings — erase every auto-detected building shape
   // (only named-model plots, of which there are none, would rise in 3D).
   public onlyNamedBuildings = true;

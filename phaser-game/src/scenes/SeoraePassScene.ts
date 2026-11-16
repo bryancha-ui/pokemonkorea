@@ -60,6 +60,11 @@ interface PassTrainer {
 }
 
 export class SeoraePassScene extends Phaser.Scene {
+  // Painted tree tiles grow real 3D trees and their flat 2D art is wiped.
+  public treeTileIds3D = [T.PINE];
+  // Solid rock/cliff tiles become real 3D rock (masses → mountain range, lone
+  // tiles → a boulder) and their flat painted icons are wiped from the ground.
+  public mountainTileIds3D = [T.ROCK];
   // A snowy mountain pass has no buildings — only named-model plots (there are
   // none here) rise in 3D, so every auto-detected building is erased to clean
   // ground instead of extruding stray facades on the slopes.

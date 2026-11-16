@@ -77,6 +77,8 @@ const PICNICS: Picnicker[] = [
 ];
 
 export class HanRiverParkScene extends Phaser.Scene {
+  // Painted tree tiles grow real 3D trees and their flat 2D art is wiped.
+  public treeTileIds3D = [T.TREE];
   private map!: Tile[][];
   /** The bike shop + convenience store get their own 3D GLBs; only those named
    *  landmarks rise in 3D, so no stray generic box blocks the river view. */

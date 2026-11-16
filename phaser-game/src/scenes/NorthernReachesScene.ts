@@ -125,6 +125,8 @@ const QUIZZES: Quiz[] = [
 ];
 
 export class NorthernReachesScene extends Phaser.Scene {
+  // Painted tree tiles grow real 3D trees and their flat 2D art is wiped.
+  public treeTileIds3D = [T.TREE];
   public grassTileIds3D = [T.SNOWGRASS];
   private map!: Tile[][];
   private playerG!: Phaser.GameObjects.Graphics;

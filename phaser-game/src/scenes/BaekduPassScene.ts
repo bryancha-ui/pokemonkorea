@@ -109,7 +109,7 @@ export class BaekduPassScene extends Phaser.Scene {
   public grassTileIds3D = [T.SNOWGRASS];
   // Only continuous cliffs become mountain ranges. Isolated ROCK tiles are
   // ordinary boulders; turning a one-tile rock into a full peak can crowd roads.
-  public mountainTileIds3D = [T.CLIFF];
+  public mountainTileIds3D = [T.CLIFF, T.ROCK];
   /** The authored travel lane is authoritative and must never become a 3D wall. */
   public flatTileIds3D = [T.PATH, T.CAVE];
   public treeTileIds3D = [T.PINE];

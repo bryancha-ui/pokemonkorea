@@ -264,6 +264,7 @@ export class WorldMapScene extends Phaser.Scene {
   onlyNamedBuildings = true;
   /** The painted forest/boundary trees grow as real 3D trees, not flat ground art. */
   treeTileIds3D = [T.TREE];
+  mountainTileIds3D = [T.MOUNTAIN];
   /** Waterfall City's streets get the same 3D treatment as the capital: paved
    *  carriageways with centre lines and crossings at every painted intersection.
    *  Its lanes are a single tile wide with authored ROAD_X junction tiles, and

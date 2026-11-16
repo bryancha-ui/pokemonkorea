@@ -50,6 +50,11 @@ function buildMap(): Tile[][] {
 interface Sentry { key: string; name: string; col: number; row: number; line: string; pokemon: string; expPool: number; }
 
 export class SamjiyonAjitRoadScene extends Phaser.Scene {
+  // Painted tree tiles grow real 3D trees and their flat 2D art is wiped.
+  public treeTileIds3D = [T.PINE];
+  // Solid rock/cliff tiles become real 3D rock (masses → mountain range, lone
+  // tiles → a boulder) and their flat painted icons are wiped from the ground.
+  public mountainTileIds3D = [T.ROCK];
   // One authoritative footprint converts the existing painted HQ facade into
   // its matching purpose-built 3D structure.
   public buildingPlots = [{ x: 6, y: 1, w: 17, h: 11, model: 'nosdan-hq' }];

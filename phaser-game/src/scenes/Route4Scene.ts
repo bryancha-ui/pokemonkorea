@@ -65,7 +65,7 @@ function buildMap(): Tile[][] {
 export class Route4Scene extends Phaser.Scene {
   public grassTileIds3D = [T.TALLGRASS];
   /** Replace the complete painted west cliff with continuous 3D mountain ranges. */
-  public mountainTileIds3D = [T.CLIFF];
+  public mountainTileIds3D = [T.CLIFF, T.ROCK];
   /** Road, beach and boulder footprints remain ground-level in the 3D pass. */
   public flatTileIds3D = [T.PATH, T.SAND, T.ROCK];
   public noRocks3D = true;

@@ -462,9 +462,41 @@ export function buildTerrain(
   // Auto-cover painted 2D mountain tiles with 3D mountain-range models. Greedily
   // decompose the mountain mass into maximal rectangles; each becomes a
   // 'mountainrange' plot (its flat art is erased, no blocky wall extrusion).
+  // Cells whose painted rock icon is replaced by one guaranteed 3D boulder.
+  const forcedRock = new Uint8Array(cols * rows);
   if (!interior && mountainTileIds3D.length && tileMap) {
     const mtn = new Set(mountainTileIds3D);
     const taken = new Uint8Array(cols * rows);
+    // A lone rock tile (or a pair) is a boulder, not a mountain range: covering
+    // it with a 1×1 range model looked like a toy peak, and leaving it to the
+    // colour classifier kept its flat painted triangle on the ground. Give each
+    // small outcrop a real boulder and reserve range models for true masses.
+    {
+      const seen = new Uint8Array(cols * rows);
+      const inMass = (x: number, z: number) =>
+        x >= 0 && z >= 0 && x < cols && z < rows &&
+        cells[z * cols + x] !== 'building' && mtn.has(tileMap[z]?.[x] ?? -1);
+      for (let z = 0; z < rows; z++) {
+        for (let x = 0; x < cols; x++) {
+          if (seen[z * cols + x] || !inMass(x, z)) continue;
+          const comp: number[] = [];
+          const stack = [z * cols + x];
+          seen[z * cols + x] = 1;
+          while (stack.length) {
+            const i = stack.pop()!;
+            comp.push(i);
+            const cx = i % cols, cz = (i / cols) | 0;
+            for (const [nx, nz] of [[cx + 1, cz], [cx - 1, cz], [cx, cz + 1], [cx, cz - 1]] as [number, number][]) {
+              if (!inMass(nx, nz) || seen[nz * cols + nx]) continue;
+              seen[nz * cols + nx] = 1;
+              stack.push(nz * cols + nx);
+            }
+          }
+          if (comp.length > 3) continue;
+          for (const i of comp) { taken[i] = 1; forcedRock[i] = 1; cells[i] = 'rock'; }
+        }
+      }
+    }
     const isMtn = (x: number, z: number) =>
       x >= 0 && z >= 0 && x < cols && z < rows && !taken[z * cols + x] &&
       cells[z * cols + x] !== 'building' && mtn.has(tileMap[z]?.[x] ?? -1);
@@ -674,15 +706,35 @@ export function buildTerrain(
         // Mountain footprints sit inside a sea of other mountain tiles, so sampling a
         // neighbour would just repaint mountain (leaving the 2D mountain visible). Wipe
         // them to a neutral earthy ground so only the 3D range shows.
-        const fillStyle = b.model === 'mountainrange' ? '#6f7a5c' : sampleGround(b);
+        // Prefer the open ground actually bordering the range (snow, sand, moss)
+        // so its footprint blends into the map; the neutral tone is the fallback.
+        const rangeGround = (): string => {
+          let sr = 0, sg = 0, sb = 0, n = 0;
+          for (let zz = b.z - 1; zz <= b.z + b.d; zz++) {
+            for (let xx = b.x - 1; xx <= b.x + b.w; xx++) {
+              const inside = xx >= b.x && xx < b.x + b.w && zz >= b.z && zz < b.z + b.d;
+              if (inside || xx < 0 || zz < 0 || xx >= cols || zz >= rows) continue;
+              const cell = cells[zz * cols + xx];
+              if (cell !== 'flat' && cell !== 'grass') continue;
+              const cc = cellColors[zz * cols + xx];
+              sr += cc[0]; sg += cc[1]; sb += cc[2]; n++;
+            }
+          }
+          if (n < 2) return snowy ? '#dfe7ec' : '#6f7a5c';
+          return `rgb(${Math.round(sr / n)},${Math.round(sg / n)},${Math.round(sb / n)})`;
+        };
+        const fillStyle = b.model === 'mountainrange' ? rangeGround() : sampleGround(b);
         // 2D roofs overhang upward; the painted DOOR / steps / red-cross sign sits
         // at the bottom edge and often spills a tile below and to the sides. Pad the
         // wipe in every direction so no "ghost entrance" of the old flat art peeks
         // out around the 3D building (Pokémon Centers were showing a second doorway).
-        const isDolmen = b.model === 'dolmen';
-        const padTop = isDolmen ? 0.18 : 2.2;
-        const padBottom = isDolmen ? 0.18 : 1.2;
-        const padSide = isDolmen ? 0.18 : 0.7;
+        // Mountain tiles paint their rock art inside the tile, so their wipe is
+        // tile-exact: the building-sized padding repainted the walkable path
+        // and grass beside every range with the mountain's fill colour.
+        const tight = b.model === 'dolmen' || b.model === 'mountainrange';
+        const padTop = tight ? 0.18 : 2.2;
+        const padBottom = tight ? 0.18 : 1.2;
+        const padSide = tight ? 0.18 : 0.7;
         const x0 = Math.max(0, (b.x - padSide) * sx);
         const y0 = Math.max(0, (b.z - padTop) * sy);
         const w0 = (b.w + padSide * 2) * sx;
@@ -700,22 +752,52 @@ export function buildTerrain(
   // canopy. Wipe each such cell to the surrounding ground tone: street trees on
   // pavement sample the road; a dense forest whose neighbours are all trees falls
   // back to a forest-floor tone (snow on frosted passes).
-  if (!interior && treeTileIds3D.length && tileMap) {
+  //
+  // This used to run only for scenes that published treeTileIds3D, so on every
+  // other map the colour classifier grew a 3D tree directly on top of its own
+  // flat painted tree, and scene-pinned props (palms, pines, rocks) stood on
+  // their 2D icon. Every cell that receives a 3D tree, a forced boulder or a
+  // pinned nature prop is wiped now, declared or not.
+  if (!interior && !flatTerrain3D && !preservePaintedGround3D) {
     const gctx = ground.getContext('2d');
     if (gctx) {
-      const treeIds = new Set(treeTileIds3D);
+      const treeIds = new Set(tileMap ? treeTileIds3D : []);
+      const propCell = new Uint8Array(cols * rows);
+      for (const p of propPlots) {
+        if (p.kind !== 'tree' && p.kind !== 'pine' && p.kind !== 'palm' && p.kind !== 'cherry' && p.kind !== 'rock') continue;
+        const pc = Math.floor(p.x), pr = Math.floor(p.y);
+        if (pc >= 0 && pr >= 0 && pc < cols && pr < rows) propCell[pr * cols + pc] = 1;
+      }
+      const wiped = (cc: number, rr: number) => {
+        const i = rr * cols + cc;
+        return treeIds.has(tileMap?.[rr]?.[cc] as number)
+          || cells[i] === 'tree' || cells[i] === 'pine' || forcedRock[i] === 1 || propCell[i] === 1;
+      };
       const isTreeCell = (cc: number, rr: number) =>
-        cc >= 0 && rr >= 0 && cc < cols && rr < rows && treeIds.has(tileMap[rr]?.[cc] as number);
+        cc >= 0 && rr >= 0 && cc < cols && rr < rows && wiped(cc, rr);
       const floorFallback = snowy ? '#dfe7ec' : '#40632f';
       const sampleFloor = (c: number, r: number): string => {
         for (let k = 1; k <= 2; k++) {
           for (const [cc, rr] of [[c - k, r], [c + k, r], [c, r + k], [c, r - k], [c + k, r + k], [c - k, r + k]] as [number, number][]) {
             if (cc < 0 || rr < 0 || cc >= cols || rr >= rows) continue;
             const cell = cells[rr * cols + cc];
-            if (isTreeCell(cc, rr) || cell === 'building') continue;
+            // Only open ground is a valid repaint tone: a neighbouring wall,
+            // pond or boulder would stamp its own colour under the tree.
+            if (isTreeCell(cc, rr) || cell === 'building' || cell === 'water'
+                || cell === 'wall-low' || cell === 'wall-high' || cell === 'rock') continue;
             const [r0, g0, b0] = cellColors[rr * cols + cc];
             return `rgb(${Math.round(r0)},${Math.round(g0)},${Math.round(b0)})`;
           }
+        }
+        // No open ground nearby (a sea rock, a tree on an islet): take whatever
+        // un-wiped surface surrounds it rather than stamping a green square
+        // into the middle of the water.
+        for (const [cc, rr] of [[c - 1, r], [c + 1, r], [c, r + 1], [c, r - 1]] as [number, number][]) {
+          if (cc < 0 || rr < 0 || cc >= cols || rr >= rows) continue;
+          const cell = cells[rr * cols + cc];
+          if (isTreeCell(cc, rr) || cell === 'building' || cell === 'wall-low' || cell === 'wall-high') continue;
+          const [r0, g0, b0] = cellColors[rr * cols + cc];
+          return `rgb(${Math.round(r0)},${Math.round(g0)},${Math.round(b0)})`;
         }
         return floorFallback;
       };
@@ -724,7 +806,7 @@ export function buildTerrain(
       const padTop = 0.55;
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
-          if (!treeIds.has(tileMap[r]?.[c] as number)) continue;
+          if (!wiped(c, r)) continue;
           gctx.fillStyle = sampleFloor(c, r);
           gctx.fillRect(c * sx, Math.max(0, (r - padTop) * sy), sx + 1, (1 + padTop) * sy + 1);
         }
@@ -885,7 +967,11 @@ export function buildTerrain(
             }
           }
           const rough = cellVar[r * cols + c] > 300;
-          if (!noRocks3D && !interior && rough && rockNeighbors >= 4 && rnd() > 0.72) {
+          if (forcedRock[r * cols + c] && !interior) {
+            // A scene-declared solid rock tile: always one boulder, centred, so
+            // the 3D obstacle matches the tile the player actually collides with.
+            rocks.place(cx, cz, 1.25 + rnd() * 0.35, rnd() * Math.PI * 2);
+          } else if (!noRocks3D && !interior && rough && rockNeighbors >= 4 && rnd() > 0.72) {
             const x = cx + (rnd() - 0.5) * 0.4;
             const z = cz + (rnd() - 0.5) * 0.4;
             const rot = rnd() * Math.PI * 2;

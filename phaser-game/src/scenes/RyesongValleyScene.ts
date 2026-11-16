@@ -81,6 +81,11 @@ interface Trainer {
 }
 
 export class RyesongValleyScene extends Phaser.Scene {
+  // Painted tree tiles grow real 3D trees and their flat 2D art is wiped.
+  public treeTileIds3D = [T.TREE];
+  // Solid rock/cliff tiles become real 3D rock (masses → mountain range, lone
+  // tiles → a boulder) and their flat painted icons are wiped from the ground.
+  public mountainTileIds3D = [T.ROCK];
   public grassTileIds3D = [T.TALLGRASS];
   private map!: Tile[][];
   private playerG!: Phaser.GameObjects.Graphics;

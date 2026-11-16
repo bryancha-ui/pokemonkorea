@@ -140,6 +140,8 @@ function buildMap(cols: number, rows: number, skipDefaultTrees = false): Tile[][
 }
 
 export abstract class EosaCityScene extends Phaser.Scene {
+  // Painted tree tiles grow real 3D trees and their flat 2D art is wiped.
+  public treeTileIds3D = [T.TREE];
   private map!: Tile[][];
   /** The three standard buildings reuse the custom Higgsfield models (Pokémon
    *  Center + Poké Mart), the 어사대 Hall uses the palace model, and every city

@@ -55,6 +55,9 @@ interface Swimmer {
 }
 
 export class OceanScene extends Phaser.Scene {
+  // Solid rock/cliff tiles become real 3D rock (masses → mountain range, lone
+  // tiles → a boulder) and their flat painted icons are wiped from the ground.
+  public mountainTileIds3D = [T.ROCK];
   private map!: Tile[][];
   private playerG!: Phaser.GameObjects.Graphics;
   private mountG!: Phaser.GameObjects.Graphics;

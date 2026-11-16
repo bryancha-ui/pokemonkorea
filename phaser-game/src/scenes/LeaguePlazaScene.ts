@@ -96,6 +96,8 @@ function buildMap(): Tile[][] {
 }
 
 export class LeaguePlazaScene extends Phaser.Scene {
+  // Painted tree tiles grow real 3D trees and their flat 2D art is wiped.
+  public treeTileIds3D = [T.TREE];
   private map!: Tile[][];
   /** The palace hall is the generated League building, centred on the entrance
    *  gap (DOOR.col 13) so its doorway lines up with where the player walks in.

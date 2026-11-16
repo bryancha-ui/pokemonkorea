@@ -70,6 +70,8 @@ function buildMap(): Tile[][] {
 }
 
 export class Route5Scene extends Phaser.Scene {
+  // Painted tree tiles grow real 3D trees and their flat 2D art is wiped.
+  public treeTileIds3D = [T.TREE];
   private map!: Tile[][];
   /** The Ancient Forest is a route, not a town — drop buildings the terrain
    *  heuristics hallucinate from dense foliage shading, but DO raise the one

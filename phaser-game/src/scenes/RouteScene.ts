@@ -176,6 +176,8 @@ function buildRouteMap(): RTile[][] {
 // ── Route Scene ───────────────────────────────────────────────────────────────
 
 export class RouteScene extends Phaser.Scene {
+  // Painted tree tiles grow real 3D trees and their flat 2D art is wiped.
+  public treeTileIds3D = [RT.TREE];
   public grassTileIds3D = [RT.TALL_GRASS];
   private map!: RTile[][];
   private playerG!: Phaser.GameObjects.Graphics;
@@ -202,7 +204,7 @@ export class RouteScene extends Phaser.Scene {
   /** The whole route is a path carved through mountain. Auto-cover EVERY painted
    *  mountain tile (outdoor stretch AND the mountains around the cave) with 3D
    *  mountain-range models, and erase the flat 2D mountain art from the floor. */
-  mountainTileIds3D = [RT.MOUNTAIN];
+  mountainTileIds3D = [RT.MOUNTAIN, RT.ROCK];
   onlyNamedBuildings = true;
   private cutsceneActive = false;
   private get cycling(): boolean { return isBikeRiding(this.registry); }

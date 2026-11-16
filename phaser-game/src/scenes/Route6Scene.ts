@@ -62,6 +62,9 @@ function buildMap(): Tile[][] {
 }
 
 export class Route6Scene extends Phaser.Scene {
+  // Solid rock/cliff tiles become real 3D rock (masses → mountain range, lone
+  // tiles → a boulder) and their flat painted icons are wiped from the ground.
+  public mountainTileIds3D = [T.CLIFF, T.ROCK];
   public grassTileIds3D = [T.TALLGRASS];
   public flatTileIds3D = [T.PATH, T.SAND, T.ROCK, T.LANTERN];
   public noRocks3D = true;

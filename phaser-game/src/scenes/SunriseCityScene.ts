@@ -117,6 +117,11 @@ function buildMap(): Tile[][] {
 }
 
 export class SunriseCityScene extends Phaser.Scene {
+  // Painted tree tiles grow real 3D trees and their flat 2D art is wiped.
+  public treeTileIds3D = [T.TREE];
+  // Solid rock/cliff tiles become real 3D rock (masses → mountain range, lone
+  // tiles → a boulder) and their flat painted icons are wiped from the ground.
+  public mountainTileIds3D = [T.CLIFF];
   private map!: Tile[][];
   public buildingPlots = [
     ...BUILDINGS.map((b, i) => ({ x: b.x, y: b.y, w: b.w, h: b.h, model: ['pokecenter', 'sunrisegym', 'mart'][i] })),

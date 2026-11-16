@@ -125,7 +125,7 @@ export class BaekduCityScene extends Phaser.Scene {
   /** The painted pines grow as real 3D conifers instead of flat ground art. */
   public treeTileIds3D = [T.PINE];
   /** The painted border peaks are replaced by real 3D mountain ranges. */
-  public mountainTileIds3D = [T.MOUNTAIN];
+  public mountainTileIds3D = [T.MOUNTAIN, T.ROCK];
   /** Never let colour classification raise the main travel lanes into walls. */
   public flatTileIds3D = [T.PATH];
   /** Seolbong Lake is glacial: deep base, pale shallows, drifting sun glitter. */

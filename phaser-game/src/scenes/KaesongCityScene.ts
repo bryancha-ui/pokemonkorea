@@ -86,6 +86,11 @@ function buildMap(): Tile[][] {
 }
 
 export class KaesongCityScene extends Phaser.Scene {
+  // Painted tree tiles grow real 3D trees and their flat 2D art is wiped.
+  public treeTileIds3D = [T.TREE];
+  // Solid rock/cliff tiles become real 3D rock (masses → mountain range, lone
+  // tiles → a boulder) and their flat painted icons are wiped from the ground.
+  public mountainTileIds3D = [T.ROCK];
   private map!: Tile[][];
   // Songhyeon's real buildings get named 3D models — Poké Mart + Pokémon Center
   // reuse the custom Higgsfield models, the 어사대 Hall uses the palace model.

@@ -118,6 +118,8 @@ function buildMap(): Tile[][] {
 }
 
 export class JejuCityScene extends Phaser.Scene {
+  // Painted tree tiles grow real 3D trees and their flat 2D art is wiped.
+  public treeTileIds3D = [T.TREE, T.PALM, T.TANGERINE];
   private map!: Tile[][];
   // Major landmarks get their own generated GLBs (PC & mart reuse the shared
   // models); every other building keeps its original design via the procedural

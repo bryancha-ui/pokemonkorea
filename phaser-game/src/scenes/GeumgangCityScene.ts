@@ -48,6 +48,8 @@ function buildMap(): Tile[][] {
 }
 
 export class GeumgangCityScene extends Phaser.Scene {
+  // Painted tree tiles grow real 3D trees and their flat 2D art is wiped.
+  public treeTileIds3D = [T.TREE];
   private map!: Tile[][];
   public buildingPlots = BUILDINGS.map((b, i) => ({ x: b.x, y: b.y, w: b.w, h: b.h, model: ['pokecenter', 'lanterngym', 'contesthall', 'mart'][i] }));
   public onlyNamedBuildings = true;
