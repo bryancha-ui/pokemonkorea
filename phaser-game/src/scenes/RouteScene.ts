@@ -725,7 +725,9 @@ export class RouteScene extends Phaser.Scene {
     else if (row >= RROWS - 1) {
       this.cutsceneActive = true;
       this.cameras.main.fadeOut(500, 0, 0, 0, () => {
-        this.scene.start('SeoulScene');
+        // SeoulScene is only a legacy alias; entering it briefly let the 3D
+        // mirror render an empty black frame before it redirected.
+        this.scene.start('CapitolCityScene');
       });
     }
   }

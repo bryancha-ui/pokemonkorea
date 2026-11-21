@@ -308,7 +308,9 @@ export class MoveFX3D {
       this.shadowBall(from, to, color, strong, eff, onImpact);
     } else if (name === 'air slash') {
       this.airSlash(from, to, color, strong, eff, onImpact);
-    } else if (/^(flamethrower|ember|flame burst|fire blast)$/.test(name)) {
+    } else if (name === 'fire blast') {
+      this.fireBlast(from, to, color, strong, eff, onImpact);
+    } else if (/^(flamethrower|ember|flame burst)$/.test(name)) {
       this.fireTorrent(from, to, color, strong, eff, onImpact);
     } else if (/^(psychic|psybeam|psyshock|confusion)$/.test(name)) {
       this.ringPulse(from, to, 0xf05cff, 0xffc7ff, strong, eff, onImpact, 0.42);
@@ -1821,6 +1823,55 @@ export class MoveFX3D {
         opacity(f, Math.sin(impact * Math.PI) * 0.88);
       });
     }, 0.5, () => { this.burst(to, color || 0xff6328, eff, scale * 1.2); onImpact?.(); });
+  }
+
+  /** Fire Blast / 불대문자: the projectile is the recognisable Chinese
+   *  character 大, not a generic flame ball. Three paired strokes keep the glyph
+   *  legible from the angled battle camera while embers trail behind it. */
+  private fireBlast(
+    from: THREE.Vector3, to: THREE.Vector3, color: number,
+    scale: number, eff: number, onImpact?: () => void,
+  ): void {
+    const group = new THREE.Group();
+    const glyph = new THREE.Group();
+    const strokes = [
+      [new THREE.Vector3(0, 0.68, 0), new THREE.Vector3(0, -0.48, 0)],
+      [new THREE.Vector3(0, 0.20, 0), new THREE.Vector3(-0.62, -0.58, 0)],
+      [new THREE.Vector3(0, 0.20, 0), new THREE.Vector3(0.62, -0.58, 0)],
+    ] as const;
+    const meshes: THREE.Mesh[] = [];
+    for (const [a, b] of strokes) {
+      const outer = segmentMesh(a, b, 0.105 * scale, color || 0xff3b18, 0);
+      const core = segmentMesh(a, b, 0.047 * scale, 0xfff09a, 0);
+      glyph.add(outer, core);
+      meshes.push(outer, core);
+    }
+    group.add(glyph);
+    const embers: THREE.Mesh[] = [];
+    for (let i = 0; i < 18; i++) {
+      const ember = new THREE.Mesh(
+        new THREE.TetrahedronGeometry((0.025 + (i % 4) * 0.01) * scale),
+        glowMaterial(i % 3 ? 0xff6a20 : 0xffe676, 0),
+      );
+      group.add(ember); embers.push(ember);
+    }
+    this.addTask(group, 0.58, (k) => {
+      const travel = easeInOut(Math.min(1, k * 1.12));
+      glyph.position.copy(from).lerp(to, travel);
+      glyph.position.y += Math.sin(k * Math.PI) * 0.22 * scale;
+      glyph.scale.setScalar((0.55 + Math.sin(Math.min(1, k * 1.4) * Math.PI * 0.5) * 0.62) * scale);
+      glyph.rotation.z = Math.sin(k * Math.PI * 2) * 0.055;
+      const fade = k < 0.78 ? 1 : (1 - k) / 0.22;
+      meshes.forEach((mesh, i) => opacity(mesh, fade * (i % 2 ? 0.98 : 0.76)));
+      embers.forEach((ember, i) => {
+        const age = (k * 1.8 + i / embers.length) % 1;
+        ember.position.copy(from).lerp(glyph.position, Math.max(0, 1 - age * 0.62));
+        ember.position.x += Math.sin(i * 2.3) * age * 0.26;
+        ember.position.y += (0.5 - age) * 0.38 + Math.cos(i * 1.7) * 0.09;
+        ember.rotation.x += 0.16; ember.rotation.z += 0.12;
+        opacity(ember, Math.sin(age * Math.PI) * fade * 0.8);
+      });
+    }, 0.5, () => { this.burst(to, color || 0xff4b1f, eff, scale * 1.35); onImpact?.(); });
   }
 
   /** Concentric pulse family used by Psychic, Dark Pulse and sound attacks.

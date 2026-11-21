@@ -16,6 +16,34 @@ const identicalStringValues = Object.keys(KO_STRINGS)
   .filter(key => JA_STRINGS[key] === key)
   .map(key => [key, JA_STRINGS[key]]);
 
+// Different battle moves must never render as the same Korean label. That made
+// Thunder Shock and Shock Wave look like two copies of one move even though
+// their internal battle records were distinct.
+const koStringSource = readFileSync('src/data/ko_strings.ts', 'utf8');
+const moveSection = koStringSource.match(/\/\/ ── Move names ──([\s\S]*?)\/\/ ── Interpolated/);
+const koMoveKeys = moveSection
+  ? [...moveSection[1].matchAll(/^\s*'([^']+)':/gm)].map(match => match[1])
+  : [];
+const moveNamesByKorean = new Map<string, string[]>();
+for (const key of koMoveKeys) {
+  const localized = KO_STRINGS[key]?.trim();
+  if (!localized) continue;
+  const keys = moveNamesByKorean.get(localized) ?? [];
+  keys.push(key);
+  moveNamesByKorean.set(localized, keys);
+}
+const duplicateKoreanMoveNames = [...moveNamesByKorean.entries()]
+  .filter(([, keys]) => keys.length > 1)
+  .map(([localized, keys]) => ({ localized, keys }));
+const requiredDynamicMoveNames = [
+  'Air Slash', 'Aurora Veil', 'Body Slam', 'Brave Bird', 'Brick Break', 'Bug Buzz',
+  'Close Combat', 'Dark Pulse', 'Dazzling Gleam', 'Draco Meteor', 'Dragon Pulse',
+  'Earth Power', 'Energy Ball', 'Fire Blast', 'Flash Cannon', 'Hydro Pump', 'Ice Beam',
+  'Iron Head', 'Leaf Blade', 'Rock Slide', 'Shadow Ball', 'Shadow Claw', 'Sludge Bomb',
+  'Stone Edge', 'Venoshock', 'Wood Hammer',
+] as const;
+const missingKoreanMoveNames = requiredDynamicMoveNames.filter(name => !KO_STRINGS[name]?.trim());
+
 const bucket = (key: string): string => {
   if (/^(?:[A-Z][\w .'-]{0,24}:|📟|✨|\(|The |A |You |Your |After |Before |With |As )/.test(key)) return 'dialogue/story';
   if (/battle|Pokémon|HP|PP|move|type|ability|party|Box|Bag|badge|heal|item|switch|caught/i.test(key)) return 'gameplay/ui';
@@ -37,6 +65,27 @@ const requiredJapanese = [
   'Hwangeum (extending his hand): Welcome to the Hall of Fame. You earned every step of it.',
 ];
 const failures = requiredJapanese.filter(key => !JA_STRINGS[key]?.trim());
+if (!moveSection || koMoveKeys.length === 0) failures.push('Korean move translation section could not be audited');
+if (duplicateKoreanMoveNames.length) {
+  failures.push(`duplicate Korean move labels: ${duplicateKoreanMoveNames
+    .map(entry => `${entry.localized} (${entry.keys.join(', ')})`).join('; ')}`);
+}
+if (missingKoreanMoveNames.length) failures.push(`missing Korean move names: ${missingKoreanMoveNames.join(', ')}`);
+const i18nSource = readFileSync('src/systems/i18n.ts', 'utf8');
+const menuSource = readFileSync('src/scenes/MenuScene.ts', 'utf8');
+for (const fragment of [
+  'export function moveName(name: string)',
+  'KO_STRING_LC.get(clean.toLowerCase())',
+  '/^(.+) wants to learn (.+), but it already knows 4 moves\\.$/',
+  '${KMOVE(m[2])}(을)를 배우고 싶어하지만',
+]) {
+  if (!i18nSource.includes(fragment)) failures.push(`dynamic move localization guard missing: ${fragment}`);
+}
+if (!menuSource.includes('tr(`Teach ${move} to…`)')
+  || !menuSource.includes('.map(typeName).join')
+  || !menuSource.includes('msg = tr(msg);')) {
+  failures.push('TM/HM teaching menu still has a path that bypasses localization');
+}
 const titleSource = readFileSync('src/scenes/TitleScene.ts', 'utf8');
 if (!existsSync('public/assets/title/pokemon-string-logo-ja.webp')
   || !existsSync('public/assets/title/pokemon-string-opening-ja.webp')) {
@@ -76,6 +125,8 @@ console.log(JSON.stringify({
     hangulStringValues,
     hangulSpeakerValues,
     identicalStringValues,
+    duplicateKoreanMoveNames,
+    missingKoreanMoveNames,
   },
   failures,
   sampleMissingGameplay: missingStrings.filter(key => bucket(key) === 'gameplay/ui').slice(0, 300),

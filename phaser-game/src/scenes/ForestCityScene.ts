@@ -142,12 +142,15 @@ export class ForestCityScene extends Phaser.Scene {
           'Prof. Song (over the Pokédex): There she is. She never truly left you — the bond holds.',
         ], () => { this.cutsceneActive = false; });
       });
-    } else if (this.registry.get('forestGymDefeated') && !this.registry.get('chapter7Done')) {
+    } else if (this.registry.get('forestGymDefeated') && !this.registry.get('chapter7Done')
+        && !this.registry.get('forestChapter7CallShown')) {
       // CHAPTER 7 — after the Ancient Keeper Badge (the 5th badge), Professor Song calls
       // you back to 소올. You arrive OUTSIDE her lab in Capitol City (not straight into the
       // fight), so you can heal at the Pokémon Center first, then walk into the lab to
       // trigger Rival battle #3. Re-triggers until the chapter is done so a mid-chapter
       // save can't soft-lock.
+      this.registry.set('forestChapter7CallShown', true);
+      SaveManager.save(this.registry, this.px, this.py, 'ForestCityScene');
       this.time.delayedCall(600, () => {
         this.cutsceneActive = true;
         this.dialog.show([

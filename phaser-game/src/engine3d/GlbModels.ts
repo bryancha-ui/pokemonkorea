@@ -205,10 +205,75 @@ function stripRootMotion(scene: THREE.Object3D, clips: THREE.AnimationClip[], ke
 }
 
 /** Repair small, known reconstruction defects without replacing the authored
- * model. Kingfisher's atlas contains two eyes, but one side is recessed deeply
- * enough that it disappears at normal mobile resolution. Two tiny curved eye
- * caps restore the intended paired gaze in both battle and companion views. */
+ * model. These caps are attached before normalization, so battle and companion
+ * views share the same corrected face. */
 function repairSpeciesModel(scene: THREE.Object3D, key: string): void {
+  if (key === 'gorcobat') {
+    if (scene.getObjectByName('__gorcobatEyeRepair')) return;
+
+    // One eye is almost completely swallowed by the dark facial mask in the
+    // reconstructed texture. Add a matched, shallow pair at the actual sockets
+    // so the face remains readable from both battle camera angles.
+    const root = new THREE.Group();
+    root.name = '__gorcobatEyeRepair';
+    const scleraGeometry = new THREE.SphereGeometry(0.074, 18, 14);
+    const pupilGeometry = new THREE.SphereGeometry(0.032, 14, 10);
+    const scleraMaterial = new THREE.MeshStandardMaterial({ color: 0xf7fbf2, roughness: 0.48 });
+    const pupilMaterial = new THREE.MeshStandardMaterial({ color: 0x172018, roughness: 0.38 });
+    for (const side of [-1, 1] as const) {
+      const normal = new THREE.Vector3(side * 0.16, 0.03, 0.98).normalize();
+      const socket = new THREE.Group();
+      socket.position.set(side * 0.17, 0.29, 0.89);
+      socket.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
+      const sclera = new THREE.Mesh(scleraGeometry, scleraMaterial);
+      sclera.scale.set(0.72, 1, 0.20);
+      const pupil = new THREE.Mesh(pupilGeometry, pupilMaterial);
+      pupil.scale.z = 0.22;
+      pupil.position.z = 0.019;
+      socket.add(sclera, pupil);
+      root.add(socket);
+    }
+    scene.add(root);
+    return;
+  }
+
+  if (key === '35') {
+    if (scene.getObjectByName('__clefairyEyeRepair')) return;
+
+    // Clefairy's source atlas maps both eyes through one narrow, mirrored strip.
+    // One half can disappear after Draco/texture sampling at gameplay distance.
+    // Overlay a matched pair of shallow curved eyes at the authored sockets.
+    const root = new THREE.Group();
+    root.name = '__clefairyEyeRepair';
+    const eyeGeometry = new THREE.SphereGeometry(0.030, 16, 12);
+    const shineGeometry = new THREE.SphereGeometry(0.006, 8, 6);
+    const eyeMaterial = new THREE.MeshStandardMaterial({ color: 0x24151d, roughness: 0.42 });
+    const shineMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const eyes = [
+      { position: [-0.067, 0.390, 0.199], normal: [-0.24, 0.02, 0.97] },
+      { position: [0.067, 0.390, 0.199], normal: [0.24, 0.02, 0.97] },
+    ] as const;
+
+    for (const spec of eyes) {
+      const normal = new THREE.Vector3(...spec.normal).normalize();
+      const socket = new THREE.Group();
+      socket.position.fromArray(spec.position);
+      socket.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
+
+      const eye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+      eye.scale.set(0.62, 1, 0.25);
+      eye.position.z = 0.004;
+      const shine = new THREE.Mesh(shineGeometry, shineMaterial);
+      shine.position.set(-0.005, 0.008, 0.017);
+      socket.add(eye, shine);
+      root.add(socket);
+    }
+    scene.add(root);
+    return;
+  }
+
+  // Kingfisher's atlas contains two eyes, but one side is recessed deeply
+  // enough that it disappears at normal mobile resolution.
   if (key !== 'kingfisher' || scene.getObjectByName('__kingfisherEyeRepair')) return;
 
   const root = new THREE.Group();
@@ -300,7 +365,7 @@ export function normalizeKey(key: string): string {
 
 /** Bumped whenever per-species manifest corrections change, so no browser can
  *  keep serving a stale copy of the registry. */
-const MANIFEST_VERSION = '2026-11-01a';
+const MANIFEST_VERSION = '2026-11-20a';
 
 /** Fetch attempts before settling for the bundled core registry. */
 const MANIFEST_ATTEMPTS = 3;

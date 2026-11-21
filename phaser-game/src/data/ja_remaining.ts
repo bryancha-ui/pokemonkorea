@@ -1536,6 +1536,14 @@ export const JA_REMAINING_STRINGS: Record<string, string> = {
   'The iron gate grinds open. Beyond it, the snow-swept switchbacks of Baekdu Peak rise into a bruised red sky — and far above, six towers pulse.': '鉄の門が重い音を立てて開く。その先では、吹雪にさらされた白頭峰のつづら折りが赤黒い空へ伸び――はるか頭上で六つの塔が脈打っている。',
   "Rival: That was just the front door. Whatever's waiting up there is worse. ...Let's finish it.": 'ライバル：今のは入口にすぎない。上で待っているものは、もっとひどいはずだ。……終わらせよう。',
   '🌊 Seolbong Lake': '🌊 ソルボン湖',
+  'Restless Forgetting': '落ち着かないヨウリョン',
+  '▶ STAY IN': '▶ そのまま',
+  "Prof. Song (over the Pokédex): The Ancient Keeper Badge — your fifth. Well done. But drop everything and come back to 소올 (So-ol).": 'ソン博士（ポケモン図鑑越し）：古代守護者バッジ、これで5つ目だ。よくやった。だが今はすべてを置いてソオルに戻ってきてくれ。',
+  "Prof. Song (over the Pokédex): I've pieced together what Team Suri and 노스단 are really after. You need to hear this in person.": 'ソン博士（ポケモン図鑑越し）：スリ団とノス団の真の目的が分かった。これは直接話したい。',
+  "Prof. Song (over the Pokédex): Heal your team at the Pokémon Center first, then come to my lab — you'll want to be at full strength.": 'ソン博士（ポケモン図鑑越し）：まずポケモンセンターでチームを回復させ、それから研究所へ来てくれ。万全の備えが必要だ。',
+  "Rival (joining the Pokédex call): I'll meet you at the lab. Let's move.": 'ライバル（ポケモン図鑑の通信に加わって）：研究所で会おう。急ごう。',
+  'Sandol: One digger is left on the field. Drive them off — I\'ll hold the stone.': 'サンドル：発掘員はあと1人だ。追い払え。石は俺が支える。',
+  'Sandol: The diggers are gone. The elder has risen at the broken slab — calm it, then meet me at the Quarry.': 'サンドル：発掘員は去った。壊れた石板から長老が目覚めた。それを鎮め、採石場で会おう。',
 };
 
 export const JA_REMAINING_SPEAKERS: Record<string, string> = {

@@ -104,7 +104,14 @@ export class Pokemon {
       && Number.isFinite(move.power) && move.power >= 0
       && Number.isFinite(move.accuracy) && move.accuracy > 0
       && Number.isFinite(move.pp) && move.pp > 0);
-    const safeMoves = validMoves.length ? validMoves : [{
+    const seenMoves = new Set<string>();
+    const uniqueMoves = validMoves.filter(move => {
+      const key = move.name.trim().toLowerCase();
+      if (seenMoves.has(key)) return false;
+      seenMoves.add(key);
+      return true;
+    });
+    const safeMoves = uniqueMoves.length ? uniqueMoves : [{
       name: 'Tackle', type: 'normal', category: 'physical', power: 40, accuracy: 100, pp: 35,
     } satisfies MoveData];
     this.moves = safeMoves.slice(0, 4).map(m => ({ data: { ...m }, pp: m.pp }));

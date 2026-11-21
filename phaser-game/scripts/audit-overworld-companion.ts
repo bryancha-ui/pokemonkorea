@@ -45,8 +45,10 @@ for (const key of expectedModels) {
   expect(Number.isFinite(height) && height > 0 && height <= MAX_COMPANION_3D_HEIGHT,
     `Pokémon has an invalid companion height: ${key} (${height})`);
 }
-expect(close(companion3DTargetHeight('owned-disguijar', 1), 0.1),
-  '돌제비 companion is not exactly one third of its former 0.30 height');
+expect(close(companion3DTargetHeight('owned-disguijar', 1), 0.13),
+  '돌제비 companion lost its compact 0.13 readability size');
+expect(close(companion3DTargetHeight('owned-ottermudang', 1), 0.70),
+  '수달무당 companion lost its enlarged 0.70 readability size');
 expect(companion3DTargetHeight('api-10', Number.NaN)
   < companion3DTargetHeight('api-321', Number.NaN),
   'official Pokémon companion heights no longer reflect Pokédex size');

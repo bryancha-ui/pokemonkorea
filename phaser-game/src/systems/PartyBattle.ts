@@ -23,16 +23,29 @@ const TAUGHT_MOVE_DATA: Record<string, MoveData> = {
 function foldTaughtMoves(moves: MoveData[], entry: PartyEntry): MoveData[] {
   // A player-curated moveset (from choosing which move to forget for a TM) wins outright.
   if (entry.battleMoves && entry.battleMoves.length) {
-    const safe = entry.battleMoves.filter(move => move && typeof move.name === 'string'
-      && typeof move.type === 'string' && ['physical', 'special', 'status'].includes(move.category)
-      && Number.isFinite(move.power) && Number.isFinite(move.accuracy) && move.accuracy > 0
-      && Number.isFinite(move.pp) && move.pp > 0).slice(0, 4);
+    const seen = new Set<string>();
+    const safe = entry.battleMoves.filter(move => {
+      if (!(move && typeof move.name === 'string' && move.name.trim()
+        && typeof move.type === 'string' && ['physical', 'special', 'status'].includes(move.category)
+        && Number.isFinite(move.power) && Number.isFinite(move.accuracy) && move.accuracy > 0
+        && Number.isFinite(move.pp) && move.pp > 0)) return false;
+      const key = move.name.trim().toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).slice(0, 4);
     if (safe.length) return safe;
   }
   const have = new Set(moves.map(m => m.name.toLowerCase()));
   const taught = (entry.moves ?? [])
     .map(n => TAUGHT_MOVE_DATA[n.toLowerCase()])
-    .filter((m): m is MoveData => !!m && !have.has(m.name.toLowerCase()));
+    .filter((move): move is MoveData => {
+      if (!move) return false;
+      const key = move.name.toLowerCase();
+      if (have.has(key)) return false;
+      have.add(key);
+      return true;
+    });
   if (taught.length === 0) return moves;
   const result = [...moves];
   for (const tm of taught) {

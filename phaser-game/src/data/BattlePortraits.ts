@@ -258,6 +258,9 @@ const PORTRAIT_SCALE: Record<string, number> = {
   npc_ryeo:     1.305,   // Commander Ryeo (Team Suri)
   npc_jito:     1.305,
   npc_gapcheol: 1.305,
+  // Yunho's broad dragon-wing cape fills the source width, so the standard
+  // width fit made his body much shorter than every other route trainer.
+  'dragon tamer yunho': 1.55,
   'trncls-worker': 1.35, // Snow Worker Deok's 80px source needs more stage presence
 };
 

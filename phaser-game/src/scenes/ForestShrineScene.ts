@@ -205,7 +205,7 @@ export class ForestShrineScene extends Phaser.Scene {
       const col = gd.key.endsWith('1') ? 0x3a6a3a : 0x7a4a6a;
       drawNpcBody(g, col, { hair: 0x203018 });
       g.setName(gd.key);
-      this.add.text(x, y - 26, gd.name, {
+      this.add.text(x, y - 26, tr(gd.name), {
         fontSize: '8px', color: '#bfffa0', backgroundColor: '#00000088', padding: { x: 2, y: 1 },
       }).setOrigin(0.5).setDepth(11).setName(`${gd.key}__label`);
     }

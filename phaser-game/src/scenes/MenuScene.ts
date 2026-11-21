@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { tr, typeName, abilityName, t, pokeName, pokeNameEn } from '../systems/i18n';
+import { tr, typeName, abilityName, t, pokeName, pokeNameEn, moveName } from '../systems/i18n';
 import { STARTERS, TYPE_COLORS, findForm } from '../data/StarterData';
 import { SaveManager } from '../utils/SaveManager';
 import { PartySystem, PartyEntry } from '../systems/PartySystem';
@@ -1366,7 +1366,7 @@ export class MenuScene extends Phaser.Scene {
     const overlay = this.add.container(0, 0).setDepth(60);
     overlay.add(this.add.rectangle(cx, cy, this.W, this.H, 0x000000, 0.6));
     overlay.add(this.add.rectangle(cx, cy, 460, 420, 0x10142a, 0.99).setStrokeStyle(2, 0x5577aa));
-    overlay.add(this.add.text(cx, cy - 178, `Teach ${move} to…`, { fontSize: '16px', color: '#ffe44e', fontStyle: 'bold' }).setOrigin(0.5));
+    overlay.add(this.add.text(cx, cy - 178, tr(`Teach ${move} to…`), { fontSize: '16px', color: '#ffe44e', fontStyle: 'bold' }).setOrigin(0.5));
 
     party.forEach((e, i) => {
       const y = cy - 140 + i * 48;
@@ -1378,8 +1378,13 @@ export class MenuScene extends Phaser.Scene {
       if (usable) r.setInteractive({ useHandCursor: true });
       overlay.add(r);
       overlay.add(this.add.text(cx - 180, y - 9, `${this.partyName(e)}  Lv.${e.level}`, { fontSize: '14px', color: usable ? '#fff' : '#888' }));
-      const types = [e.type1, e.type2].filter(Boolean).join(' / ');
-      const note  = knows ? `already knows ${move}` : eligible ? `can learn ${move}` : `can't learn ${move}`;
+      const types = [e.type1, e.type2].filter((type): type is string => !!type).map(typeName).join(' / ');
+      const localizedMove = moveName(move);
+      const note = knows
+        ? t(`already knows ${move}`, `이미 ${localizedMove}을(를) 알고 있음`, `${localizedMove}を おぼえている`)
+        : eligible
+          ? t(`can learn ${move}`, `${localizedMove} 습득 가능`, `${localizedMove}を おぼえられる`)
+          : t(`can't learn ${move}`, `${localizedMove} 습득 불가`, `${localizedMove}を おぼえられない`);
       overlay.add(this.add.text(cx - 180, y + 9, `${types}  ·  ${note}`, { fontSize: '11px', color: usable ? '#9ab' : '#776688' }));
       if (usable) r.on('pointerdown', () => {
         overlay.destroy(true);
@@ -1469,6 +1474,7 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private showToast(msg: string) {
+    msg = tr(msg);
     const t = this.add.text(this.W / 2, this.H - 40, msg, {
       fontSize: '14px', color: '#aaffaa', backgroundColor: '#000000cc', padding: { x: 10, y: 5 },
     }).setOrigin(0.5).setDepth(80);

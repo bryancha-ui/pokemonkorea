@@ -135,16 +135,37 @@ function ensureAllBaseStats(entries: PartyEntry[]): boolean {
     if (entry.level !== nextLevel) { entry.level = nextLevel; changed = true; }
     if (!Array.isArray(entry.moves)) { entry.moves = []; changed = true; }
     else {
-      const cleanMoves = entry.moves.filter(move => typeof move === 'string' && move.trim()).map(move => move.trim());
-      if (cleanMoves.length !== entry.moves.length) { entry.moves = cleanMoves; changed = true; }
+      const seenMoves = new Set<string>();
+      const cleanMoves = entry.moves
+        .filter(move => typeof move === 'string' && move.trim())
+        .map(move => move.trim())
+        .filter(move => {
+          const key = move.toLowerCase();
+          if (seenMoves.has(key)) return false;
+          seenMoves.add(key);
+          return true;
+        });
+      if (cleanMoves.length !== entry.moves.length
+        || cleanMoves.some((move, index) => move !== entry.moves[index])) {
+        entry.moves = cleanMoves;
+        changed = true;
+      }
     }
     if (entry.battleMoves && !Array.isArray(entry.battleMoves)) { delete entry.battleMoves; changed = true; }
     if (Array.isArray(entry.battleMoves)) {
-      const cleanBattleMoves = entry.battleMoves.filter(move => move && typeof move.name === 'string'
-        && typeof move.type === 'string' && ['physical', 'special', 'status'].includes(move.category)
-        && Number.isFinite(move.power) && Number.isFinite(move.accuracy) && move.accuracy > 0
-        && Number.isFinite(move.pp) && move.pp > 0).slice(0, 4);
-      if (cleanBattleMoves.length !== entry.battleMoves.length) {
+      const seenBattleMoves = new Set<string>();
+      const cleanBattleMoves = entry.battleMoves.filter(move => {
+        if (!(move && typeof move.name === 'string' && move.name.trim()
+          && typeof move.type === 'string' && ['physical', 'special', 'status'].includes(move.category)
+          && Number.isFinite(move.power) && Number.isFinite(move.accuracy) && move.accuracy > 0
+          && Number.isFinite(move.pp) && move.pp > 0)) return false;
+        const key = move.name.trim().toLowerCase();
+        if (seenBattleMoves.has(key)) return false;
+        seenBattleMoves.add(key);
+        return true;
+      }).slice(0, 4);
+      if (cleanBattleMoves.length !== entry.battleMoves.length
+        || cleanBattleMoves.some((move, index) => move !== entry.battleMoves?.[index])) {
         if (cleanBattleMoves.length) entry.battleMoves = cleanBattleMoves;
         else delete entry.battleMoves;
         changed = true;

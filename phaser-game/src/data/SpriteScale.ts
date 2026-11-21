@@ -134,6 +134,11 @@ const CUSTOM_STAGE_2D_SCALE: Readonly<Record<number, number>> = {
 const BATTLE_2D_OVERRIDES: Readonly<Record<string, number>> = {
   // Preserve the requested 1.5× enlargement in the non-3D battle fallback.
   '445': NUMERIC_SPECIES_SCALE[445] * GARCHOMP_BATTLE_MULTIPLIER,
+  // These official-model species were also reported as undersized. Keep the
+  // emergency 2D path in step with their authored 3D stage presence.
+  '306': 2.80, // 보스로라 — at least twice the former 1.40 fit
+  '635': 1.80, // 삼삼드래
+  '730': 1.65, // 누리레느
   // The high-resolution fallback has a tall, narrow silhouette and read too
   // small beside the final-stage starter models.
   banderado: 1.44,
@@ -152,6 +157,7 @@ const BATTLE_2D_OVERRIDES: Readonly<Record<string, number>> = {
   pipetiger:  1.6,    // 염흥왕 — flame king; its GLB often falls back to 2D, which was small
   palossandx: 1.4,    // 사다이스 — stage-two fit (~1.19) was too small for its bulk
   dracoelido: 1.6,    // 방패공룡 — Rock/Dragon shield saurian; stage-three fit was too small
+  dracopaia: 1.55,    // 창해미르 — broad final-stage sea dragon
 };
 
 function canonicalSpriteKey(key: string): string {
@@ -174,13 +180,24 @@ const BATTLE_3D_SIZE_OVERRIDES: Readonly<Record<string, number>> = {
   // The long beak and swept-back wings occupy far more screen width than the
   // model's normalized height suggests. Keep this small first form compact.
   kingfisher: 0.68,
+  // Borrowed official models normally receive a global 0.6 reduction in the
+  // battle mirror. Exact final heights here deliberately bypass that reduction
+  // for the three reported large final evolutions.
+  '306': 1.50, // 보스로라 — just over 2× its former ~0.73 stage height
+  '635': 1.25, // 삼삼드래
+  '730': 1.18, // 누리레느
+  dracopaia: 1.30,
 };
 const COMPANION_3D_HEIGHT_OVERRIDES: Readonly<Record<string, number>> = {
-  // 돌제비: reduce the current 0.30 follower to exactly one third.
+  // 돌제비: the former 0.10 follower was hard to see beside the trainer.
+  // Keep this first-form bird compact, but give it a small readability lift.
   // Shape correction is bypassed for explicit overrides, so the final model
-  // really is 0.10 world units tall regardless of its long body proportions.
-  disguijar: 0.1,
+  // really is 0.13 world units tall regardless of its long body proportions.
+  disguijar: 0.13,
   kingfisher: 0.52,
+  // 수달무당's robes and tail made the generic middle-stage height read like
+  // a small first form beside the trainer.
+  ottermudang: 0.70,
   // Starter families live in StarterData rather than CustomBattle's stage
   // table, so state their follower ladder here explicitly.
   munkain: 0.44,

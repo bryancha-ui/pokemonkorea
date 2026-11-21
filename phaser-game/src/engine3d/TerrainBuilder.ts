@@ -1063,6 +1063,28 @@ export function buildTerrain(
     into.add(eave);
   };
 
+  /** A recognisable three-stone dolmen while its authored Draco GLB decodes.
+   *  Using the normal building extrusion here produced a concrete house for a
+   *  few seconds (or permanently when the decoder was missing). */
+  const makeDolmenFallback = (w: number, d: number): THREE.Group => {
+    const root = new THREE.Group();
+    const stone = new THREE.MeshToonMaterial({ color: 0x736d64, gradientMap: toonRamp() });
+    const legW = Math.max(0.18, w * 0.2);
+    const legH = Math.max(0.48, Math.min(w, d) * 0.62);
+    const legD = Math.max(0.28, d * 0.52);
+    for (const side of [-1, 1]) {
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(legW, legH, legD), stone);
+      leg.position.set(side * w * 0.27, legH / 2, 0);
+      leg.rotation.z = side * 0.045;
+      root.add(leg);
+    }
+    const cap = new THREE.Mesh(new THREE.BoxGeometry(w * 0.92, Math.max(0.2, legH * 0.3), d * 0.78), stone);
+    cap.position.y = legH + Math.max(0.1, legH * 0.15);
+    cap.rotation.set(-0.035, 0.06, 0.025);
+    root.add(cap);
+    return root;
+  };
+
   // Generic building GLBs (house/hanok/…) were being stamped onto EVERY detected
   // footprint, so the same one or two models blanketed every town — hanok and
   // plain houses everywhere. Until per-city, purpose-built models exist (and a
@@ -1165,8 +1187,10 @@ export function buildTerrain(
       holder.position.set(b.x + b.w / 2, 0, b.z + b.d / 2);
       // Never expose an empty plot while a large GLB streams in. The local shell
       // remains the failure fallback and is hidden when the model is ready.
-      const fallback = new THREE.Group();
-      extrudeBuilding(b, fallback, true);
+      const fallback = b.model === 'dolmen'
+        ? makeDolmenFallback(b.w, b.d)
+        : new THREE.Group();
+      if (b.model !== 'dolmen') extrudeBuilding(b, fallback, true);
       holder.add(fallback);
       group.add(holder);
       const h = plotHeight(b.w, b.d);

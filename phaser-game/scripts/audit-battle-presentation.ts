@@ -56,6 +56,12 @@ expect(moveFx3D.includes('rockTomb(') && moveFx3D.includes('getRockTombSealTex()
 expect(moveFx3D.includes("name === 'thunderbolt'") && moveFx3D.includes('private thunderbolt(')
   && battleMirror.includes("'thunderbolt',"),
   'Thunderbolt is not routed to its enlarged timed electric effect');
+expect(moveFx3D.includes("name === 'fire blast'") && moveFx3D.includes('private fireBlast(')
+  && moveFx3D.includes('Chinese') && moveFx3D.includes('0.62, -0.58'),
+  'Fire Blast is not drawn as the requested 大-shaped 3D projectile');
+expect(battleFx.includes("moveKey === 'fire blast'") && battleFx.includes('playFireBlast2D(')
+  && battleFx.includes('glyph.lineBetween(0, -10, -43, 43)'),
+  'Fire Blast 2D fallback lost its 大-shaped projectile');
 expect(battleFx.includes("moveKey === 'rock throw'") && battleFx.includes("moveKey === 'rock tomb'")
   && battleFx.includes("moveKey === 'thunderbolt'"),
   'signature move presentation is missing its 2D fallback');
@@ -88,6 +94,15 @@ expect(battleMirror.includes("'445': (spriteScale('445') / 1.15) * GARCHOMP_BATT
   'Garchomp lost its 1.5× 3D battle enlargement');
 expect(Math.abs(battle2DSpriteScale('enemy-445') - 1.45 * GARCHOMP_BATTLE_MULTIPLIER * 1.1) < 0.0001,
   'Garchomp lost its 1.5× 2D battle enlargement');
+expect(battle3DSizeScale('enemy-306', 0.73) === 1.50
+  && battle2DSpriteScale('enemy-306') >= 2.8 * 1.1,
+  'Aggron lost its at-least-2× battle enlargement');
+expect(battle3DSizeScale('enemy-635', 0.8) === 1.25
+  && battle3DSizeScale('enemy-730', 0.8) === 1.18,
+  'Hydreigon or Primarina lost its large-final-evolution battle size');
+expect(battle3DSizeScale('dracopaia', 0.9) === 1.30
+  && battle2DSpriteScale('dracopaia') >= 1.55 * 1.1,
+  'Dracopaia lost its enlarged battle presentation');
 expect(battleMirror.includes("'95': 90"),
   'Onix lost its -X to +Z battle-facing correction');
 expect(battleMirror.includes("'730': 35"),
@@ -102,24 +117,40 @@ expect(typeof balchataek !== 'string' && balchataek?.rotY === 270,
 const doribi = modelManifest.models?.find(entry => typeof entry !== 'string' && entry.key === 'doribi');
 expect(typeof doribi !== 'string' && doribi?.rotY === 180,
   'Doribi no longer faces the shared +Z/front axis');
-expect(glbModels.includes("const MANIFEST_VERSION = '2026-11-01a'"),
+expect(glbModels.includes("const MANIFEST_VERSION = '2026-11-20a'"),
   'the corrected creature orientations can be hidden by a stale browser manifest');
+for (const [key, rotY] of [['squirrel2', 270], ['trumpetcreeper', 90], ['moransae', 90]] as const) {
+  const entry = modelManifest.models?.find(item => typeof item !== 'string' && item.key === key);
+  expect(typeof entry !== 'string' && entry?.rotY === rotY,
+    `${key} lost its requested presentation-axis correction`);
+}
+expect(glbModels.includes("key === 'gorcobat'")
+  && glbModels.includes('__gorcobatEyeRepair')
+  && glbModels.includes('side * 0.17, 0.29, 0.89'),
+  'Gorcobat is missing its symmetric paired-eye repair');
 
 // Production GLBs must not inherit obsolete enlargement values from old 2D
 // artwork. Disguijar is a small stone swift; other intentional giants retain
 // relative presence but are capped before they can cover the arena or trainer.
 expect(battle3DSizeScale('enemy-disguijar', 1.4) === 0.45,
   'Disguijar lost its small but readable 3D battle presentation');
-expect(companion3DTargetHeight('owned-disguijar', 1.2) === 0.1,
-  'Disguijar companion is not one third of its former 0.30 height');
+expect(companion3DTargetHeight('owned-disguijar', 1.2) === 0.13,
+  'Disguijar companion lost its compact 0.13 readability size');
 expect(battle3DSizeScale('enemy-kingfisher', 1) === 0.68,
   'Kingfisher is still oversized in 3D battles');
 expect(companion3DTargetHeight('owned-kingfisher', 0.9) === 0.52,
   'Kingfisher is still oversized as the lead companion');
+expect(companion3DTargetHeight('owned-ottermudang', 0.58) === 0.70,
+  'Ottermudang companion lost its requested readability size');
 expect(battleMirror.includes('kingfisher: 24')
   && glbModels.includes("key !== 'kingfisher'")
   && glbModels.includes('__kingfisherEyeRepair'),
   'Kingfisher is missing its three-quarter yaw or paired-eye reconstruction repair');
+expect(glbModels.includes("key === '35'")
+  && glbModels.includes('__clefairyEyeRepair')
+  && glbModels.includes('[-0.067, 0.390, 0.199]')
+  && glbModels.includes('[0.067, 0.390, 0.199]'),
+  'Clefairy is missing its symmetric paired-eye repair');
 expect(battle3DSizeScale('hwanwoong', 2) === MAX_BATTLE_3D_SIZE_SCALE,
   'oversized 3D battlers are not capped');
 expect(companion3DTargetHeight('hwanwoong', 2) === MAX_COMPANION_3D_HEIGHT,

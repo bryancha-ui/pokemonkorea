@@ -197,6 +197,8 @@ export class DolmoeRuinsScene extends Phaser.Scene {
     if (!this.textures.exists('daejangseung')) return;
     const img = this.add.image(this.digCol * IT, (this.digRow - 1.2) * IT, 'daejangseung')
       .setDepth(9)
+      .setData('creatureModel3DKey', 'daejangseung')
+      .setData('creatureHeight3D', 3.1)
       // A flat relief with a fixed world yaw can show its side/back as the
       // camera moves. Keep the guardian's front turned toward the player.
       .setData('facePlayer3D', true);
@@ -292,6 +294,7 @@ export class DolmoeRuinsScene extends Phaser.Scene {
   private wakeGuardian() {
     if (this.registry.get('dolmoeGuardianWoke')) return;
     this.registry.set('dolmoeGuardianWoke', true);
+    this.registry.set('dolmoeDiggersDefeated', true);
     this.cutsceneActive = true;
     this.cameras.main.shake(500, 0.008);
     this.drawGuardian();
@@ -370,7 +373,14 @@ export class DolmoeRuinsScene extends Phaser.Scene {
     if (this.registry.get('dolmoeGuardianWoke')) {
       this.dialog.show(["Sandol: Face the elder at the broken slab. Soothe it or catch it — just end its rage."], () => { this.cutsceneActive = false; });
     } else {
-      this.dialog.show(["Sandol: Two diggers left on the field. Drive them off — I'll hold the stone."], () => { this.cutsceneActive = false; });
+      const remaining = this.grunts.filter(grunt => !grunt.defeated
+        && !this.registry.get(`trainerDefeated_${grunt.key}`)).length;
+      this.dialog.show([remaining === 2
+        ? tr("Sandol: Two diggers left on the field. Drive them off — I'll hold the stone.")
+        : remaining === 1
+          ? tr("Sandol: One digger is left on the field. Drive them off — I'll hold the stone.")
+          : tr("Sandol: The diggers are gone. The elder has risen at the broken slab — calm it, then meet me at the Quarry.")],
+      () => { this.cutsceneActive = false; });
     }
   }
 

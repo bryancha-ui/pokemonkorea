@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { canUseSurf, installSurfing, isSurfing } from '../systems/SurfSystem';
-import { tr, speakerName } from '../systems/i18n';
+import { tr as translate, speakerName } from '../systems/i18n';
 import { playBgm } from '../systems/Music';
 import { vanishesAfterDefeat } from '../data/Villains';
 import { drawTrainerBody, drawRiderBody, drawNpcBody, playerDesign } from '../data/CharacterSprite';
@@ -161,10 +161,10 @@ export class Route6Scene extends Phaser.Scene {
     g.generateTexture(key, COLS * TILE, ROWS * TILE); g.destroy();
     this.add.image(0, 0, key).setOrigin(0, 0).setDepth(0);
 
-    this.add.text(12 * TILE, 58.4 * TILE, tr('↓ Forest City'), {
+    this.add.text(12 * TILE, 58.4 * TILE, translate('↓ Forest City'), {
       fontSize: '10px', color: '#fff', backgroundColor: '#2a5a8a99', padding: { x: 4, y: 2 },
     }).setOrigin(0.5).setDepth(5);
-    this.add.text(12 * TILE, 0.7 * TILE, tr('↑ Dolmoe City'), {
+    this.add.text(12 * TILE, 0.7 * TILE, translate('↑ Dolmoe City'), {
       fontSize: '10px', color: '#fff', backgroundColor: '#aa6a2a99', padding: { x: 4, y: 2 },
     }).setOrigin(0.5).setDepth(5);
   }
@@ -180,7 +180,7 @@ export class Route6Scene extends Phaser.Scene {
       g.fillStyle(0xffcc99); g.fillRect(-6, -22, 12, 12);
       g.fillStyle(0x220000); g.fillRect(-6, -22, 12, 5);
       g.fillStyle(0x000000); g.fillRect(-3, -16, 2, 2); g.fillRect(1, -16, 2, 2);
-      this.add.text(tr.col * TILE + 16, tr.row * TILE - 12, speakerName(tr.label), {
+      this.add.text(tr.col * TILE + 16, tr.row * TILE - 12, speakerName(tr.name), {
         fontSize: '8px', color: '#fff', backgroundColor: '#00000088', padding: { x: 2, y: 1 }, align: 'center',
       }).setOrigin(0.5).setDepth(9);
     }
@@ -209,10 +209,10 @@ export class Route6Scene extends Phaser.Scene {
   private createUI() {
     this.dialog = new DialogBox(this, this.scale.width, this.scale.height);
     this.add.rectangle(this.scale.width / 2, 22, 410, 32, 0x000000, 0.6).setScrollFactor(0).setDepth(50);
-    this.add.text(this.scale.width / 2, 22, tr('🌅 Route 6 — Eastern Shore Road (동해 해안도로)'), {
+    this.add.text(this.scale.width / 2, 22, translate('🌅 Route 6 — Eastern Shore Road (동해 해안도로)'), {
       fontSize: '13px', color: '#fff', fontStyle: 'bold',
     }).setOrigin(0.5).setScrollFactor(0).setDepth(51);
-    this.add.text(this.scale.width / 2, this.scale.height - 8, tr('WASD: move  SHIFT: run  SPACE: talk  M: menu'), {
+    this.add.text(this.scale.width / 2, this.scale.height - 8, translate('WASD: move  SHIFT: run  SPACE: talk  M: menu'), {
       fontSize: '10px', color: '#ccc', backgroundColor: '#00000088', padding: { x: 5, y: 2 },
     }).setOrigin(0.5, 1).setScrollFactor(0).setDepth(51);
   }
@@ -293,7 +293,7 @@ export class Route6Scene extends Phaser.Scene {
         this.registry.set('trainerExpPool', tr.expPool);
         this.registry.set('trainerReturnScene', 'Route6Scene');
         this.registry.set('route6ReturnX', this.px); this.registry.set('route6ReturnY', this.py);
-        this.dialog.show([tr.line, `${tr.name}: Let's battle!`], () => {
+        this.dialog.show([tr.line, `${speakerName(tr.name)}: ${translate("Let's battle!")}`], () => {
           this.cameras.main.fadeOut(400, 0, 0, 0, () => this.scene.start('TrainerBattleScene'));
         });
         return;
@@ -361,7 +361,7 @@ export class Route6Scene extends Phaser.Scene {
     const onShore = (col === 16 || col === 17) && this.facing === 3;   // sand edge, facing the sea
     if (!canUseSurf(this.registry) || !onShore) { this.surfPrompt?.setVisible(false); return; }
     if (!this.surfPrompt) {
-      this.surfPrompt = this.add.text(this.scale.width / 2, 46, tr('🌊 SPACE — Surf out to sea'), {
+      this.surfPrompt = this.add.text(this.scale.width / 2, 46, translate('🌊 SPACE — Surf out to sea'), {
         fontSize: '12px', color: '#fff', backgroundColor: '#0a3a5acc', padding: { x: 8, y: 4 },
       }).setOrigin(0.5).setScrollFactor(0).setDepth(60).setVisible(false);
     }

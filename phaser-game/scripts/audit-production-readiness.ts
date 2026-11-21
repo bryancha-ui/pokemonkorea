@@ -112,6 +112,10 @@ const geumgangCity = await fs.readFile(path.join(srcRoot, 'scenes', 'GeumgangCit
 const geumgangContest = await fs.readFile(path.join(srcRoot, 'scenes', 'GeumgangContestScene.ts'), 'utf8');
 const hwangeumStory = await fs.readFile(path.join(srcRoot, 'systems', 'HwangeumStory.ts'), 'utf8');
 const storyActor = await fs.readFile(path.join(srcRoot, 'systems', 'StoryActor.ts'), 'utf8');
+const propModels = await fs.readFile(path.join(srcRoot, 'engine3d', 'PropModels.ts'), 'utf8');
+const terrainBuilder = await fs.readFile(path.join(srcRoot, 'engine3d', 'TerrainBuilder.ts'), 'utf8');
+const forestCity = await fs.readFile(path.join(srcRoot, 'scenes', 'ForestCityScene.ts'), 'utf8');
+const routeScene = await fs.readFile(path.join(srcRoot, 'scenes', 'RouteScene.ts'), 'utf8');
 if (!geumgangCity.includes('playFirstVisitRivalEntrance(cityIntro)')
   || !geumgangCity.includes('markRivalPortrait(rival, this.registry)')) {
   failures.push('Geumgang first-arrival rival can still speak without a visible actor');
@@ -122,6 +126,28 @@ if (!hwangeumStory.includes('walkTo: (targetX, targetY, lookAt, onComplete')) {
 for (const scene of ['Route3Scene', 'Route5Scene', 'JejuVentScene', 'SunriseCityScene']) {
   const source = await fs.readFile(path.join(srcRoot, 'scenes', `${scene}.ts`), 'utf8');
   if (!source.includes('.walkTo(')) failures.push(`${scene} still pops Hwangeum directly onto the dialogue mark`);
+}
+const route3 = await fs.readFile(path.join(srcRoot, 'scenes', 'Route3Scene.ts'), 'utf8');
+if (!route3.includes('runRyeoRivalFarewell(championRescuePending)')
+  || !route3.includes("this.registry.set('ryeo1RivalFarewellDone', true)")
+  || !route3.includes('targets: [rival.g, rival.label]')) {
+  failures.push('Ryeo battle return still removes the Rival without dialogue and a visible walk-away');
+}
+if (!forestCity.includes("!this.registry.get('forestChapter7CallShown')")
+  || !forestCity.includes("this.registry.set('forestChapter7CallShown', true)")) {
+  failures.push('Forest City Professor Song call can still repeat on every entry');
+}
+if (!routeScene.includes("this.scene.start('CapitolCityScene')")) {
+  failures.push('capital entry still passes through the empty black Seoul alias scene');
+}
+if (!propModels.includes("import { DRACOLoader }")
+  || !propModels.includes("draco.setDecoderPath(new URL('assets/draco/'")
+  || !propModels.includes('loader.setDRACOLoader(draco)')) {
+  failures.push('compressed Higgsfield buildings still load without a Draco decoder');
+}
+if (!terrainBuilder.includes('makeDolmenFallback')
+  || !terrainBuilder.includes("b.model === 'dolmen'")) {
+  failures.push('dolmens can still appear as concrete building boxes while their model loads');
 }
 if (!storyActor.includes("kind: 'rival' | 'trainer'")
   || !storyActor.includes("setData('characterLabelTarget3D', this.graphic)")

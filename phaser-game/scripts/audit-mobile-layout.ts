@@ -1,4 +1,5 @@
 import { calculateMobileShellLayout, GAME_ASPECT } from '../src/systems/MobileShellLayout';
+import { readFileSync } from 'node:fs';
 
 interface Case {
   name: string;
@@ -17,6 +18,12 @@ const cases: Case[] = [
 ];
 
 const failures: string[] = [];
+const trainerBattle = readFileSync('src/scenes/TrainerBattleScene.ts', 'utf8');
+if (!trainerBattle.includes('The whole row is a real touch target')
+  || !trainerBattle.includes("hit.on('pointerover'")
+  || !trainerBattle.includes(".on('pointerdown'")) {
+  failures.push('switch/stay prompt still lacks full-row mobile touch targets');
+}
 const results = cases.map(test => {
   const layout = calculateMobileShellLayout(test.width, test.height);
   const ratio = layout.gameWidth / layout.gameHeight;

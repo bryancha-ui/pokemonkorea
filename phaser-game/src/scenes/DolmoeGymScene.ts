@@ -515,7 +515,10 @@ export class DolmoeGymScene extends Phaser.Scene {
     if (!motion) return;
     motion.elapsedMs += Math.min(delta, 48);
     const progress = Phaser.Math.Clamp(motion.elapsedMs / motion.durationMs, 0, 1);
-    const eased = Phaser.Math.Easing.Sine.InOut(progress);
+    // Constant per-tile speed prevents a full stop/restart at every held-key
+    // grid step; toggle the two walk poses through the step for smooth cadence.
+    const eased = progress;
+    this.walkFrame = progress < 0.5 ? 0 : 1;
     this.px = Phaser.Math.Linear(motion.fromX, motion.toX, eased);
     this.py = Phaser.Math.Linear(motion.fromY, motion.toY, eased);
     if (motion.boulder && motion.boulderToCol !== undefined && motion.boulderToRow !== undefined) {

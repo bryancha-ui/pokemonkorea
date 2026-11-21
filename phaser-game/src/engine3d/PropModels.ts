@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader.js';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { allowsHeavy3DAssets, isRenderableModel } from './GlbModels';
@@ -43,6 +44,20 @@ const propUse = new Map<string, number>();
 let propClock = 0;
 const loader = new GLTFLoader();
 const objLoader = new OBJLoader();
+let dracoReady = false;
+
+/** Higgsfield and optimized local scenery use KHR_draco_mesh_compression.
+ * Creature loading configured a decoder, but the separate building loader did
+ * not, so every compressed shrine/gym/dolmen failed and left its concrete-box
+ * fallback on screen. Configure this loader against the same vendored decoder. */
+function ensurePropDracoDecoder(): void {
+  if (dracoReady || typeof document === 'undefined') return;
+  const draco = new DRACOLoader();
+  draco.setDecoderPath(new URL('assets/draco/', document.baseURI).toString());
+  draco.setWorkerLimit(performanceProfile().mobile ? 1 : 2);
+  loader.setDRACOLoader(draco);
+  dracoReady = true;
+}
 
 export function primeProps(): void {
   if (props || loading) return;
@@ -74,6 +89,7 @@ export function getProp(def: PropDef): THREE.Group | null {
     return c;
   }
   cache.set(def.id, 'loading');
+  ensurePropDracoDecoder();
   const url = def.url || `assets/models3d/${def.id}.glb`;
   const finish = (model: THREE.Object3D) => {
     try {

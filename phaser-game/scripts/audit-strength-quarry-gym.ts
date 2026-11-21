@@ -55,6 +55,7 @@ expect(strengthQuarrySolved(read), 'legacy badge save leaves the fissure sealed'
 const scene = readFileSync('src/scenes/DolmoeGymScene.ts', 'utf8');
 const mirror = readFileSync('src/engine3d/OverworldMirror.ts', 'utf8');
 const model = readFileSync('src/engine3d/StrengthQuarry3D.ts', 'utf8');
+const ruins = readFileSync('src/scenes/DolmoeRuinsScene.ts', 'utf8');
 expect(scene.includes('MOBILE_ACTION_EVENT'), 'mobile A-button cannot operate the reset pedestal');
 expect(scene.includes('resolveStrengthPush'), 'Gym movement bypasses the authoritative push rules');
 expect(scene.includes("SaveManager.autoSave(this.registry, this.px, this.py, 'DolmoeGymScene')"), 'boulder checkpoints are not auto-saved');
@@ -65,6 +66,14 @@ expect(mirror.includes("kind: 'strength-quarry-prop'"), '3D mirror cannot track 
 expect(model.includes('strength-irregular-boulder'), 'rune boulders are not volumetric');
 expect(model.includes('strength-bottomless-fissure'), 'the fissure is not volumetric');
 expect(model.includes('strength-completed-boulder-bridge'), 'completed boulders do not form a 3D bridge');
+expect(scene.includes('const eased = progress;') && scene.includes('progress < 0.5 ? 0 : 1'),
+  'Dolmoe Gym grid walking still stops/eases at every tile or lacks walk cadence');
+expect(ruins.includes("setData('creatureModel3DKey', 'daejangseung')")
+  && ruins.includes("setData('creatureHeight3D', 3.1)"),
+  'Daejangseung can still be hidden behind the sealed dolmen in 3D');
+expect(ruins.includes("this.registry.set('dolmoeDiggersDefeated', true)")
+  && ruins.includes('The diggers are gone. The elder has risen'),
+  'Sandol quest does not advance or explain the guardian step after both diggers');
 
 console.log(JSON.stringify({
   bouldersChecked: STRENGTH_BOULDERS.length,

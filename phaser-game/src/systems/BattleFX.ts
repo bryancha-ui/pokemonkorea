@@ -118,6 +118,10 @@ export function playMoveFX(
       playThunderbolt2D(scene, attacker, target, impact);
       return;
     }
+    if (moveKey === 'fire blast') {
+      playFireBlast2D(scene, attacker, target, impact);
+      return;
+    }
     const orb  = scene.add.circle(ax, ay, 11, color, 0.95).setDepth(9);
     const glow = scene.add.circle(ax, ay, 20, color, 0.30).setDepth(9);
     scene.tweens.add({
@@ -126,6 +130,36 @@ export function playMoveFX(
       onComplete: () => { orb.destroy(); glow.destroy(); impact(); },
     });
   }
+}
+
+/** 2D fallback for Fire Blast: draw the same 大 glyph used by the 3D path. */
+function playFireBlast2D(
+  scene: Phaser.Scene,
+  attacker: Phaser.GameObjects.Image,
+  target: Phaser.GameObjects.Image,
+  impact: () => void,
+): void {
+  const glyph = scene.add.graphics();
+  glyph.lineStyle(18, 0xef351c, 0.92);
+  glyph.lineBetween(0, -42, 0, 42);
+  glyph.lineBetween(0, -10, -43, 43);
+  glyph.lineBetween(0, -10, 43, 43);
+  glyph.lineStyle(7, 0xffef92, 1);
+  glyph.lineBetween(0, -42, 0, 42);
+  glyph.lineBetween(0, -10, -43, 43);
+  glyph.lineBetween(0, -10, 43, 43);
+  glyph.setPosition(attacker.x, attacker.y).setDepth(14).setScale(0.35);
+  scene.tweens.add({
+    targets: glyph,
+    x: target.x, y: target.y - 8, scaleX: 1.12, scaleY: 1.12,
+    duration: BATTLE_PACING.specialProjectileMs,
+    ease: 'Sine.easeInOut',
+    onComplete: () => {
+      impact();
+      scene.tweens.add({ targets: glyph, alpha: 0, scaleX: 1.55, scaleY: 1.55,
+        duration: 190, onComplete: () => glyph.destroy() });
+    },
+  });
 }
 
 /** Large, readable 2D fallback for Rock Throw. The 3D renderer owns the normal

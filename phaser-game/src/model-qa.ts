@@ -56,6 +56,7 @@ floor.receiveShadow = true;
 scene.add(floor);
 const params = new URLSearchParams(location.search);
 const qaModel = params.get('model')?.trim().toLowerCase() || undefined;
+const qaYaw = THREE.MathUtils.degToRad(Number(params.get('yaw') ?? 0) || 0);
 const ringCount = qaModel ? 1 : 3;
 for (let i = 0; i < ringCount; i++) {
   const ring = new THREE.Mesh(
@@ -190,7 +191,7 @@ function frame(): void {
   elapsed += dt;
   mixers.forEach(mixer => mixer.update(dt));
   moveFx.update(dt);
-  actors.forEach((actor, i) => { actor.rotation.y = Math.sin(elapsed * 0.24 + i * 0.8) * 0.14; });
+  actors.forEach((actor, i) => { actor.rotation.y = qaYaw + Math.sin(elapsed * 0.24 + i * 0.8) * 0.14; });
   renderer.render(scene, camera);
 }
 frame();

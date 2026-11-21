@@ -108,6 +108,19 @@ const STAB2: Record<string, MoveData> = {
 
 export interface LearnEntry { level: number; move: MoveData; }
 
+/** Keep one canonical copy of each move. This is shared by level-up and battle
+ * reconstruction so a species/type override can never offer the same move
+ * twice, including when several levels are crossed at once. */
+export function uniqueMovesByName(moves: MoveData[]): MoveData[] {
+  const seen = new Set<string>();
+  return moves.filter(move => {
+    const key = move.name.trim().toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 // Per-Pokémon hand-tuned extras layered on top of the generic kit (by sprite key).
 const OVERRIDES: Record<string, LearnEntry[]> = {
   // Starter utility moves arrive only after their first low-power STAB.
@@ -158,7 +171,9 @@ export function levelUpMoves(spriteKey: string, t1?: string, t2?: string, level 
   if (t1 && STAB2[t1])      learns.push({ level: 31, move: STAB2[t1] });
   if (t2 && STAB2[t2])      learns.push({ level: 38, move: STAB2[t2] });
   for (const e of OVERRIDES[spriteKey] ?? []) learns.push(e);
-  return learns.sort((a, b) => a.level - b.level).filter(e => level >= e.level).map(e => e.move);
+  return uniqueMovesByName(
+    learns.sort((a, b) => a.level - b.level).filter(e => level >= e.level).map(e => e.move),
+  );
 }
 
 /**
@@ -168,14 +183,8 @@ export function levelUpMoves(spriteKey: string, t1?: string, t2?: string, level 
  */
 export function mergeLearnset(base: MoveData[], spriteKey: string, t1?: string, t2?: string, level = 1): MoveData[] {
   const learned = levelUpMoves(spriteKey, t1, t2, level);
-  const seen = new Set<string>();
   const seed = base[0] ?? TACKLE;
-  const all = [seed, ...learned].filter(m => {
-    const k = m.name.toLowerCase();
-    if (seen.has(k)) return false;
-    seen.add(k);
-    return true;
-  });
+  const all = uniqueMovesByName([seed, ...learned]);
   if (all.length <= 4) return all;
   // Keep the four most recently learned moves, matching the normal progression
   // model. Sorting by raw power erased recovery, weather and status options and

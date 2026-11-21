@@ -1298,14 +1298,25 @@ export class TrainerBattleScene extends Phaser.Scene {
     const panel = this.add.container(0, 0).setDepth(12);
     panel.add(this.add.rectangle(boxX, boxY, boxW, boxH, 0x111133, 0.98)
       .setOrigin(0, 0).setStrokeStyle(2, 0x5577aa));
+    let choiceMade = false;
     const mk = (label: string, row: number, cb: () => void) => {
-      const t = this.add.text(boxX + padX, boxY + padY + row * (lineH + gap), label,
-        { fontSize: '20px', color: '#ffffff' })
-        .setInteractive({ useHandCursor: true })
-        .on('pointerover', () => t.setColor('#ffe44e'))
-        .on('pointerout',  () => t.setColor('#ffffff'))
-        .on('pointerdown', () => { panel.destroy(true); cb(); });
-      panel.add(t);
+      const rowY = boxY + padY + row * (lineH + gap);
+      // The whole row is a real touch target. Previously only the glyph pixels
+      // accepted pointer input, which made this prompt appear frozen on phones.
+      const hit = this.add.rectangle(boxX + boxW / 2, rowY + lineH / 2,
+        boxW - Math.round(12 * S), lineH + Math.round(14 * S), 0x29456f, 0.01)
+        .setInteractive({ useHandCursor: true });
+      const labelText = this.add.text(boxX + padX, rowY, tr(label),
+        { fontSize: '20px', color: '#ffffff' });
+      hit.on('pointerover', () => { hit.setFillStyle(0x29456f, 0.55); labelText.setColor('#ffe44e'); })
+        .on('pointerout', () => { hit.setFillStyle(0x29456f, 0.01); labelText.setColor('#ffffff'); })
+        .on('pointerdown', () => {
+          if (choiceMade) return;
+          choiceMade = true;
+          panel.destroy(true);
+          cb();
+        });
+      panel.add([hit, labelText]);
     };
     mk('▶ SWITCH', 0, () => this.openKOSwitch());
     mk('▶ STAY IN', 1, () => this.playerAction());

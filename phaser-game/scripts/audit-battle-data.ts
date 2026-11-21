@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { Pokemon, type MoveData, type PokemonData } from '../src/battle/Pokemon';
 import type { PokemonType } from '../src/battle/TypeChart';
 import { customForm } from '../src/data/CustomBattle';
-import { mergeLearnset } from '../src/data/Learnsets';
+import { levelUpMoves, mergeLearnset } from '../src/data/Learnsets';
 import { POKEDEX } from '../src/data/Pokedex';
 import { findForm } from '../src/data/StarterData';
 import { actsBefore, battleWeather, setBattleWeather } from '../src/systems/AbilitySystem';
@@ -15,6 +15,7 @@ const typeSet = new Set<string>([
   'ground', 'flying', 'psychic', 'bug', 'rock', 'ghost', 'dragon', 'dark', 'steel', 'fairy',
 ] satisfies PokemonType[]);
 const levels = [1, 5, 15, 30, 50, 75, 100];
+const allLevels = Array.from({ length: 100 }, (_, index) => index + 1);
 
 function fail(message: string): void { failures.push(message); }
 function warn(message: string): void { warnings.push(message); }
@@ -66,6 +67,16 @@ for (const entry of POKEDEX) {
   } catch {
     fail(`${entry.key}: missing sprite ${form.data.spriteUrl}`);
   }
+  // Scan every level, not only the representative battle-data levels below.
+  // Species overrides and dual-type progressions must never expose the same
+  // internal move twice in one level-up queue.
+  for (const level of allLevels) {
+    const learned = levelUpMoves(entry.key, form.data.type1, form.data.type2, level);
+    const names = learned.map(move => move.name.trim().toLowerCase());
+    if (new Set(names).size !== names.length) {
+      fail(`${entry.key}@${level}: duplicate level-up move`);
+    }
+  }
   for (const level of levels) {
     const moves = mergeLearnset(form.moves, entry.key, form.data.type1, form.data.type2, level);
     if (moves.length < 1 || moves.length > 4) fail(`${entry.key}@${level}: invalid move count ${moves.length}`);
@@ -83,6 +94,20 @@ for (const entry of POKEDEX) {
     }
     if (!battler.moves.length) fail(`${entry.key}@${level}: selection creates a Pokémon with no moves`);
   }
+}
+
+// Malformed/legacy curated sets are another path by which duplicate buttons
+// could appear. The battle object is the final safety boundary for every scene.
+const duplicateMove = { name: 'Thunder Shock', type: 'electric', category: 'special', power: 40, accuracy: 100, pp: 30 } as const;
+const duplicateGuard = new Pokemon({
+  id: 997, name: 'Duplicate Guard', type1: 'electric', baseHp: 50, baseAtk: 50,
+  baseDef: 50, baseSpAtk: 50, baseSpDef: 50, baseSpd: 50, spriteUrl: '',
+}, 15, [duplicateMove, { ...duplicateMove }, {
+  name: 'Shock Wave', type: 'electric', category: 'special', power: 60, accuracy: 100, pp: 20,
+}]);
+if (duplicateGuard.moves.length !== 2
+  || new Set(duplicateGuard.moves.map(move => move.data.name.toLowerCase())).size !== 2) {
+  fail('Pokemon constructor did not remove duplicate move records');
 }
 
 // Exercise cross-cutting weather and turn-order helpers with real Pokémon.

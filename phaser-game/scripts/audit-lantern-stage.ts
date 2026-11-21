@@ -66,6 +66,8 @@ expect(scene.includes('MOBILE_ACTION_EVENT'), 'mobile A-button cannot rotate lan
 expect(scene.includes('lanternDanceComplete(key => this.registry.get(key))'), 'leader gate is not dance-authoritative');
 expect(scene.includes("SaveManager.autoSave(this.registry, this.px, this.py, 'GeumgangGymScene')"), 'puzzle state is not auto-saved');
 expect(!scene.includes("this.registry.set('geumgangCityReturnX', this.px)"), 'Gym coordinates still overwrite the city return point');
+expect(scene.includes('this.lastDancePad = this.dancePadAtPlayer()?.id'),
+  'standing on the centre dance pad can immediately retrigger the failed step and trap movement');
 expect(mirror.includes('buildLanternStageProp3D'), '3D mirror cannot adopt Lantern Stage props');
 expect(model.includes('lantern-stage-light-beam'), '3D lantern lacks a projected beam');
 expect(model.includes('lantern-stage-light-curtain'), '3D finale curtain is missing');

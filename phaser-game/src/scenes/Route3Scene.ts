@@ -135,22 +135,12 @@ export class Route3Scene extends Phaser.Scene {
     this.drawTrainers();
     if (!this.ryeoDone) this.drawRyeo();
     this.createPlayer();
+    const rivalFarewellPending = this.ryeoDone && !this.registry.get('ryeo1RivalFarewellDone');
     const championRescuePending = this.ryeoDone
       && !this.registry.get(HWANGEUM_STORY.gorgeRescue)
       && !this.registry.get('championDefeated');
-    if (championRescuePending) {
-      // Returning directly from Ryeo places this at the damaged checkpoint;
-      // an older save revisiting from either exit still gets the missed scene
-      // beside the player instead of looking at an off-screen actor.
-      const hx = Phaser.Math.Clamp(this.px + TILE, 10 * TILE, 14 * TILE);
-      const hy = Phaser.Math.Clamp(this.py - 2 * TILE, 3 * TILE, 56 * TILE);
-      this.hwangeumTarget = { x: hx, y: hy };
-      const entranceY = Phaser.Math.Clamp(hy - TILE * 3.4, TILE, 58 * TILE);
-      this.hwangeumActor = spawnHwangeum(this, hx, entranceY, {
-        lookAt: { x: hx, y: hy },
-        entering: true,
-      });
-    }
+    if (rivalFarewellPending) this.spawnRyeoCutsceneRival();
+    else if (championRescuePending) this.prepareGorgeRescueActor();
     installSurfing(this, {
       map: () => this.map, player: () => this.playerG,
       position: () => ({ x: this.px, y: this.py }), tileSize: TILE,
@@ -161,8 +151,65 @@ export class Route3Scene extends Phaser.Scene {
     this.createUI();
     this.cameras.main.fadeIn(400);
     SaveManager.save(this.registry, this.px, this.py, 'Route3Scene');
-    if (championRescuePending) this.time.delayedCall(450, () => this.runGorgeRescueMeeting());
+    if (rivalFarewellPending) this.time.delayedCall(450, () => this.runRyeoRivalFarewell(championRescuePending));
+    else if (championRescuePending) this.time.delayedCall(450, () => this.runGorgeRescueMeeting());
     else this.time.delayedCall(300, () => maybeLaunchEvolution(this));
+  }
+
+  /** Place the Champion's rescue actor only when the rival's post-battle exit
+   *  has finished, so neither story character silently replaces the other. */
+  private prepareGorgeRescueActor() {
+    const hx = Phaser.Math.Clamp(this.px + TILE, 10 * TILE, 14 * TILE);
+    const hy = Phaser.Math.Clamp(this.py - 2 * TILE, 3 * TILE, 56 * TILE);
+    this.hwangeumTarget = { x: hx, y: hy };
+    const entranceY = Phaser.Math.Clamp(hy - TILE * 3.4, TILE, 58 * TILE);
+    this.hwangeumActor = spawnHwangeum(this, hx, entranceY, {
+      lookAt: { x: hx, y: hy }, entering: true,
+    });
+  }
+
+  /** The rival who stood beside the player before the first Ryeo battle must
+   *  still be there on return. They speak, then visibly walk north after Ryeo. */
+  private runRyeoRivalFarewell(championRescuePending: boolean) {
+    const rival = this.ryeoCutsceneRival;
+    if (!rival || this.registry.get('ryeo1RivalFarewellDone')) return;
+    this.cutsceneActive = true;
+    rival.g.setData('characterLookAt3D', { x: this.px, y: this.py });
+    this.dialog.show([
+      t('Rival: You did it. Ryeo is retreating toward Geumgang — but she was watching the cliffs, not us.',
+        '라이벌: 해냈구나. 려는 금강 쪽으로 물러나고 있어 — 그런데 그녀가 보고 있던 건 우리가 아니라 절벽이었어.'),
+      t("Rival: I'll follow her trail and warn the city. Catch your breath, then meet me beyond the gorge.",
+        '라이벌: 내가 그녀의 흔적을 쫓아가서 도시에 경고할게. 너는 숨을 고르고 협곡 너머에서 만나자.'),
+    ], () => {
+      let frame = 0;
+      const stepper = this.time.addEvent({ delay: 150, loop: true, callback: () => {
+        frame ^= 1;
+        drawTrainerBody(rival.g, 1, frame, rivalDesign(this.registry));
+        markRivalPortrait(rival.g, this.registry);
+        rival.g.setData('characterLookAt3D', { x: rival.g.x, y: rival.g.y - TILE });
+      } });
+      this.tweens.add({
+        targets: [rival.g, rival.label],
+        y: `-=${TILE * 4}`,
+        x: `+=${TILE * 0.45}`,
+        duration: 1450,
+        ease: 'Linear',
+        onComplete: () => {
+          stepper.destroy();
+          rival.g.destroy(); rival.label.destroy();
+          this.ryeoCutsceneRival = undefined;
+          this.registry.set('ryeo1RivalFarewellDone', true);
+          SaveManager.save(this.registry, this.px, this.py, 'Route3Scene');
+          if (championRescuePending) {
+            this.prepareGorgeRescueActor();
+            this.time.delayedCall(180, () => this.runGorgeRescueMeeting());
+          } else {
+            this.cutsceneActive = false;
+            this.time.delayedCall(180, () => maybeLaunchEvolution(this));
+          }
+        },
+      });
+    });
   }
 
   /** First proper meeting: Hwangeum is already doing the unglamorous rescue

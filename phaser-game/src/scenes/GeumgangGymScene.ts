@@ -616,6 +616,10 @@ export class GeumgangGymScene extends Phaser.Scene {
     ], () => this.flashDanceSequence(0, () => {
       this.danceReady = true;
       this.cutsceneActive = false;
+      // If the preview began while the player was already standing on a pad,
+      // require one step off before accepting it. Otherwise the same pad fires
+      // on the first unlocked frame and can immediately trap the player again.
+      this.lastDancePad = this.dancePadAtPlayer()?.id;
       this.interactionReadyAt = this.time.now + 300;
       this.refreshPuzzleVisuals();
     }));
@@ -636,9 +640,7 @@ export class GeumgangGymScene extends Phaser.Scene {
 
   private checkDanceStep(): void {
     if (!this.danceReady || lanternDanceComplete(key => this.registry.get(key))) return;
-    const touched = LANTERN_DANCE_PADS.find(pad =>
-      Math.hypot(this.px - pad.col * IT, this.py - pad.row * IT) < IT * 0.48,
-    );
+    const touched = this.dancePadAtPlayer();
     if (!touched) { this.lastDancePad = undefined; return; }
     if (this.lastDancePad === touched.id) return;
     this.lastDancePad = touched.id;
@@ -657,7 +659,10 @@ export class GeumgangGymScene extends Phaser.Scene {
       ], () => this.flashDanceSequence(0, () => {
         this.danceReady = true;
         this.cutsceneActive = false;
-        this.lastDancePad = undefined;
+        // Keep the occupied pad latched until the player walks off it. Clearing
+        // this here retriggered the same wrong centre pad on the next frame,
+        // reopening the cutscene forever and making movement appear frozen.
+        this.lastDancePad = this.dancePadAtPlayer()?.id;
         this.refreshPuzzleVisuals();
       }));
       return;
@@ -668,6 +673,12 @@ export class GeumgangGymScene extends Phaser.Scene {
     this.registry.set('geumgangDanceStep', this.danceStep);
     this.refreshPuzzleVisuals();
     if (this.danceStep >= LANTERN_DANCE_SEQUENCE.length) this.completeDanceTrial();
+  }
+
+  private dancePadAtPlayer(): LanternDancePad | undefined {
+    return LANTERN_DANCE_PADS.find(pad =>
+      Math.hypot(this.px - pad.col * IT, this.py - pad.row * IT) < IT * 0.48,
+    );
   }
 
   private pulseDancePad(id: DancePadId): void {
