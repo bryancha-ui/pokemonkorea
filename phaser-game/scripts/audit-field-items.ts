@@ -47,6 +47,7 @@ const mainSource = readFileSync('src/main.ts', 'utf8');
 const mirrorSource = readFileSync('src/engine3d/OverworldMirror.ts', 'utf8');
 const modelSource = readFileSync('src/engine3d/FieldItem3D.ts', 'utf8');
 const menuSource = readFileSync('src/scenes/MenuScene.ts', 'utf8');
+const evolutionSceneSource = readFileSync('src/scenes/EvolutionScene.ts', 'utf8');
 const sfxSource = readFileSync('src/systems/UiSfx.ts', 'utf8');
 expect(mainSource.includes('installFieldItems(game)'), 'global field item installer is not bootstrapped');
 expect(fieldSource.includes('SaveManager.save'), 'picked-up field items are not durably saved');
@@ -65,6 +66,20 @@ expect(menuSource.includes("this.scene.launch('EvolutionScene'"), 'Bag cannot la
 expect(menuSource.includes('res.ok && res.evolutionQueued && hasPendingEvolution'),
   'ordinary bag items can still launch an unrelated pending level evolution');
 expect(sfxSource.includes('export function sfxItemGet'), 'item pickup fanfare is missing');
+expect(evolutionSceneSource.includes('evolutionTextureKey(p.toKey)')
+  && evolutionSceneSource.includes('ensureEvolutionTextures(pending)')
+  && evolutionSceneSource.includes('Phaser.Loader.Events.COMPLETE'),
+  'later or previously-colliding evolution textures can still display Phaser missing-art X');
+expect(evolutionSceneSource.includes('evolutionSpriteUrlForKey(key)')
+  && evolutionSceneSource.includes('POKEDEX.find'),
+  'dex-only evolution targets no longer resolve their canonical sprite art');
+const prowlrockDex = POKEDEX.find(entry => entry.key === 'prowlrock');
+const prowlnoxDex = POKEDEX.find(entry => entry.key === 'prowlnox');
+const prowlnoxPng = readFileSync('public/assets/dex/prowlnox.png');
+expect(prowlrockDex?.evolvesTo === 'prowlnox' && prowlnoxDex?.spriteUrl === 'assets/dex/prowlnox.png',
+  'Prowlrock evolution no longer resolves the Prowlnox dex art');
+expect(prowlnoxPng.subarray(1, 4).toString() === 'PNG' && prowlnoxPng.length > 1024,
+  'Prowlnox evolution PNG is missing or invalid');
 
 // Regression: Gawlhawk and Disguijar previously both evolved into Prowlrock.
 // Gawlhawk is a standalone species at every level; only the authored
@@ -107,6 +122,16 @@ const disguijarEvolution = findPendingEvolution(disguijarDataManager);
 expect(disguijarEvolution?.fromKey === 'disguijar' && disguijarEvolution.toKey === 'prowlrock',
   'Lv.37 Disguijar no longer evolves into Prowlrock');
 
+const scorpentRegistry = new FakeRegistry();
+scorpentRegistry.set('party', JSON.stringify([{
+  ...partyEntry, name: 'Scorpent', level: 36, hp: 40,
+  type1: 'fire', type2: 'poison', spriteKey: 'scorpent', evoReady: undefined,
+}]));
+const scorpentDataManager = scorpentRegistry as unknown as Parameters<typeof findPendingEvolution>[0];
+const scorpentEvolution = findPendingEvolution(scorpentDataManager);
+expect(scorpentEvolution?.fromKey === 'scorpent' && scorpentEvolution.toKey === 'feldaconda',
+  'Lv.36 춤추사 old-save recovery no longer evolves into 비얌마담');
+
 console.log(JSON.stringify({
   placements: FIELD_ITEM_PLACEMENTS.length,
   scenesCovered: scenes.size,
@@ -114,6 +139,7 @@ console.log(JSON.stringify({
   stoneEvolutionRules: STONE_EVOLUTIONS.length,
   gawlhawkStandaloneAtLevel100: findPendingEvolution(maxLevelDataManager) ? 'failed' : 'passed',
   disguijarEvolutionTarget: disguijarEvolution?.toKey ?? 'missing',
+  scorpentEvolutionTarget: scorpentEvolution?.toKey ?? 'missing',
   potionEvolutionRegression: potionResult.evolutionQueued === true ? 'failed' : 'passed',
   failures,
 }, null, 2));

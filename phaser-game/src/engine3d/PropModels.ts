@@ -37,8 +37,70 @@ export interface PropDef {
   height?: number;
 }
 
-let props: PropDef[] | null = null;
+const localBuilding = (id: string, tags: string[] = [], url?: string): PropDef => ({
+  id, role: 'building', ...(tags.length ? { tags } : {}), ...(url ? { url } : {}),
+});
+
+/** Complete synchronous copy of the vendored prop catalogue. Terrain building
+ *  is synchronous, so relying on a fetch here let the first map beat props.json
+ *  and permanently replace named gyms/shrines with a generic concrete shell.
+ *  The fetch below still refreshes metadata, but every shipped model is known
+ *  before the very first terrain pass and remains available offline. */
+const SYNCHRONOUS_PROP_CATALOG: PropDef[] = [
+  localBuilding('home', ['home'], 'assets/models3d/home.glb'),
+  localBuilding('rival', ['home'], 'assets/models3d/rival.glb'),
+  localBuilding('lab', ['lab']),
+  localBuilding('pokecenter', ['center']),
+  localBuilding('hanok', ['traditional'], 'assets/models3d/pinehouse.glb'),
+  localBuilding('house', [], 'assets/models3d/alpinelodge.glb'),
+  localBuilding('deptstore', ['shop']),
+  localBuilding('gym', ['gym']),
+  {
+    id: 'dolmoe-pokemon-gym', role: 'building', tags: ['gym', 'dolmoe'],
+    url: 'assets/bgm/DS%20_%20DSi%20-%20Pokemon%20Diamond%20_%20Pearl%20-%20Map%20Objects%20-%20Pokemon%20Gym/Poke%CC%81mon%20Gym.obj',
+    mtl: 'assets/bgm/DS%20_%20DSi%20-%20Pokemon%20Diamond%20_%20Pearl%20-%20Map%20Objects%20-%20Pokemon%20Gym/Poke%CC%81mon%20Gym.mtl',
+    invertTr: true,
+  },
+  localBuilding('palace', ['traditional']),
+  localBuilding('mart', ['shop']),
+  localBuilding('tower', ['landmark']),
+  localBuilding('convenience', ['shop'], 'assets/models3d/mart.glb'),
+  localBuilding('bikeshop', ['shop'], 'assets/models3d/gearshop.glb'),
+  localBuilding('pinehouse', ['home']),
+  localBuilding('dojo', ['gym']),
+  localBuilding('gearshop', ['shop']),
+  localBuilding('lanterngym', ['gym']),
+  localBuilding('contesthall', ['hall']),
+  localBuilding('tidalgym', ['gym']),
+  localBuilding('templegym', ['gym']),
+  localBuilding('shrine', ['shrine']),
+  localBuilding('league', ['landmark']),
+  localBuilding('nabihalmang', ['statue'], 'assets/models3d/nabistatue.glb'),
+  localBuilding('dolmen', ['ruin']),
+  localBuilding('sunrisegym', ['gym']),
+  localBuilding('frostbell', ['shrine']),
+  localBuilding('alpinelodge', ['home']),
+  localBuilding('snowmeltbaths', ['bath']),
+  localBuilding('skateshop', ['shop']),
+  localBuilding('sanbangsan', ['shrine'], 'assets/models3d/shrine.glb'),
+  localBuilding('jejumarket', ['market'], 'assets/models3d/deptstore.glb'),
+  localBuilding('cheonjiyeon', ['pavilion'], 'assets/models3d/palace.glb'),
+  ...'ABCDEFGH'.split('').map(letter => localBuilding(
+    `cityfree_${letter.toLowerCase()}`, ['cityfree'], `assets/map3d/kaykit-city/building_${letter}.gltf`,
+  )),
+  localBuilding('pokemonvillage', ['village'], 'assets/map3d/original_pokemon_village.glb'),
+  localBuilding('jongmyo', ['shrine'], 'assets/map3d/jongmyo.glb'),
+  localBuilding('soolstation', ['station'], 'assets/map3d/soolstation.glb'),
+  { id: 'nature_tree_default', role: 'scenery', tags: ['naturefree', 'tree', 'temperate'], url: 'assets/map3d/kenney-nature/tree_default.obj', mtl: 'assets/map3d/kenney-nature/tree_default.mtl' },
+  { id: 'nature_tree_oak', role: 'scenery', tags: ['naturefree', 'tree', 'temperate'], url: 'assets/map3d/kenney-nature/tree_oak.obj', mtl: 'assets/map3d/kenney-nature/tree_oak.mtl' },
+  { id: 'nature_tree_pine', role: 'scenery', tags: ['naturefree', 'tree', 'pine'], url: 'assets/map3d/kenney-nature/tree_pineRoundA.obj', mtl: 'assets/map3d/kenney-nature/tree_pineRoundA.mtl' },
+  { id: 'nature_rock_a', role: 'scenery', tags: ['naturefree', 'rock'], url: 'assets/map3d/kenney-nature/rock_largeA.obj', mtl: 'assets/map3d/kenney-nature/rock_largeA.mtl' },
+  { id: 'nature_rock_c', role: 'scenery', tags: ['naturefree', 'rock'], url: 'assets/map3d/kenney-nature/rock_largeC.obj', mtl: 'assets/map3d/kenney-nature/rock_largeC.mtl' },
+];
+
+let props: PropDef[] = [...SYNCHRONOUS_PROP_CATALOG];
 let loading = false;
+let catalogHydrated = false;
 const cache = new Map<string, THREE.Group | 'loading' | 'failed'>();
 const propUse = new Map<string, number>();
 let propClock = 0;
@@ -60,17 +122,21 @@ function ensurePropDracoDecoder(): void {
 }
 
 export function primeProps(): void {
-  if (props || loading) return;
+  if (catalogHydrated || loading) return;
   loading = true;
   fetch('assets/models3d/props.json')
     .then(r => (r.ok ? r.json() : null))
-    .then((j: { props?: PropDef[] } | null) => { props = j?.props ?? []; })
-    .catch(() => { props = []; })
-    .finally(() => { loading = false; });
+    .then((j: { props?: PropDef[] } | null) => {
+      const merged = new Map(props.map(def => [def.id, def]));
+      for (const def of j?.props ?? []) merged.set(def.id, def);
+      props = [...merged.values()];
+    })
+    .catch(() => { /* synchronous vendored catalogue remains authoritative */ })
+    .finally(() => { loading = false; catalogHydrated = true; });
 }
 
 export function propsFor(role: PropDef['role']): PropDef[] {
-  return (props ?? []).filter(p => p.role === role && propAllowed(p));
+  return props.filter(p => p.role === role && propAllowed(p));
 }
 
 export function hasProps(role: PropDef['role']): boolean {
@@ -190,8 +256,13 @@ export function pickProp(list: PropDef[], seed: number): PropDef | null {
 /** Look up a specific prop by id — used to place a named building (a scene's
  *  Pokémon Center / lab / home) on its exact authored footprint. */
 export function propById(id: string): PropDef | null {
-  const found = (props ?? []).find(p => p.id === id) ?? null;
+  const found = props.find(p => p.id === id) ?? null;
   return found && propAllowed(found) ? found : null;
+}
+
+/** Production/audit hook: all shipped props must be resolvable before fetch. */
+export function synchronousPropIds(): string[] {
+  return SYNCHRONOUS_PROP_CATALOG.map(def => def.id);
 }
 
 /** Drop cached prop GPU allocations between maps. On constrained devices keep

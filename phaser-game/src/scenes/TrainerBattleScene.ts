@@ -1280,6 +1280,17 @@ export class TrainerBattleScene extends Phaser.Scene {
     this.hideAllPanels();
     this.typeDialog(`${this.trainerName} sent out ${pokeNameEn(this.enemy.name).toUpperCase()}.\nWill you switch your Pokémon?`);
 
+    // Mobile battles are driven by the DOM control deck. Keeping this one
+    // prompt only on the Phaser canvas made it the sole battle choice dependent
+    // on canvas touch-coordinate forwarding, which could stall after a long 3D
+    // battle. Use the same direct, full-size touch controls as every other
+    // mobile battle command; desktop retains the compact in-canvas panel below.
+    const onDeck = deckShowBattleActions([
+      { label: 'SWITCH', onPick: () => this.openKOSwitch(), accent: '#72b9df' },
+      { label: 'STAY IN', onPick: () => this.playerAction(), accent: '#7fbe74' },
+    ], tr('Will you switch your Pokémon?'));
+    if (onDeck) return;
+
     // Stacked vertically with scale-aware spacing, and the box is sized from those
     // metrics so it fully contains both options at any (mobile-enlarged) font size.
     const S = fontScaleForScene(this);

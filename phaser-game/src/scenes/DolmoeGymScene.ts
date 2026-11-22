@@ -24,6 +24,7 @@ import { sfxCancel, sfxConfirm, sfxMove } from '../systems/UiSfx';
 import { t } from '../systems/i18n';
 import { DialogBox } from '../ui/DialogBox';
 import { SaveManager } from '../utils/SaveManager';
+import { maybeLaunchEvolution } from '../systems/EvolutionSystem';
 
 interface GymTrainer {
   key: 'dolmoe-bawoo' | 'dolmoe-doran';
@@ -189,6 +190,7 @@ export class DolmoeGymScene extends Phaser.Scene {
     this.cameras.main.startFollow(this.playerG, true, 0.12, 0.12);
     this.cameras.main.fadeIn(300);
     this.dialog = new DialogBox(this, 1280, 720);
+    this.time.delayedCall(250, () => maybeLaunchEvolution(this));
     this.interactionReadyAt = this.time.now + 450;
     this.syncPuzzleVisuals();
 

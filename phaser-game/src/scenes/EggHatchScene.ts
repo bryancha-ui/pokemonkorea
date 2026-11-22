@@ -113,8 +113,8 @@ export class EggHatchScene extends Phaser.Scene {
     if (!this.using3D) return;
     const parent = this.parentScene();
     if (parent && this.engine3D()?.isRendering(parent)) return;
-    // F3 toggles and mobile context recovery can remove the 3D canvas while the
-    // modal is open. The synchronized fallback is already at the same phase.
+    // Mobile context recovery can recreate the 3D canvas while the modal is
+    // open. The synchronized hatch overlay is already at the same phase.
     this.using3D = false;
     this.fallbackLayer.setVisible(true);
     this.backdrop.setFillStyle(0x050713, 0.96);

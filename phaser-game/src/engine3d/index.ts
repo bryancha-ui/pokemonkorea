@@ -21,9 +21,8 @@ import { ThreeStage } from './ThreeStage';
 //     unregistered species and trainers without a model retain authored 2D art.
 //   • Menu / Pokédex / title screens intentionally stay crisp 2D.
 //
-//   F3 toggles 2D ↔ 3D at any time (saved to localStorage).
-
-const STORE_KEY = 'pk3d.enabled';
+// World maps are 3D-only. Title/menu UI remains Phaser-authored, but a map can
+// no longer fall back to its flat 2D background or be disabled with F3.
 
 type AnyMirror = OverworldMirror | BattleMirror;
 
@@ -33,9 +32,8 @@ class Engine3D {
   private rig: CameraRig | null = null;
   private mirror: AnyMirror | null = null;
   private mirrorScene: Phaser.Scene | null = null;
-  private enabled: boolean;
-  private failed = false;
-  private blockedScene: Phaser.Scene | null = null;
+  private readonly enabled = true;
+  private recoveringUntil = 0;
   private mirrorApplied = false;
   private camPatched = new WeakSet<Phaser.Cameras.Scene2D.Camera>();
   private watchedScenes = new WeakSet<Phaser.Scene>();
@@ -51,15 +49,10 @@ class Engine3D {
   constructor(game: Phaser.Game) {
     this.game = game;
     this.performance = performanceProfile();
-    this.enabled = (localStorage.getItem(STORE_KEY) ?? '1') === '1';
     // Load the approved local-asset registries up front so the first scene already
     // knows which creature models and city props exist.
     primeManifest();
     primeProps();
-
-    window.addEventListener('keydown', (e) => {
-      if (e.code === 'F3') { e.preventDefault(); this.toggle(); }
-    });
 
     game.events.on(Phaser.Core.Events.POST_STEP, (_t: number, dms: number) => this.step(dms / 1000));
     // Watch every scene's shutdown to drop its mirror. LazyScenes replaces its
@@ -87,32 +80,14 @@ class Engine3D {
     }
   }
 
-  toggle(): void {
-    this.enabled = !this.enabled;
-    localStorage.setItem(STORE_KEY, this.enabled ? '1' : '0');
-    if (!this.enabled) {
-      this.mirror?.restore2D();
-      this.mirrorApplied = false;
-      if (this.mirrorScene) this.setCamTransparent(this.mirrorScene, false);
-      this.stage?.setVisible(false);
-    } else {
-      // Activation happens in step() only after one successful Three.js frame.
-      // This prevents a black flash when the context was evicted while hidden.
-      this.blockedScene = null;
-    }
-  }
-
   private ensureStage(): boolean {
-    if (this.failed) return false;
     if (this.stage) return true;
     try {
       this.stage = new ThreeStage(this.game);
       this.rig = new CameraRig(this.stage.camera);
       return true;
     } catch (err) {
-      console.warn('[engine3d] WebGL unavailable, staying 2D:', err);
-      this.failed = true;
-      return false;
+      throw new Error(`3D renderer initialization failed: ${String(err)}`);
     }
   }
 
@@ -161,7 +136,6 @@ class Engine3D {
       this.mirrorApplied = false;
       this.stage?.setVisible(false);
     }
-    if (this.blockedScene === sc) this.blockedScene = null;
   }
 
   private watchScene(sc: Phaser.Scene): void {
@@ -185,11 +159,24 @@ class Engine3D {
     }
   }
 
+  /** Hide every world-space Phaser object immediately while retaining the
+   *  scroll-factor-zero dialogue/HUD layer. This closes the old startup/error
+   *  window where a flat map could appear before the 3D mirror was ready. */
+  private suppressWorld2D(scene: Phaser.Scene): void {
+    const cam = scene.cameras?.main;
+    if (!cam) return;
+    for (const child of scene.children?.list ?? []) {
+      const obj = child as Phaser.GameObjects.GameObject & { scrollFactorX?: number; scrollFactorY?: number };
+      if (obj.scrollFactorX === 0 && obj.scrollFactorY === 0) continue;
+      cam.ignore(obj);
+    }
+  }
+
   private step(dt: number): void {
     try {
       const safeDt = Math.max(0, Math.min(dt, 0.1));
       this.sampleFrameBudget(safeDt);
-      if (!this.enabled || this.failed) return;
+      if (!this.enabled) return;
 
       // Keep the authoritative Phaser loop at 60 Hz for input, movement, UI and
       // battle rules. On constrained devices the mirrored Three.js underlay is
@@ -205,7 +192,7 @@ class Engine3D {
       if (this.renderAccumulator > interval * 2) this.renderAccumulator = 0;
       this.stepSafe(renderDt);
     } catch (err) {
-      this.fallbackTo2D(this.mirrorScene, err);
+      this.recover3DOnly(this.mirrorScene, err);
     }
   }
 
@@ -261,19 +248,16 @@ class Engine3D {
   private noteRenderedFrame(): void { this.telemetryFrames++; }
 
   private stepSafe(dt: number): void {
-    if (!this.enabled || this.failed) return;
+    if (!this.enabled) return;
     const pick = this.pickScene();
     if (pick) this.watchScene(pick.scene);
-
-    // A renderer/mirror failure disables 3D only for the affected scene. The
-    // complete Phaser view remains playable, and the next map/battle gets a
-    // fresh world instead of repeatedly throwing every animation frame.
-    if (pick?.scene === this.blockedScene) {
-      this.setCamTransparent(pick.scene, false);
-      this.stage?.setVisible(false);
+    if (performance.now() < this.recoveringUntil) {
+      if (pick) {
+        this.suppressWorld2D(pick.scene);
+        this.setCamTransparent(pick.scene, true);
+      }
       return;
     }
-    if (pick && this.blockedScene && pick.scene !== this.blockedScene) this.blockedScene = null;
 
     if (!pick) {
       // The mirrored scene may only be PAUSED (evolution overlay, menu, move
@@ -313,6 +297,12 @@ class Engine3D {
     stage.attachDom();
     if (!stage.isHealthy()) throw new Error('Three.js WebGL context was lost');
 
+    // From this point onward the map is 3D-only, including its loading frame.
+    // Phaser keeps simulating collisions and UI, but its world/background can
+    // never become a visible substitute for the volumetric terrain.
+    this.suppressWorld2D(pick.scene);
+    this.setCamTransparent(pick.scene, true);
+
     if (this.mirrorScene !== pick.scene) {
       if (this.mirror && this.mirrorScene) {
         this.mirror.restore2D();
@@ -329,8 +319,11 @@ class Engine3D {
 
     // Overworld mirrors only "arm" once the camera-follow exists.
     if (this.mirror instanceof OverworldMirror && !this.mirror.tryBuild()) {
-      this.setCamTransparent(pick.scene, false);
-      stage.setVisible(false);
+      // Show the 3D sky/loading world rather than revealing the flat map while
+      // the player/camera object is completing scene construction.
+      if (!stage.render()) throw new Error('Three.js loading frame could not be rendered');
+      this.noteRenderedFrame();
+      stage.setVisible(true);
       return;
     }
 
@@ -347,29 +340,23 @@ class Engine3D {
     stage.setVisible(true);
   }
 
-  private fallbackTo2D(scene: Phaser.Scene | null, reason: unknown): void {
-    console.warn('[engine3d] 3D frame failed; keeping the scene playable in 2D:', reason);
+  private recover3DOnly(scene: Phaser.Scene | null, reason: unknown): void {
+    console.warn('[engine3d] 3D frame failed; rebuilding the 3D renderer:', reason);
     const affected = scene ?? this.mirrorScene;
-    try { this.mirror?.restore2D(); } catch { /* best-effort visual recovery */ }
     if (affected) {
-      this.setCamTransparent(affected, false);
-      // If a mirror constructor failed after camera.ignore(), it may not have
-      // reached this.mirror. Clear this camera's ignore bit for every display
-      // object so both Pokémon and the field are guaranteed to return.
-      const cam = affected.cameras?.main;
-      if (cam) {
-        for (const child of affected.children?.list ?? []) {
-          const obj = child as Phaser.GameObjects.GameObject & { cameraFilter?: number };
-          if (typeof obj.cameraFilter === 'number') obj.cameraFilter &= ~cam.id;
-        }
-      }
-      this.blockedScene = affected;
+      this.suppressWorld2D(affected);
+      this.setCamTransparent(affected, true);
     }
-    try { this.mirror?.destroy(); } catch { /* already falling back */ }
+    try { this.mirror?.destroy(); } catch { /* already recovering */ }
     this.mirror = null;
     this.mirrorScene = null;
     this.mirrorApplied = false;
-    this.stage?.setVisible(false);
+    try { this.stage?.destroy(); } catch { /* context already lost */ }
+    this.stage = null;
+    this.rig = null;
+    // A short backoff avoids a tight allocation loop after mobile context loss.
+    // The same scene is retried automatically; there is no per-scene 2D escape.
+    this.recoveringUntil = performance.now() + 500;
   }
 }
 
@@ -379,7 +366,8 @@ export function bootstrap3D(game: Phaser.Game): void {
       const eng = new Engine3D(game);
       (window as unknown as { __pk3d?: Engine3D }).__pk3d = eng;
     } catch (err) {
-      console.warn('[engine3d] failed to start, game remains 2D:', err);
+      console.error('[engine3d] failed to start the required 3D renderer:', err);
+      throw err;
     }
   };
   if (game.isBooted) start();

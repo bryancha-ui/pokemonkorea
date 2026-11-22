@@ -18,6 +18,7 @@ import {
 import { t } from '../systems/i18n';
 import { DialogBox } from '../ui/DialogBox';
 import { SaveManager } from '../utils/SaveManager';
+import { maybeLaunchEvolution } from '../systems/EvolutionSystem';
 
 interface GymTrainer {
   key: 'forest-chungha' | 'forest-minho';
@@ -153,6 +154,7 @@ export class ForestGymScene extends Phaser.Scene {
     this.cameras.main.startFollow(this.playerG, true, 0.13, 0.13);
     this.cameras.main.fadeIn(300);
     this.dialog = new DialogBox(this, 1280, 720);
+    this.time.delayedCall(250, () => maybeLaunchEvolution(this));
     this.interactionReadyAt = this.time.now + 450;
     this.refreshTargets();
     this.redrawPlayer();

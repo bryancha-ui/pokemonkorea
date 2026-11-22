@@ -476,9 +476,9 @@ export class BattleMirror {
 
   /** Return the live Phaser-screen position of a point on a 3D combatant. */
   private projectCombatantToScreen(d: ScreenTargetRequest): void {
-    if (!this.active3D) return;        // F3 2D mode keeps the sprite fallback
+    if (!this.active3D) return;        // an unmirrored transition keeps its own UI
     const cb = this.combatants.get(d.target);
-    if (!cb) return;                  // 2D mode / unmirrored object keeps fallback
+    if (!cb) return;                  // unmirrored objects keep their own fallback
 
     const p = this.projectionPoint.copy(cb.holder.position);
     const heightRatio = Math.min(1, Math.max(0, d.heightRatio ?? 0.52));

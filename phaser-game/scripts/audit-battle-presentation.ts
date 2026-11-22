@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import {
-  battle2DSpriteScale, battle3DSizeScale, companion3DTargetHeight, GARCHOMP_BATTLE_MULTIPLIER,
+  battle2DSpriteScale, battle3DSizeScale, companion3DTargetHeight, GARCHOMP_BATTLE_MULTIPLIER, spriteScale,
   MAX_BATTLE_3D_SIZE_SCALE, MAX_COMPANION_3D_HEIGHT,
 } from '../src/data/SpriteScale';
 
@@ -94,9 +94,12 @@ expect(battleMirror.includes("'445': (spriteScale('445') / 1.15) * GARCHOMP_BATT
   'Garchomp lost its 1.5× 3D battle enlargement');
 expect(Math.abs(battle2DSpriteScale('enemy-445') - 1.45 * GARCHOMP_BATTLE_MULTIPLIER * 1.1) < 0.0001,
   'Garchomp lost its 1.5× 2D battle enlargement');
-expect(battle3DSizeScale('enemy-306', 0.73) === 1.50
-  && battle2DSpriteScale('enemy-306') >= 2.8 * 1.1,
-  'Aggron lost its at-least-2× battle enlargement');
+expect(battle3DSizeScale('enemy-306', 0.73) === 1.00
+  && Math.abs(battle2DSpriteScale('enemy-306') - 1.87 * 1.1) < 0.0001,
+  'Aggron lost its requested 1.5× reduction');
+expect(battle3DSizeScale('enemy-464', 0.73) === 0.73
+  && Math.abs(battle2DSpriteScale('enemy-464') - 1.40 * 1.1) < 0.0001,
+  'Rhyperior lost its requested 1.5× reduction');
 expect(battle3DSizeScale('enemy-635', 0.8) === 1.25
   && battle3DSizeScale('enemy-730', 0.8) === 1.18,
   'Hydreigon or Primarina lost its large-final-evolution battle size');
@@ -105,6 +108,11 @@ expect(battle3DSizeScale('dracopaia', 0.9) === 1.30
   'Dracopaia lost its enlarged battle presentation');
 expect(battleMirror.includes("'95': 90"),
   'Onix lost its -X to +Z battle-facing correction');
+const onix3DProposed = Math.max(1, spriteScale('enemy-95') / 1.15) * 0.6;
+expect(spriteScale('enemy-95') === 2.10
+  && Math.abs(battle2DSpriteScale('enemy-95') - 2.10 * 1.1) < 0.0001
+  && Math.abs(battle3DSizeScale('enemy-95', onix3DProposed) - ((1.50 / 1.15) * 0.6 * 1.4)) < 0.0001,
+  'Onix lost its requested 1.4× battle enlargement');
 expect(battleMirror.includes("'730': 35"),
   'Primarina lost its three-quarter battle presentation');
 expect(battleMirror.includes('chattyscream: 30'),
@@ -117,9 +125,12 @@ expect(typeof balchataek !== 'string' && balchataek?.rotY === 270,
 const doribi = modelManifest.models?.find(entry => typeof entry !== 'string' && entry.key === 'doribi');
 expect(typeof doribi !== 'string' && doribi?.rotY === 180,
   'Doribi no longer faces the shared +Z/front axis');
-expect(glbModels.includes("const MANIFEST_VERSION = '2026-11-20a'"),
+expect(glbModels.includes("const MANIFEST_VERSION = '2026-11-22a'"),
   'the corrected creature orientations can be hidden by a stale browser manifest');
-for (const [key, rotY] of [['squirrel2', 270], ['trumpetcreeper', 90], ['moransae', 90]] as const) {
+for (const [key, rotY] of [
+  ['squirrel2', 270], ['trumpetcreeper', 90], ['moransae', 90],
+  ['halubang', 90], ['mperodactyl', 90],
+] as const) {
   const entry = modelManifest.models?.find(item => typeof item !== 'string' && item.key === key);
   expect(typeof entry !== 'string' && entry?.rotY === rotY,
     `${key} lost its requested presentation-axis correction`);

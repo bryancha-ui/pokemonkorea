@@ -1279,6 +1279,7 @@
     },
     {
       "key": "halubang",
+      "rotY": 90,
       "lightweight": true,
       "optimized": true,
       "source": "hyper3d-rodin",
@@ -1426,6 +1427,7 @@
     },
     {
       "key": "mperodactyl",
+      "rotY": 90,
       "lightweight": true,
       "optimized": true,
       "source": "hyper3d-rodin",

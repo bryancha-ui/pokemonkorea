@@ -5,6 +5,7 @@ import { drawTrainerBody, playerDesign, drawGymLeader } from '../data/CharacterS
 import { vanishesAfterDefeat } from '../data/Villains';
 import { DialogBox } from '../ui/DialogBox';
 import { SaveManager } from '../utils/SaveManager';
+import { maybeLaunchEvolution } from '../systems/EvolutionSystem';
 import { MOBILE_ACTION_EVENT } from '../systems/TouchControls';
 import { sfxCancel, sfxConfirm, sfxMove } from '../systems/UiSfx';
 import {
@@ -160,6 +161,7 @@ export class GeumgangGymScene extends Phaser.Scene {
     this.cameras.main.fadeIn(300);
 
     this.dialog = new DialogBox(this, 1280, 720);
+    this.time.delayedCall(250, () => maybeLaunchEvolution(this));
     this.createPuzzleUI();
     this.refreshPuzzleVisuals();
 

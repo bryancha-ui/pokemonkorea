@@ -68,6 +68,8 @@ export class ThreeStage {
   private nextMeshPreparationAt = 0;
   private meshWarmUntil = 0;
   private lastShadowAt = -Infinity;
+  private readonly onScaleResize = () => this.syncRect();
+  private readonly onWindowResize = () => this.syncRect();
 
   constructor(game: Phaser.Game) {
     this.game = game;
@@ -97,8 +99,8 @@ export class ThreeStage {
     // A mobile browser is allowed to evict a WebGL context when GPU memory is
     // tight.  Previously the transparent Phaser canvas remained enabled after
     // that happened, so the user saw the page's black background and no
-    // battlers.  Keep an explicit health flag so Engine3D can atomically fall
-    // back to the complete 2D scene instead.
+    // battlers. Keep an explicit health flag so Engine3D can discard and
+    // recreate the renderer without exposing the removed 2D map fallback.
     this.canvas.addEventListener('webglcontextlost', (event) => {
       event.preventDefault();
       this.contextLost = true;
@@ -183,8 +185,8 @@ export class ThreeStage {
     this.meshWarmUntil = performance.now() + 10_000;
 
     // Keep our canvas glued to the Phaser canvas through FIT-scale changes.
-    this.game.scale.on(Phaser.Scale.Events.RESIZE, () => this.syncRect());
-    window.addEventListener('resize', () => this.syncRect());
+    this.game.scale.on(Phaser.Scale.Events.RESIZE, this.onScaleResize);
+    window.addEventListener('resize', this.onWindowResize);
   }
 
   attachDom(): void {
@@ -333,6 +335,20 @@ export class ThreeStage {
   }
 
   getQualityScale(): number { return this.qualityScale; }
+
+  /** Fully discard a lost/failed renderer so Engine3D can recreate the 3D
+   *  stage in-place. World maps never need to reveal their 2D background while
+   *  a mobile browser recovers a WebGL context. */
+  destroy(): void {
+    this.game.scale.off(Phaser.Scale.Events.RESIZE, this.onScaleResize);
+    window.removeEventListener('resize', this.onWindowResize);
+    this.canvas.remove();
+    try { disposeDeep(this.worldRoot); } catch { /* context may already be gone */ }
+    releaseModelGpuResources();
+    releasePropGpuResources();
+    clearReliefCache();
+    try { this.renderer.dispose(); } catch { /* context may already be gone */ }
+  }
 
   getRenderStats(): { calls: number; triangles: number; pixelRatio: number } {
     return {

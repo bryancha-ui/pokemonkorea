@@ -91,8 +91,11 @@ export function findPendingEvolution(registry: Phaser.Data.DataManager): Pending
     const e   = party[i];
     const evo = ALL_EVOLUTIONS[e.spriteKey];
     // Only evolve when the Pokémon has actually LEVELED UP (evoReady) — not the instant
-    // it's caught already past its evolve level.
-    if (evo && e.level >= evo.level && e.evoReady) {
+    // it's caught already past its evolve level. Scorpent is a starter-only middle
+    // form; accepting an old Lv.36+ save without evoReady repairs saves created while
+    // gym return scenes did not launch the evolution overlay.
+    const starterRecovery = e.spriteKey === 'scorpent' && e.level >= (evo?.level ?? Infinity);
+    if (evo && e.level >= evo.level && (e.evoReady || starterRecovery)) {
       return { slot: i, fromKey: e.spriteKey, fromName: e.name, toKey: evo.to, toName: evo.toName, addMoves: evo.addMoves };
     }
   }

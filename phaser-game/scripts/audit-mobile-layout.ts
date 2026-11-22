@@ -24,6 +24,12 @@ if (!trainerBattle.includes('The whole row is a real touch target')
   || !trainerBattle.includes(".on('pointerdown'")) {
   failures.push('switch/stay prompt still lacks full-row mobile touch targets');
 }
+if (!trainerBattle.includes("{ label: 'SWITCH', onPick: () => this.openKOSwitch()")
+  || !trainerBattle.includes("{ label: 'STAY IN', onPick: () => this.playerAction()")
+  || !trainerBattle.includes("tr('Will you switch your Pokémon?')")
+  || !trainerBattle.includes('if (onDeck) return;')) {
+  failures.push('switch/stay prompt is not routed through the reliable mobile DOM touch deck');
+}
 const results = cases.map(test => {
   const layout = calculateMobileShellLayout(test.width, test.height);
   const ratio = layout.gameWidth / layout.gameHeight;

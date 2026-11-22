@@ -7,8 +7,15 @@ import { customForm } from '../data/CustomBattle';
 import { POKEDEX, dexKeyFor } from '../data/Pokedex';
 import { tr } from '../systems/i18n';
 
+/** Evolution art uses its own texture namespace. A battle or menu scene can
+ *  remove/reload the ordinary species key while this modal is opening; sharing
+ *  that key left Phaser's missing-texture X in place of the evolved Pokémon. */
+export function evolutionTextureKey(key: string): string {
+  return `evolution-${key.toLowerCase()}`;
+}
+
 /** Resolve the correct sprite URL for any starter/custom/dex key. */
-function spriteUrlForKey(key: string): string {
+export function evolutionSpriteUrlForKey(key: string): string {
   const f = findForm(key);
   if (f) return f.data.spriteUrl;
   const c = customForm(key);
@@ -46,8 +53,12 @@ export class EvolutionScene extends Phaser.Scene {
   preload() {
     const p = findPendingEvolution(this.registry);
     if (p) {
-      if (!this.textures.exists(p.toKey))   this.load.image(p.toKey, spriteUrlForKey(p.toKey));
-      if (!this.textures.exists(p.fromKey)) this.load.image(p.fromKey, spriteUrlForKey(p.fromKey));
+      for (const key of [p.fromKey, p.toKey]) {
+        const textureKey = evolutionTextureKey(key);
+        if (!this.textures.exists(textureKey)) {
+          this.load.image(textureKey, evolutionSpriteUrlForKey(key));
+        }
+      }
     }
   }
 
@@ -81,7 +92,35 @@ export class EvolutionScene extends Phaser.Scene {
     const pending = findPendingEvolution(this.registry);
     if (!pending) { this.finish(); return; }
     this.current = pending;
-    this.playEvolution(pending);
+    // preload() can only know the first pending party member. If several party
+    // members evolve in sequence, load each later pair before constructing its
+    // images instead of letting Phaser draw a missing-texture X.
+    void this.ensureEvolutionTextures(pending).then(ready => {
+      if (!this.scene.isActive()) return;
+      if (!ready) {
+        console.error(`[EvolutionScene] Failed to load evolution art: ${pending.fromKey} -> ${pending.toKey}`);
+        // Keep the modal alive and retry the local asset rather than completing
+        // an evolution whose new form was never shown.
+        this.time.delayedCall(500, () => this.processNext());
+        return;
+      }
+      this.playEvolution(pending);
+    });
+  }
+
+  private async ensureEvolutionTextures(p: PendingEvolution): Promise<boolean> {
+    const keys = [p.fromKey, p.toKey];
+    const missing = keys.filter(key => !this.textures.exists(evolutionTextureKey(key)));
+    if (!missing.length) return true;
+
+    for (const key of missing) {
+      this.load.image(evolutionTextureKey(key), evolutionSpriteUrlForKey(key));
+    }
+    await new Promise<void>(resolve => {
+      this.load.once(Phaser.Loader.Events.COMPLETE, resolve);
+      this.load.start();
+    });
+    return keys.every(key => this.textures.exists(evolutionTextureKey(key)));
   }
 
   private fitSprite(img: Phaser.GameObjects.Image, size: number) {
@@ -97,8 +136,8 @@ export class EvolutionScene extends Phaser.Scene {
     this.oldSprite?.destroy();
     this.newSprite?.destroy();
 
-    this.oldSprite = this.add.image(cx, cy, p.fromKey).setDepth(10);
-    this.newSprite = this.add.image(cx, cy, p.toKey).setDepth(10).setAlpha(0);
+    this.oldSprite = this.add.image(cx, cy, evolutionTextureKey(p.fromKey)).setDepth(10);
+    this.newSprite = this.add.image(cx, cy, evolutionTextureKey(p.toKey)).setDepth(10).setAlpha(0);
     this.fitSprite(this.oldSprite, 260);
     this.fitSprite(this.newSprite, 280);
 

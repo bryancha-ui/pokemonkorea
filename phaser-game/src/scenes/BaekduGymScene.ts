@@ -5,6 +5,7 @@ import { drawTrainerBody, playerDesign, drawGymLeader } from '../data/CharacterS
 import { vanishesAfterDefeat } from '../data/Villains';
 import { DialogBox } from '../ui/DialogBox';
 import { SaveManager } from '../utils/SaveManager';
+import { maybeLaunchEvolution } from '../systems/EvolutionSystem';
 import {
   SUMMIT_COUNTERWEIGHTS,
   summitPassageComplete,
@@ -101,6 +102,7 @@ export class BaekduGymScene extends Phaser.Scene {
     this.cameras.main.fadeIn(300);
 
     this.dialog = new DialogBox(this, 1280, 720);
+    this.time.delayedCall(250, () => maybeLaunchEvolution(this));
     this.createPuzzleStatus();
 
     // After beating Byeoksan, play his farewell once, then let the player leave.

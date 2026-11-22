@@ -365,7 +365,7 @@ export function normalizeKey(key: string): string {
 
 /** Bumped whenever per-species manifest corrections change, so no browser can
  *  keep serving a stale copy of the registry. */
-const MANIFEST_VERSION = '2026-11-20a';
+const MANIFEST_VERSION = '2026-11-22a';
 
 /** Fetch attempts before settling for the bundled core registry. */
 const MANIFEST_ATTEMPTS = 3;

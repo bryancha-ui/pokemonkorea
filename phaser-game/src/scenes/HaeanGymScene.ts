@@ -16,6 +16,7 @@ import {
 } from '../systems/WavePoolGymPuzzle';
 import { DialogBox } from '../ui/DialogBox';
 import { SaveManager } from '../utils/SaveManager';
+import { maybeLaunchEvolution } from '../systems/EvolutionSystem';
 
 interface GymTrainer {
   key: 'haean-haedo' | 'haean-byungchan';
@@ -167,6 +168,7 @@ export class HaeanGymScene extends Phaser.Scene {
     this.cameras.main.startFollow(this.playerG, true, 0.1, 0.1);
     this.cameras.main.fadeIn(300);
     this.dialog = new DialogBox(this, 1280, 720);
+    this.time.delayedCall(250, () => maybeLaunchEvolution(this));
     this.interactionReadyAt = this.time.now + 450;
 
     const fallenCourse = String(this.registry.get('haeanWaveFallPending') ?? '');

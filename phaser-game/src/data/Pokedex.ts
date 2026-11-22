@@ -57,7 +57,8 @@ export const POKEDEX: DexEntry[] = [
     spriteUrl: A + 'vipour.png', evolvesTo: 'scorpent', evolvesAtLevel: 14, dist: 'Starter', where: "Prof. Song's Lab" },
   { num: 5, key: 'scorpent', name: 'Scorpent', type1: 'fire', type2: 'poison', ability: 'Blaze',
     dexText: 'When it dances, heat pours from flower-shaped scales, spreading a fascinating toxic smoke.',
-    spriteUrl: A + 'scorpent.png', dist: 'Starter', where: 'Evolve Vipour' },
+    spriteUrl: A + 'scorpent.png', evolvesTo: 'feldaconda', evolvesAtLevel: 36,
+    dist: 'Starter', where: 'Evolve Vipour' },
 
   { num: 6, key: 'onnurian', name: 'Onnurian', type1: 'water', type2: 'ghost', ability: 'Torrent',
     dexText: 'Based on the crane and the Grim Reaper. It silently guides lost souls across still water.',

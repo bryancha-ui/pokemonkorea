@@ -705,7 +705,10 @@ const start3D = () => {
   threeStarted = true;
   void import('./engine3d')
     .then(({ bootstrap3D }) => bootstrap3D(game))
-    .catch((err) => console.warn('[engine3d] lazy bootstrap failed; game remains 2D:', err));
+    .catch((err) => {
+      console.error('[engine3d] required 3D bootstrap failed:', err);
+      throw err;
+    });
 };
 if (standaloneTestMode()) start3D();
 else if (shell.mobile) {

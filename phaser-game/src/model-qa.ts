@@ -57,6 +57,7 @@ scene.add(floor);
 const params = new URLSearchParams(location.search);
 const qaModel = params.get('model')?.trim().toLowerCase() || undefined;
 const qaYaw = THREE.MathUtils.degToRad(Number(params.get('yaw') ?? 0) || 0);
+const staticQa = params.has('static');
 const ringCount = qaModel ? 1 : 3;
 for (let i = 0; i < ringCount; i++) {
   const ring = new THREE.Mesh(
@@ -140,7 +141,7 @@ await Promise.all(specs.map(async (spec) => {
     mixers.push(mixer);
     const idle = loaded.animations.find(clip => /idle|breath/i.test(clip.name));
     const animationSet = { mixer, clips: loaded.animations, current: idle ? mixer.clipAction(idle) : undefined };
-    animationSet.current?.play();
+    if (!staticQa) animationSet.current?.play();
     animationSets.push(animationSet);
     qa.models.push({ key: spec.key, meshes, triangles, authoredMaps, clips: loaded.animations.map(clip => clip.name) });
   } catch (error) {
@@ -160,7 +161,7 @@ if (status) status.textContent = qa.errors.length
     : `${qa.models.length}/3 게임 로더 정상 · 2D 대기 ${qa.deferred2D.length}/3 · ${(totalTriangles() / 1_000_000).toFixed(2)}M triangles · PBR 색상 맵 ${qa.models.reduce((sum, model) => sum + model.authoredMaps, 0)}개 · 내장 클립 ${totalClips()}개`;
 
 let activeClip = 0;
-setInterval(() => {
+if (!staticQa) setInterval(() => {
   activeClip = (activeClip + 1) % 4;
   animationSets.forEach(set => {
     const nextClip = set.clips[activeClip];
@@ -189,9 +190,13 @@ function frame(): void {
   requestAnimationFrame(frame);
   const dt = Math.min(clock.getDelta(), 0.05);
   elapsed += dt;
-  mixers.forEach(mixer => mixer.update(dt));
-  moveFx.update(dt);
-  actors.forEach((actor, i) => { actor.rotation.y = qaYaw + Math.sin(elapsed * 0.24 + i * 0.8) * 0.14; });
+  if (!staticQa) {
+    mixers.forEach(mixer => mixer.update(dt));
+    moveFx.update(dt);
+  }
+  actors.forEach((actor, i) => {
+    actor.rotation.y = staticQa ? qaYaw : qaYaw + Math.sin(elapsed * 0.24 + i * 0.8) * 0.14;
+  });
   renderer.render(scene, camera);
 }
 frame();

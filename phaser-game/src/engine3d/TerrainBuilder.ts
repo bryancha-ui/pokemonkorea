@@ -1085,6 +1085,129 @@ export function buildTerrain(
     return root;
   };
 
+  const gymModelIds = new Set([
+    'gym', 'dojo', 'dolmoe-pokemon-gym', 'lanterngym', 'tidalgym',
+    'templegym', 'sunrisegym',
+  ]);
+
+  /** Recognisable, colourful gym exterior used only while the authored model is
+   *  decoding or when WebGL cannot load it. It must never resemble the old
+   *  neutral concrete box that made every city's gym look identical. */
+  const makeGymFallback = (w: number, d: number, model: string): THREE.Group => {
+    const root = new THREE.Group();
+    const palette: Record<string, [number, number, number]> = {
+      gym: [0x6c4f86, 0x432f57, 0xf2c94c],
+      dojo: [0x9b5b36, 0x4a2d24, 0xffc66d],
+      'dolmoe-pokemon-gym': [0x8a7658, 0x4b4035, 0xe0c58e],
+      lanterngym: [0xa83f78, 0x512044, 0xffd166],
+      tidalgym: [0x2c88a8, 0x17475d, 0x8ce7ff],
+      templegym: [0x4f8553, 0x264a32, 0xf0b85a],
+      sunrisegym: [0x3566a8, 0x26375d, 0xffe05a],
+    };
+    const [wallColor, roofColor, accentColor] = palette[model] ?? palette.gym;
+    const wall = new THREE.MeshToonMaterial({ color: wallColor, gradientMap: toonRamp() });
+    const dark = new THREE.MeshToonMaterial({ color: roofColor, gradientMap: toonRamp() });
+    const accent = new THREE.MeshToonMaterial({ color: accentColor, gradientMap: toonRamp() });
+    const bodyH = Math.max(1.15, Math.min(2.3, Math.min(w, d) * 0.42));
+    const body = new THREE.Mesh(new THREE.BoxGeometry(w * 0.9, bodyH, d * 0.82), wall);
+    body.position.y = bodyH / 2;
+    root.add(body);
+    const roof = new THREE.Mesh(makeHipRoofGeometry(w, d * 0.92, Math.max(0.55, bodyH * 0.38)), dark);
+    roof.position.y = bodyH;
+    root.add(roof);
+    const portico = new THREE.Mesh(new THREE.BoxGeometry(w * 0.46, bodyH * 0.62, 0.34), dark);
+    portico.position.set(0, bodyH * 0.31, d * 0.46);
+    root.add(portico);
+    for (const side of [-1, 1]) {
+      const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, bodyH * 0.7, 10), accent);
+      pillar.position.set(side * w * 0.31, bodyH * 0.35, d * 0.43);
+      root.add(pillar);
+    }
+    const sign = new THREE.Mesh(new THREE.CylinderGeometry(Math.min(w, d) * 0.14, Math.min(w, d) * 0.14, 0.09, 32), accent);
+    sign.rotation.x = Math.PI / 2;
+    sign.position.set(0, bodyH * 0.72, d * 0.445);
+    root.add(sign);
+    const signBand = new THREE.Mesh(new THREE.BoxGeometry(Math.min(w, d) * 0.27, 0.055, 0.11), dark);
+    signBand.position.set(0, bodyH * 0.72, d * 0.49);
+    root.add(signBand);
+    return root;
+  };
+
+  /** Traditional shrine silhouette that survives asset/network/GPU failures.
+   *  It is deliberately timber-and-tile, never the neutral concrete extrusion. */
+  const makeShrineFallback = (w: number, d: number): THREE.Group => {
+    const root = new THREE.Group();
+    const timber = new THREE.MeshToonMaterial({ color: 0x8e3f2f, gradientMap: toonRamp() });
+    const plaster = new THREE.MeshToonMaterial({ color: 0xe7d6aa, gradientMap: toonRamp() });
+    const roofMat = new THREE.MeshToonMaterial({ color: 0x24483a, gradientMap: toonRamp() });
+    const stone = new THREE.MeshToonMaterial({ color: 0x817a6d, gradientMap: toonRamp() });
+    const baseH = Math.max(0.18, Math.min(w, d) * 0.07);
+    const base = new THREE.Mesh(new THREE.BoxGeometry(w * 0.9, baseH, d * 0.82), stone);
+    base.position.y = baseH / 2;
+    root.add(base);
+    const hallH = Math.max(0.8, Math.min(1.7, Math.min(w, d) * 0.34));
+    const hall = new THREE.Mesh(new THREE.BoxGeometry(w * 0.72, hallH, d * 0.62), plaster);
+    hall.position.y = baseH + hallH / 2;
+    root.add(hall);
+    for (const side of [-1, 1]) {
+      const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.09, hallH * 1.04, 8), timber);
+      pillar.position.set(side * w * 0.31, baseH + hallH * 0.52, d * 0.34);
+      root.add(pillar);
+    }
+    const roof = new THREE.Mesh(makeHipRoofGeometry(w, d * 0.86, Math.max(0.45, hallH * 0.44)), roofMat);
+    roof.position.y = baseH + hallH;
+    root.add(roof);
+    const gateTop = new THREE.Mesh(new THREE.BoxGeometry(w * 0.5, 0.13, 0.16), roofMat);
+    gateTop.position.set(0, baseH + hallH * 0.72, d * 0.45);
+    root.add(gateTop);
+    return root;
+  };
+
+  /** Colour-coded volumetric placeholder for a named authored building. The
+   *  authored GLB replaces it atomically once validated; until then the player
+   *  still sees a readable home/shop/landmark instead of a concrete cuboid. */
+  const makeThemedBuildingFallback = (w: number, d: number, def: import('./PropModels').PropDef): THREE.Group => {
+    if (def.id === 'pokecenter') return makePokemonCenter(w, d);
+    if (def.id === 'mart') return makePokeMart(w, d);
+    if (def.id === 'dolmen') return makeDolmenFallback(w, d);
+    if (gymModelIds.has(def.id)) return makeGymFallback(w, d, def.id);
+    if (def.tags?.includes('shrine')) return makeShrineFallback(w, d);
+    if (def.tags?.includes('traditional') || def.id === 'hanok' || def.id === 'pinehouse') {
+      return makeHanokPalace(w, d);
+    }
+
+    const root = new THREE.Group();
+    const isShop = def.tags?.some(tag => ['shop', 'market', 'bath'].includes(tag)) ?? false;
+    const isLandmark = def.tags?.some(tag => ['landmark', 'hall', 'pavilion', 'station', 'lab', 'village'].includes(tag)) ?? false;
+    let hash = 0;
+    for (const ch of def.id) hash = ((hash * 31) + ch.charCodeAt(0)) >>> 0;
+    const palettes = isShop
+      ? [[0xd76a42, 0x60382d, 0xffd76a], [0x3d82a8, 0x24465d, 0x8ee9ff], [0x6e9c55, 0x345336, 0xffd57a]]
+      : isLandmark
+        ? [[0xb99a69, 0x394e62, 0xf2d18a], [0x8a6aa6, 0x3d3154, 0xf4c8ff], [0x5a8c78, 0x29493f, 0xe9c46a]]
+        : [[0xc99668, 0x6a4935, 0xf2d59b], [0x9d7660, 0x4f3c35, 0xe8be78], [0x6f91a8, 0x344c5d, 0xe5d19a]];
+    const [wallColor, roofColor, accentColor] = palettes[hash % palettes.length]!;
+    const wall = new THREE.MeshToonMaterial({ color: wallColor, gradientMap: toonRamp() });
+    const roofMat = new THREE.MeshToonMaterial({ color: roofColor, gradientMap: toonRamp() });
+    const accent = new THREE.MeshToonMaterial({ color: accentColor, gradientMap: toonRamp() });
+    const h = Math.max(1, Math.min(isLandmark ? 3.2 : 2.25, plotHeight(w, d)));
+    const body = new THREE.Mesh(new THREE.BoxGeometry(w * 0.9, h, d * 0.82), wall);
+    body.position.y = h / 2;
+    root.add(body);
+    const roof = new THREE.Mesh(makeHipRoofGeometry(w, d * 0.94, Math.max(0.46, Math.min(w, d) * 0.2)), roofMat);
+    roof.position.y = h;
+    root.add(roof);
+    const door = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.36, w * 0.18), h * 0.48, 0.12), roofMat);
+    door.position.set(0, h * 0.24, d * 0.42);
+    root.add(door);
+    for (const side of [-1, 1]) {
+      const window = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.3, w * 0.15), h * 0.22, 0.08), accent);
+      window.position.set(side * w * 0.28, h * 0.58, d * 0.425);
+      root.add(window);
+    }
+    return root;
+  };
+
   // Generic building GLBs (house/hanok/…) were being stamped onto EVERY detected
   // footprint, so the same one or two models blanketed every town — hanok and
   // plain houses everywhere. Until per-city, purpose-built models exist (and a
@@ -1185,12 +1308,10 @@ export function buildTerrain(
     if (def) {
       const holder = new THREE.Group();
       holder.position.set(b.x + b.w / 2, 0, b.z + b.d / 2);
-      // Never expose an empty plot while a large GLB streams in. The local shell
-      // remains the failure fallback and is hidden when the model is ready.
-      const fallback = b.model === 'dolmen'
-        ? makeDolmenFallback(b.w, b.d)
-        : new THREE.Group();
-      if (b.model !== 'dolmen') extrudeBuilding(b, fallback, true);
+      // Never expose an empty plot while a large GLB streams in. A category-
+      // specific 3D building remains visible if decoding fails; no named model
+      // is ever represented by the old neutral concrete extrusion.
+      const fallback = makeThemedBuildingFallback(b.w, b.d, def);
       holder.add(fallback);
       group.add(holder);
       const h = plotHeight(b.w, b.d);
@@ -1212,14 +1333,22 @@ export function buildTerrain(
       blockers.push({ node: holder, r: Math.max(b.w, b.d) / 2 + 0.6, fade: 0 });
       continue;
     }
-    // Any other named remote GLB: preserve the building as a local procedural 3D
-    // extrusion instead of leaving an empty/black footprint.
+    if (b.model && gymModelIds.has(b.model)) {
+      const holder = new THREE.Group();
+      holder.position.set(b.x + b.w / 2, 0, b.z + b.d / 2);
+      holder.add(makeGymFallback(b.w, b.d, b.model));
+      group.add(holder);
+      blockers.push({ node: holder, r: Math.max(b.w, b.d) / 2 + 0.6, fade: 0 });
+      continue;
+    }
+    // Any truly unknown future model still gets a colourful authored-looking
+    // 3D volume rather than the former grey concrete shell.
     if (b.model) {
-      const fallback = new THREE.Group();
-      fallback.position.set(b.x + b.w / 2, 0, b.z + b.d / 2);
-      group.add(fallback);
-      extrudeBuilding(b, fallback, true);
-      blockers.push({ node: fallback, r: Math.max(b.w, b.d) / 2 + 0.6, fade: 0 });
+      const holder = new THREE.Group();
+      holder.position.set(b.x + b.w / 2, 0, b.z + b.d / 2);
+      holder.add(makeThemedBuildingFallback(b.w, b.d, { id: b.model, role: 'building' }));
+      group.add(holder);
+      blockers.push({ node: holder, r: Math.max(b.w, b.d) / 2 + 0.6, fade: 0 });
       continue;
     }
     // Explicit model-less plots are still real buildings. Named-only cities use

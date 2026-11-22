@@ -1,6 +1,7 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { SAFE_RESUME_SCENES } from '../src/data/ResumeScenes';
+import { synchronousPropIds } from '../src/engine3d/PropModels';
 
 const root = process.cwd();
 const srcRoot = path.join(root, 'src');
@@ -114,6 +115,8 @@ const hwangeumStory = await fs.readFile(path.join(srcRoot, 'systems', 'HwangeumS
 const storyActor = await fs.readFile(path.join(srcRoot, 'systems', 'StoryActor.ts'), 'utf8');
 const propModels = await fs.readFile(path.join(srcRoot, 'engine3d', 'PropModels.ts'), 'utf8');
 const terrainBuilder = await fs.readFile(path.join(srcRoot, 'engine3d', 'TerrainBuilder.ts'), 'utf8');
+const engine3dIndex = await fs.readFile(path.join(srcRoot, 'engine3d', 'index.ts'), 'utf8');
+const threeStage = await fs.readFile(path.join(srcRoot, 'engine3d', 'ThreeStage.ts'), 'utf8');
 const forestCity = await fs.readFile(path.join(srcRoot, 'scenes', 'ForestCityScene.ts'), 'utf8');
 const routeScene = await fs.readFile(path.join(srcRoot, 'scenes', 'RouteScene.ts'), 'utf8');
 if (!geumgangCity.includes('playFirstVisitRivalEntrance(cityIntro)')
@@ -148,6 +151,40 @@ if (!propModels.includes("import { DRACOLoader }")
 if (!terrainBuilder.includes('makeDolmenFallback')
   || !terrainBuilder.includes("b.model === 'dolmen'")) {
   failures.push('dolmens can still appear as concrete building boxes while their model loads');
+}
+if (!propModels.includes('SYNCHRONOUS_PROP_CATALOG')
+  || !propModels.includes("id: 'dolmoe-pokemon-gym'")
+  || !terrainBuilder.includes('makeGymFallback')
+  || !terrainBuilder.includes('gymModelIds.has')) {
+  failures.push('gym exteriors can still remain generic concrete boxes during or after model loading');
+}
+const propJson = JSON.parse(await fs.readFile(path.join(root, 'public', 'assets', 'models3d', 'props.json'), 'utf8')) as {
+  props?: Array<{ id: string }>;
+};
+const synchronousIds = new Set(synchronousPropIds());
+for (const prop of propJson.props ?? []) {
+  if (!synchronousIds.has(prop.id)) failures.push(`prop can be missed by the first synchronous 3D terrain pass: ${prop.id}`);
+}
+if (!terrainBuilder.includes('makeShrineFallback')
+  || !terrainBuilder.includes('makeThemedBuildingFallback')
+  || !terrainBuilder.includes("def.tags?.includes('shrine')")) {
+  failures.push('shrines or named buildings can still degrade to a concrete box');
+}
+if (engine3dIndex.includes('fallbackTo2D')
+  || engine3dIndex.includes("localStorage.getItem(STORE_KEY)")
+  || !engine3dIndex.includes('recover3DOnly')
+  || !engine3dIndex.includes('suppressWorld2D(pick.scene)')
+  || !threeStage.includes('destroy(): void')) {
+  failures.push('world maps can still fall back to the flat 2D background instead of rebuilding 3D');
+}
+for (const gymScene of [
+  'BaekduGymScene', 'DolmoeGymScene', 'ForestGymScene', 'GeumgangGymScene',
+  'HaeanGymScene', 'SeoraeGymScene', 'SunriseGymScene',
+]) {
+  const source = await fs.readFile(path.join(srcRoot, 'scenes', `${gymScene}.ts`), 'utf8');
+  if (!source.includes('maybeLaunchEvolution(this)')) {
+    failures.push(`${gymScene} can still strand a pending level evolution after a gym battle`);
+  }
 }
 if (!storyActor.includes("kind: 'rival' | 'trainer'")
   || !storyActor.includes("setData('characterLabelTarget3D', this.graphic)")

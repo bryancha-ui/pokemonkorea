@@ -54,7 +54,7 @@ export const SPRITE_SCALE: Record<string, number> = {
  * wild, owned, or trainer-controlled. Keep physical size consistent across all
  * of those forms instead of maintaining three aliases for every large species. */
 const NUMERIC_SPECIES_SCALE: Record<number, number> = {
-  95: 1.50,   // Onix
+  95: 2.10,   // Onix — 1.4× larger than the former 1.50 battle presentation
   130: 1.50,  // Gyarados
   143: 1.35,  // Snorlax
   149: 1.30,  // Dragonite
@@ -136,7 +136,8 @@ const BATTLE_2D_OVERRIDES: Readonly<Record<string, number>> = {
   '445': NUMERIC_SPECIES_SCALE[445] * GARCHOMP_BATTLE_MULTIPLIER,
   // These official-model species were also reported as undersized. Keep the
   // emergency 2D path in step with their authored 3D stage presence.
-  '306': 2.80, // 보스로라 — at least twice the former 1.40 fit
+  '306': 1.87, // 보스로라 — reduce the reported 2.80 presentation by 1.5×
+  '464': 1.40, // 거대코뿌리 — reduce the reported 2.10 presentation by 1.5×
   '635': 1.80, // 삼삼드래
   '730': 1.65, // 누리레느
   // The high-resolution fallback has a tall, narrow silhouette and read too
@@ -182,8 +183,9 @@ const BATTLE_3D_SIZE_OVERRIDES: Readonly<Record<string, number>> = {
   kingfisher: 0.68,
   // Borrowed official models normally receive a global 0.6 reduction in the
   // battle mirror. Exact final heights here deliberately bypass that reduction
-  // for the three reported large final evolutions.
-  '306': 1.50, // 보스로라 — just over 2× its former ~0.73 stage height
+  // for the reported large final evolutions.
+  '306': 1.00, // 보스로라 — reduce the reported 1.50 presentation by 1.5×
+  '464': 0.73, // 거대코뿌리 — reduce the reported 1.10 presentation by about 1.5×
   '635': 1.25, // 삼삼드래
   '730': 1.18, // 누리레느
   dracopaia: 1.30,
