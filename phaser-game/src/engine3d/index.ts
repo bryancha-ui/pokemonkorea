@@ -36,6 +36,8 @@ class Engine3D {
   private recoveringUntil = 0;
   private mirrorApplied = false;
   private camPatched = new WeakSet<Phaser.Cameras.Scene2D.Camera>();
+  /** Objects hidden only for the loading frame, released once a mirror owns the scene. */
+  private loadingSuppressed = new Set<Phaser.GameObjects.GameObject>();
   private watchedScenes = new WeakSet<Phaser.Scene>();
   private readonly performance: PerformanceProfile;
   private renderAccumulator = 1;
@@ -162,14 +164,37 @@ class Engine3D {
   /** Hide every world-space Phaser object immediately while retaining the
    *  scroll-factor-zero dialogue/HUD layer. This closes the old startup/error
    *  window where a flat map could appear before the 3D mirror was ready. */
+  //
+  // This is a LOADING-FRAME guard only. It used to run on every frame, after
+  // the mirror had already decided what stays 2D, and re-hid all of it: battle
+  // HUDs (name, level, HP bar), trainer portraits and overworld emote/
+  // container overlays all use scroll factor 1, so every battle could lose its
+  // whole UI layer (first reported on the snow pass after the Dolmoe mine).
   private suppressWorld2D(scene: Phaser.Scene): void {
-    const cam = scene.cameras?.main;
+    const cam = scene.cameras?.main as (Phaser.Cameras.Scene2D.Camera & { id: number }) | undefined;
     if (!cam) return;
     for (const child of scene.children?.list ?? []) {
-      const obj = child as Phaser.GameObjects.GameObject & { scrollFactorX?: number; scrollFactorY?: number };
+      const obj = child as Phaser.GameObjects.GameObject & {
+        scrollFactorX?: number; scrollFactorY?: number; cameraFilter?: number;
+      };
       if (obj.scrollFactorX === 0 && obj.scrollFactorY === 0) continue;
+      // Leave objects someone else already hid alone, so releasing this
+      // guard can never reveal them.
+      if (typeof obj.cameraFilter === 'number' && (obj.cameraFilter & cam.id)) continue;
       cam.ignore(obj);
+      this.loadingSuppressed.add(obj);
     }
+  }
+
+  /** Undo the loading-frame guard right before a mirror applies its own
+   *  per-object 2D/3D decisions (which re-hide everything it replaces). */
+  private releaseWorld2D(): void {
+    for (const obj of this.loadingSuppressed) {
+      const o = obj as Phaser.GameObjects.GameObject & { cameraFilter?: number };
+      const cam = obj.scene?.cameras?.main as (Phaser.Cameras.Scene2D.Camera & { id: number }) | undefined;
+      if (cam && typeof o.cameraFilter === 'number') o.cameraFilter &= ~cam.id;
+    }
+    this.loadingSuppressed.clear();
   }
 
   private step(dt: number): void {
@@ -272,6 +297,7 @@ class Engine3D {
         if (!this.stage.render()) throw new Error('Three.js frame could not be rendered');
         this.noteRenderedFrame();
         if (!this.mirrorApplied) {
+          this.releaseWorld2D();
           this.mirror.apply3D();
           this.mirrorApplied = true;
         }
@@ -300,7 +326,11 @@ class Engine3D {
     // From this point onward the map is 3D-only, including its loading frame.
     // Phaser keeps simulating collisions and UI, but its world/background can
     // never become a visible substitute for the volumetric terrain.
-    this.suppressWorld2D(pick.scene);
+    // Only until this scene's mirror has applied: afterwards the mirror owns
+    // every object's 2D/3D visibility.
+    // Objects of a departing scene must not stay in the loading set.
+    if (this.mirrorScene !== pick.scene) this.loadingSuppressed.clear();
+    if (this.mirrorScene !== pick.scene || !this.mirrorApplied) this.suppressWorld2D(pick.scene);
     this.setCamTransparent(pick.scene, true);
 
     if (this.mirrorScene !== pick.scene) {
@@ -333,6 +363,7 @@ class Engine3D {
     if (!stage.render()) throw new Error('Three.js frame could not be rendered');
     this.noteRenderedFrame();
     if (!this.mirrorApplied) {
+      this.releaseWorld2D();
       this.mirror!.apply3D();
       this.mirrorApplied = true;
     }

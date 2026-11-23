@@ -88,7 +88,7 @@ expect(battleMirror.includes('!isCompanionOnlyModel(modelKey)'),
   'battle rendering no longer respects the shared model eligibility flag');
 expect(companion.includes('const loaded = getModel(key)') && companion.includes('if (loaded) this.attachModel(key, loaded)'),
   'the companion system no longer consumes the shared imported GLBs');
-expect(glbModels.includes("const MANIFEST_VERSION = '2026-11-22a'"),
+expect(glbModels.includes("const MANIFEST_VERSION = '2026-11-23a'"),
   'browsers can retain the pre-import model registry');
 
 console.log(JSON.stringify({

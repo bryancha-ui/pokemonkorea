@@ -125,20 +125,26 @@ expect(typeof balchataek !== 'string' && balchataek?.rotY === 270,
 const doribi = modelManifest.models?.find(entry => typeof entry !== 'string' && entry.key === 'doribi');
 expect(typeof doribi !== 'string' && doribi?.rotY === 180,
   'Doribi no longer faces the shared +Z/front axis');
-expect(glbModels.includes("const MANIFEST_VERSION = '2026-11-22a'"),
+expect(glbModels.includes("const MANIFEST_VERSION = '2026-11-23a'"),
   'the corrected creature orientations can be hidden by a stale browser manifest');
 for (const [key, rotY] of [
-  ['squirrel2', 270], ['trumpetcreeper', 90], ['moransae', 90],
+  ['squirrel2', 230], ['trumpetcreeper', 50],
   ['halubang', 90], ['mperodactyl', 90],
 ] as const) {
   const entry = modelManifest.models?.find(item => typeof item !== 'string' && item.key === key);
   expect(typeof entry !== 'string' && entry?.rotY === rotY,
     `${key} lost its requested presentation-axis correction`);
 }
-expect(glbModels.includes("key === 'gorcobat'")
-  && glbModels.includes('__gorcobatEyeRepair')
-  && glbModels.includes('side * 0.17, 0.29, 0.89'),
-  'Gorcobat is missing its symmetric paired-eye repair');
+expect(/gorcobat: \{ pos: \[-0\.149, 0\.361, 0\.752\]/.test(glbModels)
+  && /moranlovebird: \{ pos: \[-0\.372, 0\.280, 0\.700\]/.test(glbModels)
+  && glbModels.includes('MISSING_EYE_REPAIRS[key]'),
+  'Gorcobat/Moranlovebird lost the mirrored copy of their single painted eye');
+expect(/'148': \[\['Tail1', 25\]/.test(glbModels) && glbModels.includes('applySerpentRestPose(scene, key)'),
+  'Dragonair/Dratini are balanced on their tail tips again instead of resting their tails on the ground');
+expect(battleMirror.includes('moransae: -75'),
+  'Moransae lost its side-profile battle presentation');
+expect(/ELONGATED_DEPTH_RATIO = 1\.5/.test(battleMirror) && battleMirror.includes('noteBattleExtent(cb.glbKey, loaded.extent)'),
+  'long-bodied Pokémon are shown head-on again instead of in three-quarter view');
 
 // Production GLBs must not inherit obsolete enlargement values from old 2D
 // artwork. Disguijar is a small stone swift; other intentional giants retain

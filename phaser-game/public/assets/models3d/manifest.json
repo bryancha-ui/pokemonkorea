@@ -1420,7 +1420,6 @@
     },
     {
       "key": "moransae",
-      "rotY": 90,
       "lightweight": true,
       "optimized": true,
       "source": "local-pokemon3dmodels"
@@ -1710,7 +1709,7 @@
     },
     {
       "key": "squirrel2",
-      "rotY": 270,
+      "rotY": 230,
       "lightweight": true,
       "optimized": true,
       "source": "local-pokemon3dmodels"
@@ -1759,7 +1758,7 @@
     },
     {
       "key": "trumpetcreeper",
-      "rotY": 90,
+      "rotY": 50,
       "lightweight": true,
       "optimized": true,
       "source": "hyper3d-rodin",

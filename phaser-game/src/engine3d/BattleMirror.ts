@@ -144,6 +144,10 @@ const BATTLE_YAW_OVERRIDES_DEG: Readonly<Record<string, number>> = {
   chattyscream: 30,
   // Keep both eyes and the long diving silhouette readable to the camera.
   kingfisher: 24,
+  // 모란새's peacock train is its whole design. Its GLB now keeps the head on
+  // +Z (so the overworld follower walks head-first instead of crab-walking);
+  // battle turns it into a side profile with the head toward the opponent.
+  moransae: -75,
 };
 
 // Borrowed Pokémon-3D-API models are authored large and read oversized in the
@@ -185,8 +189,42 @@ function battleBaseHeight(side: 'player' | 'enemy', displayHeight: number, textu
     * battleSizeOverride(textureKey);
 }
 
-function battleYawOffset(textureKey: string): number {
-  return THREE.MathUtils.degToRad(BATTLE_YAW_OVERRIDES_DEG[normalizeKey(textureKey)] ?? 0);
+// Every GLB's +Z front is turned straight at the battle camera. That is right
+// for upright, face-forward designs, but a long quadruped, serpent or dragon
+// seen exactly head-on collapses into a thin sliver (Tauros, Houndoom,
+// Gyarados, 창해미르 measured 2–5× deeper than wide). Mainline battles show such
+// bodies in a three-quarter view, head angled toward the player's side, so
+// elongated models get that turn automatically. Explicit overrides still win.
+const ELONGATED_DEPTH_RATIO = 1.5;
+const ELONGATED_THREE_QUARTER_DEG = -40;
+const ELONGATED_MAX_ASPECT = 3.0;
+const autoYawDeg = new Map<string, number>();
+
+/** Record the automatic three-quarter turn for a loaded model's proportions. */
+function noteBattleExtent(textureKey: string, extent: ModelExtent | undefined): void {
+  const k = normalizeKey(textureKey);
+  if (!extent || !(extent.x > 0)) return;
+  if (extent.z / extent.x < ELONGATED_DEPTH_RATIO) { autoYawDeg.set(k, 0); return; }
+  // Very long serpents (Rayquaza, Steelix) would become five or six times wider
+  // than tall at the full turn and run off the arena, so ease the angle until
+  // the silhouette stays within a sane width-to-height ratio.
+  const maxAspect = Math.max(ELONGATED_MAX_ASPECT, extent.x / Math.max(0.05, extent.y));
+  let deg = ELONGATED_THREE_QUARTER_DEG;
+  while (deg < 0) {
+    const t = THREE.MathUtils.degToRad(-deg);
+    const aspect = (Math.cos(t) * extent.x + Math.sin(t) * extent.z) / Math.max(0.05, extent.y);
+    if (aspect <= maxAspect) break;
+    deg += 2;
+  }
+  autoYawDeg.set(k, deg);
+}
+
+function battleYawOffset(textureKey: string, side: 'player' | 'enemy' = 'enemy'): number {
+  const k = normalizeKey(textureKey);
+  // The automatic turn is a presentation of the opponent toward the camera;
+  // the player's own Pokémon keeps squarely facing its target.
+  const auto = side === 'enemy' ? autoYawDeg.get(k) : undefined;
+  return THREE.MathUtils.degToRad(BATTLE_YAW_OVERRIDES_DEG[k] ?? auto ?? 0);
 }
 
 function combatantSignature(im: Phaser.GameObjects.Image): string {
@@ -1544,13 +1582,14 @@ export class BattleMirror {
         const loaded = getModel(cb.glbKey);
         if (loaded && isRenderableModel(loaded.group)) {
           const model = loaded.group;
+          noteBattleExtent(cb.glbKey, loaded.extent);
           // Enemy Pokémon present their front to the battle camera. The old
           // fixed zero yaw only followed the world axis, so models such as
           // Cerrapin appeared side-on in the diagonal battle composition.
           // The player's own model faces the opponent across the field.
           if (cb.side === 'player') {
             const dir = this.facingVector.copy(ANCHORS.enemy[0]).sub(ANCHORS.player[cb.slot]);
-            model.rotation.y = Math.atan2(dir.x, dir.z) - cb.holder.rotation.y + battleYawOffset(cb.glbKey);
+            model.rotation.y = Math.atan2(dir.x, dir.z) - cb.holder.rotation.y + battleYawOffset(cb.glbKey, 'player');
           } else {
             model.rotation.y = this.cameraFacingYaw(cb.holder) + battleYawOffset(cb.glbKey);
           }

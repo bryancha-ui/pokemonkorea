@@ -326,7 +326,7 @@ export class WaterfallFinaleScene extends Phaser.Scene {
         ),
         t(
           'You look past the waterfall toward roads that do not appear on any map yet — and smile.',
-          '너는 폭포 너머, 아직 어떤 지도에도 그려지지 않은 길을 바라보며 미소 짓는다.',
+          '폭포 너머, 아직 어떤 지도에도 그려지지 않은 길을 바라보며 미소 짓는다.',
         ),
         t(
           `${rivalName}: ...I knew it. Then next time, I will be the one waiting one step ahead.`,

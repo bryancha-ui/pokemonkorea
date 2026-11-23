@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { isSpeakerLabelText } from './i18n';
+import { autoTranslateDisplay, isSpeakerLabelText } from './i18n';
 
 // ── Screen-ratio-aware on-canvas font scaling ────────────────────────────────
 // The game renders at a fixed 1280×720 with Scale.FIT, so the canvas is shrunk to
@@ -115,12 +115,27 @@ export function installFontScaling(enabled: boolean): void {
   };
   const origText = facProto.text;
   facProto.text = function (x: number, y: number, text: unknown, style: unknown) {
+    if (typeof text === 'string') text = autoTranslateDisplay(text);
     const speakerLabel = isSpeakerLabelText(text);
     const prepared = speakerLabel ? compactSpeakerStyle(style) : style;
     const result = origText.call(this, x, y, text, scaleStyle(prepared, fontScaleForScene(this.scene)));
     if (speakerLabel) attachSpeakerLabel(this.scene, result);
     return result;
   };
+
+  // Later updates (toasts, HUD rows, dialogue pages) arrive through setText.
+  // Route them through the same localization safety net.
+  const textProto = Phaser.GameObjects.Text.prototype as unknown as {
+    setText: (value: unknown) => unknown;
+    __pkAutoTranslate?: boolean;
+  };
+  if (!textProto.__pkAutoTranslate) {
+    const origSetText = textProto.setText;
+    textProto.setText = function (value: unknown) {
+      return origSetText.call(this, typeof value === 'string' ? autoTranslateDisplay(value) : value);
+    };
+    textProto.__pkAutoTranslate = true;
+  }
 
   // this.make.text({ ... }) bypasses the factory — patch the creator too.
   const crProto = Phaser.GameObjects.GameObjectCreator.prototype as unknown as {

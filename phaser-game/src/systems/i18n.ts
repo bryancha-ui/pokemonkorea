@@ -477,21 +477,55 @@ const ST = (s: string) => STAT_KR[s] ?? s;
 const AB = (s: string) => KO_ABILITIES[s.trim().replace(/[-_]+/g, ' ').toLowerCase()] ?? s;
 const TY = (s: string) => KO_TYPES[s.toLowerCase()] ?? s;
 const BATTLE_PATTERNS: Array<[RegExp, (m: RegExpMatchArray) => string]> = [
-  [/^What will (.+) do\?  🔴×(\d+)$/, m => `${P(m[1])}는 무엇을 할까?  🔴×${m[2]}`],
-  [/^What will (.+) do\?$/, m => `${P(m[1])}는 무엇을 할까?`],
-  [/^(.+) fainted!$/,       m => `${P(m[1])}은 쓰러졌다!`],
+  [/^(.+) wants to learn (.+), but it already knows 4 moves\.$/, m => `${P(m[1])}(은)는 ${KMOVE(m[2])}(을)를 배우고 싶어 하지만, 이미 기술을 4개 알고 있다.`],
+  [/^Forget a move to learn (.+)\?$/, m => `${KMOVE(m[1])}(을)를 배우기 위해 기술을 잊게 할까?`],
+  [/^✕ Don't learn (.+)$/, m => `✕ ${KMOVE(m[1])}(을)를 배우지 않는다`],
+  [/^(.+) did not learn (.+)\.$/, m => `${P(m[1])}(은)는 ${KMOVE(m[2])}(을)를 배우지 않았다.`],
+  [/^Evolve (.+?) \(Lv\.(\d+)\)$/, m => `${P(m[1])}에서 진화 (Lv.${m[2]})`],
+  [/^Evolve (.+)$/, m => `${P(m[1])}에서 진화`],
+  [/^(.+)'s (.+) restored (\d+) HP!$/, m => `${P(m[1])}(은)는 ${abilityName(m[2])}(으)로 HP를 ${m[3]} 회복했다!`],
+  [/^(.+) restored (\d+) HP with Leftovers!$/, m => `${P(m[1])}(은)는 먹다남은음식으로 HP를 ${m[2]} 회복했다!`],
+  [/^(.+) restored (\d+) HP with its (.+)!$/, m => `${P(m[1])}(은)는 ${KMOVE(m[3])}(으)로 HP를 ${m[2]} 회복했다!`],
+  [/^(.+) hurt itself in confusion for (\d+) HP!$/, m => `${P(m[1])}(은)는 혼란에 빠져 자신을 공격했다! (HP ${m[2]})`],
+  [/^(.+) was hurt by (.+)!$/, m => `${P(m[1])}(은)는 ${KMOVE(m[2])}에 의해 데미지를 입었다!`],
+  [/^(.+) has fainted — use a Revive first\.$/, m => `${P(m[1])}(은)는 기절했다 — 먼저 기력의조각을 사용하자.`],
+  [/^(.+)'s HP is already full\.$/, m => `${P(m[1])}의 HP는 이미 가득 차 있다.`],
+  [/^(.+) isn't fainted\.$/, m => `${P(m[1])}(은)는 기절하지 않았다.`],
+  [/^(.+) was revived!$/, m => `${P(m[1])}(이)가 기운을 되찾았다!`],
+  [/^(.+)'s PP is already full\.$/, m => `${P(m[1])}의 PP는 이미 가득 차 있다.`],
+  [/^(.+)'s PP was fully restored!$/, m => `${P(m[1])}의 PP가 모두 회복되었다!`],
+  [/^(.+)'s PP was restored!$/, m => `${P(m[1])}의 PP가 회복되었다!`],
+  [/^It won't have any effect on (.+)\.$/, m => `${P(m[1])}에게는 효과가 없을 것 같다.`],
+  [/^(.+) was cured!$/, m => `${P(m[1])}의 상태 이상이 나았다!`],
+  [/^Teaches (.+)\. Reusable — any Pokémon can learn it\.$/, m => `${KMOVE(m[1])}(을)를 가르친다. 여러 번 쓸 수 있고, 어떤 포켓몬이든 배울 수 있다.`],
+  [/^✈ You received HM01 FLY!  (.+) learned Fly!$/, m => `✈ 비전머신01 공중날기를 받았다!  ${P(m[1])}(은)는 공중날기를 배웠다!`],
+  [/^(\d+) other party Pokémon$/, m => `다른 파티 포켓몬 ${m[1]}마리`],
+  [/^(.+)  \((\d+) to next level\)$/, m => `${m[1]}  (다음 레벨까지 ${m[2]})`],
+  [/^Badge Judge: Let me see your case\.\.\. (\d+) of (\d+)\. Every badge in the region\.$/, m => `배지 심사관: 배지 케이스를 보자... ${m[2]}개 중 ${m[1]}개. 지방의 모든 배지가 다 있군.`],
+  [/^Badge Judge: Badge check, challenger\. Open your case\.\.\. (\d+) of (\d+)\.$/, m => `배지 심사관: 배지 확인이다, 도전자. 케이스를 열어 봐... ${m[2]}개 중 ${m[1]}개.`],
+  [/^Badge Judge: You are still (\d+) short\. Nearest one missing is the (.+) — (.+), at the (.+) Gym\.$/, m => `배지 심사관: 아직 ${m[1]}개가 모자라. 가장 가까운 건 ${tr(m[2])} — ${tr(m[3])}, ${gymPlaceKo(m[4])}에 있어.`],
+  [/^어사대장 Hyeon: (\d+) of (\d+)\. A clear and ordered mind\. The academy is satisfied\.$/, m => `어사대장 현: ${m[2]}문제 중 ${m[1]}문제. 맑고 정연한 생각이로군. 서원이 만족했다.`],
+  [/^어사대장 Hyeon: (\d+) of (\d+)\. Not yet — a scholar who guesses is no scholar\.$/, m => `어사대장 현: ${m[2]}문제 중 ${m[1]}문제. 아직이다 — 짐작으로 답하는 자는 선비가 아니다.`],
+  [/^Royal Warden: You bear (\d+) of the (\d+) regional tablets\. Complete the circuit and return( through this checkpoint)?\.$/, m => `왕실 관리인: 지방 마패 ${m[2]}개 중 ${m[1]}개를 지니고 있군. 순례를 마치고${m[3] ? ' 이 검문소로' : ''} 돌아오너라.`],
+  [/^Badge Scanner: Scanning trainer credentials\.\.\. (.+) \/ (\d+) badges detected\.$/, m => `배지 스캐너: 트레이너 정보를 확인하는 중... ${m[1]} / 배지 ${m[2]}개 확인.`],
+  [/^사장님: A bowl of our famous 강철도냉면 — chewy sweet-potato noodles in a fiery cold broth\. (.+) a bowl\. Care for one\?$/, m => `사장님: 우리 집 명물 강철도냉면이야 — 쫄깃한 고구마 면에 얼얼하게 차가운 육수. 한 그릇에 ${m[1]}. 한 그릇 할 텐가?`],
+  [/^사장님: Ah — a little short, are we\? A bowl is (.+)\. Come back soon, friend!$/, m => `사장님: 아이고 — 돈이 좀 모자라나 보네? 한 그릇에 ${m[1]}이야. 또 와, 친구!`],
+  [/^(.+)'s (.+) won't go any (higher|lower)!$/, m => `${P(m[1])}의 ${tr(m[2])}(은)는 더 이상 ${m[3] === 'higher' ? '올라가지' : '내려가지'} 않는다!`],
+  [/^What will (.+) do\?  🔴×(\d+)$/, m => `${P(m[1])}(은)는 무엇을 할까?  🔴×${m[2]}`],
+  [/^What will (.+) do\?$/, m => `${P(m[1])}(은)는 무엇을 할까?`],
+  [/^(.+) fainted!$/,       m => `${P(m[1])}(은)는 쓰러졌다!`],
   [/^Go, (.+)!$/,           m => `가랏, ${P(m[1])}!`],
   [/^Go (.+)!$/,            m => `가랏, ${P(m[1])}!`],
-  [/^A wild (.+) appeared!$/, m => `앗! 야생 ${P(m[1])}이 나타났다!`],
+  [/^A wild (.+) appeared!$/, m => `앗! 야생 ${P(m[1])}(이)가 나타났다!`],
   [/^Wild (.+) used (.+)!$/, m => `야생 ${P(m[1])}의 ${KMOVE(m[2])}!`],
   [/^(.+) used (Potion|Super Potion|Hyper Potion|Max Potion) on (.+)!$/,
-    m => `${S(m[1])}는 ${P(m[3])}에게 ${KMOVE(m[2])}을(를) 사용했다!`],
-  [/^You caught (.+)!$/,    m => `${P(m[1])}을 잡았다!`],
-  [/^(.+) threw a Pokéball!$/, m => `${S(m[1])}가 몬스터볼을 던졌다!`],
+    m => `${S(m[1])}(은)는 ${P(m[3])}에게 ${KMOVE(m[2])}을(를) 사용했다!`],
+  [/^You caught (.+)!$/,    m => `${P(m[1])}(을)를 잡았다!`],
+  [/^(.+) threw a Pokéball!$/, m => `${S(m[1])}(이)가 몬스터볼을 던졌다!`],
   [/^(.+) used (.+)!$/,     m => `${P(m[1])}의 ${KMOVE(m[2])}!`],
-  [/^(.+) is already in battle!$/, m => `${P(m[1])}은 이미 배틀에 나와 있어!`],
+  [/^(.+) is already in battle!$/, m => `${P(m[1])}(은)는 이미 배틀에 나와 있어!`],
   [/^Go! (.+)!$/,           m => `가랏! ${P(m[1])}!`],
-  [/^(.+) sent out (.+)!$/, m => `${S(m[1])}가 ${P(m[2])}을 내보냈다!`],
+  [/^(.+) sent out (.+)!$/, m => `${S(m[1])}(이)가 ${P(m[2])}(을)를 내보냈다!`],
   [/^✨ (.+) grew to Lv\. (\d+)!$/, m => `✨ ${P(m[1])}(은)는 Lv. ${m[2]}로 성장했다!`],
   [/^(.+) gained (\d+) EXP!$/, m => `${P(m[1])}(은)는 ${m[2]} 경험치를 얻었다!`],
   [/^(.+) also gained (\d+) EXP!$/, m => `${P(m[1])}(도) ${m[2]} 경험치를 얻었다!`],
@@ -500,7 +534,7 @@ const BATTLE_PATTERNS: Array<[RegExp, (m: RegExpMatchArray) => string]> = [
   [/^(.+) fainted! You lose!$/, m => `${P(m[1])}(은)는 쓰러졌다! 패배했다...`],
   [/^You got (.+) for winning!$/, m => `이겨서 ${m[1]}을(를) 얻었다!`],
   [/^(.+) wants to battle!$/,   m => `${S(m[1])}(이)가 승부를 걸어왔다!`],
-  [/^(.+) sent out (.+)\.$/,    m => `${S(m[1])}가 ${P(m[2])}을(를) 내보냈다.`],
+  [/^(.+) sent out (.+)\.$/,    m => `${S(m[1])}(이)가 ${P(m[2])}을(를) 내보냈다.`],
   [/^Will you switch your Pokémon\?$/, () => `포켓몬을 교체할까요?`],
   [/^(.+): You're out of Pokémon! Better luck next time\.$/, m => `${S(m[1])}: 네 포켓몬이 다 쓰러졌군! 다음 기회를 노려봐.`],
   [/^Leader Jin: (.+), step forward!$/, m => `관장 진: ${P(m[1])}, 나서라!`],
@@ -541,12 +575,12 @@ const BATTLE_PATTERNS: Array<[RegExp, (m: RegExpMatchArray) => string]> = [
   [/^(.+)'s (.+) won't go any lower!$/, m => `${P(m[1])}의 ${ST(m[2])}(은)는 더 이상 내려가지 않는다!`],
   [/^(.+)'s lowered stats returned to normal!$/, m => `${P(m[1])}의 떨어진 능력이 원래대로 돌아왔다!`],
   // ── Ability-inflicted status ──
-  [/^(.+) was paralyzed by (.+)!$/, m => `${P(m[1])}은 ${AB(m[2])}(으)로 마비되었다!`],
-  [/^(.+) was burned by (.+)!$/, m => `${P(m[1])}은 ${AB(m[2])}(으)로 화상을 입었다!`],
-  [/^(.+) was poisoned by (.+)!$/, m => `${P(m[1])}은 ${AB(m[2])}(으)로 독에 걸렸다!`],
-  [/^(.+) was afflicted by (.+)!$/, m => `${P(m[1])}은 ${AB(m[2])}(으)로 상태이상에 걸렸다!`],
-  [/^(.+) was captivated by (.+)!$/, m => `${P(m[1])}은 ${AB(m[2])}(으)로 헤롱헤롱해졌다!`],
-  [/^(.+) fell in love through Cute Charm!$/, m => `${P(m[1])}은 헤롱헤롱바디로 헤롱헤롱해졌다!`],
+  [/^(.+) was paralyzed by (.+)!$/, m => `${P(m[1])}(은)는 ${AB(m[2])}(으)로 마비되었다!`],
+  [/^(.+) was burned by (.+)!$/, m => `${P(m[1])}(은)는 ${AB(m[2])}(으)로 화상을 입었다!`],
+  [/^(.+) was poisoned by (.+)!$/, m => `${P(m[1])}(은)는 ${AB(m[2])}(으)로 독에 걸렸다!`],
+  [/^(.+) was afflicted by (.+)!$/, m => `${P(m[1])}(은)는 ${AB(m[2])}(으)로 상태이상에 걸렸다!`],
+  [/^(.+) was captivated by (.+)!$/, m => `${P(m[1])}(은)는 ${AB(m[2])}(으)로 헤롱헤롱해졌다!`],
+  [/^(.+) fell in love through Cute Charm!$/, m => `${P(m[1])}(은)는 헤롱헤롱바디로 헤롱헤롱해졌다!`],
   // ── Weather / entry / stat abilities ──
   [/^(.+)'s Drizzle made it rain!$/, m => `${P(m[1])}의 잔비 특성으로 비가 내리기 시작했다!`],
   [/^(.+)'s Drought intensified the sunlight!$/, m => `${P(m[1])}의 가뭄 특성으로 햇살이 강해졌다!`],
@@ -558,13 +592,13 @@ const BATTLE_PATTERNS: Array<[RegExp, (m: RegExpMatchArray) => string]> = [
   [/^(.+)'s (.+) lowered (.+)'s Attack!$/, m => `${P(m[1])}의 ${AB(m[2])} 특성으로 ${P(m[3])}의 공격이 떨어졌다!`],
   // ── Move / ability effects ──
   [/^(.+)'s attack missed!$/, m => `${P(m[1])}의 공격은 빗나갔다!`],
-  [/^(.+) began charging power!$/, m => `${P(m[1])}은 힘을 모으기 시작했다!`],
-  [/^(.+) flew up high!$/, m => `${P(m[1])}은 하늘 높이 날아올랐다!`],
-  [/^(.+) vanished from sight!$/, m => `${P(m[1])}은 모습을 감췄다!`],
-  [/^(.+) restored (\d+) HP!$/, m => `${P(m[1])}은 HP를 ${m[2]} 회복했다!`],
+  [/^(.+) began charging power!$/, m => `${P(m[1])}(은)는 힘을 모으기 시작했다!`],
+  [/^(.+) flew up high!$/, m => `${P(m[1])}(은)는 하늘 높이 날아올랐다!`],
+  [/^(.+) vanished from sight!$/, m => `${P(m[1])}(은)는 모습을 감췄다!`],
+  [/^(.+) restored (\d+) HP!$/, m => `${P(m[1])}(은)는 HP를 ${m[2]} 회복했다!`],
   [/^(.+)'s HP is already full!$/, m => `${P(m[1])}의 HP는 이미 가득 찼다!`],
-  [/^(.+) absorbed (\d+) HP!$/, m => `${P(m[1])}은 HP를 ${m[2]} 흡수했다!`],
-  [/^(.+) was damaged by recoil!$/, m => `${P(m[1])}은 반동으로 데미지를 입었다!`],
+  [/^(.+) absorbed (\d+) HP!$/, m => `${P(m[1])}(은)는 HP를 ${m[2]} 흡수했다!`],
+  [/^(.+) was damaged by recoil!$/, m => `${P(m[1])}(은)는 반동으로 데미지를 입었다!`],
   [/^(.+) flinched and couldn't move!$/, m => `${P(m[1])}(은)는 풀이 죽어 움직일 수 없다!`],
   [/^(.+) is in love!$/, m => `${P(m[1])}(은)는 헤롱헤롱 상태다!`],
   [/^(.+) is immobilized by love!$/, m => `${P(m[1])}(은)는 헤롱헤롱해서 움직일 수 없다!`],
@@ -581,12 +615,12 @@ const BATTLE_PATTERNS: Array<[RegExp, (m: RegExpMatchArray) => string]> = [
   [/^(.+) was buffeted by the sandstorm!$/, m => `${P(m[1])}(은)는 모래바람에 휩쓸렸다!`],
   [/^(.+)'s health was sapped by Leech Seed!$/, m => `${P(m[1])}의 체력을 씨뿌리기가 빼앗았다!`],
   [/^(.+) restored (\d+) HP with Leftovers!$/, m => `${P(m[1])}(은)는 먹다남은음식으로 HP를 ${m[2]} 회복했다!`],
-  [/^(.+) restored (\d+) HP with its (Oran Berry|Sitrus Berry)!$/, m => `${P(m[1])}(은)는 ${KMOVE(m[3])}로 HP를 ${m[2]} 회복했다!`],
+  [/^(.+) restored (\d+) HP with its (Oran Berry|Sitrus Berry)!$/, m => `${P(m[1])}(은)는 ${KMOVE(m[3])}(으)로 HP를 ${m[2]} 회복했다!`],
   [/^(.+)'s Cheek Pouch restored (\d+) more HP!$/, m => `${P(m[1])}의 볼주머니로 HP를 ${m[2]} 더 회복했다!`],
   [/^The weather returned to normal\.$/, () => '날씨가 원래대로 돌아왔다.'],
-  [/^(.+) flinched from Stench!$/, m => `${P(m[1])}은 악취 특성에 풀이 죽었다!`],
-  [/^(.+) endured the hit with Sturdy!$/, m => `${P(m[1])}은 옹골참 특성으로 공격을 버텨냈다!`],
-  [/^(.+) is immune through Levitate!$/, m => `${P(m[1])}은 부유 특성으로 공격을 받지 않았다!`],
+  [/^(.+) flinched from Stench!$/, m => `${P(m[1])}(은)는 악취 특성에 풀이 죽었다!`],
+  [/^(.+) endured the hit with Sturdy!$/, m => `${P(m[1])}(은)는 옹골참 특성으로 공격을 버텨냈다!`],
+  [/^(.+) is immune through Levitate!$/, m => `${P(m[1])}(은)는 부유 특성으로 공격을 받지 않았다!`],
   [/^(.+)'s Flash Fire absorbed the flames!$/, m => `${P(m[1])}의 타오르는불꽃 특성이 불꽃을 흡수했다!`],
   [/^(.+)'s Lightning Rod nullified the attack and raised Sp\. Atk!$/, m => `${P(m[1])}의 피뢰침 특성이 공격을 무효화하고 특수공격을 올렸다!`],
   [/^(.+)'s Volt Absorb restored (\d+) HP!$/, m => `${P(m[1])}의 축전 특성으로 HP를 ${m[2]} 회복했다!`],
@@ -596,7 +630,7 @@ const BATTLE_PATTERNS: Array<[RegExp, (m: RegExpMatchArray) => string]> = [
   [/^(.+)'s (.+) powered up the move!$/, m => `${P(m[1])}의 ${AB(m[2])} 특성으로 기술이 강해졌다!`],
   [/^(.+)'s Pixilate turned the move into Fairy type!$/, m => `${P(m[1])}의 페어리스킨 특성으로 기술이 페어리타입이 되었다!`],
   [/^(.+)'s Protean changed it to (.+) type!$/, m => `${P(m[1])}의 변환자재 특성으로 ${TY(m[2])}타입이 되었다!`],
-  [/^(.+) changed to (.+) type!$/, m => `${P(m[1])}은 ${TY(m[2])}타입이 되었다!`],
+  [/^(.+) changed to (.+) type!$/, m => `${P(m[1])}(은)는 ${TY(m[2])}타입이 되었다!`],
   [/^(.+)'s Cursed Body disabled (.+)!$/, m => `${P(m[1])}의 저주받은바디 특성이 ${KMOVE(m[2])}(을)를 사슬묶기했다!`],
   [/^(.+)'s Dancer copied (.+)!$/, m => `${P(m[1])}의 발놀림 특성이 ${KMOVE(m[2])}(을)를 따라했다!`],
   [/^(.+)'s Overcoat blocked the powder!$/, m => `${P(m[1])}의 폭풍대비 특성으로 가루를 막았다!`],
@@ -605,7 +639,7 @@ const BATTLE_PATTERNS: Array<[RegExp, (m: RegExpMatchArray) => string]> = [
   [/^Congratulations! Your ([\s\S]+?)\nevolved into (.+)!$/, m => `축하해! ${P(m[1])}가\n${P(m[2])}(으)로 진화했다!`],
   [/^(.+) stopped evolving!$/,                         m => `${P(m[1])}의 진화가 멈췄다!`],
   // Trainer battle flow
-  [/^(.+) wants to battle!$/,   m => `${S(m[1])}가 승부를 걸어왔다!`],
+  [/^(.+) wants to battle!$/,   m => `${S(m[1])}(이)가 승부를 걸어왔다!`],
   [/^You got (.+) for winning!$/, m => `이겨서 ${m[1]}을 얻었다!`],
   // New-game name prompts (embed the chosen names)
   [/^Prof\. Song: This spirited young trainer will be your rival, (.+)\. What is their name\?$/,
@@ -621,22 +655,22 @@ const BATTLE_PATTERNS: Array<[RegExp, (m: RegExpMatchArray) => string]> = [
   [/^Prof\. Song: How is (.+) settling in\? A fine choice — I can tell you two already trust each other\.$/,
     m => `송 박사: ${P(m[1])}(은)는 잘 적응하고 있니? 훌륭한 선택이야 — 너희 둘은 벌써 서로를 믿고 있는 게 보이는구나.`],
   // ── Battle results / wild capture / EXP / TM ──
-  [/^(.+) fainted! You win!$/,  m => `${P(m[1])}은 쓰러졌다! 승리!`],
-  [/^(.+) fainted! You lose!$/, m => `${P(m[1])}은 쓰러졌다! 패배...`],
-  [/^(.+) fainted\.\.\.$/,      m => `${P(m[1])}은 쓰러졌다...`],
+  [/^(.+) fainted! You win!$/,  m => `${P(m[1])}(은)는 쓰러졌다! 승리!`],
+  [/^(.+) fainted! You lose!$/, m => `${P(m[1])}(은)는 쓰러졌다! 패배...`],
+  [/^(.+) fainted\.\.\.$/,      m => `${P(m[1])}(은)는 쓰러졌다...`],
   [/^Leader Jin: (.+), step forward!$/,          m => `관장 진: ${P(m[1])}, 나서라!`],
   [/^Leader Jin: You are strong\. (.+), come!$/, m => `관장 진: 강하구나. ${P(m[1])}, 나와라!`],
-  [/^Oh no! (.+) broke free!$/, m => `이런! ${P(m[1])}이 튀어나왔다!`],
-  [/^(.+) joined the party!\n(.+) was sent to the PC\.$/, m => `${P(m[1])}이 동료에 합류했다!\n${P(m[2])}은 PC로 보내졌다.`],
-  [/^(.+) was sent to the PC\.$/, m => `${P(m[1])}은 PC로 보내졌다.`],
-  [/^Swap a Pokémon for (.+), or send it to the PC\?$/, m => `${P(m[1])}을 위해 포켓몬을 교체할까, 아니면 PC로 보낼까?`],
-  [/^✨ Gotcha! (.+) was caught!\nAdded to your party!$/, m => `✨ 좋았어! ${P(m[1])}을 잡았다!\n동료에 추가됐다!`],
-  [/^✨ Gotcha! (.+) was caught!\nBut your party is full\.$/, m => `✨ 좋았어! ${P(m[1])}을 잡았다!\n하지만 동료가 가득 찼다.`],
+  [/^Oh no! (.+) broke free!$/, m => `이런! ${P(m[1])}(이)가 튀어나왔다!`],
+  [/^(.+) joined the party!\n(.+) was sent to the PC\.$/, m => `${P(m[1])}(이)가 동료에 합류했다!\n${P(m[2])}(은)는 PC로 보내졌다.`],
+  [/^(.+) was sent to the PC\.$/, m => `${P(m[1])}(은)는 PC로 보내졌다.`],
+  [/^Swap a Pokémon for (.+), or send it to the PC\?$/, m => `${P(m[1])}(을)를 위해 포켓몬을 교체할까, 아니면 PC로 보낼까?`],
+  [/^✨ Gotcha! (.+) was caught!\nAdded to your party!$/, m => `✨ 좋았어! ${P(m[1])}(을)를 잡았다!\n동료에 추가됐다!`],
+  [/^✨ Gotcha! (.+) was caught!\nBut your party is full\.$/, m => `✨ 좋았어! ${P(m[1])}(을)를 잡았다!\n하지만 동료가 가득 찼다.`],
   [/^✨ (.+) grew to Lv\. (\d+)!\nMax HP: (\d+)$/, m => `✨ ${P(m[1])}(은)는 Lv. ${m[2]}로 성장했다!\n최대 HP: ${m[3]}`],
   [/^\n✨ (.+) grew to Lv\. (\d+)!$/, m => `\n✨ ${P(m[1])}(은)는 Lv. ${m[2]}로 성장했다!`],
   [/^Received: TM — (.+)!  \(Check your Bag to teach it\.\)$/, m => `받았다: 기술머신 — ${KMOVE(m[1])}!  (가방에서 가르칠 수 있어.)`],
   // ── Trainer battle flow ──
-  [/^(.+) sent out (.+)\.\nWill you switch your Pokémon\?$/, m => `${S(m[1])}가 ${P(m[2])}을 내보냈다.\n포켓몬을 교체할까?`],
+  [/^(.+) sent out (.+)\.\nWill you switch your Pokémon\?$/, m => `${S(m[1])}(이)가 ${P(m[2])}(을)를 내보냈다.\n포켓몬을 교체할까?`],
   [/^([\s\S]+)\nYou got (.+) for winning!$/, m => `${tr(m[1])}\n이겨서 ${m[2]}을 얻었다!`],
   // ── Rival battle ──
   [/^(.+): Tch\. You got me this time\.\n(.+) gained (\d+) EXP!$/, m => `${S(m[1])}: 쳇. 이번엔 네가 이겼군.\n${P(m[2])}(은)는 ${m[3]} 경험치를 얻었다!`],
@@ -701,6 +735,8 @@ const JTYPE = (t: string) => JA_TYPES[t?.toLowerCase?.()] ?? t;
  * been authored in Japanese deliberately remains English instead of showing an
  * empty string or a machine-translated proper noun. */
 const BATTLE_PATTERNS_JA: Array<[RegExp, (m: RegExpMatchArray) => string]> = [
+  [/^(.+) wants to learn (.+), but it already knows 4 moves\.$/, m =>
+    `${P(m[1])}は ${JMOVE(m[2])}を おぼえたいが、わざを 4つ おぼえている。`],
   [/^What will (.+) do\?  🔴×(\d+)$/, m => `${P(m[1])}は どうする？  🔴×${m[2]}`],
   [/^What will (.+) do\?$/, m => `${P(m[1])}は どうする？`],
   [/^A wild (.+) appeared!$/, m => `野生の ${P(m[1])}が 飛び出してきた！`],
@@ -902,21 +938,67 @@ export function tr(en: string): string {
   return applyRivalName(en);
 }
 
+/** "Dolmoe" → "돌뫼 체육관", using the gym's own dictionary name when present. */
+const GYM_CITY_KO: Record<string, string> = {
+  'Capitol City': '소올', Baekdu: '백두', Geumgang: '금강', Haean: '해안', Forest: '숲',
+  Dolmoe: '돌뫼', Seorae: '서래', Sunrise: '해돋이',
+};
+function gymPlaceKo(place: string): string {
+  if (GYM_CITY_KO[place]) return `${GYM_CITY_KO[place]} 체육관`;
+  const gym = KO_STRINGS[`${place} Gym`];
+  if (gym) return gym;
+  const city = KO_STRINGS[`${place} City`] ?? KO_STRINGS[place];
+  return `${city ? city.replace(/\s*시티$/, '') : place} 체육관`;
+}
+
+const KO_STAGE_DIRECTIONS: Record<string, string> = {
+  'comms': '통신', 'over comms': '통신', 'over the Pokédex': '도감 통신',
+  'joining the Pokédex call': '도감 통화에 합류', 'comms, quiet with relief': '통신, 안도하며',
+};
+
+/** Korean label for a speaker, including "Name (stage direction)" forms. */
+function koSpeakerLabel(speaker: string): string | undefined {
+  const direct = KO_SPEAKERS[speaker] ?? KO_STRINGS[speaker];
+  if (direct) return direct;
+  const m = speaker.match(/^(.+?) \((.+)\)$/);
+  if (!m) return undefined;
+  const name = KO_SPEAKERS[m[1]] ?? KO_STRINGS[m[1]];
+  if (!name) return undefined;
+  const note = KO_STAGE_DIRECTIONS[m[2]] ?? KO_STRINGS[m[2]];
+  return note ? `${name} (${note})` : name;
+}
+
+/** A single battle/system pattern applied to the spoken part of a line. */
+function translatePatternLine(line: string): string | undefined {
+  for (const [re, fn] of BATTLE_PATTERNS) {
+    const m = line.match(re);
+    if (m) return fn(m);
+  }
+  return undefined;
+}
+
 function trKo(en: string): string {
   const exact = KO_STRINGS[en] ?? KO_STRINGS[en.trim()];
   if (exact) return exact;
+  // Trainer names ("Dragon Tamer Yunho") live in the speaker table, so a battle
+  // HUD or roster label that went through tr() used to stay in English.
+  const speaker = SPEAKER_LC[en.trim().toLowerCase()];
+  if (speaker) return speaker;
   for (const [re, fn] of BATTLE_PATTERNS) {
     const m = en.match(re);
     if (m) return fn(m);
   }
   // "Speaker: spoken line" — translate the speaker and the line independently, so a
   // line only needs its spoken text in the dictionary to localize (and vice-versa).
+  // Speaker labels may carry a stage direction ("Prof. Song (over the Pokédex)"),
+  // which pushed them past the old 24-character limit so the whole line stayed
+  // English unless the exact sentence had its own dictionary entry.
   const idx = en.indexOf(': ');
-  if (idx > 0 && idx <= 24) {
+  if (idx > 0 && idx <= 48) {
     const speaker = en.slice(0, idx);
     const rest = en.slice(idx + 2);
-    const koRest = KO_STRINGS[rest] ?? KO_STRINGS[rest.trim()];
-    const koSpeaker = KO_SPEAKERS[speaker];
+    const koRest = KO_STRINGS[rest] ?? KO_STRINGS[rest.trim()] ?? translatePatternLine(rest);
+    const koSpeaker = koSpeakerLabel(speaker);
     if (koRest || koSpeaker) return `${koSpeaker ?? speaker}: ${koRest ?? rest}`;
   }
   // Battle sequences show several messages as one string joined by newlines
@@ -955,6 +1037,29 @@ function trJa(en: string): string {
     if (translated.some((line, i) => line !== lines[i])) return translated.join('\n');
   }
   return en;
+}
+
+const autoCache = new Map<string, string>();
+let autoCacheLang: Lang | null = null;
+
+/**
+ * Safety net for display text that never went through tr(): a Pokédex entry,
+ * a toast built from a template, a trainer name label. Applied by the Text
+ * factory/setText hook in UiScale. English mode and already-localized strings
+ * pass through unchanged; results are memoized because some HUDs re-set their
+ * text every frame.
+ */
+export function autoTranslateDisplay(value: string): string {
+  if (currentLang === 'en' || typeof value !== 'string' || value.length < 2) return value;
+  if (!/[A-Za-z]{2}/.test(value)) return value;          // nothing English to translate
+  if (autoCacheLang !== currentLang) { autoCache.clear(); autoCacheLang = currentLang; }
+  const hit = autoCache.get(value);
+  if (hit !== undefined) return hit;
+  let out = value;
+  try { out = tr(value); } catch { out = value; }
+  if (autoCache.size > 4000) autoCache.clear();
+  autoCache.set(value, out);
+  return out;
 }
 
 /** A type's display name in the current language. */

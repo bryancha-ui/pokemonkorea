@@ -83,6 +83,10 @@ const CLASS_SPRITE: Record<string, string> = {
   swimmer:    'swimmer',
   diver:      'swimmer',
   hiker:      'hiker',
+  // Skiers had no vendored sprite and fell back to the procedural figure,
+  // whose generated texture measured as a tiny opaque box: fitPortrait then
+  // scaled it ~13× and pushed it off-screen, so the trainer never appeared.
+  skier:      'acetrainer',
   sailor:     'sailor',
   worker:     'worker',
   ranger:     'pokemonranger',

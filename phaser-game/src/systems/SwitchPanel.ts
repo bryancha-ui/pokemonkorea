@@ -334,11 +334,15 @@ export function openSwitchPanel(
     };
   });
   function showDeckPicker() {
-    deckShowLeadPicker(
+    const onDeck = deckShowLeadPicker(
       deckChoices,
       (choiceIdx) => requestSelection(deckSlots[choiceIdx]),
       { title: tr(title), allowClose: allowCancel },
     );
+    // On phones the touch deck already lists the party with large targets.
+    // Drawing the canvas list underneath doubled every title and row and left
+    // the deck's labels clipped by the panel behind them.
+    if (onDeck) overlay.setVisible(false);
   }
 
   function showConfirmationDeck(name: string) {

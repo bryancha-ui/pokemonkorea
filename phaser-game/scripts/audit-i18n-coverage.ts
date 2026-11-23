@@ -1,9 +1,16 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { KO_STRINGS, KO_SPEAKERS } from '../src/data/ko_strings';
 import { JA_STRINGS, JA_SPEAKERS, JA_OFFICIAL_POKEMON } from '../src/data/ja_strings';
+import { KO_CONTENT_STRINGS } from '../src/data/ko_content_strings';
 
+// KO_CONTENT_STRINGS is the Korean pass over Pokédex entries, habitats, item
+// and place names that previously rendered in English for BOTH languages.
+// Japanese still falls back to English for these (unchanged behaviour), so
+// they are reported separately instead of counting as a parity regression.
+const contentOnly = (key: string): boolean => key in KO_CONTENT_STRINGS;
 const translatedStrings = Object.keys(KO_STRINGS).filter(key => JA_STRINGS[key] !== undefined);
-const missingStrings = Object.keys(KO_STRINGS).filter(key => JA_STRINGS[key] === undefined);
+const missingStrings = Object.keys(KO_STRINGS).filter(key => JA_STRINGS[key] === undefined && !contentOnly(key));
+const contentPendingJapanese = Object.keys(KO_STRINGS).filter(key => JA_STRINGS[key] === undefined && contentOnly(key));
 const translatedSpeakers = Object.keys(KO_SPEAKERS).filter(key => JA_SPEAKERS[key] !== undefined);
 const missingSpeakers = Object.keys(KO_SPEAKERS).filter(key => JA_SPEAKERS[key] === undefined);
 const hangulStringValues = Object.entries(KO_STRINGS)
@@ -119,6 +126,7 @@ console.log(JSON.stringify({
     missing: missingSpeakers.length,
     percent: Number((translatedSpeakers.length / Object.keys(KO_SPEAKERS).length * 100).toFixed(1)),
   },
+  contentPendingJapanese: contentPendingJapanese.length,
   officialPokemon: Object.keys(JA_OFFICIAL_POKEMON).length,
   japaneseTitleDesign: failures.some(message => message.includes('Japanese title')) ? 'failed' : 'passed',
   quality: {

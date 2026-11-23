@@ -204,36 +204,115 @@ function stripRootMotion(scene: THREE.Object3D, clips: THREE.AnimationClip[], ke
   }
 }
 
+interface RepairEyeSpec {
+  /** Socket centre on the bare side of the face (source-mesh space). */
+  pos: [number, number, number];
+  /** Outward direction of the eye at that socket. */
+  normal: [number, number, number];
+  /** Radius of the painted pupil it copies. */
+  radius: number;
+  /** Optional angry/arched brow stroke as painted over the original eye. */
+  brow?: { tilt: number };
+  /** Light ring around the pupil, when the painted eye has one. */
+  sclera?: number;
+}
+
+const MISSING_EYE_REPAIRS: Readonly<Record<string, RepairEyeSpec>> = {
+  // 곡예산양: the painted eye sits on the head's +X side (x≈0.207); the head's
+  // centre line at that height is x≈0.03, so the bare socket is at x≈-0.149.
+  gorcobat: { pos: [-0.149, 0.361, 0.752], normal: [-0.78, 0.02, 0.62], radius: 0.030, sclera: 0xf4f6ef },
+  // 모란앵무: the left eye (with its brow) is painted; the right cheek is bare.
+  moranlovebird: { pos: [-0.372, 0.280, 0.700], normal: [-0.52, -0.16, 0.84], radius: 0.050, brow: { tilt: -0.45 } },
+};
+
+function buildRepairEye(spec: RepairEyeSpec): THREE.Group {
+  const root = new THREE.Group();
+  root.name = '__missingEyeRepair';
+  const socket = new THREE.Group();
+  socket.position.set(...spec.pos);
+  socket.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), new THREE.Vector3(...spec.normal).normalize());
+  const r = spec.radius;
+  const pupil = new THREE.Mesh(
+    new THREE.SphereGeometry(r, 18, 12),
+    new THREE.MeshStandardMaterial({ color: 0x111214, roughness: 0.3 }),
+  );
+  pupil.scale.z = 0.35;
+  const shine = new THREE.Mesh(
+    new THREE.SphereGeometry(r * 0.34, 10, 8),
+    new THREE.MeshBasicMaterial({ color: 0xffffff }),
+  );
+  shine.position.set(-r * 0.32, r * 0.36, r * 0.3);
+  shine.scale.z = 0.4;
+  socket.add(pupil, shine);
+  if (spec.sclera !== undefined) {
+    const ring = new THREE.Mesh(
+      new THREE.SphereGeometry(r * 1.45, 18, 12),
+      new THREE.MeshStandardMaterial({ color: spec.sclera, roughness: 0.45 }),
+    );
+    ring.scale.z = 0.22;
+    ring.position.z = -r * 0.12;
+    pupil.position.z = r * 0.12;
+    socket.add(ring);
+  }
+  if (spec.brow) {
+    const brow = new THREE.Mesh(
+      new THREE.BoxGeometry(r * 2.6, r * 0.42, r * 0.3),
+      new THREE.MeshStandardMaterial({ color: 0x241414, roughness: 0.5 }),
+    );
+    brow.position.set(0, r * 1.45, r * 0.05);
+    brow.rotation.z = spec.brow.tilt;
+    socket.add(brow);
+  }
+  root.add(socket);
+  return root;
+}
+
+// Clip-less serpent rigs are exported in their bind pose: a perfectly straight
+// body balanced on the tip of its tail. In battle Dratini and Dragonair read as
+// a thin vertical pole. Bend the tail chain so it lies back along the ground
+// and the neck rises in a gentle S — their familiar resting pose — before the
+// model is measured and normalized. Angles are degrees about the world X axis
+// (+ swings a downward-hanging bone toward -Z, i.e. behind the creature).
+const SERPENT_REST_POSES: Readonly<Record<string, ReadonlyArray<readonly [string, number]>>> = {
+  '147': [['Tail1', 28], ['Tail2', 28], ['Tail3', 25], ['Tail5', -15], ['Tail6', -15], ['Spine1', 10], ['Spine3', -8]],
+  '148': [['Tail1', 25], ['Tail2', 25], ['Tail3', 25], ['Tail4', 20], ['Tail6', -15], ['Tail8', -20], ['Spine1', 10], ['Spine4', -8]],
+};
+
+function applySerpentRestPose(scene: THREE.Object3D, key: string): void {
+  const plan = SERPENT_REST_POSES[key];
+  if (!plan) return;
+  scene.updateMatrixWorld(true);
+  const bones = new Map<string, THREE.Bone>();
+  scene.traverse(o => { if ((o as THREE.Bone).isBone) bones.set(o.name, o as THREE.Bone); });
+  const axis = new THREE.Vector3(1, 0, 0);
+  const parentWorld = new THREE.Quaternion();
+  const bend = new THREE.Quaternion();
+  for (const [name, deg] of plan) {
+    const bone = bones.get(name);
+    if (!bone?.parent) continue;
+    // Express a world-space bend in the bone's parent space, then apply it.
+    bone.parent.getWorldQuaternion(parentWorld);
+    bend.setFromAxisAngle(axis, THREE.MathUtils.degToRad(deg));
+    const local = parentWorld.clone().invert().multiply(bend).multiply(parentWorld);
+    bone.quaternion.premultiply(local);
+    bone.updateMatrixWorld(true);
+  }
+}
+
 /** Repair small, known reconstruction defects without replacing the authored
  * model. These caps are attached before normalization, so battle and companion
  * views share the same corrected face. */
 function repairSpeciesModel(scene: THREE.Object3D, key: string): void {
-  if (key === 'gorcobat') {
-    if (scene.getObjectByName('__gorcobatEyeRepair')) return;
-
-    // One eye is almost completely swallowed by the dark facial mask in the
-    // reconstructed texture. Add a matched, shallow pair at the actual sockets
-    // so the face remains readable from both battle camera angles.
-    const root = new THREE.Group();
-    root.name = '__gorcobatEyeRepair';
-    const scleraGeometry = new THREE.SphereGeometry(0.074, 18, 14);
-    const pupilGeometry = new THREE.SphereGeometry(0.032, 14, 10);
-    const scleraMaterial = new THREE.MeshStandardMaterial({ color: 0xf7fbf2, roughness: 0.48 });
-    const pupilMaterial = new THREE.MeshStandardMaterial({ color: 0x172018, roughness: 0.38 });
-    for (const side of [-1, 1] as const) {
-      const normal = new THREE.Vector3(side * 0.16, 0.03, 0.98).normalize();
-      const socket = new THREE.Group();
-      socket.position.set(side * 0.17, 0.29, 0.89);
-      socket.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
-      const sclera = new THREE.Mesh(scleraGeometry, scleraMaterial);
-      sclera.scale.set(0.72, 1, 0.20);
-      const pupil = new THREE.Mesh(pupilGeometry, pupilMaterial);
-      pupil.scale.z = 0.22;
-      pupil.position.z = 0.019;
-      socket.add(sclera, pupil);
-      root.add(socket);
-    }
-    scene.add(root);
+  applySerpentRestPose(scene, key);
+  // Some reconstructed textures painted only ONE eye; the other side of the
+  // face is bare, so the creature reads one-eyed from every battle angle.
+  // Copy the painted eye onto the mirrored socket. Positions are measured on
+  // the source mesh in its own (pre-normalization) space: the existing eye's
+  // centre, mirrored across the head's centre line and snapped to the surface.
+  const missingEye = MISSING_EYE_REPAIRS[key];
+  if (missingEye) {
+    if (scene.getObjectByName('__missingEyeRepair')) return;
+    scene.add(buildRepairEye(missingEye));
     return;
   }
 
@@ -365,7 +444,7 @@ export function normalizeKey(key: string): string {
 
 /** Bumped whenever per-species manifest corrections change, so no browser can
  *  keep serving a stale copy of the registry. */
-const MANIFEST_VERSION = '2026-11-22a';
+const MANIFEST_VERSION = '2026-11-23a';
 
 /** Fetch attempts before settling for the bundled core registry. */
 const MANIFEST_ATTEMPTS = 3;

@@ -150,6 +150,10 @@ export class ForestCityScene extends Phaser.Scene {
       // trigger Rival battle #3. Re-triggers until the chapter is done so a mid-chapter
       // save can't soft-lock.
       this.registry.set('forestChapter7CallShown', true);
+      // This call already sends the player onward; never follow it with the
+      // separate "road climbs north" check-in on the next visit (that second,
+      // contradictory call is what players saw as Song calling again).
+      this.registry.set('forestOnwardHintShown', true);
       SaveManager.save(this.registry, this.px, this.py, 'ForestCityScene');
       this.time.delayedCall(600, () => {
         this.cutsceneActive = true;
@@ -166,7 +170,8 @@ export class ForestCityScene extends Phaser.Scene {
           this.cameras.main.fadeOut(500, 0, 0, 0, () => this.scene.start('CapitolCityScene'));
         });
       });
-    } else if (this.registry.get('forestGymDefeated') && !this.registry.get('forestOnwardHintShown')) {
+    } else if (this.registry.get('forestGymDefeated') && !this.registry.get('forestOnwardHintShown')
+        && !this.registry.get('forestChapter7CallShown')) {
       // After the Forest gym the road climbs NORTH up Route 6 to Dolmoe (no Jeju detour here).
       this.registry.set('forestOnwardHintShown', true);
       this.time.delayedCall(600, () => {

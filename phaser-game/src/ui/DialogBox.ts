@@ -68,6 +68,28 @@ export class DialogBox {
     ]).setScrollFactor(0).setDepth(300);
 
     this.applyZoomCompensation();
+    this.bindOwnInput(boxX, boxTop, boxW, boxH);
+  }
+
+  /**
+   * The prompt reads "▼ ENTER", but 70 of the 74 scenes that use this box only
+   * forwarded SPACE to advance(). Pressing ENTER as instructed did nothing, so
+   * the conversation never closed and the player looked frozen (e.g. after a
+   * wrong step in Namsun's dance trial). The box now answers ENTER itself — and
+   * a tap on the panel for touch players — unless the scene already wires its
+   * own ENTER key (`enterKey`), which would otherwise advance twice.
+   */
+  private bindOwnInput(boxX: number, boxTop: number, boxW: number, boxH: number): void {
+    const scene = this.scene as Phaser.Scene & { enterKey?: Phaser.Input.Keyboard.Key };
+    const onEnter = () => {
+      if (scene.enterKey || !this.isOpen() || !this.root.visible) return;
+      if (this.inChoice) this.confirmChoice();
+      else this.advance();
+    };
+    scene.input.keyboard?.on('keydown-ENTER', onEnter);
+    this.bg.setInteractive(new Phaser.Geom.Rectangle(boxX, boxTop, boxW, boxH), Phaser.Geom.Rectangle.Contains);
+    this.bg.on('pointerdown', () => { if (!this.inChoice) this.advance(); });
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => scene.input.keyboard?.off('keydown-ENTER', onEnter));
   }
 
   /** Layered navy/white/red panel used by every overworld conversation. */

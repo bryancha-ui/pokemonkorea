@@ -302,7 +302,12 @@ function opaqueBBox(src: CanvasImageSource & { width: number; height: number }, 
 
 export function fitPortrait(img: Phaser.GameObjects.Image, maxW = 200, maxH = 290): void {
   const src = img.texture.getSourceImage() as CanvasImageSource & { width: number; height: number };
-  const box = opaqueBBox(src, img.texture.key);
+  let box = opaqueBBox(src, img.texture.key);
+  // A measured figure smaller than a fifth of its canvas means the pixels were
+  // not readable yet (generated or still-uploading texture). Fitting that
+  // sliver would blow the portrait up past the screen, so fit the canvas.
+  const srcW = src.width || 1, srcH = src.height || 1;
+  if (box.w < srcW * 0.2 && box.h < srcH * 0.2) box = { w: srcW, h: srcH };
   const s = (PORTRAIT_SCALE[img.texture.key] ?? 1) * GLOBAL_PORTRAIT_SCALE;
   img.setScale(Math.min(maxW / box.w, maxH / box.h) * s);
 }

@@ -58,6 +58,12 @@ export class DolmoeRuinsScene extends Phaser.Scene {
 
   // The sealed dig-site dolmen (the guardian's tomb), west-centre.
   private readonly digCol = 7; private readonly digRow = 9;
+  // The guardian stands just in front of (south of) the broken capstone. It
+  // used to be drawn on the capstone's own tile, where the 3×3 dolmen model
+  // swallowed it: only a sliver of its head showed, so players could not find
+  // the elder, never calmed it, and Leader Sandol's gym battle never unlocked.
+  private get guardianX(): number { return (this.digCol + 0.5) * IT; }
+  private get guardianFeetY(): number { return (this.digRow + 2.4) * IT; }
   private sandolCol = 11; private sandolRow = 10;
   private guardianImg?: Phaser.GameObjects.Image;
 
@@ -195,7 +201,7 @@ export class DolmoeRuinsScene extends Phaser.Scene {
 
   private drawGuardian() {
     if (!this.textures.exists('daejangseung')) return;
-    const img = this.add.image(this.digCol * IT, (this.digRow - 1.2) * IT, 'daejangseung')
+    const img = this.add.image(this.guardianX, this.guardianFeetY - 1.2 * IT, 'daejangseung')
       .setDepth(9)
       .setData('creatureModel3DKey', 'daejangseung')
       .setData('creatureHeight3D', 3.1)
@@ -205,7 +211,7 @@ export class DolmoeRuinsScene extends Phaser.Scene {
     const src = this.textures.get('daejangseung').getSourceImage();
     const dim = Math.max((src.width as number) || 1, (src.height as number) || 1);
     img.setScale((IT * 2.4) / dim);
-    this.tweens.add({ targets: img, y: (this.digRow - 1.6) * IT, duration: 1200, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+    this.tweens.add({ targets: img, y: this.guardianFeetY - 1.6 * IT, duration: 1200, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
     this.guardianImg = img;
   }
 
@@ -311,7 +317,7 @@ export class DolmoeRuinsScene extends Phaser.Scene {
   private checkGuardian() {
     if (!this.registry.get('dolmoeGuardianWoke')) return;
     if (this.registry.get('dolmoeGuardianBeaten')) return;
-    const gx = this.digCol * IT + IT / 2, gy = this.digRow * IT + IT / 2;
+    const gx = this.guardianX, gy = this.guardianFeetY;
     if (Math.hypot(this.px - gx, this.py - gy) < IT * 2.2 && !this.cutsceneActive) {
       this.cutsceneActive = true;
       this.dialog.show([
@@ -324,7 +330,9 @@ export class DolmoeRuinsScene extends Phaser.Scene {
         this.registry.set('wildCatchRate', 50);
         this.registry.set('wildReturnScene', 'DolmoeRuinsScene');
         this.registry.set('dolmoeGuardianActive', true);
-        this.registry.set('ruinsPosX', (this.digCol + 3) * IT); this.registry.set('ruinsPosY', this.digRow * IT + IT / 2);
+        // Return outside the 2.2-tile trigger radius so a fled battle does not
+        // immediately restart the encounter.
+        this.registry.set('ruinsPosX', this.guardianX + 3 * IT); this.registry.set('ruinsPosY', this.guardianFeetY + 1.2 * IT);
         this.cameras.main.fadeOut(600, 20, 20, 30, () => this.scene.start('WildBattleScene'));
       });
     }
