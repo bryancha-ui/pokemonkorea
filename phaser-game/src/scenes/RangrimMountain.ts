@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { tr, speakerName } from '../systems/i18n';
 import { vanishesAfterDefeat } from '../data/Villains';
 import { playBgm } from '../systems/Music';
-import { drawTrainerBody, drawRiderBody, playerDesign } from '../data/CharacterSprite';
+import { drawTrainerBody, drawRiderBody, markProceduralCharacter3D, playerDesign } from '../data/CharacterSprite';
 import { hasBike, BIKE_SPEED, isBikeRiding, setBikeRiding } from '../data/Bike';
 import { DialogBox } from '../ui/DialogBox';
 import { SaveManager } from '../utils/SaveManager';
@@ -162,7 +162,21 @@ export class RangrimBaseScene extends Phaser.Scene {
       g.fillStyle(0xffcc99); g.fillRect(-6, -22, 12, 12);
       g.fillStyle(0x3a2410); g.fillRect(-6, -22, 12, 5);
       g.fillStyle(0x000000); g.fillRect(-3, -16, 2, 2); g.fillRect(1, -16, 2, 2);
-      this.add.text(tr.col * TILE + 16, tr.row * TILE - 14, speakerName(tr.label), { fontSize: '8px', color: '#fff', backgroundColor: '#00000088', padding: { x: 2, y: 1 }, align: 'center' }).setOrigin(0.5).setDepth(9);
+      const winterTrainer = this.cfg.key === 'RangrimSnowfieldScene'
+        || this.cfg.key === 'RangrimSummitScene'
+        || /skier|snow/i.test(tr.name);
+      markProceduralCharacter3D(g, {
+        outfit: tr.color,
+        hair: 0x3a2410,
+        gender: /nunbyeol/i.test(tr.name) ? 'girl' : 'boy',
+        footY: 13,
+        outfitStyle: winterTrainer ? 'winter' : 'trainer',
+        hairStyle: /nunbyeol/i.test(tr.name) ? 'long' : 'short',
+      });
+      this.add.text(tr.col * TILE + 16, tr.row * TILE - 14, speakerName(tr.label), { fontSize: '8px', color: '#fff', backgroundColor: '#00000088', padding: { x: 2, y: 1 }, align: 'center' })
+        .setOrigin(0.5).setDepth(9)
+        .setData('characterLabel3D', true)
+        .setData('characterLabelTarget3D', g);
     }
   }
 

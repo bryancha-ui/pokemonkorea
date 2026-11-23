@@ -166,6 +166,7 @@ export class TrainerBattleScene extends Phaser.Scene {
   private enemySprite!: Phaser.GameObjects.Image;
   private playerSprite!: Phaser.GameObjects.Image;
   private trainerPortrait?: Phaser.GameObjects.Image;
+  private preparedTrainerPortrait?: { key: string; url: string };
   /** True when the Champion's hand-posed 2D frames are driving his entrance. */
   private hwangeum2D = false;
   private stopHwangeumIntro?: () => void;
@@ -205,6 +206,7 @@ export class TrainerBattleScene extends Phaser.Scene {
     this.cameras.main.fadeIn(350);
     this.trainerName = (this.registry.get('trainerName')     as string) ?? 'Trainer';
     this.trainerKey  = (this.registry.get('trainerKey')      as string) ?? 'trainer';
+    this.resetTrainerPresentation();
     this.totalExp    = (this.registry.get('trainerExpPool')  as number) ?? 30;
     // Which scene to return to after the battle (route or gym)
     this._returnScene = (this.registry.get('trainerReturnScene') as string) ?? 'RouteScene';
@@ -277,11 +279,7 @@ export class TrainerBattleScene extends Phaser.Scene {
     this.buffBoss();   // 우두머리 bosses get extra HP
 
     // Load this trainer's battle portrait (shown only during the intro).
-    const portrait = this.resolvePortrait();
-    if (portrait && !this.textures.exists(portrait.key)) {
-      this.load.image(portrait.key, portrait.url);
-      await new Promise<void>(r => { this.load.once('complete', r); this.load.start(); });
-    }
+    this.preparedTrainerPortrait = await this.prepareTrainerPortrait();
 
     // Guarantee the lead's sprite texture is loaded before we build the battler.
     // A party entry can lose its spriteUrl after an evolution/restore, which made
@@ -521,7 +519,7 @@ export class TrainerBattleScene extends Phaser.Scene {
     // Every resolved trainer portrait is already authored/generated as a 2D
     // battle image. Keep it on Phaser's foreground above the 3D arena instead
     // of replacing it with a procedural 3D character.
-    const portrait = this.resolvePortrait();
+    const portrait = this.preparedTrainerPortrait;
     // The Champion's entrance frames all share one canvas and one foot mark, so
     // he starts ON the standing frame. fitPortrait() measures the OPAQUE bounding
     // box, which differs per pose — fitting each frame would rescale and recentre
@@ -532,6 +530,8 @@ export class TrainerBattleScene extends Phaser.Scene {
     if (startKey && this.textures.exists(startKey)) {
       this.trainerPortrait = this.add.image(ENEMY_STAGE_X, ENEMY_STAGE_Y, startKey)
         .setDepth(6)
+        .setScrollFactor(0)
+        .setData('battleUi2D', true)
         .setAlpha(0);
       if (useFrames) {
         // Hand-posed 2D frames of the champion himself — stand, four dance beats,
@@ -563,6 +563,14 @@ export class TrainerBattleScene extends Phaser.Scene {
 
   /** The portrait for this battle: the gender-based rival avatar for any rival fight,
    *  otherwise the NPC portrait mapped to the trainer key. */
+  private resetTrainerPresentation(): void {
+    this.stopHwangeumIntro?.();
+    this.trainerPortrait = undefined;
+    this.preparedTrainerPortrait = undefined;
+    this.hwangeum2D = false;
+    this.stopHwangeumIntro = undefined;
+  }
+
   private resolvePortrait(): { key: string; url: string } | undefined {
     if (this.trainerKey.startsWith('rival')) {
       const key = rivalAvatarKey(this.registry);
@@ -575,6 +583,33 @@ export class TrainerBattleScene extends Phaser.Scene {
     // No authored portrait: reuse a procedural per-CLASS trainer figure (Bug
     // Catcher, Ace Trainer, Fisher…) read from the trainer's name.
     return trainerClassPortrait(this, this.trainerName);
+  }
+
+  private async loadPortraitTexture(portrait: { key: string; url: string }): Promise<boolean> {
+    if (this.textures.exists(portrait.key)) return true;
+    // Procedural class portraits are generated directly into TextureManager and
+    // therefore have no URL. If that generation failed, there is nothing to queue.
+    if (!portrait.url) return false;
+    this.load.image(portrait.key, portrait.url);
+    await new Promise<void>(resolve => {
+      this.load.once(Phaser.Loader.Events.COMPLETE, resolve);
+      this.load.start();
+    });
+    return this.textures.exists(portrait.key);
+  }
+
+  /** Load the authored trainer art, but never let one malformed/missing filename
+   *  erase the trainer entirely. A class-matched local portrait remains as the
+   *  final same-origin fallback for every ordinary human trainer. */
+  private async prepareTrainerPortrait(): Promise<{ key: string; url: string } | undefined> {
+    const authored = this.resolvePortrait();
+    if (!authored) return undefined;
+    if (await this.loadPortraitTexture(authored)) return authored;
+
+    console.warn(`[TrainerBattle] Portrait unavailable for ${this.trainerKey}: ${authored.url}`);
+    if (this.isBossThreat || this.trainerKey.startsWith('rival')) return undefined;
+    const fallback = trainerClassPortrait(this, this.trainerName);
+    return await this.loadPortraitTexture(fallback) ? fallback : undefined;
   }
 
   /** A 우두머리 (boss) — the 어사대 mission threats (Rampaging Gyarados, Fog-Wraith
@@ -1006,7 +1041,7 @@ export class TrainerBattleScene extends Phaser.Scene {
    *  line, and steps aside for his ace. Purely a cut-in: no battle state is read
    *  or changed here, and `onDone` continues the roster exactly as before. */
   private championCutIn(onDone: () => void): void {
-    const portrait = this.resolvePortrait();
+    const portrait = this.preparedTrainerPortrait;
     if (!portrait || !this.textures.exists(portrait.key)) { onDone(); return; }
     // Clear the Pokémon from the field so Hwangeum himself owns the moment: hide
     // the enemy battler (in 3D this also drops its mirrored model), and the next

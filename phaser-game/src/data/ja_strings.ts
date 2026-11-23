@@ -837,6 +837,7 @@ export const JA_SPEAKERS: Record<string, string> = {
   'Team Suri': 'スリ団', 'Team Suri Grunt': 'スリ団のしたっぱ', 'Team Suri Grunt A': 'スリ団のしたっぱA',
   'Team Suri Operative': 'スリ団員', 'Director Suri': 'スリ局長', 'Dir. Suri': 'スリ局長',
   'Commander Ryeo': 'リョ司令官', 'Cmdr Ryeo': 'リョ司令官', 'Admin Chaeyeon': '幹部 チェヨン',
+  '노스단 Scout Garam': 'ノス団 偵察兵 ガラム',
   'Chaeyeon': 'チェヨン', 'Executive Mubaek': '幹部 ムベク', 'Grunt': 'したっぱ',
   'Seorak': 'ソラク', 'Hanseol': 'ハンソル', 'Cheolgang': 'チョルガン', 'Baekho': 'ベクホ',
   'Gyeoul': 'キョウル', 'Hwageum': 'ファグム', 'Saleum': 'サルム',

@@ -176,7 +176,11 @@ class Engine3D {
     for (const child of scene.children?.list ?? []) {
       const obj = child as Phaser.GameObjects.GameObject & {
         scrollFactorX?: number; scrollFactorY?: number; cameraFilter?: number;
+        getData?: (key: string) => unknown;
       };
+      // Battle HUDs and retained trainer portraits are authored screen-space
+      // overlays. They must survive both the first 3D frame and renderer recovery.
+      if (obj.getData?.('battleUi2D')) continue;
       if (obj.scrollFactorX === 0 && obj.scrollFactorY === 0) continue;
       // Leave objects someone else already hid alone, so releasing this
       // guard can never reveal them.

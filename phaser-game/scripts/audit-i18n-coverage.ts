@@ -78,6 +78,14 @@ if (duplicateKoreanMoveNames.length) {
     .map(entry => `${entry.localized} (${entry.keys.join(', ')})`).join('; ')}`);
 }
 if (missingKoreanMoveNames.length) failures.push(`missing Korean move names: ${missingKoreanMoveNames.join(', ')}`);
+if (KO_SPEAKERS['노스단 Scout Garam'] !== '노스단 정찰대 가람'
+  || JA_SPEAKERS['노스단 Scout Garam'] !== 'ノス団 偵察兵 ガラム') {
+  failures.push('Scout Garam trainer name is not localized consistently');
+}
+if (!KO_STRINGS["Let's battle!"]
+  || !KO_STRINGS["You're the one nosing around the Chiefs' business. The valley road is ours tonight — cargo moves north. Turn back, Champion."]) {
+  failures.push('Scout Garam encounter dialogue is not fully localized');
+}
 const i18nSource = readFileSync('src/systems/i18n.ts', 'utf8');
 const menuSource = readFileSync('src/scenes/MenuScene.ts', 'utf8');
 for (const fragment of [

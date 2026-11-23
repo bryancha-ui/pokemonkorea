@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { tr, speakerName } from '../systems/i18n';
 import { playBgm } from '../systems/Music';
 import { vanishesAfterDefeat } from '../data/Villains';
-import { drawTrainerBody, drawRiderBody, playerDesign } from '../data/CharacterSprite';
+import { drawTrainerBody, drawRiderBody, markProceduralCharacter3D, playerDesign } from '../data/CharacterSprite';
 import { hasBike, BIKE_SPEED, isBikeRiding, setBikeRiding } from '../data/Bike';
 import { DialogBox } from '../ui/DialogBox';
 import { SaveManager } from '../utils/SaveManager';
@@ -176,9 +176,23 @@ export class SeoraePassScene extends Phaser.Scene {
       g.fillStyle(0xffcc99); g.fillRect(-6, -22, 12, 12);
       g.fillStyle(0xcc3333); g.fillRect(-7, -23, 14, 5);   // wool cap
       g.fillStyle(0x000000); g.fillRect(-3, -16, 2, 2); g.fillRect(1, -16, 2, 2);
+      // These hand-drawn trainers had no explicit 3D identity. On the 3D-only
+      // snow pass their flat Graphics were removed with the map, but no humanoid
+      // was guaranteed to replace them. Give every pass trainer a winter model;
+      // Yuna is authored as the female skier, the remaining trainers as male.
+      markProceduralCharacter3D(g, {
+        outfit: tr.color,
+        hair: tr.key === 'pass-yuna' ? 0x5b3028 : 0x3a2410,
+        gender: tr.key === 'pass-yuna' ? 'girl' : 'boy',
+        footY: 13,
+        outfitStyle: 'winter',
+        hairStyle: tr.key === 'pass-yuna' ? 'long' : 'short',
+      });
       this.add.text(tr.col * TILE + 16, tr.row * TILE - 12, speakerName(tr.label), {
         fontSize: '8px', color: '#fff', backgroundColor: '#00000088', padding: { x: 2, y: 1 }, align: 'center',
-      }).setOrigin(0.5).setDepth(9).setName(`${tr.key}__label`);
+      }).setOrigin(0.5).setDepth(9).setName(`${tr.key}__label`)
+        .setData('characterLabel3D', true)
+        .setData('characterLabelTarget3D', g);
     }
   }
 

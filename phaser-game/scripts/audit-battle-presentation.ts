@@ -19,6 +19,11 @@ const rivalBattle = readFileSync('src/scenes/RivalBattleScene.ts', 'utf8');
 const trainerBattle = readFileSync('src/scenes/TrainerBattleScene.ts', 'utf8');
 const wildBattle = readFileSync('src/scenes/WildBattleScene.ts', 'utf8');
 const battlePokemonSprite = readFileSync('src/systems/BattlePokemonSprite.ts', 'utf8');
+const battlePortraits = readFileSync('src/data/BattlePortraits.ts', 'utf8');
+const productionUi = readFileSync('src/systems/ProductionUi.ts', 'utf8');
+const engine3d = readFileSync('src/engine3d/index.ts', 'utf8');
+const seoraePass = readFileSync('src/scenes/SeoraePassScene.ts', 'utf8');
+const rangrimMountain = readFileSync('src/scenes/RangrimMountain.ts', 'utf8');
 const pokemonLeague = readFileSync('src/scenes/PokemonLeagueScene.ts', 'utf8');
 const postBattleRewards = readFileSync('src/systems/PostBattleRewards.ts', 'utf8');
 const postBattleRewardScene = readFileSync('src/scenes/PostBattleRewardScene.ts', 'utf8');
@@ -115,6 +120,24 @@ expect(spriteScale('enemy-95') === 2.10
   'Onix lost its requested 1.4× battle enlargement');
 expect(battleMirror.includes("'730': 35"),
   'Primarina lost its three-quarter battle presentation');
+const garamPortraitPath = `public/assets/npc/${'노스단 scout garam.png'.normalize('NFD')}`;
+expect(existsSync(garamPortraitPath)
+  && battlePortraits.includes("'rv-scout':    P('노스단 scout garam.png')")
+  && battlePortraits.includes("file.normalize('NFD')"),
+  'Scout Garam portrait is missing or requested with the wrong Korean filename normalization');
+expect(trainerBattle.includes('prepareTrainerPortrait()')
+  && trainerBattle.includes('const fallback = trainerClassPortrait(this, this.trainerName)')
+  && trainerBattle.includes('this.preparedTrainerPortrait'),
+  'a failed authored trainer portrait can still leave a battle with no trainer visible');
+expect(trainerBattle.includes(".setData('battleUi2D', true)")
+  && productionUi.includes(".setScrollFactor(0).setData('battleUi2D', true)")
+  && engine3d.includes("obj.getData?.('battleUi2D')"),
+  'trainer portraits or Pokémon HP cards can still be hidden by the 3D loading guard');
+expect(seoraePass.includes('markProceduralCharacter3D(g, {')
+  && seoraePass.includes("tr.key === 'pass-yuna' ? 'girl' : 'boy'")
+  && rangrimMountain.includes("this.cfg.key === 'RangrimSnowfieldScene'")
+  && rangrimMountain.includes('markProceduralCharacter3D(g, {'),
+  'snow-field trainers do not have guaranteed visible 3D character replacements');
 expect(battleMirror.includes('chattyscream: 30'),
   'Chatty Scream lost its three-quarter battle presentation');
 expect(/cameraFacingYaw\(cb\.holder\) \+ battleYawOffset/.test(battleMirror),

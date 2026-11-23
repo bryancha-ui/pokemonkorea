@@ -53,6 +53,7 @@ export const KO_SPEAKERS: Record<string, string> = {
   // 어사대 inspectors (Northern Reaches) + 노스단 ranks
   '어사대장 Salmu': '어사대장 살무', '어사대장 Gapcheol': '어사대장 갑철',
   '노스단 Grunt': '노스단 조무래기', '노스단 Admin': '노스단 간부',
+  '노스단 Scout Garam': '노스단 정찰대 가람',
   'Chaeyeon': '채연', 'Executive Mubaek': '간부 무백', 'Forest Elder': '숲 어르신',
   // Dolmoe / Seorae (side cities + gyms)
   'Stonemason': '석공', 'Potter': '옹기장이', 'Child': '아이',
@@ -1219,7 +1220,7 @@ export const KO_STRINGS: Record<string, string> = {
   'Best fishing on the whole Yeoul, right off this bridge. Care to wager a battle on who\'s got the bigger catch?': '여울강 전체에서 제일 낚시가 잘돼, 바로 이 다리 밑이지. 누가 더 큰 걸 낚나 배틀 걸어볼래?',
   'Walked all the way from Songhyeon! My team\'s tougher than it looks, mister!': '송현 시티에서 여기까지 걸어왔어! 우리 팀은 보기보다 강하다고, 아저씨!',
   'I follow the dikes up to the sea and back. Rock-hard legs, rock-hard team. Let\'s go!': '난 둑을 따라 바다까지 올라갔다 돌아와. 바위처럼 단단한 다리, 바위처럼 단단한 팀. 가자!',
-  'You\'re the one nosing around the Chiefs\' business. The valley road is ours tonight — cargo moves north. Turn back, Champion.': '네가 바로 관장님들 일에 코를 들이미는 녀석이군. 오늘 밤 이 골짜기 길은 우리 거야 — 화물이 북쪽으로 간다. 돌아가, 챔피언.',
+  'You\'re the one nosing around the Chiefs\' business. The valley road is ours tonight — cargo moves north. Turn back, Champion.': '간부들의 일에 코를 들이밀고 다니는 게 너로군. 오늘 밤 이 골짜기 길은 우리 것이다 — 화물은 북쪽으로 간다. 돌아가라, 챔피언.',
   'Poongbaek — The Wind': '풍백 — 바람',
   'Woosa — The Rain': '우사 — 비',
   'Woonsa — The Clouds': '운사 — 구름',

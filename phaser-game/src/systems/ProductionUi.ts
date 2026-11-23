@@ -101,27 +101,31 @@ export function createBattleHud(scene: Phaser.Scene, config: BattleHudConfig): B
   const panel = roundedPanel(scene, x, y, width, height, {
     fill: PROD_UI.ink, alpha: 0.9, stroke: accent, radius: 14,
   });
-  panel.setDepth(9);
+  // Battle cards are screen-space UI, never world objects. Marking every part
+  // scroll-factor-zero also keeps it out of the 3D-only loading guard, which
+  // could otherwise leave trainer-battle HP bars camera-filtered after an async
+  // portrait/model load or a WebGL recovery frame.
+  panel.setDepth(90).setScrollFactor(0).setData('battleUi2D', true);
 
   const nameText = scene.add.text(x + 14, y + 11, config.name, {
     fontSize: '15px', color: PROD_UI.text, fontStyle: 'bold',
     fixedWidth: width - 90,
-  }).setDepth(10);
+  }).setDepth(91).setScrollFactor(0).setData('battleUi2D', true);
   const levelText = scene.add.text(x + width - 13, y + 12, `Lv.${config.level}`, {
     fontSize: '13px', color: '#ffe788', fontStyle: 'bold',
-  }).setOrigin(1, 0).setDepth(10);
+  }).setOrigin(1, 0).setDepth(91).setScrollFactor(0).setData('battleUi2D', true);
 
   const hpX = x + 15;
   const hpWidth = width - 30;
   const hpY = y + 43;
   const track = scene.add.rectangle(hpX + hpWidth / 2, hpY, hpWidth + 6, 13, 0x07101c, 0.94)
-    .setStrokeStyle(1, 0xffffff, 0.16).setDepth(10);
+    .setStrokeStyle(1, 0xffffff, 0.16).setDepth(91).setScrollFactor(0).setData('battleUi2D', true);
   const ratio = Phaser.Math.Clamp(config.maxHp > 0 ? config.hp / config.maxHp : 0, 0, 1);
   const hpBar = scene.add.rectangle(hpX, hpY, hpWidth * ratio, 9, hpColor(ratio))
-    .setOrigin(0, 0.5).setDepth(11);
+    .setOrigin(0, 0.5).setDepth(92).setScrollFactor(0).setData('battleUi2D', true);
   const hpText = scene.add.text(x + width - 14, y + 53, `${config.hp}/${config.maxHp}`, {
     fontSize: '10px', color: '#d9e7f4', fontStyle: 'bold',
-  }).setOrigin(1, 0).setDepth(10);
+  }).setOrigin(1, 0).setDepth(91).setScrollFactor(0).setData('battleUi2D', true);
 
   const objects: Phaser.GameObjects.GameObject[] = [panel, nameText, levelText, track, hpBar, hpText];
   const types = config.types.filter(Boolean) as string[];
@@ -132,10 +136,10 @@ export function createBattleHud(scene: Phaser.Scene, config: BattleHudConfig): B
     const chipX = x + 14 + chipW / 2 + index * (chipW + 7);
     const col = type ? (TYPE_COLORS as Record<string, number>)[type] ?? PROD_UI.line : PROD_UI.line;
     const chip = scene.add.rectangle(chipX, y + 75, chipW, 20, col, 0.92)
-      .setStrokeStyle(1, 0xffffff, 0.22).setDepth(10).setVisible(!!type);
+      .setStrokeStyle(1, 0xffffff, 0.22).setDepth(91).setScrollFactor(0).setData('battleUi2D', true).setVisible(!!type);
     const label = scene.add.text(chipX, y + 75, type ? typeName(type) : '', {
       fontSize: '9px', color: '#ffffff', fontStyle: 'bold',
-    }).setOrigin(0.5).setDepth(11).setVisible(!!type);
+    }).setOrigin(0.5).setDepth(92).setScrollFactor(0).setData('battleUi2D', true).setVisible(!!type);
     objects.push(chip, label);
     typeChips.push({ background: chip, label });
   }

@@ -10,7 +10,14 @@ const NPC = 'assets/npc/';
 // encodeURI so filenames with spaces / Korean characters (e.g. "gym trainer Haedo.png",
 // "노스단 courier Cheol.png") load correctly from GitHub Pages. The texture key keeps the
 // human-readable raw name; only the fetched URL is percent-encoded.
-const P = (file: string): Portrait => ({ key: file.replace(/\.\w+$/, ''), url: encodeURI(NPC + file) });
+const P = (file: string): Portrait => ({
+  key: file.replace(/\.\w+$/, ''),
+  // Git preserves macOS Korean filenames in decomposed (NFD) form. Linux web
+  // servers compare URL bytes exactly, so requesting the composed NFC spelling
+  // 404ed even though the portrait was present in the deployment. Match the
+  // vendored filenames deterministically; ASCII filenames are unchanged.
+  url: encodeURI(NPC + file.normalize('NFD')),
+});
 
 export const PORTRAITS: Record<string, Portrait> = {
   // ── Onnuri League — Elite Four + Champion ──
